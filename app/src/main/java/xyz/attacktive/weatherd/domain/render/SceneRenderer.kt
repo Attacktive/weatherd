@@ -429,9 +429,13 @@ class SceneRenderer {
 		return (mixed ushr 8) / 16_777_216f
 	}
 
+	/** Precipitation density breathes ±15% over half-minute swells, so the fall reads as squalls instead of a constant static. */
+	private fun squallFactor(timeSeconds: Float) = 0.85f + 0.15f * (0.6f * sin(timeSeconds * 0.21f) + 0.4f * sin(timeSeconds * 0.53f))
+
 	private fun drawPrecipitation(canvas: Canvas, width: Float, height: Float, precipitation: Precipitation, windFactor: Float, timeSeconds: Float, flash: Float) {
 		val random = Random(PRECIP_SEED)
-		val count = (precipitationBaseCount(precipitation, width, height) * (0.4f + 0.6f * precipitation.observed)).roundToInt()
+		val observedFactor = 0.4f + 0.6f * precipitation.observed
+		val count = (precipitationBaseCount(precipitation, width, height) * observedFactor * squallFactor(timeSeconds)).roundToInt()
 		val heavy = precipitation.severity >= HEAVY_SEVERITY
 
 		when (precipitation.kind) {
@@ -501,6 +505,30 @@ class SceneRenderer {
 		paint.strokeWidth = if (heavy) { 3.2f } else { 2.6f }
 		paint.color = Color.argb(gleam(nearCoreAlpha, flash), 215, 226, 244)
 		canvas.drawLines(points, 0, nearCount * 4, paint)
+
+		// A sparse third pass of standout drops — longer, thicker, brighter, faster — so a shower has texture instead of uniform static.
+		val closeCount = nearCount / 12
+		if (closeCount > 0) {
+			repeat(closeCount) { i ->
+				val length = (46f + random.nextFloat() * 26f) * stretch
+				val travel = random.nextFloat() * height + timeSeconds * 1450f * speed
+				val cycle = (travel / span).toInt()
+				val x = laneFraction(i + CLOSE_DROP_LANE_OFFSET, cycle) * (width + 200f) - 100f
+				val y = travel % span - 60f
+				points[i * 4] = x
+				points[i * 4 + 1] = y
+				points[i * 4 + 2] = x + length * slant
+				points[i * 4 + 3] = y + length
+			}
+
+			paint.strokeWidth = if (heavy) { 9.5f } else { 8f }
+			paint.color = Color.argb(gleam(60, flash), 222, 232, 248)
+			canvas.drawLines(points, 0, closeCount * 4, paint)
+
+			paint.strokeWidth = if (heavy) { 4.2f } else { 3.6f }
+			paint.color = Color.argb(gleam(185, flash), 226, 236, 250)
+			canvas.drawLines(points, 0, closeCount * 4, paint)
+		}
 
 		paint.style = Paint.Style.FILL
 	}
@@ -911,6 +939,9 @@ class SceneRenderer {
 
 		/** Offsets the cycle when hashing a particle's sway phase, so phase and lane draw from different parts of the hash space. */
 		private const val SWAY_PHASE_SALT = 373
+
+		/** Shifts close-drop indices into their own hash namespace so they never mirror a far or near streak's lane. */
+		private const val CLOSE_DROP_LANE_OFFSET = 100_000
 	}
 }
 
