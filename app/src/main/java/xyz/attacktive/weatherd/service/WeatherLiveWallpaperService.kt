@@ -1,6 +1,7 @@
 package xyz.attacktive.weatherd.service
 
 import javax.inject.Inject
+import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -23,6 +24,7 @@ import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
  * is re-derived from the clock. The static backdrop is cached and only rebuilt when the scene actually
  * changes — a weather refresh or a dawn/day/dusk/night flip; the animated foreground is redrawn each vsync
  * via Choreographer and gated on visibility, so it costs nothing while the screen is off or covered.
+ * Scene flips crossfade briefly instead of swapping in one frame.
  */
 @AndroidEntryPoint
 class WeatherLiveWallpaperService: WallpaperService() {
@@ -37,6 +39,8 @@ class WeatherLiveWallpaperService: WallpaperService() {
 
 		private var backdrop: Bitmap? = null
 		private var renderedParams: SceneParams? = null
+		private var previousBackdrop: Bitmap? = null
+		private var fadeStartSeconds = 0f
 		private var activeParams: SceneParams? = null
 		private var paramsComputedAtSecond = 0L
 		private var width = 0
@@ -59,6 +63,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			this.height = height
 			backdrop = null
 			renderedParams = null
+			previousBackdrop = null
 		}
 
 		override fun onSurfaceDestroyed(holder: SurfaceHolder) {
@@ -92,7 +97,14 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			}
 
 			val params = currentParams()
-			val backdrop = backdropFor(params)
+			val outgoing = backdrop
+			val current = backdropFor(params)
+			if (outgoing != null && current !== outgoing) {
+				// The scene flipped: keep the outgoing backdrop around and ease the new scene in over it.
+				previousBackdrop = outgoing
+				fadeStartSeconds = timeSeconds
+			}
+
 			val holder = surfaceHolder
 			var canvas: Canvas? = null
 
@@ -101,14 +113,42 @@ class WeatherLiveWallpaperService: WallpaperService() {
 				// canvas at full resolution can't hold 60fps. Falls back if the surface refuses.
 				canvas = runCatching { holder.lockHardwareCanvas() }.getOrNull() ?: holder.lockCanvas()
 				if (canvas != null) {
-					canvas.drawBitmap(backdrop, 0f, 0f, null)
-					renderer.renderForeground(canvas, width, height, params, timeSeconds)
+					drawScene(canvas, current, params, timeSeconds)
 				}
 			} finally {
 				if (canvas != null) {
 					holder.unlockCanvasAndPost(canvas)
 				}
 			}
+		}
+
+		/** Draws the scene, crossfading from the outgoing backdrop for a moment after a scene flip. */
+		private fun drawScene(canvas: Canvas, backdrop: Bitmap, params: SceneParams, timeSeconds: Float) {
+			val outgoing = previousBackdrop
+			val elapsed = timeSeconds - fadeStartSeconds
+			if (outgoing == null || elapsed < 0f || elapsed >= SCENE_FADE_SECONDS) {
+				previousBackdrop = null
+				canvas.drawBitmap(backdrop, 0f, 0f, null)
+				renderer.renderForeground(canvas, width, height, params, timeSeconds)
+
+				return
+			}
+
+			/*
+			 * A smoothstepped layer alpha eases the incoming scene in over the outgoing backdrop. The extra
+			 * saveLayerAlpha compositing exists only while a fade runs — steady-state rendering never pays
+			 * for it — and it happens to mask the incoming scene's first-frame tile rebuild too.
+			 * A negative elapsed means the fade straddled the clock wrap; the guard above just ends it.
+			 */
+			val linear = elapsed / SCENE_FADE_SECONDS
+			val eased = linear * linear * (3f - 2f * linear)
+			canvas.drawBitmap(outgoing, 0f, 0f, null)
+
+			val alpha = (eased * 255f).roundToInt().coerceIn(0, 255)
+			val saved = canvas.saveLayerAlpha(0f, 0f, width.toFloat(), height.toFloat(), alpha)
+			canvas.drawBitmap(backdrop, 0f, 0f, null)
+			renderer.renderForeground(canvas, width, height, params, timeSeconds)
+			canvas.restoreToCount(saved)
 		}
 
 		/** The scene params, recomputed at most once per second — the day phase can shift, but never per frame. */
@@ -150,3 +190,6 @@ class WeatherLiveWallpaperService: WallpaperService() {
 
 /** Six hours: long enough that the wrap's one discontinuous frame is rare, short enough that timeSeconds never loses sub-frame float precision. */
 private const val CLOCK_WRAP_NANOS = 21_600L * 1_000_000_000L
+
+/** How long a scene flip takes to crossfade — long enough to read as weather moving in, short enough to never lag a glance at the lock screen. */
+private const val SCENE_FADE_SECONDS = 2.8f
