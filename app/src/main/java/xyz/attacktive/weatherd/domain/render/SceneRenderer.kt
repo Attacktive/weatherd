@@ -241,7 +241,7 @@ class SceneRenderer {
 
 	private fun drawCelestialBody(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
 		val centerX = width * 0.72f
-		val centerY = height * celestialHeightFraction(params.dayPhase)
+		val centerY = height * celestialHeightFraction(params.dayPhase, params.celestialProgress)
 		val radius = width * 0.1f
 		val moon = params.dayPhase == DayPhase.NIGHT
 		val core = if (moon) {
@@ -516,8 +516,11 @@ class SceneRenderer {
 		val roll = rollAmplitude * (0.7f * sin(timeSeconds * 0.25f) + 0.3f * sin(timeSeconds * 0.73f))
 		val farOffset = (((timeSeconds * -22f) % width) + width) % width
 		val nearOffset = (timeSeconds * 32f) % width
-		val farAlpha = (100f + 130f * breath).roundToInt()
-		val nearAlpha = (100f + 130f * (1f - breath)).roundToInt()
+
+		// A very slow clearing envelope on top of the breath: the banks thin out for a stretch, then close back in.
+		val clearing = 0.82f + 0.18f * sin(timeSeconds * 0.043f)
+		val farAlpha = ((100f + 130f * breath) * clearing).roundToInt()
+		val nearAlpha = ((100f + 130f * (1f - breath)) * clearing).roundToInt()
 
 		// Both ends are overscanned by the roll amplitude, so the roll never wobbles a hard-clipped tile edge (or a bare gap) into view.
 		blitScrolled(canvas, far, farOffset, width, height + rollAmplitude * 2f, farAlpha, roll - rollAmplitude)
@@ -1125,10 +1128,16 @@ private fun lerp(from: Float, to: Float, fraction: Float) = from + (to - from) *
 
 private fun unlerp(from: Float, to: Float, value: Float) = ((value - from) / (to - from)).coerceIn(0f, 1f)
 
-private fun celestialHeightFraction(dayPhase: DayPhase) = when (dayPhase) {
-	DayPhase.DAY -> 0.2f
-	DayPhase.DAWN -> 0.34f
-	DayPhase.DUSK -> 0.34f
+/**
+ * Where the sun/moon hangs, as a fraction of screen height. The phase progress eases it along a
+ * continuous arc: it climbs through dawn, sweeps a shallow parabola across the day whose ends meet the
+ * twilight heights exactly, and sinks back through dusk — motion on the scale of minutes, so even a
+ * calm clear scene is never a still image.
+ */
+private fun celestialHeightFraction(dayPhase: DayPhase, progress: Float) = when (dayPhase) {
+	DayPhase.DAY -> 0.26f - 0.09f * (4f * progress * (1f - progress))
+	DayPhase.DAWN -> lerp(0.42f, 0.26f, progress)
+	DayPhase.DUSK -> lerp(0.26f, 0.42f, progress)
 	DayPhase.NIGHT -> 0.24f
 }
 

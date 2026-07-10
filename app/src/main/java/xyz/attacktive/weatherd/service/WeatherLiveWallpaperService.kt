@@ -125,19 +125,24 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			}
 		}
 
-		/** The cached static backdrop, re-rasterised only when the scene changes. */
+		/** The cached static backdrop, re-rasterised only when a backdrop-relevant part of the scene changes. */
 		private fun backdropFor(params: SceneParams): Bitmap {
 			val current = backdrop
-			if (current != null && params == renderedParams) {
+			val signature = backdropSignature(params)
+			if (current != null && signature == renderedParams) {
 				return current
 			}
 
 			val fresh = createBitmap(width, height)
 			renderer.renderBackdrop(Canvas(fresh), width, height, params)
 			backdrop = fresh
-			renderedParams = params
+			renderedParams = signature
+
 			return fresh
 		}
+
+		/** The backdrop never draws the moon or the sun's arc, so their slow foreground-only ticks must not force a re-rasterise. */
+		private fun backdropSignature(params: SceneParams) = params.copy(moonPhase = 0f, celestialProgress = 0f)
 
 		private fun nowEpochSeconds() = System.currentTimeMillis() / 1000L
 	}

@@ -5,6 +5,7 @@ import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
 import xyz.attacktive.weatherd.domain.weather.conditionFor
 import xyz.attacktive.weatherd.domain.weather.dayPhaseFor
+import xyz.attacktive.weatherd.domain.weather.dayPhaseProgressFor
 import xyz.attacktive.weatherd.domain.weather.moonPhaseFor
 import xyz.attacktive.weatherd.domain.weather.precipitationIntensity
 
@@ -12,6 +13,8 @@ import xyz.attacktive.weatherd.domain.weather.precipitationIntensity
  * Everything the renderer needs, as orthogonal features rather than a scene taxonomy: lighting phase,
  * continuous cloud cover, fog, what precipitates (if anything), lightning, wind, and the day-quantised
  * synodic moon phase (0 = new, 0.5 = full — the default keeps previews and fallbacks on a full moon).
+ * [celestialProgress] eases the sun/moon along its arc through the current phase; the midpoint default
+ * reproduces the old fixed heights.
  */
 data class SceneParams(
 	val dayPhase: DayPhase,
@@ -20,16 +23,18 @@ data class SceneParams(
 	val precipitation: Precipitation?,
 	val thunder: Boolean,
 	val windFactor: Float,
-	val moonPhase: Float = 0.5f
+	val moonPhase: Float = 0.5f,
+	val celestialProgress: Float = 0.5f
 )
 
 /** Derives render parameters from a weather snapshot for the given moment. */
 fun sceneParamsFor(snapshot: WeatherSnapshot, nowEpochSeconds: Long): SceneParams {
 	val observation = snapshot.observation
 	val condition = conditionFor(observation.weatherCode)
+	val dayPhase = dayPhaseFor(nowEpochSeconds, snapshot.sunriseEpochSeconds, snapshot.sunsetEpochSeconds, observation.isDay)
 
 	return SceneParams(
-		dayPhase = dayPhaseFor(nowEpochSeconds, snapshot.sunriseEpochSeconds, snapshot.sunsetEpochSeconds, observation.isDay),
+		dayPhase = dayPhase,
 		cloudiness = (observation.cloudCoverPercent / 100f).coerceIn(0f, 1f),
 		fogDensity = if (condition.fog) { 1f } else { 0f },
 		precipitation = condition.precipitationKind?.let {
@@ -38,7 +43,8 @@ fun sceneParamsFor(snapshot: WeatherSnapshot, nowEpochSeconds: Long): SceneParam
 		thunder = condition.thunder,
 		windFactor = (observation.windSpeedKilometersPerHour / MAX_WIND_KILOMETERS_PER_HOUR).toFloat()
 			.coerceIn(0f, 1f),
-		moonPhase = moonPhaseFor(nowEpochSeconds)
+		moonPhase = moonPhaseFor(nowEpochSeconds),
+		celestialProgress = dayPhaseProgressFor(nowEpochSeconds, snapshot.sunriseEpochSeconds, snapshot.sunsetEpochSeconds, dayPhase)
 	)
 }
 
