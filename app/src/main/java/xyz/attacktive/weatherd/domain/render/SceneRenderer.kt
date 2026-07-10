@@ -83,7 +83,8 @@ class SceneRenderer {
 		val w = width.toFloat()
 		val h = height.toFloat()
 		val precipKey = params.precipitation?.let { "${it.kind}-${(it.severity * 100f).toInt()}" } ?: "dry"
-		val key = "${width}x$height-${params.dayPhase}-$precipKey-f${(params.fogDensity * 100f).toInt()}-t${params.thunder}-${(params.cloudiness * 100f).toInt()}-${(params.windFactor * 100f).toInt()}"
+		// Wind is deliberately absent from the key: it only shifts blit-time offsets, so a wind jitter in a refresh must not throw away every soft tile.
+		val key = "${width}x$height-${params.dayPhase}-$precipKey-f${(params.fogDensity * 100f).toInt()}-t${params.thunder}-${(params.cloudiness * 100f).toInt()}"
 		if (key != tilesKey) {
 			tiles.clear()
 			tilesKey = key
@@ -169,23 +170,21 @@ class SceneRenderer {
 
 		/*
 		 * Two-sine breathing halo: a slow deep swell with a faster shimmer on top, so the glow visibly
-		 * blooms and recedes instead of subtly wobbling. Two gradient layers deepen the bloom.
+		 * blooms and recedes instead of subtly wobbling. Two blits of one pre-rendered radial sprite deepen
+		 * the bloom — building RadialGradients here churned two shader allocations every frame.
 		 */
+		val halo = tile("celestialHalo", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildHaloSprite(it, core) }
 		val pulse = 0.5f + 0.35f * sin(timeSeconds * 0.8f) + 0.15f * sin(timeSeconds * 2.1f)
 		val glowRadius = radius * (2.2f + 1.1f * pulse)
 		val glowAlpha = (80f + 130f * pulse).roundToInt().coerceIn(0, 255)
-
-		paint.style = Paint.Style.FILL
-		paint.shader = RadialGradient(centerX, centerY, glowRadius, intArrayOf(withAlpha(core, glowAlpha), withAlpha(core, 0)), floatArrayOf(0.28f, 1f), Shader.TileMode.CLAMP)
-		canvas.drawCircle(centerX, centerY, glowRadius, paint)
+		blitSprite(canvas, halo, centerX, centerY, glowRadius, glowAlpha)
 
 		// Wide, faint outer bloom breathing in counter-phase, so something is always in motion.
 		val outerRadius = radius * (3.6f + 0.9f * (1f - pulse))
 		val outerAlpha = (26f + 34f * (1f - pulse)).roundToInt()
-		paint.shader = RadialGradient(centerX, centerY, outerRadius, intArrayOf(withAlpha(core, outerAlpha), withAlpha(core, 0)), floatArrayOf(0.2f, 1f), Shader.TileMode.CLAMP)
-		canvas.drawCircle(centerX, centerY, outerRadius, paint)
+		blitSprite(canvas, halo, centerX, centerY, outerRadius, outerAlpha)
 
-		paint.shader = null
+		paint.style = Paint.Style.FILL
 		paint.color = core
 		canvas.drawCircle(centerX, centerY, radius, paint)
 
@@ -658,6 +657,23 @@ class SceneRenderer {
 		canvas.drawBitmap(sprite, null, spriteDest, spritePaint)
 	}
 
+	/** Blits [sprite] as a square of [radius] around a center at [alpha], restoring the shared paint's opacity afterwards. */
+	private fun blitSprite(canvas: Canvas, sprite: Bitmap, centerX: Float, centerY: Float, radius: Float, alpha: Int) {
+		spritePaint.alpha = alpha.coerceIn(0, 255)
+		spriteDest.set(centerX - radius, centerY - radius, centerX + radius, centerY + radius)
+		canvas.drawBitmap(sprite, null, spriteDest, spritePaint)
+		spritePaint.alpha = 255
+	}
+
+	/** The sun/moon glow rasterised once per scene: a radial falloff from the full-alpha core color, blitted at the breathing size each frame. */
+	private fun buildHaloSprite(canvas: Canvas, core: Int) {
+		val center = HALO_SPRITE_SIZE / 2f
+
+		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
+		brush.shader = RadialGradient(center, center, center, intArrayOf(core, withAlpha(core, 0)), floatArrayOf(0.25f, 1f), Shader.TileMode.CLAMP)
+		canvas.drawCircle(center, center, center, brush)
+	}
+
 	private fun rainBuffer(size: Int): FloatArray {
 		if (rainPoints.size < size) {
 			rainPoints = FloatArray(size)
@@ -692,6 +708,9 @@ class SceneRenderer {
 
 		/** Edge length of the square soft-dot sprites — big enough that even the largest blizzard flake only ever downscales it. */
 		private const val SPRITE_SIZE = 64
+
+		/** Edge length of the celestial halo sprite; the falloff is smooth enough that upscaling to the on-screen glow stays clean. */
+		private const val HALO_SPRITE_SIZE = 256
 
 		/** Fraction of a soft-dot sprite's radius that is solid color before the fade to transparent begins. */
 		private const val DOT_CORE_STOP = 0.5f
