@@ -79,7 +79,10 @@ class WeatherLiveWallpaperService: WallpaperService() {
 				startNanos = frameTimeNanos
 			}
 
-			drawFrame((frameTimeNanos - startNanos) / 1_000_000_000f)
+			// The clock wraps periodically: past days of cumulative visible time, a Float second count's ulp approaches a frame step and the slow scene oscillators would visibly stutter.
+			val elapsedNanos = (frameTimeNanos - startNanos) % CLOCK_WRAP_NANOS
+
+			drawFrame(elapsedNanos / 1_000_000_000f)
 			choreographer.postFrameCallback(this)
 		}
 
@@ -139,3 +142,6 @@ class WeatherLiveWallpaperService: WallpaperService() {
 		private fun nowEpochSeconds() = System.currentTimeMillis() / 1000L
 	}
 }
+
+/** Six hours: long enough that the wrap's one discontinuous frame is rare, short enough that timeSeconds never loses sub-frame float precision. */
+private const val CLOCK_WRAP_NANOS = 21_600L * 1_000_000_000L
