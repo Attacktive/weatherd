@@ -626,20 +626,26 @@ class SceneRenderer {
 	private fun squallFactor(timeSeconds: Float) = 0.85f + 0.15f * (0.6f * sin(timeSeconds * 0.21f) + 0.4f * sin(timeSeconds * 0.53f))
 
 	private fun drawPrecipitation(canvas: Canvas, width: Float, height: Float, precipitation: Precipitation, windFactor: Float, timeSeconds: Float, flash: Float) {
-		val random = Random(PRECIP_SEED)
 		val observedFactor = 0.4f + 0.6f * precipitation.observed
-		val count = (precipitationBaseCount(precipitation, width, height) * observedFactor * squallFactor(timeSeconds)).roundToInt()
+		val count = (precipitationBaseCount(precipitation, width, height) * observedFactor).roundToInt()
+
+		/*
+		 * Only the dim far layers breathe with the squall factor: a particle popping into existence
+		 * mid-fall is a teleport, imperceptible at the far layers' alphas but exactly what the bright
+		 * near layers must never show — so those hold the steady count.
+		 */
+		val squallCount = (count * squallFactor(timeSeconds)).roundToInt()
 		val heavy = precipitation.severity >= HEAVY_SEVERITY
 
 		when (precipitation.kind) {
-			PrecipitationKind.SNOW -> drawSnow(canvas, width, height, count, windFactor, timeSeconds, random, heavy)
-			PrecipitationKind.SLEET -> drawSleet(canvas, width, height, count, windFactor, timeSeconds, random, flash)
-			PrecipitationKind.RAIN -> drawRain(canvas, width, height, count, windFactor, timeSeconds, random, heavy, flash)
+			PrecipitationKind.SNOW -> drawSnow(canvas, width, height, count, squallCount, windFactor, timeSeconds, heavy)
+			PrecipitationKind.SLEET -> drawSleet(canvas, width, height, count, windFactor, timeSeconds, flash)
+			PrecipitationKind.RAIN -> drawRain(canvas, width, height, count, squallCount, windFactor, timeSeconds, heavy, flash)
 		}
 	}
 
 	/** [heavy] turns the shower into a downpour: faster, longer, thicker, more slanted streaks on top of the higher particle count. */
-	private fun drawRain(canvas: Canvas, width: Float, height: Float, count: Int, windFactor: Float, timeSeconds: Float, random: Random, heavy: Boolean, flash: Float) {
+	private fun drawRain(canvas: Canvas, width: Float, height: Float, count: Int, squallCount: Int, windFactor: Float, timeSeconds: Float, heavy: Boolean, flash: Float) {
 		paint.style = Paint.Style.STROKE
 		paint.strokeCap = Paint.Cap.ROUND
 
@@ -651,13 +657,15 @@ class SceneRenderer {
 
 		// Far layer: short, thin, dim streaks that read as distant drizzle, batched into one drawLines call.
 		// Each streak picks a fresh lane per fall cycle, so no drop re-falls one fixed path forever.
-		val span = height + 120f
-		repeat(count) { i ->
-			val length = (10f + random.nextFloat() * 10f) * stretch
-			val travel = random.nextFloat() * height + timeSeconds * 650f * speed
+		// Every layer seeds its own Random: per-particle constants must never depend on another layer's breathing count, or one ±1 tick reshuffles every draw after it and whole layers teleport.
+		val farRandom = Random(PRECIP_SEED)
+		val span = height + RAIN_WRAP_PAD * 2f
+		repeat(squallCount) { i ->
+			val length = (10f + farRandom.nextFloat() * 10f) * stretch
+			val travel = farRandom.nextFloat() * height + timeSeconds * 650f * speed
 			val cycle = (travel / span).toInt()
 			val x = laneFraction(i * 2, cycle) * (width + 200f) - 100f
-			val y = travel % span - 60f
+			val y = travel % span - RAIN_WRAP_PAD
 			points[i * 4] = x
 			points[i * 4 + 1] = y
 			points[i * 4 + 2] = x + length * slant
@@ -668,20 +676,21 @@ class SceneRenderer {
 		// Instead each batch is stroked twice — a wide faint halo under the thin core — so a streak fades out sideways rather than ending in a hard aliased edge.
 		paint.strokeWidth = 5.5f
 		paint.color = Color.argb(gleam(20, flash), 205, 218, 238)
-		canvas.drawLines(points, 0, count * 4, paint)
+		canvas.drawLines(points, 0, squallCount * 4, paint)
 
 		paint.strokeWidth = 2.2f
 		paint.color = Color.argb(gleam(42, flash), 205, 218, 238)
-		canvas.drawLines(points, 0, count * 4, paint)
+		canvas.drawLines(points, 0, squallCount * 4, paint)
 
 		// Near layer: long, bright, sharp streaks in the foreground, reusing the same buffer.
+		val nearRandom = Random(PRECIP_SEED + 1L)
 		val nearCount = count / 2
 		repeat(nearCount) { i ->
-			val length = (30f + random.nextFloat() * 22f) * stretch
-			val travel = random.nextFloat() * height + timeSeconds * 1150f * speed
+			val length = (30f + nearRandom.nextFloat() * 22f) * stretch
+			val travel = nearRandom.nextFloat() * height + timeSeconds * 1150f * speed
 			val cycle = (travel / span).toInt()
 			val x = laneFraction(i * 2 + 1, cycle) * (width + 200f) - 100f
-			val y = travel % span - 60f
+			val y = travel % span - RAIN_WRAP_PAD
 
 			points[i * 4] = x
 			points[i * 4 + 1] = y
@@ -699,25 +708,26 @@ class SceneRenderer {
 		paint.color = Color.argb(gleam(nearCoreAlpha, flash), 215, 226, 244)
 		canvas.drawLines(points, 0, nearCount * 4, paint)
 
-		drawCloseDrops(canvas, width, height, nearCount, span, slant, stretch, speed, timeSeconds, random, heavy, flash)
+		drawCloseDrops(canvas, width, height, nearCount, span, slant, stretch, speed, timeSeconds, heavy, flash)
 
 		paint.style = Paint.Style.FILL
 	}
 
 	/** A sparse pass of standout drops — longer, thicker, brighter and faster than the near layer — so a shower has texture instead of uniform static. */
-	private fun drawCloseDrops(canvas: Canvas, width: Float, height: Float, nearCount: Int, span: Float, slant: Float, stretch: Float, speed: Float, timeSeconds: Float, random: Random, heavy: Boolean, flash: Float) {
+	private fun drawCloseDrops(canvas: Canvas, width: Float, height: Float, nearCount: Int, span: Float, slant: Float, stretch: Float, speed: Float, timeSeconds: Float, heavy: Boolean, flash: Float) {
 		val closeCount = nearCount / 12
 		if (closeCount == 0) {
 			return
 		}
 
+		val random = Random(PRECIP_SEED + 2L)
 		val points = rainBuffer(closeCount * 4)
 		repeat(closeCount) { i ->
 			val length = (46f + random.nextFloat() * 26f) * stretch
 			val travel = random.nextFloat() * height + timeSeconds * 1450f * speed
 			val cycle = (travel / span).toInt()
 			val x = laneFraction(i + CLOSE_DROP_LANE_OFFSET, cycle) * (width + 200f) - 100f
-			val y = travel % span - 60f
+			val y = travel % span - RAIN_WRAP_PAD
 			points[i * 4] = x
 			points[i * 4 + 1] = y
 			points[i * 4 + 2] = x + length * slant
@@ -740,54 +750,58 @@ class SceneRenderer {
 	 * as snowfall, not stars. [heavy] means a blizzard: bigger, faster flakes leaning hard on the wind.
 	 * Flakes are blits of the pre-blurred soft-dot sprites, so they stay smooth in motion instead of shimmering as hard-edged discs.
 	 */
-	private fun drawSnow(canvas: Canvas, width: Float, height: Float, count: Int, windFactor: Float, timeSeconds: Float, random: Random, heavy: Boolean) {
+	private fun drawSnow(canvas: Canvas, width: Float, height: Float, count: Int, squallCount: Int, windFactor: Float, timeSeconds: Float, heavy: Boolean) {
 		val speed = if (heavy) { 1.5f } else { 1f }
 		val size = if (heavy) { 1.35f } else { 1f }
 		val gust = gustFactor(timeSeconds, windFactor)
 
 		// Lane and sway phase re-hash every wrap, and the wrap spans a pad past both edges so soft dots never pop at the border.
+		// Per-layer Randoms and a steady near count keep flakes from teleporting when the squall factor ticks.
 		val span = height + FLAKE_WRAP_PAD * 2f
-		val farCount = count / 2
+		val farRandom = Random(PRECIP_SEED)
 		val farLean = if (heavy) { 43f } else { 20f }
-		repeat(farCount) { i ->
-			val travel = random.nextFloat() * height + timeSeconds * 70f * speed
+		repeat(squallCount / 2) { i ->
+			val travel = farRandom.nextFloat() * height + timeSeconds * 70f * speed
 			val cycle = (travel / span).toInt()
 			val baseX = laneFraction(i * 2, cycle) * width
 			val phase = laneFraction(i * 2, cycle + SWAY_PHASE_SALT) * TAU
 			val y = travel % span - FLAKE_WRAP_PAD
 			val sway = sin(timeSeconds * 0.7f + phase) * (width * 0.02f) + gust * farLean
-			val radius = (random.nextFloat() * 1.4f + 1.2f) * size
+			val radius = (farRandom.nextFloat() * 1.4f + 1.2f) * size
 			drawSoftDot(canvas, farFlakeSprite, baseX + sway, y, radius)
 		}
 
+		val nearRandom = Random(PRECIP_SEED + 1L)
 		val nearLean = if (heavy) { 79f } else { 40f }
-		repeat(count - farCount) { i ->
-			val travel = random.nextFloat() * height + timeSeconds * 165f * speed
+		repeat(count - count / 2) { i ->
+			val travel = nearRandom.nextFloat() * height + timeSeconds * 165f * speed
 			val cycle = (travel / span).toInt()
 			val baseX = laneFraction(i * 2 + 1, cycle) * width
 			val phase = laneFraction(i * 2 + 1, cycle + SWAY_PHASE_SALT) * TAU
 			val y = travel % span - FLAKE_WRAP_PAD
 			val sway = sin(timeSeconds * 1.1f + phase) * (width * 0.045f) + gust * nearLean
-			val radius = (random.nextFloat() * 3.2f + 2.6f) * size
+			val radius = (nearRandom.nextFloat() * 3.2f + 2.6f) * size
 			drawSoftDot(canvas, nearFlakeSprite, baseX + sway, y, radius)
 		}
 	}
 
 	/** Sleet: a wintry rain/snow mix — short, sharp icy streaks interleaved with small tumbling pellets. */
-	private fun drawSleet(canvas: Canvas, width: Float, height: Float, count: Int, windFactor: Float, timeSeconds: Float, random: Random, flash: Float) {
+	private fun drawSleet(canvas: Canvas, width: Float, height: Float, count: Int, windFactor: Float, timeSeconds: Float, flash: Float) {
 		// Streaks: shorter and more vertical than rain, tinted cold, falling slower than a downpour.
+		// Sleet skips squall breathing entirely; both its layers are bright enough that a mid-fall pop would show.
 		paint.style = Paint.Style.STROKE
 		paint.strokeCap = Paint.Cap.ROUND
 
 		val gust = gustFactor(timeSeconds, windFactor)
 		val slant = 0.1f + gust * 0.43f
 		val streakCount = count * 2 / 3
+		val streakRandom = Random(PRECIP_SEED)
 		val points = rainBuffer(streakCount * 4)
 
 		val span = height + 120f
 		repeat(streakCount) { i ->
-			val length = 14f + random.nextFloat() * 12f
-			val travel = random.nextFloat() * height + timeSeconds * 820f
+			val length = 14f + streakRandom.nextFloat() * 12f
+			val travel = streakRandom.nextFloat() * height + timeSeconds * 820f
 			val cycle = (travel / span).toInt()
 			val x = laneFraction(i * 2, cycle) * (width + 200f) - 100f
 			val y = travel % span - 60f
@@ -810,15 +824,16 @@ class SceneRenderer {
 
 		// Pellets: small icy grains tumbling between the streaks — faster and stiffer than snowflakes.
 		val pelletCount = count / 2
+		val pelletRandom = Random(PRECIP_SEED + 1L)
 		val pelletSpan = height + FLAKE_WRAP_PAD * 2f
 		repeat(pelletCount) { i ->
-			val travel = random.nextFloat() * height + timeSeconds * 240f
+			val travel = pelletRandom.nextFloat() * height + timeSeconds * 240f
 			val cycle = (travel / pelletSpan).toInt()
 			val baseX = laneFraction(i * 2 + 1, cycle) * width
 			val phase = laneFraction(i * 2 + 1, cycle + SWAY_PHASE_SALT) * TAU
 			val y = travel % pelletSpan - FLAKE_WRAP_PAD
 			val sway = sin(timeSeconds * 1.6f + phase) * (width * 0.012f) + gust * 23f
-			val radius = random.nextFloat() * 1.6f + 1.2f
+			val radius = pelletRandom.nextFloat() * 1.6f + 1.2f
 			drawSoftDot(canvas, pelletSprite, baseX + sway, y, radius)
 		}
 	}
@@ -1164,6 +1179,9 @@ class SceneRenderer {
 
 		/** Soft dots wrap this far past both screen edges, so their halos never pop in or out at the border. */
 		private const val FLAKE_WRAP_PAD = 32f
+
+		/** Rain streaks wrap this far past both screen edges — longer than the longest close drop in a downpour, so a re-laned streak's tip can never flash at the top edge. */
+		private const val RAIN_WRAP_PAD = 120f
 
 		/** Offsets the cycle when hashing a particle's sway phase, so phase and lane draw from different parts of the hash space. */
 		private const val SWAY_PHASE_SALT = 373
