@@ -256,13 +256,17 @@ class SceneRenderer {
 		/*
 		 * Layers scroll at clearly different speeds, bob vertically in counter-phase, and the front layer's
 		 * opacity swells and fades — together the deck visibly churns rather than sliding as one sheet.
+		 * Bob and swell each sum two incommensurate sines so the churn never repeats on a visible period,
+		 * and gusts surge the whole deck forward and back as a bounded displacement on the constant scroll.
 		 * Each layer's top is overscanned past the screen edge by its own bob amplitude, so the bob never wobbles the tile's hard-clipped top edge into view.
 		 */
 		val bobAmplitude = height * 0.022f
-		val bob = sin(timeSeconds * 0.4f) * bobAmplitude
-		val frontAlpha = (200f + 55f * sin(timeSeconds * 0.55f)).roundToInt()
-		val backOffset = (timeSeconds * (14f + params.windFactor * 18f)) % width
-		val frontOffset = (timeSeconds * (38f + params.windFactor * 48f)) % width
+		val bob = bobAmplitude * (0.65f * sin(timeSeconds * 0.4f) + 0.35f * sin(timeSeconds * 1.07f))
+		val frontAlpha = (200f + 55f * (0.7f * sin(timeSeconds * 0.55f) + 0.3f * sin(timeSeconds * 1.31f))).roundToInt()
+		val surge = width * 0.012f * params.windFactor
+		val drift = surge * (0.6f * sin(timeSeconds * 0.19f) + 0.4f * sin(timeSeconds * 0.47f))
+		val backOffset = wrapOffset(timeSeconds * (14f + params.windFactor * 18f) + drift, width)
+		val frontOffset = wrapOffset(timeSeconds * (38f + params.windFactor * 48f) + drift * 1.8f, width)
 		blitScrolled(canvas, back, backOffset, width, destHeight + bobAmplitude, 255, bob - bobAmplitude)
 		blitScrolled(canvas, front, frontOffset, width, destHeight + bobAmplitude * 1.5f, frontAlpha, -bob * 1.5f - bobAmplitude * 1.5f)
 	}
@@ -278,7 +282,10 @@ class SceneRenderer {
 			buildScatteredTile(it, tileWidth.toFloat(), tileHeight.toFloat(), params, cloudColor)
 		}
 
-		val offset = (timeSeconds * (20f + params.windFactor * 34f)) % width
+		// The same bounded gust surge as the deck, so fair-weather puffs answer to the one wind too.
+		val surge = width * 0.01f * params.windFactor
+		val drift = surge * (0.6f * sin(timeSeconds * 0.19f) + 0.4f * sin(timeSeconds * 0.47f))
+		val offset = wrapOffset(timeSeconds * (20f + params.windFactor * 34f) + drift, width)
 		blitScrolled(canvas, cloud, offset, width, destHeight, 255)
 	}
 
@@ -371,9 +378,9 @@ class SceneRenderer {
 		 * this soft — with counter-phased opacity breathing and a slow vertical roll on top, so banks of
 		 * mist visibly slide past each other, thicken, and thin.
 		 */
-		val breath = 0.5f + 0.5f * sin(timeSeconds * 0.45f)
+		val breath = 0.5f + 0.5f * (0.7f * sin(timeSeconds * 0.45f) + 0.3f * sin(timeSeconds * 1.13f))
 		val rollAmplitude = height * 0.03f
-		val roll = sin(timeSeconds * 0.25f) * rollAmplitude
+		val roll = rollAmplitude * (0.7f * sin(timeSeconds * 0.25f) + 0.3f * sin(timeSeconds * 0.73f))
 		val farOffset = (((timeSeconds * -22f) % width) + width) % width
 		val nearOffset = (timeSeconds * 32f) % width
 		val farAlpha = (100f + 130f * breath).roundToInt()
@@ -383,6 +390,16 @@ class SceneRenderer {
 		blitScrolled(canvas, far, farOffset, width, height + rollAmplitude * 2f, farAlpha, roll - rollAmplitude)
 		blitScrolled(canvas, near, nearOffset, width, height + rollAmplitude * 2f, nearAlpha, -roll - rollAmplitude)
 	}
+
+	/**
+	 * The shared wind signal: windFactor scaled by two incommensurate sines, so every wind-driven layer
+	 * leans and eases together in gusts instead of holding one constant slant. Only amplitudes modulate —
+	 * a frequency or velocity change multiplied by a large timeSeconds teleports whatever it drives.
+	 */
+	private fun gustFactor(timeSeconds: Float, windFactor: Float) = windFactor * (0.7f + 0.21f * sin(timeSeconds * 0.23f) + 0.09f * sin(timeSeconds * 0.67f))
+
+	/** Positive modulo for scroll offsets, so a gust displacement can swing them briefly negative without breaking the wrap. */
+	private fun wrapOffset(offset: Float, width: Float) = ((offset % width) + width) % width
 
 	private fun drawPrecipitation(canvas: Canvas, width: Float, height: Float, precipitation: Precipitation, windFactor: Float, timeSeconds: Float, flash: Float) {
 		val random = Random(PRECIP_SEED)
@@ -404,7 +421,7 @@ class SceneRenderer {
 		val slantBase = if (heavy) { 0.26f } else { 0.16f }
 		val speed = if (heavy) { 1.4f } else { 1f }
 		val stretch = if (heavy) { 1.5f } else { 1f }
-		val slant = slantBase + windFactor * 0.5f
+		val slant = slantBase + gustFactor(timeSeconds, windFactor) * 0.71f
 		val points = rainBuffer(count * 4)
 
 		// Far layer: short, thin, dim streaks that read as distant drizzle, batched into one drawLines call.
@@ -460,24 +477,27 @@ class SceneRenderer {
 	 * Flakes are blits of the pre-blurred soft-dot sprites, so they stay smooth in motion instead of shimmering as hard-edged discs.
 	 */
 	private fun drawSnow(canvas: Canvas, width: Float, height: Float, count: Int, windFactor: Float, timeSeconds: Float, random: Random, heavy: Boolean) {
-		val speed = if (heavy) 1.5f else 1f
-		val size = if (heavy) 1.35f else 1f
+		val speed = if (heavy) { 1.5f } else { 1f }
+		val size = if (heavy) { 1.35f } else { 1f }
+		val gust = gustFactor(timeSeconds, windFactor)
 
 		val farCount = count / 2
+		val farLean = if (heavy) { 43f } else { 20f }
 		repeat(farCount) {
 			val baseX = random.nextFloat() * width
 			val phase = random.nextFloat() * TAU
 			val y = (random.nextFloat() * height + timeSeconds * 70f * speed) % height
-			val sway = sin(timeSeconds * 0.7f + phase) * (width * 0.02f) + windFactor * (if (heavy) 30f else 14f)
+			val sway = sin(timeSeconds * 0.7f + phase) * (width * 0.02f) + gust * farLean
 			val radius = (random.nextFloat() * 1.4f + 1.2f) * size
 			drawSoftDot(canvas, farFlakeSprite, baseX + sway, y, radius)
 		}
 
+		val nearLean = if (heavy) { 79f } else { 40f }
 		repeat(count - farCount) {
 			val baseX = random.nextFloat() * width
 			val phase = random.nextFloat() * TAU
 			val y = (random.nextFloat() * height + timeSeconds * 165f * speed) % height
-			val sway = sin(timeSeconds * 1.1f + phase) * (width * 0.045f) + windFactor * (if (heavy) 55f else 28f)
+			val sway = sin(timeSeconds * 1.1f + phase) * (width * 0.045f) + gust * nearLean
 			val radius = (random.nextFloat() * 3.2f + 2.6f) * size
 			drawSoftDot(canvas, nearFlakeSprite, baseX + sway, y, radius)
 		}
@@ -488,7 +508,9 @@ class SceneRenderer {
 		// Streaks: shorter and more vertical than rain, tinted cold, falling slower than a downpour.
 		paint.style = Paint.Style.STROKE
 		paint.strokeCap = Paint.Cap.ROUND
-		val slant = 0.1f + windFactor * 0.3f
+
+		val gust = gustFactor(timeSeconds, windFactor)
+		val slant = 0.1f + gust * 0.43f
 		val streakCount = count * 2 / 3
 		val points = rainBuffer(streakCount * 4)
 
@@ -519,7 +541,7 @@ class SceneRenderer {
 			val baseX = random.nextFloat() * width
 			val phase = random.nextFloat() * TAU
 			val y = (random.nextFloat() * height + timeSeconds * 240f) % height
-			val sway = sin(timeSeconds * 1.6f + phase) * (width * 0.012f) + windFactor * 16f
+			val sway = sin(timeSeconds * 1.6f + phase) * (width * 0.012f) + gust * 23f
 			val radius = random.nextFloat() * 1.6f + 1.2f
 			drawSoftDot(canvas, pelletSprite, baseX + sway, y, radius)
 		}
