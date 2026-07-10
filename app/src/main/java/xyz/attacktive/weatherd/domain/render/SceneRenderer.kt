@@ -42,6 +42,12 @@ class SceneRenderer {
 	private val spritePaint = Paint(Paint.FILTER_BITMAP_FLAG)
 	private val spriteDest = RectF()
 
+	// Per-frame lightning state, recomputed by [updateLightning] before anything that reacts to a flash draws.
+	private var flashWash = 0f
+	private var flashBolt = 0f
+	private var flashSheet = false
+	private var flashSlot = 0
+
 	/*
 	 * Soft-dot sprites for snowflakes and sleet pellets: the softness is rasterised once here, and every frame just blits them as filtered quads.
 	 * A hard 1–3px disc shimmers against the pixel grid while it falls; a blurry sprite scaled bilinearly stays smooth at any size.
@@ -110,12 +116,19 @@ class SceneRenderer {
 			drawFogDrift(canvas, w, h, timeSeconds)
 		}
 
+		if (params.thunder) {
+			updateLightning(timeSeconds)
+		} else {
+			flashWash = 0f
+			flashBolt = 0f
+		}
+
 		if (params.precipitation != null) {
-			drawPrecipitation(canvas, w, h, params.precipitation, params.windFactor, timeSeconds)
+			drawPrecipitation(canvas, w, h, params.precipitation, params.windFactor, timeSeconds, flashWash)
 		}
 
 		if (params.thunder) {
-			drawLightning(canvas, w, h, timeSeconds)
+			drawLightning(canvas, w, h)
 		}
 	}
 
@@ -371,25 +384,27 @@ class SceneRenderer {
 		blitScrolled(canvas, near, nearOffset, width, height + rollAmplitude * 2f, nearAlpha, -roll - rollAmplitude)
 	}
 
-	private fun drawPrecipitation(canvas: Canvas, width: Float, height: Float, precipitation: Precipitation, windFactor: Float, timeSeconds: Float) {
+	private fun drawPrecipitation(canvas: Canvas, width: Float, height: Float, precipitation: Precipitation, windFactor: Float, timeSeconds: Float, flash: Float) {
 		val random = Random(PRECIP_SEED)
 		val count = (precipitationBaseCount(precipitation, width, height) * (0.4f + 0.6f * precipitation.observed)).roundToInt()
 		val heavy = precipitation.severity >= HEAVY_SEVERITY
 
 		when (precipitation.kind) {
 			PrecipitationKind.SNOW -> drawSnow(canvas, width, height, count, windFactor, timeSeconds, random, heavy)
-			PrecipitationKind.SLEET -> drawSleet(canvas, width, height, count, windFactor, timeSeconds, random)
-			PrecipitationKind.RAIN -> drawRain(canvas, width, height, count, windFactor, timeSeconds, random, heavy)
+			PrecipitationKind.SLEET -> drawSleet(canvas, width, height, count, windFactor, timeSeconds, random, flash)
+			PrecipitationKind.RAIN -> drawRain(canvas, width, height, count, windFactor, timeSeconds, random, heavy, flash)
 		}
 	}
 
 	/** [heavy] turns the shower into a downpour: faster, longer, thicker, more slanted streaks on top of the higher particle count. */
-	private fun drawRain(canvas: Canvas, width: Float, height: Float, count: Int, windFactor: Float, timeSeconds: Float, random: Random, heavy: Boolean) {
+	private fun drawRain(canvas: Canvas, width: Float, height: Float, count: Int, windFactor: Float, timeSeconds: Float, random: Random, heavy: Boolean, flash: Float) {
 		paint.style = Paint.Style.STROKE
 		paint.strokeCap = Paint.Cap.ROUND
-		val slant = (if (heavy) 0.26f else 0.16f) + windFactor * 0.5f
-		val speed = if (heavy) 1.4f else 1f
-		val stretch = if (heavy) 1.5f else 1f
+
+		val slantBase = if (heavy) { 0.26f } else { 0.16f }
+		val speed = if (heavy) { 1.4f } else { 1f }
+		val stretch = if (heavy) { 1.5f } else { 1f }
+		val slant = slantBase + windFactor * 0.5f
 		val points = rainBuffer(count * 4)
 
 		// Far layer: short, thin, dim streaks that read as distant drizzle, batched into one drawLines call.
@@ -406,11 +421,11 @@ class SceneRenderer {
 		// No blur here: a per-frame BlurMaskFilter over hundreds of segments is what froze rain scenes.
 		// Instead each batch is stroked twice — a wide faint halo under the thin core — so a streak fades out sideways rather than ending in a hard aliased edge.
 		paint.strokeWidth = 5.5f
-		paint.color = Color.argb(20, 205, 218, 238)
+		paint.color = Color.argb(gleam(20, flash), 205, 218, 238)
 		canvas.drawLines(points, 0, count * 4, paint)
 
 		paint.strokeWidth = 2.2f
-		paint.color = Color.argb(42, 205, 218, 238)
+		paint.color = Color.argb(gleam(42, flash), 205, 218, 238)
 		canvas.drawLines(points, 0, count * 4, paint)
 
 		// Near layer: long, bright, sharp streaks in the foreground, reusing the same buffer.
@@ -426,12 +441,14 @@ class SceneRenderer {
 			points[i * 4 + 3] = y + length
 		}
 
-		paint.strokeWidth = if (heavy) 8f else 6.5f
-		paint.color = Color.argb(if (heavy) 55 else 45, 215, 226, 244)
+		val nearHaloAlpha = if (heavy) { 55 } else { 45 }
+		paint.strokeWidth = if (heavy) { 8f } else { 6.5f }
+		paint.color = Color.argb(gleam(nearHaloAlpha, flash), 215, 226, 244)
 		canvas.drawLines(points, 0, nearCount * 4, paint)
 
-		paint.strokeWidth = if (heavy) 3.2f else 2.6f
-		paint.color = Color.argb(if (heavy) 145 else 120, 215, 226, 244)
+		val nearCoreAlpha = if (heavy) { 145 } else { 120 }
+		paint.strokeWidth = if (heavy) { 3.2f } else { 2.6f }
+		paint.color = Color.argb(gleam(nearCoreAlpha, flash), 215, 226, 244)
 		canvas.drawLines(points, 0, nearCount * 4, paint)
 
 		paint.style = Paint.Style.FILL
@@ -467,7 +484,7 @@ class SceneRenderer {
 	}
 
 	/** Sleet: a wintry rain/snow mix — short, sharp icy streaks interleaved with small tumbling pellets. */
-	private fun drawSleet(canvas: Canvas, width: Float, height: Float, count: Int, windFactor: Float, timeSeconds: Float, random: Random) {
+	private fun drawSleet(canvas: Canvas, width: Float, height: Float, count: Int, windFactor: Float, timeSeconds: Float, random: Random, flash: Float) {
 		// Streaks: shorter and more vertical than rain, tinted cold, falling slower than a downpour.
 		paint.style = Paint.Style.STROKE
 		paint.strokeCap = Paint.Cap.ROUND
@@ -487,11 +504,11 @@ class SceneRenderer {
 
 		// The same halo-under-core double stroke as rain, so the icy streaks stay soft-edged too.
 		paint.strokeWidth = 5.5f
-		paint.color = Color.argb(38, 214, 228, 240)
+		paint.color = Color.argb(gleam(38, flash), 214, 228, 240)
 		canvas.drawLines(points, 0, streakCount * 4, paint)
 
 		paint.strokeWidth = 2.2f
-		paint.color = Color.argb(118, 214, 228, 240)
+		paint.color = Color.argb(gleam(118, flash), 214, 228, 240)
 		canvas.drawLines(points, 0, streakCount * 4, paint)
 
 		paint.style = Paint.Style.FILL
@@ -508,20 +525,114 @@ class SceneRenderer {
 		}
 	}
 
-	private fun drawLightning(canvas: Canvas, width: Float, height: Float, timeSeconds: Float) {
-		val phaseInCycle = timeSeconds % STRIKE_CYCLE
-		if (phaseInCycle > FLASH_DURATION) {
+	/**
+	 * Advances the lightning schedule for this frame. Strikes live in fixed slots but fire at a per-slot
+	 * random moment, sometimes twice, sometimes not at all — so the storm never keeps a beat. Roughly 60%
+	 * are sheet strikes: no bolt, just the deck lighting up from inside. Everything derives from
+	 * [timeSeconds] and the slot seed, so the schedule stays a pure function of time.
+	 */
+	private fun updateLightning(timeSeconds: Float) {
+		flashWash = 0f
+		flashBolt = 0f
+		flashSlot = (timeSeconds / STRIKE_SLOT_SECONDS).toInt()
+
+		val random = Random(BOLT_SEED + flashSlot)
+		val quiet = random.nextFloat() < 0.2f
+		if (quiet) {
 			return
 		}
 
-		// One strike per cycle: a seeded bolt that flickers and fades, so most frames show no bolt at all.
-		val t = phaseInCycle / FLASH_DURATION
-		val intensity = ((1f - t) * (0.7f + 0.3f * sin(t * 40f))).coerceIn(0f, 1f)
-		val random = Random(BOLT_SEED + (timeSeconds / STRIKE_CYCLE).toInt())
+		flashSheet = random.nextFloat() < 0.6f
+		val strikeWindow = STRIKE_SLOT_SECONDS - SHEET_DURATION - ECHO_DELAY - AFTERGLOW_SECONDS
+		val strikeAt = random.nextFloat() * strikeWindow
+		val local = timeSeconds - flashSlot * STRIKE_SLOT_SECONDS - strikeAt
 
+		val strike = coreFlash(local, flashSheet)
+		val echoes = random.nextFloat() < 0.25f
+		val echo = if (echoes) {
+			coreFlash(local - ECHO_DELAY, flashSheet) * 0.6f
+		} else {
+			0f
+		}
+
+		flashWash = maxOf(strike, echo, afterglow(local, flashSheet))
+		flashBolt = if (flashSheet) {
+			0f
+		} else {
+			maxOf(strike, echo)
+		}
+	}
+
+	/** The flash's brightness through its core lifetime: a decaying hard flicker for bolts, a slower swell for sheet strikes. */
+	private fun coreFlash(local: Float, sheet: Boolean): Float {
+		val duration = if (sheet) {
+			SHEET_DURATION
+		} else {
+			FLASH_DURATION
+		}
+
+		if (local < 0f || local > duration) {
+			return 0f
+		}
+
+		val t = local / duration
+
+		return if (sheet) {
+			(sin(t * PI_F) * (0.85f + 0.15f * sin(t * 31f))).coerceIn(0f, 1f)
+		} else {
+			((1f - t) * (0.7f + 0.3f * sin(t * 40f))).coerceIn(0f, 1f)
+		}
+	}
+
+	/** A faint lingering wash after the flash dies, so a strike fades out of the sky instead of snapping off. */
+	private fun afterglow(local: Float, sheet: Boolean): Float {
+		val duration = if (sheet) {
+			SHEET_DURATION
+		} else {
+			FLASH_DURATION
+		}
+
+		val tail = (local - duration) / AFTERGLOW_SECONDS
+
+		return if (tail in 0f..1f) {
+			AFTERGLOW_PEAK * (1f - tail)
+		} else {
+			0f
+		}
+	}
+
+	/** Streak alpha lifted while lightning washes the scene — rain genuinely glints in a flash. */
+	private fun gleam(alpha: Int, flash: Float) = (alpha * (1f + 0.8f * flash)).roundToInt().coerceAtMost(255)
+
+	private fun drawLightning(canvas: Canvas, width: Float, height: Float) {
+		if (flashWash <= 0.01f) {
+			return
+		}
+
+		// Geometry gets its own seed stride so it never replays the schedule draws consumed in [updateLightning].
+		val random = Random((BOLT_SEED + flashSlot) * GEOMETRY_SEED_STRIDE)
 		paint.style = Paint.Style.FILL
-		paint.color = Color.argb((95f * intensity).roundToInt(), 255, 255, 255)
+
+		if (flashSheet) {
+			// The distant strike: a soft wash plus a broad glow low in the deck, as if a cloud lit up from within.
+			paint.color = Color.argb((30f * flashWash).roundToInt(), 236, 238, 255)
+			canvas.drawRect(0f, 0f, width, height, paint)
+
+			val glow = tile("sheetGlow", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildHaloSprite(it, Color.rgb(226, 228, 252)) }
+			val glowX = width * (0.2f + random.nextFloat() * 0.6f)
+			val glowY = height * (0.1f + random.nextFloat() * 0.15f)
+			val glowRadius = width * (0.5f + random.nextFloat() * 0.25f)
+			blitSprite(canvas, glow, glowX, glowY, glowRadius, (170f * flashWash).roundToInt())
+
+			return
+		}
+
+		paint.color = Color.argb((95f * flashWash).roundToInt(), 255, 255, 255)
 		canvas.drawRect(0f, 0f, width, height, paint)
+
+		if (flashBolt <= 0.01f) {
+			return
+		}
 
 		var x = width * (0.3f + random.nextFloat() * 0.4f)
 		var y = 0f
@@ -559,19 +670,19 @@ class SceneRenderer {
 		paint.strokeCap = Paint.Cap.ROUND
 		paint.strokeJoin = Paint.Join.ROUND
 		paint.strokeWidth = 14f
-		paint.color = Color.argb((110f * intensity).roundToInt(), 255, 244, 200)
+		paint.color = Color.argb((110f * flashBolt).roundToInt(), 255, 244, 200)
 		canvas.drawPath(boltPath, paint)
 
 		paint.strokeWidth = 8f
-		paint.color = Color.argb((80f * intensity).roundToInt(), 255, 244, 200)
+		paint.color = Color.argb((80f * flashBolt).roundToInt(), 255, 244, 200)
 		canvas.drawPath(forkPath, paint)
 
 		paint.strokeWidth = 5f
-		paint.color = Color.argb((255f * intensity).roundToInt(), 255, 253, 235)
+		paint.color = Color.argb((255f * flashBolt).roundToInt(), 255, 253, 235)
 		canvas.drawPath(boltPath, paint)
 
 		paint.strokeWidth = 3f
-		paint.color = Color.argb((210f * intensity).roundToInt(), 255, 253, 235)
+		paint.color = Color.argb((210f * flashBolt).roundToInt(), 255, 253, 235)
 		canvas.drawPath(forkPath, paint)
 
 		paint.style = Paint.Style.FILL
@@ -689,9 +800,21 @@ class SceneRenderer {
 		private const val BOLT_SEED = 5L
 		private const val STAR_AREA_PER_STAR = 22_000f
 		private const val BOLT_STEPS = 6
-		private const val STRIKE_CYCLE = 2.8f
+
+		/** Length of one lightning scheduling slot; each slot hosts at most one strike, fired at a random moment within it. */
+		private const val STRIKE_SLOT_SECONDS = 4.6f
+
 		private const val FLASH_DURATION = 0.45f
+		private const val SHEET_DURATION = 0.8f
+		private const val ECHO_DELAY = 0.55f
+		private const val AFTERGLOW_SECONDS = 0.5f
+		private const val AFTERGLOW_PEAK = 0.12f
+
+		/** Multiplies the slot seed for bolt/glow geometry, so geometry never replays the schedule's random draws. */
+		private const val GEOMETRY_SEED_STRIDE = 1_000_003L
+
 		private const val TAU = 6.2831855f
+		private const val PI_F = 3.1415927f
 
 		/**
 		 * Soft cloud/fog tiles are built at a quarter of the surface resolution and stretched at blit time —
