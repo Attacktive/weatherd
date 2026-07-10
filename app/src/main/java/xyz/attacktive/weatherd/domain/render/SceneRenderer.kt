@@ -160,7 +160,16 @@ class SceneRenderer {
 			val baseAlpha = random.nextFloat() * 150f + 80f
 			val phase = random.nextFloat() * TAU
 			val bright = random.nextFloat() < 0.14f
-			val twinkle = 0.55f + 0.45f * sin(timeSeconds * 2.2f + phase)
+
+			// Every star used to twinkle at one shared 2.2 rad/s — synchronized twinkle reads as a screensaver. Each now has its own rate, and the bright ones breathe slowly instead of flickering.
+			val frequency = 1.4f + random.nextFloat() * 1.7f
+			val rate = if (bright) {
+				frequency * 0.45f
+			} else {
+				frequency
+			}
+
+			val twinkle = 0.55f + 0.45f * sin(timeSeconds * rate + phase)
 			val alpha = (baseAlpha * twinkle).roundToInt().coerceIn(0, 255)
 
 			// A handful of standout stars get a cool-blue glint halo so the sky isn't uniform pinpricks.
@@ -169,8 +178,14 @@ class SceneRenderer {
 				canvas.drawCircle(x, y, radius * 3.2f, paint)
 			}
 
+			val coreRadius = if (bright) {
+				radius * 1.35f
+			} else {
+				radius
+			}
+
 			paint.color = Color.argb(alpha, 255, 255, 255)
-			canvas.drawCircle(x, y, if (bright) radius * 1.35f else radius, paint)
+			canvas.drawCircle(x, y, coreRadius, paint)
 		}
 	}
 
@@ -401,6 +416,19 @@ class SceneRenderer {
 	/** Positive modulo for scroll offsets, so a gust displacement can swing them briefly negative without breaking the wrap. */
 	private fun wrapOffset(offset: Float, width: Float) = ((offset % width) + width) % width
 
+	/**
+	 * A cheap hash of particle index and fall cycle onto 0..1, so every particle re-enters on a fresh lane
+	 * each time it wraps instead of re-falling one path forever. Pure arithmetic — no allocation, no RNG
+	 * state — so particle motion stays a pure function of time.
+	 */
+	private fun laneFraction(index: Int, cycle: Int): Float {
+		var mixed = index * 374_761_393 + cycle * 668_265_263
+		mixed = (mixed xor (mixed ushr 13)) * 1_274_126_177
+		mixed = mixed xor (mixed ushr 16)
+
+		return (mixed ushr 8) / 16_777_216f
+	}
+
 	private fun drawPrecipitation(canvas: Canvas, width: Float, height: Float, precipitation: Precipitation, windFactor: Float, timeSeconds: Float, flash: Float) {
 		val random = Random(PRECIP_SEED)
 		val count = (precipitationBaseCount(precipitation, width, height) * (0.4f + 0.6f * precipitation.observed)).roundToInt()
@@ -425,10 +453,14 @@ class SceneRenderer {
 		val points = rainBuffer(count * 4)
 
 		// Far layer: short, thin, dim streaks that read as distant drizzle, batched into one drawLines call.
+		// Each streak picks a fresh lane per fall cycle, so no drop re-falls one fixed path forever.
+		val span = height + 120f
 		repeat(count) { i ->
-			val x = random.nextFloat() * (width + 200f) - 100f
 			val length = (10f + random.nextFloat() * 10f) * stretch
-			val y = (random.nextFloat() * height + timeSeconds * 650f * speed) % (height + 120f) - 60f
+			val travel = random.nextFloat() * height + timeSeconds * 650f * speed
+			val cycle = (travel / span).toInt()
+			val x = laneFraction(i * 2, cycle) * (width + 200f) - 100f
+			val y = travel % span - 60f
 			points[i * 4] = x
 			points[i * 4 + 1] = y
 			points[i * 4 + 2] = x + length * slant
@@ -448,9 +480,11 @@ class SceneRenderer {
 		// Near layer: long, bright, sharp streaks in the foreground, reusing the same buffer.
 		val nearCount = count / 2
 		repeat(nearCount) { i ->
-			val x = random.nextFloat() * (width + 200f) - 100f
 			val length = (30f + random.nextFloat() * 22f) * stretch
-			val y = (random.nextFloat() * height + timeSeconds * 1150f * speed) % (height + 120f) - 60f
+			val travel = random.nextFloat() * height + timeSeconds * 1150f * speed
+			val cycle = (travel / span).toInt()
+			val x = laneFraction(i * 2 + 1, cycle) * (width + 200f) - 100f
+			val y = travel % span - 60f
 
 			points[i * 4] = x
 			points[i * 4 + 1] = y
@@ -481,22 +515,28 @@ class SceneRenderer {
 		val size = if (heavy) { 1.35f } else { 1f }
 		val gust = gustFactor(timeSeconds, windFactor)
 
+		// Lane and sway phase re-hash every wrap, and the wrap spans a pad past both edges so soft dots never pop at the border.
+		val span = height + FLAKE_WRAP_PAD * 2f
 		val farCount = count / 2
 		val farLean = if (heavy) { 43f } else { 20f }
-		repeat(farCount) {
-			val baseX = random.nextFloat() * width
-			val phase = random.nextFloat() * TAU
-			val y = (random.nextFloat() * height + timeSeconds * 70f * speed) % height
+		repeat(farCount) { i ->
+			val travel = random.nextFloat() * height + timeSeconds * 70f * speed
+			val cycle = (travel / span).toInt()
+			val baseX = laneFraction(i * 2, cycle) * width
+			val phase = laneFraction(i * 2, cycle + SWAY_PHASE_SALT) * TAU
+			val y = travel % span - FLAKE_WRAP_PAD
 			val sway = sin(timeSeconds * 0.7f + phase) * (width * 0.02f) + gust * farLean
 			val radius = (random.nextFloat() * 1.4f + 1.2f) * size
 			drawSoftDot(canvas, farFlakeSprite, baseX + sway, y, radius)
 		}
 
 		val nearLean = if (heavy) { 79f } else { 40f }
-		repeat(count - farCount) {
-			val baseX = random.nextFloat() * width
-			val phase = random.nextFloat() * TAU
-			val y = (random.nextFloat() * height + timeSeconds * 165f * speed) % height
+		repeat(count - farCount) { i ->
+			val travel = random.nextFloat() * height + timeSeconds * 165f * speed
+			val cycle = (travel / span).toInt()
+			val baseX = laneFraction(i * 2 + 1, cycle) * width
+			val phase = laneFraction(i * 2 + 1, cycle + SWAY_PHASE_SALT) * TAU
+			val y = travel % span - FLAKE_WRAP_PAD
 			val sway = sin(timeSeconds * 1.1f + phase) * (width * 0.045f) + gust * nearLean
 			val radius = (random.nextFloat() * 3.2f + 2.6f) * size
 			drawSoftDot(canvas, nearFlakeSprite, baseX + sway, y, radius)
@@ -514,10 +554,13 @@ class SceneRenderer {
 		val streakCount = count * 2 / 3
 		val points = rainBuffer(streakCount * 4)
 
+		val span = height + 120f
 		repeat(streakCount) { i ->
-			val x = random.nextFloat() * (width + 200f) - 100f
 			val length = 14f + random.nextFloat() * 12f
-			val y = (random.nextFloat() * height + timeSeconds * 820f) % (height + 120f) - 60f
+			val travel = random.nextFloat() * height + timeSeconds * 820f
+			val cycle = (travel / span).toInt()
+			val x = laneFraction(i * 2, cycle) * (width + 200f) - 100f
+			val y = travel % span - 60f
 			points[i * 4] = x
 			points[i * 4 + 1] = y
 			points[i * 4 + 2] = x + length * slant
@@ -537,10 +580,13 @@ class SceneRenderer {
 
 		// Pellets: small icy grains tumbling between the streaks — faster and stiffer than snowflakes.
 		val pelletCount = count / 2
-		repeat(pelletCount) {
-			val baseX = random.nextFloat() * width
-			val phase = random.nextFloat() * TAU
-			val y = (random.nextFloat() * height + timeSeconds * 240f) % height
+		val pelletSpan = height + FLAKE_WRAP_PAD * 2f
+		repeat(pelletCount) { i ->
+			val travel = random.nextFloat() * height + timeSeconds * 240f
+			val cycle = (travel / pelletSpan).toInt()
+			val baseX = laneFraction(i * 2 + 1, cycle) * width
+			val phase = laneFraction(i * 2 + 1, cycle + SWAY_PHASE_SALT) * TAU
+			val y = travel % pelletSpan - FLAKE_WRAP_PAD
 			val sway = sin(timeSeconds * 1.6f + phase) * (width * 0.012f) + gust * 23f
 			val radius = random.nextFloat() * 1.6f + 1.2f
 			drawSoftDot(canvas, pelletSprite, baseX + sway, y, radius)
@@ -859,6 +905,12 @@ class SceneRenderer {
 
 		/** Fraction of a soft-dot sprite's radius that is solid color before the fade to transparent begins. */
 		private const val DOT_CORE_STOP = 0.5f
+
+		/** Soft dots wrap this far past both screen edges, so their halos never pop in or out at the border. */
+		private const val FLAKE_WRAP_PAD = 32f
+
+		/** Offsets the cycle when hashing a particle's sway phase, so phase and lane draw from different parts of the hash space. */
+		private const val SWAY_PHASE_SALT = 373
 	}
 }
 
