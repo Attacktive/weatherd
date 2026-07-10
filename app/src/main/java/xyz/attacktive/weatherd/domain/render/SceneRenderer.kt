@@ -1,5 +1,7 @@
 package xyz.attacktive.weatherd.domain.render
 
+import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.random.Random
@@ -194,7 +196,20 @@ class SceneRenderer {
 		val centerY = height * celestialHeightFraction(params.dayPhase)
 		val radius = width * 0.1f
 		val moon = params.dayPhase == DayPhase.NIGHT
-		val core = if (moon) Color.rgb(232, 238, 247) else sunColor(params.dayPhase)
+		val core = if (moon) {
+			Color.rgb(232, 238, 247)
+		} else {
+			sunColor(params.dayPhase)
+		}
+
+		// A crescent sheds far less light than a full disc, so the whole glow scales with the lit fraction.
+		val litFraction = if (moon) {
+			(1f - cos(params.moonPhase * TAU)) / 2f
+		} else {
+			1f
+		}
+
+		val litScale = 0.35f + 0.65f * litFraction
 
 		/*
 		 * Two-sine breathing halo: a slow deep swell with a faster shimmer on top, so the glow visibly
@@ -204,24 +219,79 @@ class SceneRenderer {
 		val halo = tile("celestialHalo", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildHaloSprite(it, core) }
 		val pulse = 0.5f + 0.35f * sin(timeSeconds * 0.8f) + 0.15f * sin(timeSeconds * 2.1f)
 		val glowRadius = radius * (2.2f + 1.1f * pulse)
-		val glowAlpha = (80f + 130f * pulse).roundToInt().coerceIn(0, 255)
+		val glowAlpha = ((80f + 130f * pulse) * litScale).roundToInt().coerceIn(0, 255)
 		blitSprite(canvas, halo, centerX, centerY, glowRadius, glowAlpha)
 
 		// Wide, faint outer bloom breathing in counter-phase, so something is always in motion.
 		val outerRadius = radius * (3.6f + 0.9f * (1f - pulse))
-		val outerAlpha = (26f + 34f * (1f - pulse)).roundToInt()
+		val outerAlpha = ((26f + 34f * (1f - pulse)) * litScale).roundToInt()
 		blitSprite(canvas, halo, centerX, centerY, outerRadius, outerAlpha)
 
-		paint.style = Paint.Style.FILL
-		paint.color = core
-		canvas.drawCircle(centerX, centerY, radius, paint)
-
 		if (moon) {
-			paint.color = withAlpha(darken(core, 0.82f), 90)
-			canvas.drawCircle(centerX - radius * 0.32f, centerY - radius * 0.18f, radius * 0.2f, paint)
-			canvas.drawCircle(centerX + radius * 0.18f, centerY + radius * 0.3f, radius * 0.14f, paint)
-			canvas.drawCircle(centerX + radius * 0.32f, centerY - radius * 0.32f, radius * 0.1f, paint)
+			// The disc is a sprite shaped by the real synodic phase — tonight's sky and the wallpaper agree on the moon.
+			val phaseIndex = (params.moonPhase * MOON_PHASE_STEPS).roundToInt()
+			val moonSprite = tile("moon-$phaseIndex", MOON_SPRITE_SIZE, MOON_SPRITE_SIZE) { buildMoonSprite(it, core, params.moonPhase) }
+			blitSprite(canvas, moonSprite, centerX, centerY, radius / MOON_DISC_MARGIN, 255)
+		} else {
+			paint.style = Paint.Style.FILL
+			paint.color = core
+			canvas.drawCircle(centerX, centerY, radius, paint)
 		}
+	}
+
+	/**
+	 * The moon rasterised once per phase step: an earthshine base disc, the lit shape bounded by the
+	 * circular limb and the elliptical terminator, and the craters clipped to the lit side. Waning phases
+	 * mirror the waxing construction horizontally instead of duplicating the arc plumbing.
+	 */
+	private fun buildMoonSprite(canvas: Canvas, core: Int, moonPhase: Float) {
+		val center = MOON_SPRITE_SIZE / 2f
+		val radius = center * MOON_DISC_MARGIN
+		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
+		brush.style = Paint.Style.FILL
+
+		// The shadowed side stays barely visible, the way earthshine keeps the dark limb readable at night.
+		brush.color = withAlpha(darken(core, 0.4f), 70)
+		canvas.drawCircle(center, center, radius, brush)
+
+		val waning = moonPhase > 0.5f
+		if (waning) {
+			canvas.scale(-1f, 1f, center, center)
+		}
+
+		val waxingPhase = if (waning) {
+			1f - moonPhase
+		} else {
+			moonPhase
+		}
+
+		// cos runs 1 → -1 across new → full: the terminator ellipse collapses to a line at the quarter and re-widens.
+		val terminatorScale = cos(waxingPhase * TAU)
+		val litPath = Path()
+		val limb = RectF(center - radius, center - radius, center + radius, center + radius)
+		litPath.arcTo(limb, -90f, 180f)
+
+		val terminatorHalfWidth = radius * abs(terminatorScale)
+		val terminatorOval = RectF(center - terminatorHalfWidth, center - radius, center + terminatorHalfWidth, center + radius)
+		if (terminatorScale > 0f) {
+			// Crescent: the terminator bulges toward the lit limb, leaving a sliver.
+			litPath.arcTo(terminatorOval, 90f, -180f)
+		} else {
+			// Gibbous: the terminator bulges into the dark side.
+			litPath.arcTo(terminatorOval, 90f, 180f)
+		}
+
+		litPath.close()
+		brush.color = core
+		canvas.drawPath(litPath, brush)
+
+		canvas.save()
+		canvas.clipPath(litPath)
+		brush.color = withAlpha(darken(core, 0.82f), 90)
+		canvas.drawCircle(center - radius * 0.32f, center - radius * 0.18f, radius * 0.2f, brush)
+		canvas.drawCircle(center + radius * 0.18f, center + radius * 0.3f, radius * 0.14f, brush)
+		canvas.drawCircle(center + radius * 0.32f, center - radius * 0.32f, radius * 0.1f, brush)
+		canvas.restore()
 	}
 
 	private fun drawOvercastCeiling(canvas: Canvas, width: Float, height: Float, params: SceneParams) {
@@ -930,6 +1000,15 @@ class SceneRenderer {
 
 		/** Edge length of the celestial halo sprite; the falloff is smooth enough that upscaling to the on-screen glow stays clean. */
 		private const val HALO_SPRITE_SIZE = 256
+
+		/** Edge length of the pre-rendered moon sprite. */
+		private const val MOON_SPRITE_SIZE = 256
+
+		/** The moon disc fills this fraction of its sprite, leaving margin so the anti-aliased limb never clips at the bitmap edge. */
+		private const val MOON_DISC_MARGIN = 0.96f
+
+		/** Distinct phase sprites across the synodic month — the sprite cache key quantises to these steps. */
+		private const val MOON_PHASE_STEPS = 64
 
 		/** Fraction of a soft-dot sprite's radius that is solid color before the fade to transparent begins. */
 		private const val DOT_CORE_STOP = 0.5f

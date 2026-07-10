@@ -11,6 +11,7 @@ import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
 import xyz.attacktive.weatherd.domain.repository.LocationRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
 import xyz.attacktive.weatherd.domain.repository.WeatherRepository
+import xyz.attacktive.weatherd.domain.weather.moonPhaseFor
 import xyz.attacktive.weatherd.util.AppLogger
 
 /**
@@ -28,7 +29,8 @@ class WeatherSceneProvider @Inject constructor(private val locationRepository: L
 
 	/** The scene to draw at [nowEpochSeconds]; a clock-lit clear sky until the first weather fetch lands. */
 	fun paramsFor(nowEpochSeconds: Long): SceneParams {
-		val snapshot = this.snapshot ?: return fallbackParams()
+		val snapshot = this.snapshot ?: return fallbackParams(nowEpochSeconds)
+
 		return sceneParamsFor(snapshot, nowEpochSeconds)
 	}
 
@@ -90,8 +92,8 @@ class WeatherSceneProvider @Inject constructor(private val locationRepository: L
 		"${settings.manualLatitude},${settings.manualLongitude}"
 	}
 
-	/** Until weather loads we still want the right time of day, so lean on the local wall clock. */
-	private fun fallbackParams(): SceneParams {
+	/** Until weather loads we still want the right time of day — and the right moon — so lean on the local wall clock. */
+	private fun fallbackParams(nowEpochSeconds: Long): SceneParams {
 		val phase = when (LocalTime.now().hour) {
 			in DAWN_HOUR until DAY_HOUR -> DayPhase.DAWN
 			in DAY_HOUR until DUSK_HOUR -> DayPhase.DAY
@@ -99,7 +101,7 @@ class WeatherSceneProvider @Inject constructor(private val locationRepository: L
 			else -> DayPhase.NIGHT
 		}
 
-		return SceneParams(dayPhase = phase, cloudiness = 0.05f, fogDensity = 0f, precipitation = null, thunder = false, windFactor = 0.2f)
+		return SceneParams(dayPhase = phase, cloudiness = 0.05f, fogDensity = 0f, precipitation = null, thunder = false, windFactor = 0.2f, moonPhase = moonPhaseFor(nowEpochSeconds))
 	}
 
 	companion object {
