@@ -100,6 +100,7 @@ class SceneRenderer {
 
 		if (params.dayPhase == DayPhase.NIGHT && showsCelestialBody(params)) {
 			drawStars(canvas, w, h, timeSeconds)
+			drawShootingStar(canvas, w, h, timeSeconds)
 		}
 
 		if (showsCelestialBody(params)) {
@@ -189,6 +190,53 @@ class SceneRenderer {
 			paint.color = Color.argb(alpha, 255, 255, 255)
 			canvas.drawCircle(x, y, coreRadius, paint)
 		}
+	}
+
+	/**
+	 * At most one meteor per slot and most slots stay empty, so a clear night earns a rare treat rather
+	 * than a fireworks show. The streak flies a seeded straight line under a sine envelope, swelling and
+	 * dying instead of blinking in and out — and like everything else it is a pure function of time.
+	 */
+	private fun drawShootingStar(canvas: Canvas, width: Float, height: Float, timeSeconds: Float) {
+		val slot = (timeSeconds / METEOR_SLOT_SECONDS).toInt()
+		val random = Random(METEOR_SEED + slot)
+		val quiet = random.nextFloat() < 0.55f
+		if (quiet) {
+			return
+		}
+
+		val start = random.nextFloat() * (METEOR_SLOT_SECONDS - METEOR_DURATION - 1f)
+		val local = timeSeconds - slot * METEOR_SLOT_SECONDS - start
+		if (local < 0f || local > METEOR_DURATION) {
+			return
+		}
+
+		val progress = local / METEOR_DURATION
+		val envelope = sin(progress * PI_F)
+		val fromX = width * (0.15f + random.nextFloat() * 0.6f)
+		val fromY = height * (0.06f + random.nextFloat() * 0.22f)
+		val angle = (20f + random.nextFloat() * 25f) * DEGREES_TO_RADIANS
+		val direction = if (random.nextFloat() < 0.5f) { -1f } else { 1f }
+		val travel = width * 0.45f
+		val headX = fromX + direction * cos(angle) * travel * progress
+		val headY = fromY + sin(angle) * travel * progress
+		val tail = width * 0.08f * envelope
+		val tailX = headX - direction * cos(angle) * tail
+		val tailY = headY - sin(angle) * tail
+
+		// The same halo-under-core pairing as rain streaks, with a soft-dot head that grows and shrinks with the envelope.
+		paint.style = Paint.Style.STROKE
+		paint.strokeCap = Paint.Cap.ROUND
+		paint.strokeWidth = 5.5f
+		paint.color = Color.argb((36f * envelope).roundToInt(), 214, 226, 248)
+		canvas.drawLine(tailX, tailY, headX, headY, paint)
+
+		paint.strokeWidth = 2.2f
+		paint.color = Color.argb((165f * envelope).roundToInt(), 244, 248, 255)
+		canvas.drawLine(tailX, tailY, headX, headY, paint)
+
+		paint.style = Paint.Style.FILL
+		drawSoftDot(canvas, nearFlakeSprite, headX, headY, 3f * envelope)
 	}
 
 	private fun drawCelestialBody(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
@@ -964,6 +1012,7 @@ class SceneRenderer {
 		private const val CLOUD_SEED = 2L
 		private const val PRECIP_SEED = 3L
 		private const val BOLT_SEED = 5L
+		private const val METEOR_SEED = 7L
 		private const val STAR_AREA_PER_STAR = 22_000f
 		private const val BOLT_STEPS = 6
 
@@ -981,6 +1030,12 @@ class SceneRenderer {
 
 		private const val TAU = 6.2831855f
 		private const val PI_F = 3.1415927f
+		private const val DEGREES_TO_RADIANS = 0.017453292f
+
+		/** Length of one meteor scheduling slot; roughly half the slots fire one meteor at a random moment. */
+		private const val METEOR_SLOT_SECONDS = 149f
+
+		private const val METEOR_DURATION = 0.8f
 
 		/**
 		 * Soft cloud/fog tiles are built at a quarter of the surface resolution and stretched at blit time —
