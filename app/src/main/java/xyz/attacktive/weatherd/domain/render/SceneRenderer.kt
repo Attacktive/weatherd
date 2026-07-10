@@ -471,18 +471,29 @@ class SceneRenderer {
 		val tileHeight = (destHeight / 2f).toInt()
 		val cloudColor = withAlpha(cloudTint(params.dayPhase), (150f + params.cloudiness * 80f).roundToInt().coerceAtMost(235))
 
-		val cloud = tile("scattered", tileWidth, tileHeight) {
-			buildScatteredTile(it, tileWidth.toFloat(), tileHeight.toFloat(), params, cloudColor)
+		/*
+		 * Two depth layers: sparse, small, dim puffs creeping high in the back, the full billows in front —
+		 * fair-weather skies get the parallax the overcast deck already has, instead of one flat sheet.
+		 */
+		val farColor = withAlpha(cloudTint(params.dayPhase), (Color.alpha(cloudColor) * 0.6f).roundToInt())
+		val far = tile("scatteredFar", tileWidth, tileHeight) {
+			buildScatteredTile(it, tileWidth.toFloat(), tileHeight.toFloat(), params, farColor, puffScale = 0.55f, countFactor = 0.6f, baselineLift = 0.16f, seed = CLOUD_SEED + 1L)
+		}
+
+		val near = tile("scattered", tileWidth, tileHeight) {
+			buildScatteredTile(it, tileWidth.toFloat(), tileHeight.toFloat(), params, cloudColor, puffScale = 1f, countFactor = 1f, baselineLift = 0f, seed = CLOUD_SEED)
 		}
 
 		// The same bounded gust surge as the deck, so fair-weather puffs answer to the one wind too.
 		val surge = width * 0.01f * params.windFactor
 		val drift = surge * (0.6f * sin(timeSeconds * 0.19f) + 0.4f * sin(timeSeconds * 0.47f))
-		val offset = wrapOffset(timeSeconds * (20f + params.windFactor * 34f) + drift, width)
-		blitScrolled(canvas, cloud, offset, width, destHeight, 255)
+		val farOffset = wrapOffset(timeSeconds * (11f + params.windFactor * 18f) + drift * 0.6f, width)
+		val nearOffset = wrapOffset(timeSeconds * (20f + params.windFactor * 34f) + drift, width)
+		blitScrolled(canvas, far, farOffset, width, destHeight, 255)
+		blitScrolled(canvas, near, nearOffset, width, destHeight, 255)
 	}
 
-	private fun buildScatteredTile(canvas: Canvas, width: Float, height: Float, params: SceneParams, color: Int) {
+	private fun buildScatteredTile(canvas: Canvas, width: Float, height: Float, params: SceneParams, color: Int, puffScale: Float, countFactor: Float, baselineLift: Float, seed: Long) {
 		val body = Paint(Paint.ANTI_ALIAS_FLAG)
 		body.style = Paint.Style.FILL
 		body.color = color
@@ -494,12 +505,13 @@ class SceneRenderer {
 		highlight.color = withAlpha(lighten(cloudTint(params.dayPhase), 0.55f), (Color.alpha(color) * 0.9f).roundToInt())
 		highlight.maskFilter = BlurMaskFilter(width * 0.018f, BlurMaskFilter.Blur.NORMAL)
 
-		val random = Random(CLOUD_SEED)
+		val random = Random(seed)
+		val count = ((2 + params.cloudiness * 5f) * countFactor).roundToInt().coerceAtLeast(1)
 
-		repeat((2 + params.cloudiness * 5f).roundToInt()) {
+		repeat(count) {
 			val cx = random.nextFloat() * width
-			val baseline = height * (0.35f + random.nextFloat() * 0.45f)
-			val scale = width * (0.07f + random.nextFloat() * 0.05f)
+			val baseline = height * (0.35f - baselineLift + random.nextFloat() * 0.45f)
+			val scale = width * (0.07f + random.nextFloat() * 0.05f) * puffScale
 
 			wrapX(width, cx, scale * 3f) { x ->
 				drawPuff(canvas, x, baseline - scale * 0.12f, scale, highlight)
