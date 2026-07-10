@@ -39,6 +39,17 @@ class SceneRenderer {
 	private val tiles = HashMap<String, Bitmap>()
 	private var tilesKey: String? = null
 	private var rainPoints = FloatArray(0)
+	private val spritePaint = Paint(Paint.FILTER_BITMAP_FLAG)
+	private val spriteDest = RectF()
+
+	/*
+	 * Soft-dot sprites for snowflakes and sleet pellets: the softness is rasterised once here, and every frame just blits them as filtered quads.
+	 * A hard 1–3px disc shimmers against the pixel grid while it falls; a blurry sprite scaled bilinearly stays smooth at any size.
+	 * Their colors are scene-independent, so they live outside [tiles] and survive scene changes.
+	 */
+	private val farFlakeSprite = softDotSprite(Color.rgb(235, 240, 248), 140)
+	private val nearFlakeSprite = softDotSprite(Color.rgb(252, 253, 255), 235)
+	private val pelletSprite = softDotSprite(Color.rgb(236, 244, 252), 230)
 
 	fun render(canvas: Canvas, width: Int, height: Int, params: SceneParams, timeSeconds: Float) {
 		renderBackdrop(canvas, width, height, params)
@@ -233,13 +244,15 @@ class SceneRenderer {
 		/*
 		 * Layers scroll at clearly different speeds, bob vertically in counter-phase, and the front layer's
 		 * opacity swells and fades — together the deck visibly churns rather than sliding as one sheet.
+		 * Each layer's top is overscanned past the screen edge by its own bob amplitude, so the bob never wobbles the tile's hard-clipped top edge into view.
 		 */
-		val bob = sin(timeSeconds * 0.4f) * height * 0.022f
+		val bobAmplitude = height * 0.022f
+		val bob = sin(timeSeconds * 0.4f) * bobAmplitude
 		val frontAlpha = (200f + 55f * sin(timeSeconds * 0.55f)).roundToInt()
 		val backOffset = (timeSeconds * (14f + params.windFactor * 18f)) % width
 		val frontOffset = (timeSeconds * (38f + params.windFactor * 48f)) % width
-		blitScrolled(canvas, back, backOffset, width, destHeight, 255, bob)
-		blitScrolled(canvas, front, frontOffset, width, destHeight, frontAlpha, -bob * 1.5f)
+		blitScrolled(canvas, back, backOffset, width, destHeight + bobAmplitude, 255, bob - bobAmplitude)
+		blitScrolled(canvas, front, frontOffset, width, destHeight + bobAmplitude * 1.5f, frontAlpha, -bob * 1.5f - bobAmplitude * 1.5f)
 	}
 
 	private fun drawScatteredClouds(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
@@ -275,6 +288,7 @@ class SceneRenderer {
 			val cx = random.nextFloat() * width
 			val baseline = height * (0.35f + random.nextFloat() * 0.45f)
 			val scale = width * (0.07f + random.nextFloat() * 0.05f)
+
 			wrapX(width, cx, scale * 3f) { x ->
 				drawPuff(canvas, x, baseline - scale * 0.12f, scale, highlight)
 				drawPuff(canvas, x, baseline, scale * 0.97f, body)
@@ -346,11 +360,16 @@ class SceneRenderer {
 		 * mist visibly slide past each other, thicken, and thin.
 		 */
 		val breath = 0.5f + 0.5f * sin(timeSeconds * 0.45f)
-		val roll = sin(timeSeconds * 0.25f) * height * 0.03f
+		val rollAmplitude = height * 0.03f
+		val roll = sin(timeSeconds * 0.25f) * rollAmplitude
 		val farOffset = (((timeSeconds * -22f) % width) + width) % width
 		val nearOffset = (timeSeconds * 32f) % width
-		blitScrolled(canvas, far, farOffset, width, height, (100f + 130f * breath).roundToInt(), roll)
-		blitScrolled(canvas, near, nearOffset, width, height, (100f + 130f * (1f - breath)).roundToInt(), -roll)
+		val farAlpha = (100f + 130f * breath).roundToInt()
+		val nearAlpha = (100f + 130f * (1f - breath)).roundToInt()
+
+		// Both ends are overscanned by the roll amplitude, so the roll never wobbles a hard-clipped tile edge (or a bare gap) into view.
+		blitScrolled(canvas, far, farOffset, width, height + rollAmplitude * 2f, farAlpha, roll - rollAmplitude)
+		blitScrolled(canvas, near, nearOffset, width, height + rollAmplitude * 2f, nearAlpha, -roll - rollAmplitude)
 	}
 
 	private fun drawPrecipitation(canvas: Canvas, width: Float, height: Float, precipitation: Precipitation, windFactor: Float, timeSeconds: Float) {
@@ -386,9 +405,13 @@ class SceneRenderer {
 		}
 
 		// No blur here: a per-frame BlurMaskFilter over hundreds of segments is what froze rain scenes.
-		// Thin, dim, slightly wider strokes read as distant drizzle just as well.
+		// Instead each batch is stroked twice — a wide faint halo under the thin core — so a streak fades out sideways rather than ending in a hard aliased edge.
+		paint.strokeWidth = 5.5f
+		paint.color = Color.argb(20, 205, 218, 238)
+		canvas.drawLines(points, 0, count * 4, paint)
+
 		paint.strokeWidth = 2.2f
-		paint.color = Color.argb(48, 205, 218, 238)
+		paint.color = Color.argb(42, 205, 218, 238)
 		canvas.drawLines(points, 0, count * 4, paint)
 
 		// Near layer: long, bright, sharp streaks in the foreground, reusing the same buffer.
@@ -404,8 +427,12 @@ class SceneRenderer {
 			points[i * 4 + 3] = y + length
 		}
 
+		paint.strokeWidth = if (heavy) 8f else 6.5f
+		paint.color = Color.argb(if (heavy) 55 else 45, 215, 226, 244)
+		canvas.drawLines(points, 0, nearCount * 4, paint)
+
 		paint.strokeWidth = if (heavy) 3.2f else 2.6f
-		paint.color = Color.argb(if (heavy) 185 else 155, 215, 226, 244)
+		paint.color = Color.argb(if (heavy) 145 else 120, 215, 226, 244)
 		canvas.drawLines(points, 0, nearCount * 4, paint)
 
 		paint.style = Paint.Style.FILL
@@ -414,31 +441,29 @@ class SceneRenderer {
 	/**
 	 * Two depth layers: small dim flakes drifting far away, big bright ones swaying up close — so it reads
 	 * as snowfall, not stars. [heavy] means a blizzard: bigger, faster flakes leaning hard on the wind.
+	 * Flakes are blits of the pre-blurred soft-dot sprites, so they stay smooth in motion instead of shimmering as hard-edged discs.
 	 */
 	private fun drawSnow(canvas: Canvas, width: Float, height: Float, count: Int, windFactor: Float, timeSeconds: Float, random: Random, heavy: Boolean) {
-		paint.style = Paint.Style.FILL
 		val speed = if (heavy) 1.5f else 1f
 		val size = if (heavy) 1.35f else 1f
 
 		val farCount = count / 2
-		paint.color = Color.argb(140, 235, 240, 248)
 		repeat(farCount) {
 			val baseX = random.nextFloat() * width
 			val phase = random.nextFloat() * TAU
 			val y = (random.nextFloat() * height + timeSeconds * 70f * speed) % height
 			val sway = sin(timeSeconds * 0.7f + phase) * (width * 0.02f) + windFactor * (if (heavy) 30f else 14f)
 			val radius = (random.nextFloat() * 1.4f + 1.2f) * size
-			canvas.drawCircle(baseX + sway, y, radius, paint)
+			drawSoftDot(canvas, farFlakeSprite, baseX + sway, y, radius)
 		}
 
-		paint.color = Color.argb(235, 252, 253, 255)
 		repeat(count - farCount) {
 			val baseX = random.nextFloat() * width
 			val phase = random.nextFloat() * TAU
 			val y = (random.nextFloat() * height + timeSeconds * 165f * speed) % height
 			val sway = sin(timeSeconds * 1.1f + phase) * (width * 0.045f) + windFactor * (if (heavy) 55f else 28f)
 			val radius = (random.nextFloat() * 3.2f + 2.6f) * size
-			canvas.drawCircle(baseX + sway, y, radius, paint)
+			drawSoftDot(canvas, nearFlakeSprite, baseX + sway, y, radius)
 		}
 	}
 
@@ -461,14 +486,18 @@ class SceneRenderer {
 			points[i * 4 + 3] = y + length
 		}
 
-		paint.strokeWidth = 2.2f
-		paint.color = Color.argb(150, 214, 228, 240)
+		// The same halo-under-core double stroke as rain, so the icy streaks stay soft-edged too.
+		paint.strokeWidth = 5.5f
+		paint.color = Color.argb(38, 214, 228, 240)
 		canvas.drawLines(points, 0, streakCount * 4, paint)
 
-		// Pellets: small icy grains tumbling between the streaks — faster and stiffer than snowflakes.
-		paint.style = Paint.Style.FILL
-		paint.color = Color.argb(230, 236, 244, 252)
+		paint.strokeWidth = 2.2f
+		paint.color = Color.argb(118, 214, 228, 240)
+		canvas.drawLines(points, 0, streakCount * 4, paint)
 
+		paint.style = Paint.Style.FILL
+
+		// Pellets: small icy grains tumbling between the streaks — faster and stiffer than snowflakes.
 		val pelletCount = count / 2
 		repeat(pelletCount) {
 			val baseX = random.nextFloat() * width
@@ -476,7 +505,7 @@ class SceneRenderer {
 			val y = (random.nextFloat() * height + timeSeconds * 240f) % height
 			val sway = sin(timeSeconds * 1.6f + phase) * (width * 0.012f) + windFactor * 16f
 			val radius = random.nextFloat() * 1.6f + 1.2f
-			canvas.drawCircle(baseX + sway, y, radius, paint)
+			drawSoftDot(canvas, pelletSprite, baseX + sway, y, radius)
 		}
 	}
 
@@ -565,16 +594,25 @@ class SceneRenderer {
 		paint.shader = null
 	}
 
-	/** Softens the bottom of a soft-mass tile so BlurMaskFilter clip doesn't leave a hard band. */
+	/**
+	 * Dissolves the bottom [fadeFraction] of a soft-mass tile so the BlurMaskFilter clip doesn't end in a hard band.
+	 * The DST_IN rect must cover the whole tile: a rect starting at the fade line gets an anti-aliased top edge, and under DST_IN that partial coverage carves a one-pixel alpha dip — which the blit stretch then widens into a visible seam across the deck.
+	 * The ramp eases through smoothstep samples instead of falling linearly, because a linear ramp kinks at the fade line and the eye picks the kink up as a Mach band.
+	 */
 	private fun fadeTileBottom(canvas: Canvas, fadeFraction: Float = 0.4f) {
 		val bounds = canvas.clipBounds
 		val w = bounds.width().toFloat()
 		val h = bounds.height().toFloat()
-		val fadeStart = h * (1f - fadeFraction)
+		val fadeStart = 1f - fadeFraction
+
+		val alphas = intArrayOf(255, 255, 244, 215, 128, 40, 0)
+		val colors = IntArray(alphas.size) { withAlpha(Color.BLACK, alphas[it]) }
+		val stops = floatArrayOf(0f, fadeStart, fadeStart + fadeFraction * 0.125f, fadeStart + fadeFraction * 0.25f, fadeStart + fadeFraction * 0.5f, fadeStart + fadeFraction * 0.75f, 1f)
+
 		paint.style = Paint.Style.FILL
-		paint.shader = LinearGradient(0f, fadeStart, 0f, h, Color.BLACK, Color.TRANSPARENT, Shader.TileMode.CLAMP)
+		paint.shader = LinearGradient(0f, 0f, 0f, h, colors, stops, Shader.TileMode.CLAMP)
 		paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
-		canvas.drawRect(0f, fadeStart, w, h, paint)
+		canvas.drawRect(0f, 0f, w, h, paint)
 		paint.xfermode = null
 		paint.shader = null
 	}
@@ -597,6 +635,27 @@ class SceneRenderer {
 		tiles[name] = bitmap
 
 		return bitmap
+	}
+
+	/** A soft round dot rendered once: a solid core out to [DOT_CORE_STOP] of the radius, melting into a fully transparent rim. */
+	private fun softDotSprite(color: Int, alpha: Int): Bitmap {
+		val center = SPRITE_SIZE / 2f
+
+		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
+		brush.shader = RadialGradient(center, center, center, intArrayOf(withAlpha(color, alpha), withAlpha(color, alpha), withAlpha(color, 0)), floatArrayOf(0f, DOT_CORE_STOP, 1f), Shader.TileMode.CLAMP)
+
+		val bitmap = createBitmap(SPRITE_SIZE, SPRITE_SIZE)
+		val canvas = Canvas(bitmap)
+		canvas.drawCircle(center, center, center, brush)
+
+		return bitmap
+	}
+
+	/** Blits a soft-dot sprite scaled so its solid core spans [coreRadius]; the halo extends past that and fades to nothing. */
+	private fun drawSoftDot(canvas: Canvas, sprite: Bitmap, x: Float, y: Float, coreRadius: Float) {
+		val reach = coreRadius / DOT_CORE_STOP
+		spriteDest.set(x - reach, y - reach, x + reach, y + reach)
+		canvas.drawBitmap(sprite, null, spriteDest, spritePaint)
 	}
 
 	private fun rainBuffer(size: Int): FloatArray {
@@ -630,6 +689,12 @@ class SceneRenderer {
 
 		/** Severity at and above which rain becomes a downpour and snow a blizzard (thicker, faster, more slanted). */
 		private const val HEAVY_SEVERITY = 0.85f
+
+		/** Edge length of the square soft-dot sprites — big enough that even the largest blizzard flake only ever downscales it. */
+		private const val SPRITE_SIZE = 64
+
+		/** Fraction of a soft-dot sprite's radius that is solid color before the fade to transparent begins. */
+		private const val DOT_CORE_STOP = 0.5f
 	}
 }
 
