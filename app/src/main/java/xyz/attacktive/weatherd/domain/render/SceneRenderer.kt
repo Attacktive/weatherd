@@ -699,31 +699,40 @@ class SceneRenderer {
 		paint.color = Color.argb(gleam(nearCoreAlpha, flash), 215, 226, 244)
 		canvas.drawLines(points, 0, nearCount * 4, paint)
 
-		// A sparse third pass of standout drops — longer, thicker, brighter, faster — so a shower has texture instead of uniform static.
-		val closeCount = nearCount / 12
-		if (closeCount > 0) {
-			repeat(closeCount) { i ->
-				val length = (46f + random.nextFloat() * 26f) * stretch
-				val travel = random.nextFloat() * height + timeSeconds * 1450f * speed
-				val cycle = (travel / span).toInt()
-				val x = laneFraction(i + CLOSE_DROP_LANE_OFFSET, cycle) * (width + 200f) - 100f
-				val y = travel % span - 60f
-				points[i * 4] = x
-				points[i * 4 + 1] = y
-				points[i * 4 + 2] = x + length * slant
-				points[i * 4 + 3] = y + length
-			}
-
-			paint.strokeWidth = if (heavy) { 9.5f } else { 8f }
-			paint.color = Color.argb(gleam(60, flash), 222, 232, 248)
-			canvas.drawLines(points, 0, closeCount * 4, paint)
-
-			paint.strokeWidth = if (heavy) { 4.2f } else { 3.6f }
-			paint.color = Color.argb(gleam(185, flash), 226, 236, 250)
-			canvas.drawLines(points, 0, closeCount * 4, paint)
-		}
+		drawCloseDrops(canvas, width, height, nearCount, span, slant, stretch, speed, timeSeconds, random, heavy, flash)
 
 		paint.style = Paint.Style.FILL
+	}
+
+	/** A sparse pass of standout drops — longer, thicker, brighter and faster than the near layer — so a shower has texture instead of uniform static. */
+	private fun drawCloseDrops(canvas: Canvas, width: Float, height: Float, nearCount: Int, span: Float, slant: Float, stretch: Float, speed: Float, timeSeconds: Float, random: Random, heavy: Boolean, flash: Float) {
+		val closeCount = nearCount / 12
+		if (closeCount == 0) {
+			return
+		}
+
+		val points = rainBuffer(closeCount * 4)
+		repeat(closeCount) { i ->
+			val length = (46f + random.nextFloat() * 26f) * stretch
+			val travel = random.nextFloat() * height + timeSeconds * 1450f * speed
+			val cycle = (travel / span).toInt()
+			val x = laneFraction(i + CLOSE_DROP_LANE_OFFSET, cycle) * (width + 200f) - 100f
+			val y = travel % span - 60f
+			points[i * 4] = x
+			points[i * 4 + 1] = y
+			points[i * 4 + 2] = x + length * slant
+			points[i * 4 + 3] = y + length
+		}
+
+		paint.style = Paint.Style.STROKE
+		paint.strokeCap = Paint.Cap.ROUND
+		paint.strokeWidth = if (heavy) { 9.5f } else { 8f }
+		paint.color = Color.argb(gleam(60, flash), 222, 232, 248)
+		canvas.drawLines(points, 0, closeCount * 4, paint)
+
+		paint.strokeWidth = if (heavy) { 4.2f } else { 3.6f }
+		paint.color = Color.argb(gleam(185, flash), 226, 236, 250)
+		canvas.drawLines(points, 0, closeCount * 4, paint)
 	}
 
 	/**
@@ -923,37 +932,7 @@ class SceneRenderer {
 			return
 		}
 
-		var x = width * (0.3f + random.nextFloat() * 0.4f)
-		var y = 0f
-		boltPath.reset()
-		boltPath.moveTo(x, y)
-
-		val segment = height * 0.62f / BOLT_STEPS
-		var forkX = x
-		var forkY = y
-
-		repeat(BOLT_STEPS) { step ->
-			x += (random.nextFloat() - 0.5f) * width * 0.18f
-			y += segment
-
-			boltPath.lineTo(x, y)
-
-			if (step == BOLT_STEPS / 2 - 1) {
-				forkX = x
-				forkY = y
-			}
-		}
-
-		// A thinner branch splitting off mid-bolt makes the strike look like lightning rather than a zigzag line.
-		forkPath.reset()
-		forkPath.moveTo(forkX, forkY)
-		val forkDirection = if (random.nextFloat() < 0.5f) -1f else 1f
-
-		repeat(3) {
-			forkX += forkDirection * (0.04f + random.nextFloat() * 0.08f) * width
-			forkY += segment * 0.7f
-			forkPath.lineTo(forkX, forkY)
-		}
+		buildBolt(width, height, random)
 
 		paint.style = Paint.Style.STROKE
 		paint.strokeCap = Paint.Cap.ROUND
@@ -975,6 +954,40 @@ class SceneRenderer {
 		canvas.drawPath(forkPath, paint)
 
 		paint.style = Paint.Style.FILL
+	}
+
+	/** Regenerates [boltPath] and its thinner [forkPath] branch from the slot's geometry seed — the mid-bolt fork is what makes the strike read as lightning rather than a zigzag line. */
+	private fun buildBolt(width: Float, height: Float, random: Random) {
+		var x = width * (0.3f + random.nextFloat() * 0.4f)
+		var y = 0f
+		boltPath.reset()
+		boltPath.moveTo(x, y)
+
+		val segment = height * 0.62f / BOLT_STEPS
+		var forkX = x
+		var forkY = y
+
+		repeat(BOLT_STEPS) { step ->
+			x += (random.nextFloat() - 0.5f) * width * 0.18f
+			y += segment
+
+			boltPath.lineTo(x, y)
+
+			if (step == BOLT_STEPS / 2 - 1) {
+				forkX = x
+				forkY = y
+			}
+		}
+
+		forkPath.reset()
+		forkPath.moveTo(forkX, forkY)
+		val forkDirection = if (random.nextFloat() < 0.5f) { -1f } else { 1f }
+
+		repeat(3) {
+			forkX += forkDirection * (0.04f + random.nextFloat() * 0.08f) * width
+			forkY += segment * 0.7f
+			forkPath.lineTo(forkX, forkY)
+		}
 	}
 
 	private fun drawHaze(canvas: Canvas, width: Float, height: Float, params: SceneParams) {
