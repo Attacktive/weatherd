@@ -38,6 +38,7 @@ class SceneRenderer {
 	private val blitDest = RectF()
 	private val boltPath = Path()
 	private val forkPath = Path()
+	private val birdPath = Path()
 	private val tiles = HashMap<String, Bitmap>()
 	private var tilesKey: String? = null
 	private var rainPoints = FloatArray(0)
@@ -105,6 +106,10 @@ class SceneRenderer {
 
 		if (showsCelestialBody(params)) {
 			drawCelestialBody(canvas, w, h, params, timeSeconds)
+		}
+
+		if (showsBirds(params)) {
+			drawBirds(canvas, w, h, timeSeconds, params.dayPhase)
 		}
 
 		if (params.cloudiness > 0.1f && params.cloudiness <= 0.55f) {
@@ -402,6 +407,61 @@ class SceneRenderer {
 		val frontOffset = wrapOffset(timeSeconds * (38f + params.windFactor * 48f) + drift * 1.8f, width)
 		blitScrolled(canvas, back, backOffset, width, destHeight + bobAmplitude, 255, bob - bobAmplitude)
 		blitScrolled(canvas, front, frontOffset, width, destHeight + bobAmplitude * 1.5f, frontAlpha, -bob * 1.5f - bobAmplitude * 1.5f)
+	}
+
+	/**
+	 * A small flock crossing every few minutes on fair days: staggered wing glyphs with phase-offset
+	 * wingbeats and a light vertical bob. Slot-scheduled like meteors and lightning, so most of the time
+	 * the sky is empty and a crossing stays a treat. Drawn behind the scattered puffs for depth.
+	 */
+	private fun drawBirds(canvas: Canvas, width: Float, height: Float, timeSeconds: Float, dayPhase: DayPhase) {
+		val slot = (timeSeconds / BIRD_SLOT_SECONDS).toInt()
+		val random = Random(BIRD_SEED + slot)
+		val quiet = random.nextFloat() < 0.45f
+		if (quiet) {
+			return
+		}
+
+		val start = random.nextFloat() * (BIRD_SLOT_SECONDS - BIRD_CROSSING_SECONDS)
+		val local = timeSeconds - slot * BIRD_SLOT_SECONDS - start
+		if (local < 0f || local > BIRD_CROSSING_SECONDS) {
+			return
+		}
+
+		val progress = local / BIRD_CROSSING_SECONDS
+		val direction = if (random.nextFloat() < 0.5f) { -1f } else { 1f }
+		val flockSize = 3 + (random.nextFloat() * 3f).toInt()
+		val baseY = height * (0.14f + random.nextFloat() * 0.12f)
+		val span = width * 1.2f
+		val leadX = if (direction > 0f) {
+			-width * 0.1f + span * progress
+		} else {
+			width * 1.1f - span * progress
+		}
+
+		val wing = width * 0.011f
+		paint.style = Paint.Style.STROKE
+		paint.strokeCap = Paint.Cap.ROUND
+		paint.strokeJoin = Paint.Join.ROUND
+		paint.strokeWidth = wing * 0.22f
+		paint.color = birdColor(dayPhase)
+
+		repeat(flockSize) { j ->
+			val trailing = j * width * 0.045f * direction
+			val x = leadX - trailing
+			val lateral = laneFraction(j, slot) - 0.5f
+			val y = baseY + lateral * height * 0.05f + sin(timeSeconds * 1.3f + j * 1.7f) * height * 0.004f
+
+			// The wingtips swing above and below the body, offset per bird, so the flock never flaps in unison.
+			val flap = sin(timeSeconds * 9f + j * 2.1f) * wing * 0.55f
+			birdPath.reset()
+			birdPath.moveTo(x - wing, y - flap)
+			birdPath.quadTo(x - wing * 0.35f, y + wing * 0.18f, x, y)
+			birdPath.quadTo(x + wing * 0.35f, y + wing * 0.18f, x + wing, y - flap)
+			canvas.drawPath(birdPath, paint)
+		}
+
+		paint.style = Paint.Style.FILL
 	}
 
 	private fun drawScatteredClouds(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
@@ -1016,6 +1076,7 @@ class SceneRenderer {
 		private const val PRECIP_SEED = 3L
 		private const val BOLT_SEED = 5L
 		private const val METEOR_SEED = 7L
+		private const val BIRD_SEED = 11L
 		private const val STAR_AREA_PER_STAR = 22_000f
 		private const val BOLT_STEPS = 6
 
@@ -1039,6 +1100,11 @@ class SceneRenderer {
 		private const val METEOR_SLOT_SECONDS = 149f
 
 		private const val METEOR_DURATION = 0.8f
+
+		/** Length of one bird scheduling slot; a bit over half the slots host one flock crossing. */
+		private const val BIRD_SLOT_SECONDS = 217f
+
+		private const val BIRD_CROSSING_SECONDS = 22f
 
 		/**
 		 * Soft cloud/fog tiles are built at a quarter of the surface resolution and stretched at blit time —
@@ -1097,6 +1163,14 @@ private inline fun wrapX(width: Float, cx: Float, reach: Float, draw: (Float) ->
 
 /** The sun/moon shows only through a dry, fog-free sky that isn't a solid cloud deck. */
 private fun showsCelestialBody(params: SceneParams) = params.precipitation == null && params.fogDensity <= 0f && params.cloudiness <= 0.75f
+
+/** Birds fly only through fair daylight skies: no precipitation, no fog, cover below the deck threshold, and never at night. */
+private fun showsBirds(params: SceneParams) = params.precipitation == null && params.fogDensity <= 0f && params.cloudiness < 0.55f && params.dayPhase != DayPhase.NIGHT
+
+private fun birdColor(dayPhase: DayPhase) = when (dayPhase) {
+	DayPhase.DAY -> Color.argb(120, 38, 48, 62)
+	else -> Color.argb(140, 26, 26, 38)
+}
 
 private fun showsHaze(params: SceneParams) = params.precipitation != null || params.fogDensity > 0f || params.cloudiness > 0.75f
 
