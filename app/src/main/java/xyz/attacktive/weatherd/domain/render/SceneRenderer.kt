@@ -850,7 +850,7 @@ class SceneRenderer {
 		flashSlot = (timeSeconds / STRIKE_SLOT_SECONDS).toInt()
 
 		val random = Random(BOLT_SEED + flashSlot)
-		val quiet = random.nextFloat() < 0.2f
+		val quiet = random.nextFloat() < 0.12f
 		if (quiet) {
 			return
 		}
