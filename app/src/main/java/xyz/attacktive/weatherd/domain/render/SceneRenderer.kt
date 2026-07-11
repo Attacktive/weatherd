@@ -293,19 +293,15 @@ class SceneRenderer {
 	}
 
 	/**
-	 * The moon rasterised once per phase step: an earthshine base disc, the lit shape bounded by the
-	 * circular limb and the elliptical terminator, and the craters clipped to the lit side. Waning phases
-	 * mirror the waxing construction horizontally instead of duplicating the arc plumbing.
+	 * The moon rasterised once per phase step: the lit shape bounded by the circular limb and the elliptical terminator, and the craters clipped to the lit side.
+	 * The dark side deliberately draws nothing — the sky shows straight through, keeping the moon stylised rather than realistic.
+	 * Waning phases mirror the waxing construction horizontally instead of duplicating the arc plumbing.
 	 */
 	private fun buildMoonSprite(canvas: Canvas, core: Int, moonPhase: Float) {
 		val center = MOON_SPRITE_SIZE / 2f
 		val radius = center * MOON_DISC_MARGIN
 		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
 		brush.style = Paint.Style.FILL
-
-		// The shadowed side stays barely visible, the way earthshine keeps the dark limb readable at night.
-		brush.color = withAlpha(darken(core, 0.4f), 70)
-		canvas.drawCircle(center, center, radius, brush)
 
 		val waning = moonPhase > 0.5f
 		if (waning) {
