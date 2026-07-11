@@ -8,6 +8,10 @@ Uses device location or a manually searched city, refreshes on a configurable in
 
 **Min SDK:** Android 8.0 (API 26)
 
+## Sister project
+
+[Wallhavend](https://github.com/Attacktive/Wallhavend-android) rotates real photo wallpapers from [Wallhaven](https://wallhaven.cc) on a schedule — same bones, opposite art department. [Get it on Google Play](https://play.google.com/store/apps/details?id=xyz.attacktive.wallhavend).
+
 ## Building from source
 
 Requires JDK 17 and the Android SDK ([Android Studio](https://developer.android.com/studio) bundles both).
