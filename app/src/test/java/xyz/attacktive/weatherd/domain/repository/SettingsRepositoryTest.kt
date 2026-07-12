@@ -7,12 +7,15 @@ import kotlinx.coroutines.test.runTest
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import xyz.attacktive.weatherd.domain.model.AppSettings
+import xyz.attacktive.weatherd.domain.model.BackdropScene
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsRepositoryTest {
@@ -38,12 +41,22 @@ class SettingsRepositoryTest {
 			useDeviceLocation = false,
 			manualLatitude = 35.68,
 			manualLongitude = 139.69,
-			manualLocationLabel = "Tokyo, Japan"
+			manualLocationLabel = "Tokyo, Japan",
+			backdropScene = BackdropScene.WOODS
 		)
 
 		repository.save(updated)
 
 		assertEquals(updated, repository.settings.first())
+	}
+
+	@Test
+	fun `an unrecognised stored backdrop scene falls back to NONE`() = runTest {
+		val dataStore = dataStore()
+		val repository = SettingsRepository(dataStore)
+		dataStore.edit { it[stringPreferencesKey("backdrop_scene")] = "DISCOTHEQUE" }
+
+		assertEquals(BackdropScene.NONE, repository.settings.first().backdropScene)
 	}
 
 	@Test

@@ -13,6 +13,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import xyz.attacktive.weatherd.domain.model.AppSettings
+import xyz.attacktive.weatherd.domain.model.BackdropScene
 
 /** Persists [AppSettings] to a DataStore; absent keys fall back to the [AppSettings] defaults on read. */
 @Singleton
@@ -23,6 +24,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		val MANUAL_LATITUDE = doublePreferencesKey("manual_latitude")
 		val MANUAL_LONGITUDE = doublePreferencesKey("manual_longitude")
 		val MANUAL_LOCATION_LABEL = stringPreferencesKey("manual_location_label")
+		val BACKDROP_SCENE = stringPreferencesKey("backdrop_scene")
 	}
 
 	val settings: Flow<AppSettings> = dataStore.data.map { preferences ->
@@ -31,7 +33,8 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			useDeviceLocation = preferences[Keys.USE_DEVICE_LOCATION] ?: DEFAULTS.useDeviceLocation,
 			manualLatitude = preferences[Keys.MANUAL_LATITUDE],
 			manualLongitude = preferences[Keys.MANUAL_LONGITUDE],
-			manualLocationLabel = preferences[Keys.MANUAL_LOCATION_LABEL]
+			manualLocationLabel = preferences[Keys.MANUAL_LOCATION_LABEL],
+			backdropScene = BackdropScene.fromName(preferences[Keys.BACKDROP_SCENE])
 		)
 	}
 
@@ -42,6 +45,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			preferences.putOrRemove(Keys.MANUAL_LATITUDE, settings.manualLatitude)
 			preferences.putOrRemove(Keys.MANUAL_LONGITUDE, settings.manualLongitude)
 			preferences.putOrRemove(Keys.MANUAL_LOCATION_LABEL, settings.manualLocationLabel)
+			preferences[Keys.BACKDROP_SCENE] = settings.backdropScene.name
 		}
 	}
 
