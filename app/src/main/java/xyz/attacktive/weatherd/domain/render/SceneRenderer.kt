@@ -723,12 +723,6 @@ class SceneRenderer {
 		paint.style = Paint.Style.STROKE
 		paint.strokeCap = Paint.Cap.ROUND
 
-		val slantBase = if (heavy) {
-			0.26f
-		} else {
-			0.16f
-		}
-
 		val speed = if (heavy) {
 			1.4f
 		} else {
@@ -741,14 +735,29 @@ class SceneRenderer {
 			1f
 		}
 
-		val slant = slantBase + gustFactor(timeSeconds, windFactor) * 0.71f
-		val points = rainBuffer(count * 4)
+		val slantBase = if (heavy) {
+			0.26f
+		} else {
+			0.16f
+		}
 
-		// Far layer: short, thin, dim streaks that read as distant drizzle, batched into one drawLines call.
+		val slant = slantBase + gustFactor(timeSeconds, windFactor) * 0.71f
+		val span = height + RAIN_WRAP_PAD * 2f
+		val nearCount = count / 2
+
+		drawFarRain(canvas, width, height, squallCount, span, slant, stretch, speed, timeSeconds, flash)
+		drawNearRain(canvas, width, height, nearCount, span, slant, stretch, speed, timeSeconds, heavy, flash)
+		drawCloseDrops(canvas, width, height, nearCount, span, slant, stretch, speed, timeSeconds, heavy, flash)
+
+		paint.style = Paint.Style.FILL
+	}
+
+	/** Far layer: short, thin, dim streaks that read as distant drizzle, batched into one drawLines call. */
+	private fun drawFarRain(canvas: Canvas, width: Float, height: Float, squallCount: Int, span: Float, slant: Float, stretch: Float, speed: Float, timeSeconds: Float, flash: Float) {
 		// Each streak picks a fresh lane per fall cycle, so no drop re-falls one fixed path forever.
 		// Every layer seeds its own Random: per-particle constants must never depend on another layer's breathing count, or one ±1 tick reshuffles every draw after it and whole layers teleport.
 		val farRandom = Random(PRECIP_SEED)
-		val span = height + RAIN_WRAP_PAD * 2f
+		val points = rainBuffer(squallCount * 4)
 		repeat(squallCount) { i ->
 			val length = (10f + farRandom.nextFloat() * 10f) * stretch
 			val travel = farRandom.nextFloat() * height + timeSeconds * 650f * speed
@@ -770,10 +779,12 @@ class SceneRenderer {
 		paint.strokeWidth = 2.2f
 		paint.color = Color.argb(gleam(42, flash), 205, 218, 238)
 		canvas.drawLines(points, 0, squallCount * 4, paint)
+	}
 
-		// Near layer: long, bright, sharp streaks in the foreground, reusing the same buffer.
+	/** Near layer: long, bright, sharp streaks in the foreground, reusing the same buffer as the far pass. */
+	private fun drawNearRain(canvas: Canvas, width: Float, height: Float, nearCount: Int, span: Float, slant: Float, stretch: Float, speed: Float, timeSeconds: Float, heavy: Boolean, flash: Float) {
 		val nearRandom = Random(PRECIP_SEED + 1L)
-		val nearCount = count / 2
+		val points = rainBuffer(nearCount * 4)
 		repeat(nearCount) { i ->
 			val length = (30f + nearRandom.nextFloat() * 22f) * stretch
 			val travel = nearRandom.nextFloat() * height + timeSeconds * 1150f * speed
@@ -816,10 +827,6 @@ class SceneRenderer {
 
 		paint.color = Color.argb(gleam(nearCoreAlpha, flash), 215, 226, 244)
 		canvas.drawLines(points, 0, nearCount * 4, paint)
-
-		drawCloseDrops(canvas, width, height, nearCount, span, slant, stretch, speed, timeSeconds, heavy, flash)
-
-		paint.style = Paint.Style.FILL
 	}
 
 	/** A sparse pass of standout drops — longer, thicker, brighter and faster than the near layer — so a shower has texture instead of uniform static. */
