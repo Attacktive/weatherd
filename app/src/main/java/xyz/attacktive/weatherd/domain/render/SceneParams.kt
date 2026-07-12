@@ -39,7 +39,11 @@ fun sceneParamsFor(snapshot: WeatherSnapshot, nowEpochSeconds: Long, backdropSce
 	return SceneParams(
 		dayPhase = dayPhase,
 		cloudiness = (observation.cloudCoverPercent / 100f).coerceIn(0f, 1f),
-		fogDensity = if (condition.fog) { 1f } else { 0f },
+		fogDensity = if (condition.fog) {
+			1f
+		} else {
+			0f
+		},
 		precipitation = condition.precipitationKind?.let {
 			Precipitation(kind = it, severity = condition.severity, observed = precipitationIntensity(observation.precipitationMillimeters))
 		},

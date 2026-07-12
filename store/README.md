@@ -3,12 +3,15 @@
 ## Listing copy (en-US)
 
 ### Short description (80 chars max)
+
 ```
 Live wallpaper that mirrors real weather outside.
 ```
+
 49 / 80
 
 ### Full description (4000 chars max)
+
 ```
 Weatherd turns your home screen into a living sky.
 
@@ -28,6 +31,7 @@ Weather data from Open-Meteo. No account and no API key required.
 
 Weatherd is a wallpaper — not a forecast app. It does not show hourly charts or severe-weather alerts; it quietly keeps your background in sync with the sky.
 ```
+
 ~1034 / 4000
 
 ## Graphics

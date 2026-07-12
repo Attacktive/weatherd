@@ -290,7 +290,12 @@ class SceneRenderer {
 		val fromX = width * (0.15f + random.nextFloat() * 0.6f)
 		val fromY = height * (0.06f + random.nextFloat() * 0.22f)
 		val angle = (20f + random.nextFloat() * 25f) * DEGREES_TO_RADIANS
-		val direction = if (random.nextFloat() < 0.5f) { -1f } else { 1f }
+		val direction = if (random.nextFloat() < 0.5f) {
+			-1f
+		} else {
+			1f
+		}
+
 		val travel = width * 0.45f
 		val headX = fromX + direction * cos(angle) * travel * progress
 		val headY = fromY + sin(angle) * travel * progress
@@ -493,7 +498,12 @@ class SceneRenderer {
 		}
 
 		val progress = local / BIRD_CROSSING_SECONDS
-		val direction = if (random.nextFloat() < 0.5f) { -1f } else { 1f }
+		val direction = if (random.nextFloat() < 0.5f) {
+			-1f
+		} else {
+			1f
+		}
+
 		val flockSize = 3 + (random.nextFloat() * 3f).toInt()
 		val baseY = height * (0.14f + random.nextFloat() * 0.12f)
 		val span = width * 1.2f
@@ -713,9 +723,24 @@ class SceneRenderer {
 		paint.style = Paint.Style.STROKE
 		paint.strokeCap = Paint.Cap.ROUND
 
-		val slantBase = if (heavy) { 0.26f } else { 0.16f }
-		val speed = if (heavy) { 1.4f } else { 1f }
-		val stretch = if (heavy) { 1.5f } else { 1f }
+		val slantBase = if (heavy) {
+			0.26f
+		} else {
+			0.16f
+		}
+
+		val speed = if (heavy) {
+			1.4f
+		} else {
+			1f
+		}
+
+		val stretch = if (heavy) {
+			1.5f
+		} else {
+			1f
+		}
+
 		val slant = slantBase + gustFactor(timeSeconds, windFactor) * 0.71f
 		val points = rainBuffer(count * 4)
 
@@ -762,13 +787,33 @@ class SceneRenderer {
 			points[i * 4 + 3] = y + length
 		}
 
-		val nearHaloAlpha = if (heavy) { 55 } else { 45 }
-		paint.strokeWidth = if (heavy) { 8f } else { 6.5f }
+		val nearHaloAlpha = if (heavy) {
+			55
+		} else {
+			45
+		}
+
+		paint.strokeWidth = if (heavy) {
+			8f
+		} else {
+			6.5f
+		}
+
 		paint.color = Color.argb(gleam(nearHaloAlpha, flash), 215, 226, 244)
 		canvas.drawLines(points, 0, nearCount * 4, paint)
 
-		val nearCoreAlpha = if (heavy) { 145 } else { 120 }
-		paint.strokeWidth = if (heavy) { 3.2f } else { 2.6f }
+		val nearCoreAlpha = if (heavy) {
+			145
+		} else {
+			120
+		}
+
+		paint.strokeWidth = if (heavy) {
+			3.2f
+		} else {
+			2.6f
+		}
+
 		paint.color = Color.argb(gleam(nearCoreAlpha, flash), 215, 226, 244)
 		canvas.drawLines(points, 0, nearCount * 4, paint)
 
@@ -800,11 +845,21 @@ class SceneRenderer {
 
 		paint.style = Paint.Style.STROKE
 		paint.strokeCap = Paint.Cap.ROUND
-		paint.strokeWidth = if (heavy) { 9.5f } else { 8f }
+		paint.strokeWidth = if (heavy) {
+			9.5f
+		} else {
+			8f
+		}
+
 		paint.color = Color.argb(gleam(60, flash), 222, 232, 248)
 		canvas.drawLines(points, 0, closeCount * 4, paint)
 
-		paint.strokeWidth = if (heavy) { 4.2f } else { 3.6f }
+		paint.strokeWidth = if (heavy) {
+			4.2f
+		} else {
+			3.6f
+		}
+
 		paint.color = Color.argb(gleam(185, flash), 226, 236, 250)
 		canvas.drawLines(points, 0, closeCount * 4, paint)
 	}
@@ -815,15 +870,30 @@ class SceneRenderer {
 	 * Flakes are blits of the pre-blurred soft-dot sprites, so they stay smooth in motion instead of shimmering as hard-edged discs.
 	 */
 	private fun drawSnow(canvas: Canvas, width: Float, height: Float, count: Int, squallCount: Int, windFactor: Float, timeSeconds: Float, heavy: Boolean) {
-		val speed = if (heavy) { 1.5f } else { 1f }
-		val size = if (heavy) { 1.35f } else { 1f }
+		val speed = if (heavy) {
+			1.5f
+		} else {
+			1f
+		}
+
+		val size = if (heavy) {
+			1.35f
+		} else {
+			1f
+		}
+
 		val gust = gustFactor(timeSeconds, windFactor)
 
 		// Lane and sway phase re-hash every wrap, and the wrap spans a pad past both edges so soft dots never pop at the border.
 		// Per-layer Randoms and a steady near count keep flakes from teleporting when the squall factor ticks.
 		val span = height + FLAKE_WRAP_PAD * 2f
 		val farRandom = Random(PRECIP_SEED)
-		val farLean = if (heavy) { 43f } else { 20f }
+		val farLean = if (heavy) {
+			43f
+		} else {
+			20f
+		}
+
 		repeat(squallCount / 2) { i ->
 			val travel = farRandom.nextFloat() * height + timeSeconds * 70f * speed
 			val cycle = (travel / span).toInt()
@@ -836,7 +906,12 @@ class SceneRenderer {
 		}
 
 		val nearRandom = Random(PRECIP_SEED + 1L)
-		val nearLean = if (heavy) { 79f } else { 40f }
+		val nearLean = if (heavy) {
+			79f
+		} else {
+			40f
+		}
+
 		repeat(count - count / 2) { i ->
 			val travel = nearRandom.nextFloat() * height + timeSeconds * 165f * speed
 			val cycle = (travel / span).toInt()
@@ -1060,7 +1135,11 @@ class SceneRenderer {
 
 		forkPath.reset()
 		forkPath.moveTo(forkX, forkY)
-		val forkDirection = if (random.nextFloat() < 0.5f) { -1f } else { 1f }
+		val forkDirection = if (random.nextFloat() < 0.5f) {
+			-1f
+		} else {
+			1f
+		}
 
 		repeat(3) {
 			forkX += forkDirection * (0.04f + random.nextFloat() * 0.08f) * width
