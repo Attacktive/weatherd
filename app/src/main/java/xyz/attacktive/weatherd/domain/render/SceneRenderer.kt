@@ -18,6 +18,7 @@ import android.graphics.RadialGradient
 import android.graphics.RectF
 import android.graphics.Shader
 import androidx.core.graphics.createBitmap
+import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
@@ -28,7 +29,7 @@ import xyz.attacktive.weatherd.domain.weather.SEVERITY_STORM
 /**
  * Draws a procedural weather scene onto a Canvas. Split into a static [renderBackdrop] (sky, overcast
  * ceiling, fog base, haze, vignette — cache it) and an animated [renderForeground] (twinkling stars,
- * a glowing sun/moon, drifting clouds/overcast/mist, precipitation, lightning) advanced by [timeSeconds].
+ * a glowing sun/moon, the horizon scenery, drifting clouds/overcast/mist, precipitation, lightning) advanced by [timeSeconds].
  * Soft drifting layers (clouds, overcast, fog) are pre-rendered once into scrolling tiles, so the
  * per-frame cost is a handful of cheap blits rather than a fresh CPU-side blur every frame.
  */
@@ -39,6 +40,9 @@ class SceneRenderer {
 	private val boltPath = Path()
 	private val forkPath = Path()
 	private val birdPath = Path()
+	private val sceneryFarPath = Path()
+	private val sceneryNearPath = Path()
+	private var sceneryKey: String? = null
 	private val tiles = HashMap<String, Bitmap>()
 	private var tilesKey: String? = null
 	private var rainPoints = FloatArray(0)
@@ -87,7 +91,7 @@ class SceneRenderer {
 		drawVignette(canvas, w, h)
 	}
 
-	/** The animated layers (stars, sun/moon glow, drifting clouds/overcast/mist, precipitation, lightning). */
+	/** The animated layers (stars, sun/moon glow, horizon scenery, drifting clouds/overcast/mist, precipitation, lightning). */
 	fun renderForeground(canvas: Canvas, width: Int, height: Int, params: SceneParams, timeSeconds: Float) {
 		val w = width.toFloat()
 		val h = height.toFloat()
@@ -118,6 +122,11 @@ class SceneRenderer {
 
 		if (params.cloudiness > CLOUD_DECK_THRESHOLD || params.precipitation != null) {
 			drawCloudDrift(canvas, w, h, params, timeSeconds)
+		}
+
+		// The scenery draws after the celestial body and clouds (they belong to the sky behind it) but before fog, rain, and lightning (weather happens in front of the horizon).
+		if (params.backdropScene != BackdropScene.NONE) {
+			drawScenery(canvas, w, h, params)
 		}
 
 		if (params.fogDensity > 0f) {
@@ -154,6 +163,43 @@ class SceneRenderer {
 			canvas.drawRect(0f, height * 0.55f, width, height, paint)
 			paint.shader = null
 		}
+	}
+
+	/**
+	 * The user's chosen horizon silhouettes: two depth planes tinted from the current sky's bottom color, so storm gloom, snow milkiness, and night all carry onto them for free.
+	 * The geometry rebuilds only when the scene or the surface size changes; every frame after that is two cached path fills.
+	 */
+	private fun drawScenery(canvas: Canvas, width: Float, height: Float, params: SceneParams) {
+		val key = "${params.backdropScene}-${width.toInt()}x${height.toInt()}"
+		if (key != sceneryKey) {
+			val outlines = sceneryOutlinesFor(params.backdropScene, width / height) ?: return
+			fillSceneryPath(sceneryFarPath, outlines.far, width, height)
+			fillSceneryPath(sceneryNearPath, outlines.near, width, height)
+			sceneryKey = key
+		}
+
+		val skyBottom = skyGradientFor(params).bottomColor
+		val nearColor = darken(skyBottom, 0.2f)
+
+		paint.style = Paint.Style.FILL
+		paint.color = lerpColor(skyBottom, nearColor, 0.55f)
+		canvas.drawPath(sceneryFarPath, paint)
+		paint.color = nearColor
+		canvas.drawPath(sceneryNearPath, paint)
+	}
+
+	/** Scales a unit outline to pixels and closes it across the bottom corners, so the silhouette fills down off the frame. */
+	private fun fillSceneryPath(path: Path, outline: List<OutlinePoint>, width: Float, height: Float) {
+		path.rewind()
+		path.moveTo(outline.first().x * width, outline.first().y * height)
+
+		for (index in 1 until outline.size) {
+			path.lineTo(outline[index].x * width, outline[index].y * height)
+		}
+
+		path.lineTo(width, height)
+		path.lineTo(0f, height)
+		path.close()
 	}
 
 	private fun drawStars(canvas: Canvas, width: Float, height: Float, timeSeconds: Float) {
@@ -1289,6 +1335,13 @@ private fun lighten(color: Int, factor: Float) = Color.rgb(
 	(Color.red(color) + (255 - Color.red(color)) * factor).roundToInt(),
 	(Color.green(color) + (255 - Color.green(color)) * factor).roundToInt(),
 	(Color.blue(color) + (255 - Color.blue(color)) * factor).roundToInt()
+)
+
+/** Blends [from] toward [to] by [fraction] (0 = [from], 1 = [to]) — how the far scenery plane picks up the sky's haze. */
+private fun lerpColor(from: Int, to: Int, fraction: Float) = Color.rgb(
+	(Color.red(from) + (Color.red(to) - Color.red(from)) * fraction).roundToInt(),
+	(Color.green(from) + (Color.green(to) - Color.green(from)) * fraction).roundToInt(),
+	(Color.blue(from) + (Color.blue(to) - Color.blue(from)) * fraction).roundToInt()
 )
 
 private fun withAlpha(color: Int, alpha: Int) = Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color))

@@ -5,6 +5,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.first
 import xyz.attacktive.weatherd.domain.model.AppSettings
+import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.GeoLocation
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
@@ -26,12 +27,13 @@ class WeatherSceneProvider @Inject constructor(private val locationRepository: L
 	@Volatile private var snapshot: WeatherSnapshot? = null
 	@Volatile private var lastRefreshEpochSeconds = 0L
 	@Volatile private var lastLocationKey: String? = null
+	@Volatile private var backdropScene = BackdropScene.NONE
 
 	/** The scene to draw at [nowEpochSeconds]; a clock-lit clear sky until the first weather fetch lands. */
 	fun paramsFor(nowEpochSeconds: Long): SceneParams {
 		val snapshot = this.snapshot ?: return fallbackParams(nowEpochSeconds)
 
-		return sceneParamsFor(snapshot, nowEpochSeconds)
+		return sceneParamsFor(snapshot, nowEpochSeconds, backdropScene)
 	}
 
 	/**
@@ -42,6 +44,10 @@ class WeatherSceneProvider @Inject constructor(private val locationRepository: L
 	 */
 	suspend fun refresh(nowEpochSeconds: Long, force: Boolean = false) {
 		val settings = settingsRepository.settings.first()
+
+		// The backdrop choice is captured before the throttle: it's a render setting, not weather, so even a throttled refresh must adopt it.
+		backdropScene = settings.backdropScene
+
 		val locationKey = locationKey(settings)
 		val locationChanged = locationKey != lastLocationKey
 		val minRefreshSeconds = settings.updateIntervalMinutes * SECONDS_PER_MINUTE
@@ -101,7 +107,7 @@ class WeatherSceneProvider @Inject constructor(private val locationRepository: L
 			else -> DayPhase.NIGHT
 		}
 
-		return SceneParams(dayPhase = phase, cloudiness = 0.05f, fogDensity = 0f, precipitation = null, thunder = false, windFactor = 0.2f, moonPhase = moonPhaseFor(nowEpochSeconds))
+		return SceneParams(dayPhase = phase, cloudiness = 0.05f, fogDensity = 0f, precipitation = null, thunder = false, windFactor = 0.2f, moonPhase = moonPhaseFor(nowEpochSeconds), backdropScene = backdropScene)
 	}
 
 	companion object {

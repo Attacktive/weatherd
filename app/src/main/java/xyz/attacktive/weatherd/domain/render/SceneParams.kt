@@ -1,5 +1,6 @@
 package xyz.attacktive.weatherd.domain.render
 
+import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
@@ -15,6 +16,7 @@ import xyz.attacktive.weatherd.domain.weather.precipitationIntensity
  * synodic moon phase (0 = new, 0.5 = full — the default keeps previews and fallbacks on a full moon).
  * [celestialProgress] eases the sun/moon along its arc through the current phase; the midpoint default
  * reproduces the old fixed heights.
+ * [backdropScene] is the user's horizon scenery choice — a setting, not weather, so it defaults to the bare sky.
  */
 data class SceneParams(
 	val dayPhase: DayPhase,
@@ -24,11 +26,12 @@ data class SceneParams(
 	val thunder: Boolean,
 	val windFactor: Float,
 	val moonPhase: Float = 0.5f,
-	val celestialProgress: Float = 0.5f
+	val celestialProgress: Float = 0.5f,
+	val backdropScene: BackdropScene = BackdropScene.NONE
 )
 
 /** Derives render parameters from a weather snapshot for the given moment. */
-fun sceneParamsFor(snapshot: WeatherSnapshot, nowEpochSeconds: Long): SceneParams {
+fun sceneParamsFor(snapshot: WeatherSnapshot, nowEpochSeconds: Long, backdropScene: BackdropScene = BackdropScene.NONE): SceneParams {
 	val observation = snapshot.observation
 	val condition = conditionFor(observation.weatherCode)
 	val dayPhase = dayPhaseFor(nowEpochSeconds, snapshot.sunriseEpochSeconds, snapshot.sunsetEpochSeconds, observation.isDay)
@@ -44,7 +47,8 @@ fun sceneParamsFor(snapshot: WeatherSnapshot, nowEpochSeconds: Long): SceneParam
 		windFactor = (observation.windSpeedKilometersPerHour / MAX_WIND_KILOMETERS_PER_HOUR).toFloat()
 			.coerceIn(0f, 1f),
 		moonPhase = moonPhaseFor(nowEpochSeconds),
-		celestialProgress = dayPhaseProgressFor(nowEpochSeconds, snapshot.sunriseEpochSeconds, snapshot.sunsetEpochSeconds, dayPhase)
+		celestialProgress = dayPhaseProgressFor(nowEpochSeconds, snapshot.sunriseEpochSeconds, snapshot.sunsetEpochSeconds, dayPhase),
+		backdropScene = backdropScene
 	)
 }
 

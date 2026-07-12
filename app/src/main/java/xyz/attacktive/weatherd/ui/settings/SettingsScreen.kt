@@ -48,6 +48,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import xyz.attacktive.weatherd.BuildConfig
 import xyz.attacktive.weatherd.domain.model.AppSettings
+import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.GeoPlace
 import xyz.attacktive.weatherd.domain.model.UPDATE_INTERVAL_OPTIONS
 
@@ -83,6 +84,10 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 					.padding(16.dp)
 			) {
 				RefreshIntervalSection(settings = settings, onSave = viewModel::save)
+
+				Spacer(modifier = Modifier.height(24.dp))
+
+				BackdropSection(settings = settings, onSave = viewModel::save)
 
 				Spacer(modifier = Modifier.height(24.dp))
 
@@ -126,6 +131,41 @@ private fun RefreshIntervalSection(settings: AppSettings, onSave: (AppSettings) 
 					onClick = {
 						if (minutes != settings.updateIntervalMinutes) {
 							onSave(settings.copy(updateIntervalMinutes = minutes))
+						}
+
+						expanded = false
+					}
+				)
+			}
+		}
+	}
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BackdropSection(settings: AppSettings, onSave: (AppSettings) -> Unit) {
+	var expanded by remember { mutableStateOf(false) }
+
+	SectionLabel("Backdrop scenery")
+
+	ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+		OutlinedTextField(
+			value = formatBackdrop(settings.backdropScene),
+			onValueChange = {},
+			readOnly = true,
+			trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+			modifier = Modifier
+				.fillMaxWidth()
+				.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+		)
+
+		ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+			BackdropScene.entries.forEach { scene ->
+				DropdownMenuItem(
+					text = { Text(formatBackdrop(scene)) },
+					onClick = {
+						if (scene != settings.backdropScene) {
+							onSave(settings.copy(backdropScene = scene))
 						}
 
 						expanded = false
@@ -290,4 +330,12 @@ private fun formatInterval(minutes: Int) = when {
 	minutes == 60 -> "1 hour"
 	minutes % 60 == 0 -> "${minutes / 60} hours"
 	else -> "$minutes min"
+}
+
+private fun formatBackdrop(scene: BackdropScene) = when (scene) {
+	BackdropScene.NONE -> "None — just the sky"
+	BackdropScene.METROPOLIS -> "Metropolis"
+	BackdropScene.WOODS -> "Woods"
+	BackdropScene.BEACH -> "Beach"
+	BackdropScene.MOUNTAINS -> "Mountains"
 }

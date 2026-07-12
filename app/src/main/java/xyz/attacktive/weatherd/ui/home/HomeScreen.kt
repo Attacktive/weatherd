@@ -67,8 +67,10 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	var debugSceneIndex by remember { mutableIntStateOf(0) }
 	var debugPhaseIndex by remember { mutableIntStateOf(DayPhase.DAY.ordinal) }
 
+	// The debug cycler overrides the weather but keeps the user's chosen backdrop, so scenery can be previewed under any condition.
 	val params = if (debugEnabled) {
 		debugSceneParams(SCENE_PRESETS[debugSceneIndex], DayPhase.entries[debugPhaseIndex])
+			.copy(backdropScene = liveParams.backdropScene)
 	} else {
 		liveParams
 	}

@@ -6,8 +6,10 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
 import org.junit.Test
 import xyz.attacktive.weatherd.domain.model.AppSettings
+import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.GeoLocation
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
@@ -53,6 +55,23 @@ class WeatherSceneProviderTest {
 		provider.refresh(1_000_060L)
 
 		coVerify(exactly = 1) { weatherRepository.current(52.52, 13.40) }
+	}
+
+	@Test
+	fun `the backdrop choice reaches the scene params even when the refresh is throttled`() = runTest {
+		val device = AppSettings(useDeviceLocation = true, backdropScene = BackdropScene.MOUNTAINS)
+		every { settingsRepository.settings } returns flowOf(device)
+		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
+		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 3))
+
+		provider.refresh(1_000_000L)
+		assertEquals(BackdropScene.MOUNTAINS, provider.paramsFor(1_000_030L).backdropScene)
+
+		// The user switches scenes; the next refresh is inside the throttle window but must still pick the new choice up.
+		every { settingsRepository.settings } returns flowOf(device.copy(backdropScene = BackdropScene.BEACH))
+		provider.refresh(1_000_060L)
+
+		assertEquals(BackdropScene.BEACH, provider.paramsFor(1_000_090L).backdropScene)
 	}
 
 	private fun snapshotWith(weatherCode: Int) = WeatherSnapshot(
