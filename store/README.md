@@ -32,13 +32,13 @@ Weatherd is a wallpaper — not a forecast app. It does not show hourly charts o
 
 ## Graphics
 
-| File | Size | Use |
-|------|------|-----|
-| `icon.png` | 512 × 512 | High-res icon |
-| `feature-graphic.png` | 1024 × 500 | Feature graphic |
-| `screenshot-phone-1080x1920.png` | 1080 × 1920 | Phone #1 — clear day |
-| `screenshot-phone-rain-1080x1920.png` | 1080 × 1920 | Phone #2 — rain |
-| `screenshot-tablet-clear.png` | 2560 × 1600 | 7″ / 10″ tablet #1 |
-| `screenshot-tablet-rain.png` | 2560 × 1600 | 7″ / 10″ tablet #2 |
+| File                                  | Size        | Use                  |
+|---------------------------------------|-------------|----------------------|
+| `icon.png`                            | 512 × 512   | High-res icon        |
+| `feature-graphic.png`                 | 1024 × 500  | Feature graphic      |
+| `screenshot-phone-1080x1920.png`      | 1080 × 1920 | Phone #1 — clear day |
+| `screenshot-phone-rain-1080x1920.png` | 1080 × 1920 | Phone #2 — rain      |
+| `screenshot-tablet-clear.png`         | 2560 × 1600 | 7″ / 10″ tablet #1   |
+| `screenshot-tablet-rain.png`          | 2560 × 1600 | 7″ / 10″ tablet #2   |
 
 Preview-size phone captures (`*-preview.png`) are the raw 720 × 1280 sources; upload the 1080 × 1920 versions.

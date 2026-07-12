@@ -18,6 +18,7 @@ import android.graphics.RadialGradient
 import android.graphics.RectF
 import android.graphics.Shader
 import androidx.core.graphics.createBitmap
+import androidx.core.graphics.withClip
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
@@ -280,7 +281,7 @@ class SceneRenderer {
 
 		val start = random.nextFloat() * (METEOR_SLOT_SECONDS - METEOR_DURATION - 1f)
 		val local = timeSeconds - slot * METEOR_SLOT_SECONDS - start
-		if (local < 0f || local > METEOR_DURATION) {
+		if (local !in 0f..METEOR_DURATION) {
 			return
 		}
 
@@ -402,13 +403,12 @@ class SceneRenderer {
 		brush.color = core
 		canvas.drawPath(litPath, brush)
 
-		canvas.save()
-		canvas.clipPath(litPath)
-		brush.color = withAlpha(darken(core, 0.82f), 90)
-		canvas.drawCircle(center - radius * 0.32f, center - radius * 0.18f, radius * 0.2f, brush)
-		canvas.drawCircle(center + radius * 0.18f, center + radius * 0.3f, radius * 0.14f, brush)
-		canvas.drawCircle(center + radius * 0.32f, center - radius * 0.32f, radius * 0.1f, brush)
-		canvas.restore()
+		canvas.withClip(litPath) {
+			brush.color = withAlpha(darken(core, 0.82f), 90)
+			drawCircle(center - radius * 0.32f, center - radius * 0.18f, radius * 0.2f, brush)
+			drawCircle(center + radius * 0.18f, center + radius * 0.3f, radius * 0.14f, brush)
+			drawCircle(center + radius * 0.32f, center - radius * 0.32f, radius * 0.1f, brush)
+		}
 	}
 
 	private fun drawOvercastCeiling(canvas: Canvas, width: Float, height: Float, params: SceneParams) {
@@ -488,7 +488,7 @@ class SceneRenderer {
 
 		val start = random.nextFloat() * (BIRD_SLOT_SECONDS - BIRD_CROSSING_SECONDS)
 		val local = timeSeconds - slot * BIRD_SLOT_SECONDS - start
-		if (local < 0f || local > BIRD_CROSSING_SECONDS) {
+		if (local !in 0f..BIRD_CROSSING_SECONDS) {
 			return
 		}
 
@@ -948,7 +948,7 @@ class SceneRenderer {
 			FLASH_DURATION
 		}
 
-		if (local < 0f || local > duration) {
+		if (local !in 0f..duration) {
 			return 0f
 		}
 
