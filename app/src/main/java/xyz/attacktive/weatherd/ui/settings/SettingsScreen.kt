@@ -296,7 +296,7 @@ private fun ToggleSetting(label: String, subtitle: String, checked: Boolean, onT
 private fun VersionFooter() {
 	Text(
 		text = "weatherd ${BuildConfig.VERSION_NAME}",
-		style = MaterialTheme.typography.bodySmall,
+		style = MaterialTheme.typography.bodyMedium,
 		color = MaterialTheme.colorScheme.onSurfaceVariant,
 		textAlign = TextAlign.Center,
 		modifier = Modifier
