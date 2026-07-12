@@ -42,7 +42,7 @@ class SettingsRepositoryTest {
 			manualLatitude = 35.68,
 			manualLongitude = 139.69,
 			manualLocationLabel = "Tokyo, Japan",
-			backdropScene = BackdropScene.WOODS
+			backdropScene = BackdropScene.MOUNTAINS
 		)
 
 		repository.save(updated)

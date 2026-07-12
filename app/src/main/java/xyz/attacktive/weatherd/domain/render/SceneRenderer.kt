@@ -42,6 +42,7 @@ class SceneRenderer {
 	private val birdPath = Path()
 	private val sceneryFarPath = Path()
 	private val sceneryNearPath = Path()
+	private val sceneryAccentPath = Path()
 	private var sceneryKey: String? = null
 	private val tiles = HashMap<String, Bitmap>()
 	private var tilesKey: String? = null
@@ -175,6 +176,7 @@ class SceneRenderer {
 			val outlines = sceneryOutlinesFor(params.backdropScene, width / height) ?: return
 			fillSceneryPath(sceneryFarPath, outlines.far, width, height)
 			fillSceneryPath(sceneryNearPath, outlines.near, width, height)
+			fillAccentPath(sceneryAccentPath, outlines.accents, width, height)
 			sceneryKey = key
 		}
 
@@ -186,6 +188,13 @@ class SceneRenderer {
 		canvas.drawPath(sceneryFarPath, paint)
 		paint.color = nearColor
 		canvas.drawPath(sceneryNearPath, paint)
+
+		if (!sceneryAccentPath.isEmpty) {
+			paint.style = Paint.Style.STROKE
+			paint.strokeWidth = height * 0.0022f
+			canvas.drawPath(sceneryAccentPath, paint)
+			paint.style = Paint.Style.FILL
+		}
 	}
 
 	/** Scales a unit outline to pixels and closes it across the bottom corners, so the silhouette fills down off the frame. */
@@ -200,6 +209,19 @@ class SceneRenderer {
 		path.lineTo(width, height)
 		path.lineTo(0f, height)
 		path.close()
+	}
+
+	/** Scales the accent polylines to pixels as open strokes — gulls and friends, never filled. */
+	private fun fillAccentPath(path: Path, accents: List<List<OutlinePoint>>, width: Float, height: Float) {
+		path.rewind()
+
+		for (accent in accents) {
+			path.moveTo(accent.first().x * width, accent.first().y * height)
+
+			for (index in 1 until accent.size) {
+				path.lineTo(accent[index].x * width, accent[index].y * height)
+			}
+		}
 	}
 
 	private fun drawStars(canvas: Canvas, width: Float, height: Float, timeSeconds: Float) {

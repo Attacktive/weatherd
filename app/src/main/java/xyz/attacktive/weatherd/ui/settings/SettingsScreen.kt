@@ -335,7 +335,6 @@ private fun formatInterval(minutes: Int) = when {
 private fun formatBackdrop(scene: BackdropScene) = when (scene) {
 	BackdropScene.NONE -> "None — just the sky"
 	BackdropScene.METROPOLIS -> "Metropolis"
-	BackdropScene.WOODS -> "Woods"
 	BackdropScene.BEACH -> "Beach"
 	BackdropScene.MOUNTAINS -> "Mountains"
 }

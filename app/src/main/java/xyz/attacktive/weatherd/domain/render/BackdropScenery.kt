@@ -7,8 +7,8 @@ import xyz.attacktive.weatherd.domain.model.BackdropScene
 /** A point on a silhouette's upper edge, in unit coordinates: x across the screen, y down from the top. */
 data class OutlinePoint(val x: Float, val y: Float)
 
-/** The two silhouette planes of a backdrop scene; the renderer closes each outline down to the bottom edge and fills it. */
-data class SceneryOutlines(val far: List<OutlinePoint>, val near: List<OutlinePoint>)
+/** The two silhouette planes of a backdrop scene — the renderer closes each down to the bottom edge and fills it — plus optional accent polylines stroked in the near tone (the beach's gulls). */
+data class SceneryOutlines(val far: List<OutlinePoint>, val near: List<OutlinePoint>, val accents: List<List<OutlinePoint>> = emptyList())
 
 /**
  * The silhouette geometry for [scene], or null for the bare sky.
@@ -18,7 +18,6 @@ data class SceneryOutlines(val far: List<OutlinePoint>, val near: List<OutlinePo
 fun sceneryOutlinesFor(scene: BackdropScene, aspectRatio: Float): SceneryOutlines? = when (scene) {
 	BackdropScene.NONE -> null
 	BackdropScene.METROPOLIS -> metropolis(aspectRatio)
-	BackdropScene.WOODS -> woods(aspectRatio)
 	BackdropScene.BEACH -> beach(aspectRatio)
 	BackdropScene.MOUNTAINS -> mountains(aspectRatio)
 }
@@ -28,15 +27,16 @@ private fun metropolis(aspectRatio: Float) = SceneryOutlines(
 	near = rooflineRun(Random(23L), count = scaled(7, aspectRatio), topLow = 0.79f, topHigh = 0.88f)
 )
 
-private fun woods(aspectRatio: Float) = SceneryOutlines(
-	far = treeline(Random(37L), count = scaled(16, aspectRatio), tipLow = 0.795f, tipHigh = 0.83f, dip = 0.03f),
-	near = treeline(Random(41L), count = scaled(10, aspectRatio), tipLow = 0.835f, tipHigh = 0.875f, dip = 0.05f)
-)
+private fun beach(aspectRatio: Float): SceneryOutlines {
+	// Ship lengths and gull wing spans shrink with wider aspects, exactly inverse to how unit x-coordinates stretch.
+	val featureScale = PORTRAIT_ASPECT / aspectRatio
 
-private fun beach(aspectRatio: Float) = SceneryOutlines(
-	far = listOf(OutlinePoint(0f, SEA_HORIZON), OutlinePoint(1f, SEA_HORIZON)),
-	near = duneSweep(Random(79L), count = scaled(6, aspectRatio))
-)
+	return SceneryOutlines(
+		far = seaWithShips(Random(89L), featureScale),
+		near = duneSweep(Random(79L), count = scaled(6, aspectRatio)),
+		accents = gulls(Random(97L), featureScale)
+	)
+}
 
 private fun mountains(aspectRatio: Float) = SceneryOutlines(
 	far = peakRange(Random(53L), count = scaled(4, aspectRatio), tipLow = 0.705f, tipHigh = 0.78f, valleyLow = 0.84f, valleyHigh = 0.875f),
@@ -90,18 +90,64 @@ private fun rooflineRun(random: Random, count: Int, topLow: Float, topHigh: Floa
 	return points
 }
 
-/** A sawtooth of conifer tips: each tree rises from a shared dip to its tip and falls to the next dip. */
-private fun treeline(random: Random, count: Int, tipLow: Float, tipHigh: Float, dip: Float): List<OutlinePoint> {
-	val points = mutableListOf(OutlinePoint(0f, tipHigh + dip))
-	val edges = segmentEdges(random, count)
-
-	for (index in 0 until count) {
-		val center = (edges[index] + edges[index + 1]) / 2f
-		points += OutlinePoint(center, between(random, tipLow, tipHigh))
-		points += OutlinePoint(edges[index + 1], tipHigh + dip * (0.7f + random.nextFloat() * 0.6f))
-	}
+/** The flat sea broken by a freighter and a distant sailboat, so the horizon reads as water rather than a bare line. */
+private fun seaWithShips(random: Random, featureScale: Float): List<OutlinePoint> {
+	val points = mutableListOf(OutlinePoint(0f, SEA_HORIZON))
+	points += cargoShip(start = 0.12f + random.nextFloat() * 0.2f, length = 0.09f * featureScale)
+	points += sailboat(start = 0.55f + random.nextFloat() * 0.25f, length = 0.033f * featureScale)
+	points += OutlinePoint(1f, SEA_HORIZON)
 
 	return points
+}
+
+/** A low hull with a bridge block toward the stern, the way a laden freighter sits on the horizon. */
+private fun cargoShip(start: Float, length: Float): List<OutlinePoint> {
+	val deck = SEA_HORIZON - 0.012f
+	val bridgeTop = SEA_HORIZON - 0.024f
+
+	return listOf(
+		OutlinePoint(start, SEA_HORIZON),
+		OutlinePoint(start + length * 0.06f, deck),
+		OutlinePoint(start + length * 0.62f, deck),
+		OutlinePoint(start + length * 0.62f, bridgeTop),
+		OutlinePoint(start + length * 0.82f, bridgeTop),
+		OutlinePoint(start + length * 0.82f, deck),
+		OutlinePoint(start + length * 0.95f, deck),
+		OutlinePoint(start + length, SEA_HORIZON)
+	)
+}
+
+/** A triangular sail over a hull sliver. */
+private fun sailboat(start: Float, length: Float): List<OutlinePoint> {
+	val deck = SEA_HORIZON - 0.008f
+	val mastTop = SEA_HORIZON - 0.038f
+
+	return listOf(
+		OutlinePoint(start, SEA_HORIZON),
+		OutlinePoint(start + length * 0.1f, deck),
+		OutlinePoint(start + length * 0.35f, deck),
+		OutlinePoint(start + length * 0.42f, mastTop),
+		OutlinePoint(start + length * 0.46f, mastTop),
+		OutlinePoint(start + length * 0.75f, deck),
+		OutlinePoint(start + length * 0.9f, deck),
+		OutlinePoint(start + length, SEA_HORIZON)
+	)
+}
+
+/** A few gulls gliding over the water: shallow W strokes above the horizon. */
+private fun gulls(random: Random, featureScale: Float): List<List<OutlinePoint>> = List(3) {
+	val centerX = 0.12f + random.nextFloat() * 0.76f
+	val centerY = 0.72f + random.nextFloat() * 0.06f
+	val span = (0.014f + random.nextFloat() * 0.008f) * featureScale
+	val dip = 0.007f + random.nextFloat() * 0.003f
+
+	listOf(
+		OutlinePoint(centerX - span, centerY),
+		OutlinePoint(centerX - span * 0.5f, centerY - dip),
+		OutlinePoint(centerX, centerY - dip * 0.3f),
+		OutlinePoint(centerX + span * 0.5f, centerY - dip),
+		OutlinePoint(centerX + span, centerY)
+	)
 }
 
 /** Triangular peaks with jittered summits and valley floors. */

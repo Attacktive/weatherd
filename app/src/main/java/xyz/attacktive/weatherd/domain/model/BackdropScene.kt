@@ -4,7 +4,6 @@ package xyz.attacktive.weatherd.domain.model
 enum class BackdropScene {
 	NONE,
 	METROPOLIS,
-	WOODS,
 	BEACH,
 	MOUNTAINS;
 
