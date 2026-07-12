@@ -42,9 +42,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import xyz.attacktive.weatherd.BuildConfig
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.GeoPlace
 import xyz.attacktive.weatherd.domain.model.UPDATE_INTERVAL_OPTIONS
@@ -72,21 +74,29 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 			modifier = Modifier
 				.fillMaxSize()
 				.padding(padding)
-				.verticalScroll(scrollState)
-				.padding(16.dp)
 		) {
-			RefreshIntervalSection(settings = settings, onSave = viewModel::save)
+			Column(
+				modifier = Modifier
+					.weight(1f)
+					.fillMaxWidth()
+					.verticalScroll(scrollState)
+					.padding(16.dp)
+			) {
+				RefreshIntervalSection(settings = settings, onSave = viewModel::save)
 
-			Spacer(modifier = Modifier.height(24.dp))
+				Spacer(modifier = Modifier.height(24.dp))
 
-			LocationSection(
-				settings = settings,
-				citySearch = citySearch,
-				onToggleDeviceLocation = { viewModel.save(settings.copy(useDeviceLocation = it)) },
-				onSearch = viewModel::searchCity,
-				onSelectPlace = viewModel::selectPlace,
-				onClearManualLocation = viewModel::clearManualLocation
-			)
+				LocationSection(
+					settings = settings,
+					citySearch = citySearch,
+					onToggleDeviceLocation = { viewModel.save(settings.copy(useDeviceLocation = it)) },
+					onSearch = viewModel::searchCity,
+					onSelectPlace = viewModel::selectPlace,
+					onClearManualLocation = viewModel::clearManualLocation
+				)
+			}
+
+			VersionFooter()
 		}
 	}
 }
@@ -240,6 +250,19 @@ private fun ToggleSetting(label: String, subtitle: String, checked: Boolean, onT
 
 		Switch(checked = checked, onCheckedChange = onToggle)
 	}
+}
+
+@Composable
+private fun VersionFooter() {
+	Text(
+		text = "weatherd ${BuildConfig.VERSION_NAME}",
+		style = MaterialTheme.typography.bodySmall,
+		color = MaterialTheme.colorScheme.onSurfaceVariant,
+		textAlign = TextAlign.Center,
+		modifier = Modifier
+			.fillMaxWidth()
+			.padding(16.dp)
+	)
 }
 
 @Composable
