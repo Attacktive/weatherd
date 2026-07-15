@@ -80,7 +80,7 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `the weather label with temperature reaches the scene params`() = runTest {
-		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = true))
+		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = true, showWeatherLabel = true))
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 63))
 
@@ -91,7 +91,7 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `the weather label falls back to the bare temperature for an unknown code`() = runTest {
-		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = true))
+		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = true, showWeatherLabel = true))
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 1234))
 
@@ -113,7 +113,7 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `the manual city label is used without reverse geocoding`() = runTest {
-		val munich = AppSettings(useDeviceLocation = false, manualLatitude = 48.14, manualLongitude = 11.58, manualLocationLabel = "Munich, Germany", showLocationLabel = true)
+		val munich = AppSettings(useDeviceLocation = false, manualLatitude = 48.14, manualLongitude = 11.58, manualLocationLabel = "Munich, Germany", showWeatherLabel = true, showLocationLabel = true)
 		every { settingsRepository.settings } returns flowOf(munich)
 		coEvery { weatherRepository.current(48.14, 11.58) } returns Result.success(snapshotWith(weatherCode = 63))
 
@@ -137,7 +137,7 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `a failed reverse geocode hides only the location line`() = runTest {
-		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = true, showLocationLabel = true))
+		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = true, showWeatherLabel = true, showLocationLabel = true))
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(37.57, 126.98)
 		coEvery { weatherRepository.current(37.57, 126.98) } returns Result.success(snapshotWith(weatherCode = 63))
 		coEvery { reverseGeocodingRepository.placeName(37.57, 126.98) } returns null
@@ -162,7 +162,7 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `label settings reach the scene params even when the refresh is throttled`() = runTest {
-		val device = AppSettings(useDeviceLocation = true)
+		val device = AppSettings(useDeviceLocation = true, showWeatherLabel = true)
 		every { settingsRepository.settings } returns flowOf(device)
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 63))

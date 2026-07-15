@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
@@ -32,6 +33,15 @@ class SettingsRepositoryTest {
 		val repository = SettingsRepository(dataStore())
 
 		assertEquals(AppSettings(), repository.settings.first())
+	}
+
+	@Test
+	fun `both labels stay hidden until the user asks for them`() = runTest {
+		val repository = SettingsRepository(dataStore())
+
+		val settings = repository.settings.first()
+		assertFalse(settings.showWeatherLabel)
+		assertFalse(settings.showLocationLabel)
 	}
 
 	@Test

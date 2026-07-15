@@ -32,7 +32,7 @@ class WeatherSceneProvider @Inject constructor(private val locationRepository: L
 	@Volatile private var lastRefreshEpochSeconds = 0L
 	@Volatile private var lastLocationKey: String? = null
 	@Volatile private var backdropScene = BackdropScene.NONE
-	@Volatile private var showWeatherLabel = true
+	@Volatile private var showWeatherLabel = false
 	@Volatile private var showLocationLabel = false
 	@Volatile private var temperatureUnit = TemperatureUnit.CELSIUS
 	@Volatile private var locationLabel: String? = null

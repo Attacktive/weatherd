@@ -7,7 +7,7 @@ data class AppSettings(
 	val manualLongitude: Double? = null,
 	val manualLocationLabel: String? = null,
 	val backdropScene: BackdropScene = BackdropScene.NONE,
-	val showWeatherLabel: Boolean = true,
+	val showWeatherLabel: Boolean = false,
 	val showLocationLabel: Boolean = false,
 	val temperatureUnit: TemperatureUnit = TemperatureUnit.CELSIUS
 )
