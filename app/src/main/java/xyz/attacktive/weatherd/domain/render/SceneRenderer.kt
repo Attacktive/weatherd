@@ -161,24 +161,26 @@ class SceneRenderer {
 	}
 
 	/**
-	 * The optional text overlay, drawn above everything so no weather ever obscures it. It sits low on the
-	 * screen where the near scenery plane (when one is chosen) lends it a dark backdrop, centered clear of
-	 * the furniture both wallpaper homes put near the bottom: lock-screen shortcuts hug the corners and
-	 * launcher docks hug the very bottom edge, while fingerprint sensors sit well above.
+	 * The optional text overlay, drawn above everything so no weather ever obscures it.
+	 *
+	 * It rides at the top of the sky, just under the status bar. Everywhere lower is spoken for: the scenery's
+	 * silhouettes own the bottom third and are far too busy to read text against, while below them a launcher's
+	 * dock and the lock screen's shortcuts claim the rest. The one thing that shares this band is the sun or
+	 * moon drifting through, so the text keeps a shadow and simply draws over it.
 	 */
 	private fun drawOverlayLabels(canvas: Canvas, width: Float, height: Float, labels: OverlayLabels) {
-		textPaint.setShadowLayer(height * 0.004f, 0f, height * 0.0012f, Color.argb(150, 8, 12, 20))
+		textPaint.setShadowLayer(height * 0.005f, 0f, height * 0.0012f, Color.argb(165, 8, 12, 20))
 
 		labels.weather?.let {
 			textPaint.textSize = height * 0.024f
-			textPaint.color = Color.argb(215, 236, 242, 250)
-			canvas.drawText(it, width / 2f, height * 0.875f, textPaint)
+			textPaint.color = Color.argb(225, 240, 245, 252)
+			canvas.drawText(it, width / 2f, height * 0.09f, textPaint)
 		}
 
 		labels.location?.let {
 			textPaint.textSize = height * 0.0165f
-			textPaint.color = Color.argb(165, 226, 234, 246)
-			canvas.drawText(it, width / 2f, height * 0.905f, textPaint)
+			textPaint.color = Color.argb(180, 228, 236, 248)
+			canvas.drawText(it, width / 2f, height * 0.121f, textPaint)
 		}
 	}
 
