@@ -191,5 +191,5 @@ class WeatherLiveWallpaperService: WallpaperService() {
 /** Six hours: long enough that the wrap's one discontinuous frame is rare, short enough that timeSeconds never loses sub-frame float precision. */
 private const val CLOCK_WRAP_NANOS = 21_600L * 1_000_000_000L
 
-/** How long a scene flip takes to crossfade — long enough to read as weather moving in, short enough to never lag a glance at the lock screen. */
+/** How long a scene flip takes to crossfade — long enough to read as weather moving in, short enough to never lag a glance at the screen. */
 private const val SCENE_FADE_SECONDS = 2.8f

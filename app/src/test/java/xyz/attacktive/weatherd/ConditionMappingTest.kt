@@ -12,6 +12,7 @@ import xyz.attacktive.weatherd.domain.weather.SEVERITY_STEADY
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_STORM
 import xyz.attacktive.weatherd.domain.weather.conditionFor
 import xyz.attacktive.weatherd.domain.weather.precipitationIntensity
+import xyz.attacktive.weatherd.domain.weather.weatherLabelFor
 
 class ConditionMappingTest {
 	@Test
@@ -71,6 +72,44 @@ class ConditionMappingTest {
 			assertFalse(condition.fog)
 			assertFalse(condition.thunder)
 		}
+	}
+
+	@Test
+	fun `weather labels cover the wmo table`() {
+		assertEquals("Clear sky", weatherLabelFor(0))
+		assertEquals("Mainly clear", weatherLabelFor(1))
+		assertEquals("Partly cloudy", weatherLabelFor(2))
+		assertEquals("Overcast", weatherLabelFor(3))
+		assertEquals("Fog", weatherLabelFor(45))
+		assertEquals("Icy fog", weatherLabelFor(48))
+		assertEquals("Light drizzle", weatherLabelFor(51))
+		assertEquals("Drizzle", weatherLabelFor(53))
+		assertEquals("Dense drizzle", weatherLabelFor(55))
+		assertEquals("Light freezing drizzle", weatherLabelFor(56))
+		assertEquals("Freezing drizzle", weatherLabelFor(57))
+		assertEquals("Light rain", weatherLabelFor(61))
+		assertEquals("Rain", weatherLabelFor(63))
+		assertEquals("Heavy rain", weatherLabelFor(65))
+		assertEquals("Light freezing rain", weatherLabelFor(66))
+		assertEquals("Freezing rain", weatherLabelFor(67))
+		assertEquals("Light snow", weatherLabelFor(71))
+		assertEquals("Snow", weatherLabelFor(73))
+		assertEquals("Heavy snow", weatherLabelFor(75))
+		assertEquals("Snow grains", weatherLabelFor(77))
+		assertEquals("Light showers", weatherLabelFor(80))
+		assertEquals("Showers", weatherLabelFor(81))
+		assertEquals("Violent showers", weatherLabelFor(82))
+		assertEquals("Snow showers", weatherLabelFor(85))
+		assertEquals("Heavy snow showers", weatherLabelFor(86))
+		assertEquals("Thunderstorm", weatherLabelFor(95))
+		assertEquals("Thunderstorm with hail", weatherLabelFor(96))
+		assertEquals("Thunderstorm with hail", weatherLabelFor(99))
+	}
+
+	@Test
+	fun `unknown codes have no label`() {
+		assertNull(weatherLabelFor(-1))
+		assertNull(weatherLabelFor(1234))
 	}
 
 	@Test

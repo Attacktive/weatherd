@@ -51,6 +51,11 @@ class SceneRenderer {
 	private val spritePaint = Paint(Paint.FILTER_BITMAP_FLAG)
 	private val spriteDest = RectF()
 
+	private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+		textAlign = Paint.Align.CENTER
+		letterSpacing = 0.03f
+	}
+
 	// Per-frame lightning state, recomputed by [updateLightning] before anything that reacts to a flash draws.
 	private var flashWash = 0f
 	private var flashBolt = 0f
@@ -148,6 +153,32 @@ class SceneRenderer {
 
 		if (params.thunder) {
 			drawLightning(canvas, w, h)
+		}
+
+		params.overlayLabels?.let {
+			drawOverlayLabels(canvas, w, h, it)
+		}
+	}
+
+	/**
+	 * The optional text overlay, drawn above everything so no weather ever obscures it. It sits low on the
+	 * screen where the near scenery plane (when one is chosen) lends it a dark backdrop, centered clear of
+	 * the furniture both wallpaper homes put near the bottom: lock-screen shortcuts hug the corners and
+	 * launcher docks hug the very bottom edge, while fingerprint sensors sit well above.
+	 */
+	private fun drawOverlayLabels(canvas: Canvas, width: Float, height: Float, labels: OverlayLabels) {
+		textPaint.setShadowLayer(height * 0.004f, 0f, height * 0.0012f, Color.argb(150, 8, 12, 20))
+
+		labels.weather?.let {
+			textPaint.textSize = height * 0.024f
+			textPaint.color = Color.argb(215, 236, 242, 250)
+			canvas.drawText(it, width / 2f, height * 0.875f, textPaint)
+		}
+
+		labels.location?.let {
+			textPaint.textSize = height * 0.0165f
+			textPaint.color = Color.argb(165, 226, 234, 246)
+			canvas.drawText(it, width / 2f, height * 0.905f, textPaint)
 		}
 	}
 

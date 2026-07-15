@@ -8,11 +8,15 @@ import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.GeoLocation
+import xyz.attacktive.weatherd.domain.model.TemperatureUnit
+import xyz.attacktive.weatherd.domain.model.WeatherObservation
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
 import xyz.attacktive.weatherd.domain.repository.LocationRepository
+import xyz.attacktive.weatherd.domain.repository.ReverseGeocodingRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
 import xyz.attacktive.weatherd.domain.repository.WeatherRepository
 import xyz.attacktive.weatherd.domain.weather.moonPhaseFor
+import xyz.attacktive.weatherd.domain.weather.weatherLabelFor
 import xyz.attacktive.weatherd.util.AppLogger
 
 /**
@@ -23,17 +27,23 @@ import xyz.attacktive.weatherd.util.AppLogger
  * [paramsFor] reads.
  */
 @Singleton
-class WeatherSceneProvider @Inject constructor(private val locationRepository: LocationRepository, private val weatherRepository: WeatherRepository, private val settingsRepository: SettingsRepository, private val logger: AppLogger) {
+class WeatherSceneProvider @Inject constructor(private val locationRepository: LocationRepository, private val weatherRepository: WeatherRepository, private val reverseGeocodingRepository: ReverseGeocodingRepository, private val settingsRepository: SettingsRepository, private val logger: AppLogger) {
 	@Volatile private var snapshot: WeatherSnapshot? = null
 	@Volatile private var lastRefreshEpochSeconds = 0L
 	@Volatile private var lastLocationKey: String? = null
 	@Volatile private var backdropScene = BackdropScene.NONE
+	@Volatile private var showWeatherLabel = true
+	@Volatile private var showLocationLabel = false
+	@Volatile private var temperatureUnit = TemperatureUnit.CELSIUS
+	@Volatile private var locationLabel: String? = null
+	@Volatile private var lastFix: GeoLocation? = null
+	@Volatile private var geocodedKey: String? = null
 
 	/** The scene to draw at [nowEpochSeconds]; a clock-lit clear sky until the first weather fetch lands. */
 	fun paramsFor(nowEpochSeconds: Long): SceneParams {
 		val snapshot = this.snapshot ?: return fallbackParams(nowEpochSeconds)
 
-		return sceneParamsFor(snapshot, nowEpochSeconds, backdropScene)
+		return sceneParamsFor(snapshot, nowEpochSeconds, backdropScene, overlayLabels(snapshot))
 	}
 
 	/**
@@ -45,8 +55,12 @@ class WeatherSceneProvider @Inject constructor(private val locationRepository: L
 	suspend fun refresh(nowEpochSeconds: Long, force: Boolean = false) {
 		val settings = settingsRepository.settings.first()
 
-		// The backdrop choice is captured before the throttle: it's a render setting, not weather, so even a throttled refresh must adopt it.
+		// Render settings are captured before the throttle: they're display choices, not weather, so even a throttled refresh must adopt them.
 		backdropScene = settings.backdropScene
+		showWeatherLabel = settings.showWeatherLabel
+		showLocationLabel = settings.showLocationLabel
+		temperatureUnit = settings.temperatureUnit
+		refreshLocationLabel(settings)
 
 		val locationKey = locationKey(settings)
 		val locationChanged = locationKey != lastLocationKey
@@ -60,6 +74,10 @@ class WeatherSceneProvider @Inject constructor(private val locationRepository: L
 			logger.debug(TAG, "no location fix; keeping ${if (snapshot == null) "fallback scene" else "last snapshot"}")
 			return
 		}
+
+		// The fix is remembered and the label refreshed again now that one exists — the first refresh has nothing cached for the pre-throttle pass to geocode.
+		lastFix = location
+		refreshLocationLabel(settings)
 
 		weatherRepository.current(location.latitude, location.longitude).onSuccess {
 			snapshot = it
@@ -88,6 +106,64 @@ class WeatherSceneProvider @Inject constructor(private val locationRepository: L
 			GeoLocation(latitude, longitude)
 		} else {
 			null
+		}
+	}
+
+	/**
+	 * Keeps [locationLabel] current: the user's own words in manual mode, a reverse-geocoded place name in
+	 * device mode. Geocoding is skipped while the label is toggled off and cached per fix, so a place is
+	 * looked up once — a failed lookup leaves the label null and retries on the next refresh.
+	 */
+	private suspend fun refreshLocationLabel(settings: AppSettings) {
+		if (!settings.useDeviceLocation) {
+			locationLabel = settings.manualLocationLabel
+			return
+		}
+
+		if (!settings.showLocationLabel) {
+			return
+		}
+
+		val fix = lastFix ?: return
+		val fixKey = "${fix.latitude},${fix.longitude}"
+		if (fixKey == geocodedKey && locationLabel != null) {
+			return
+		}
+
+		locationLabel = reverseGeocodingRepository.placeName(fix.latitude, fix.longitude)
+		geocodedKey = fixKey
+	}
+
+	/** The formatted overlay lines, or null when nothing is toggled on — the renderer skips the text pass entirely. */
+	private fun overlayLabels(snapshot: WeatherSnapshot): OverlayLabels? {
+		val weather = if (showWeatherLabel) {
+			weatherText(snapshot.observation)
+		} else {
+			null
+		}
+
+		val location = if (showLocationLabel) {
+			locationLabel
+		} else {
+			null
+		}
+
+		return if (weather == null && location == null) {
+			null
+		} else {
+			OverlayLabels(weather, location)
+		}
+	}
+
+	/** "Rain · 10°" — or the bare temperature when the code falls outside the label table. */
+	private fun weatherText(observation: WeatherObservation): String {
+		val label = weatherLabelFor(observation.weatherCode)
+		val temperature = temperatureUnit.format(observation.temperatureCelsius)
+
+		return if (label == null) {
+			temperature
+		} else {
+			"$label · $temperature"
 		}
 	}
 

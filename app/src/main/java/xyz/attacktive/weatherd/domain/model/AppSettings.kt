@@ -6,7 +6,10 @@ data class AppSettings(
 	val manualLatitude: Double? = null,
 	val manualLongitude: Double? = null,
 	val manualLocationLabel: String? = null,
-	val backdropScene: BackdropScene = BackdropScene.NONE
+	val backdropScene: BackdropScene = BackdropScene.NONE,
+	val showWeatherLabel: Boolean = true,
+	val showLocationLabel: Boolean = false,
+	val temperatureUnit: TemperatureUnit = TemperatureUnit.CELSIUS
 )
 
 /** Selectable weather-refresh intervals in minutes, offered in Settings. */

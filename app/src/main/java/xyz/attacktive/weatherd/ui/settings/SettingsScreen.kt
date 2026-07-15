@@ -30,6 +30,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -50,6 +53,7 @@ import xyz.attacktive.weatherd.BuildConfig
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.GeoPlace
+import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.UPDATE_INTERVAL_OPTIONS
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -88,6 +92,10 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 				Spacer(modifier = Modifier.height(24.dp))
 
 				BackdropSection(settings = settings, onSave = viewModel::save)
+
+				Spacer(modifier = Modifier.height(24.dp))
+
+				LabelsSection(settings = settings, onSave = viewModel::save)
 
 				Spacer(modifier = Modifier.height(24.dp))
 
@@ -174,6 +182,49 @@ private fun BackdropSection(settings: AppSettings, onSave: (AppSettings) -> Unit
 			}
 		}
 	}
+}
+
+@Composable
+private fun LabelsSection(settings: AppSettings, onSave: (AppSettings) -> Unit) {
+	SectionLabel("Labels")
+
+	ToggleSetting(
+		label = "Show current weather",
+		subtitle = "e.g. \"Light rain · 23°\"",
+		checked = settings.showWeatherLabel,
+		onToggle = { onSave(settings.copy(showWeatherLabel = it)) }
+	)
+
+	AnimatedVisibility(visible = settings.showWeatherLabel) {
+		Column {
+			Spacer(modifier = Modifier.height(8.dp))
+
+			SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+				TemperatureUnit.entries.forEachIndexed { index, unit ->
+					SegmentedButton(
+						selected = settings.temperatureUnit == unit,
+						onClick = {
+							if (unit != settings.temperatureUnit) {
+								onSave(settings.copy(temperatureUnit = unit))
+							}
+						},
+						shape = SegmentedButtonDefaults.itemShape(index = index, count = TemperatureUnit.entries.size)
+					) {
+						Text(formatUnit(unit))
+					}
+				}
+			}
+
+			Spacer(modifier = Modifier.height(4.dp))
+		}
+	}
+
+	ToggleSetting(
+		label = "Show location name",
+		subtitle = "The place the weather is for",
+		checked = settings.showLocationLabel,
+		onToggle = { onSave(settings.copy(showLocationLabel = it)) }
+	)
 }
 
 @Composable
@@ -337,4 +388,9 @@ private fun formatBackdrop(scene: BackdropScene) = when (scene) {
 	BackdropScene.METROPOLIS -> "Metropolis"
 	BackdropScene.BEACH -> "Beach"
 	BackdropScene.MOUNTAINS -> "Mountains"
+}
+
+private fun formatUnit(unit: TemperatureUnit) = when (unit) {
+	TemperatureUnit.CELSIUS -> "°C"
+	TemperatureUnit.FAHRENHEIT -> "°F"
 }

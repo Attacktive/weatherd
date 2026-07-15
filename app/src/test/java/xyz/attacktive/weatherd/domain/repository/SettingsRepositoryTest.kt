@@ -16,6 +16,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
+import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsRepositoryTest {
@@ -42,7 +43,10 @@ class SettingsRepositoryTest {
 			manualLatitude = 35.68,
 			manualLongitude = 139.69,
 			manualLocationLabel = "Tokyo, Japan",
-			backdropScene = BackdropScene.MOUNTAINS
+			backdropScene = BackdropScene.MOUNTAINS,
+			showWeatherLabel = false,
+			showLocationLabel = true,
+			temperatureUnit = TemperatureUnit.FAHRENHEIT
 		)
 
 		repository.save(updated)
@@ -57,6 +61,15 @@ class SettingsRepositoryTest {
 		dataStore.edit { it[stringPreferencesKey("backdrop_scene")] = "DISCOTHEQUE" }
 
 		assertEquals(BackdropScene.NONE, repository.settings.first().backdropScene)
+	}
+
+	@Test
+	fun `an unrecognised stored temperature unit falls back to celsius`() = runTest {
+		val dataStore = dataStore()
+		val repository = SettingsRepository(dataStore)
+		dataStore.edit { it[stringPreferencesKey("temperature_unit")] = "KELVIN" }
+
+		assertEquals(TemperatureUnit.CELSIUS, repository.settings.first().temperatureUnit)
 	}
 
 	@Test
