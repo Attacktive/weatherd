@@ -65,7 +65,7 @@ class SettingsRepositoryTest {
 	}
 
 	@Test
-	fun `an unrecognised stored backdrop scene falls back to NONE`() = runTest {
+	fun `an unrecognized stored backdrop scene falls back to NONE`() = runTest {
 		val dataStore = dataStore()
 		val repository = SettingsRepository(dataStore)
 		dataStore.edit { it[stringPreferencesKey("backdrop_scene")] = "DISCOTHEQUE" }
@@ -74,7 +74,7 @@ class SettingsRepositoryTest {
 	}
 
 	@Test
-	fun `an unrecognised stored temperature unit falls back to celsius`() = runTest {
+	fun `an unrecognized stored temperature unit falls back to celsius`() = runTest {
 		val dataStore = dataStore()
 		val repository = SettingsRepository(dataStore)
 		dataStore.edit { it[stringPreferencesKey("temperature_unit")] = "KELVIN" }

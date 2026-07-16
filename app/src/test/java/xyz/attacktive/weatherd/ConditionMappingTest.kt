@@ -113,7 +113,7 @@ class ConditionMappingTest {
 	}
 
 	@Test
-	fun `precipitation intensity normalises and clamps`() {
+	fun `precipitation intensity normalizes and clamps`() {
 		assertEquals(0f, precipitationIntensity(0.0), 0.0001f)
 		assertEquals(0.5f, precipitationIntensity(5.0), 0.0001f)
 		assertEquals(1f, precipitationIntensity(10.0), 0.0001f)

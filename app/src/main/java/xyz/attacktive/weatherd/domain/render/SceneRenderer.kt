@@ -28,11 +28,9 @@ import xyz.attacktive.weatherd.domain.weather.SEVERITY_STEADY
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_STORM
 
 /**
- * Draws a procedural weather scene onto a Canvas. Split into a static [renderBackdrop] (sky, overcast
- * ceiling, fog base, haze, vignette — cache it) and an animated [renderForeground] (twinkling stars,
- * a glowing sun/moon, the horizon scenery, drifting clouds/overcast/mist, precipitation, lightning) advanced by [timeSeconds].
- * Soft drifting layers (clouds, overcast, fog) are pre-rendered once into scrolling tiles, so the
- * per-frame cost is a handful of cheap blits rather than a fresh CPU-side blur every frame.
+ * Draws a procedural weather scene onto a Canvas.
+ * Split into a static [renderBackdrop] (sky, overcast ceiling, fog base, haze, vignette — cache it) and an animated [renderForeground] (twinkling stars, a glowing sun/moon, the horizon scenery, drifting clouds/overcast/mist, precipitation, lightning) advanced by `timeSeconds`.
+ * Soft drifting layers (clouds, overcast, fog) are pre-rendered once into scrolling tiles, so the per-frame cost is a handful of cheap blits rather than a fresh CPU-side blur every frame.
  */
 class SceneRenderer {
 	private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -63,7 +61,7 @@ class SceneRenderer {
 	private var flashSlot = 0
 
 	/*
-	 * Soft-dot sprites for snowflakes and sleet pellets: the softness is rasterised once here, and every frame just blits them as filtered quads.
+	 * Soft-dot sprites for snowflakes and sleet pellets: the softness is rasterized once here, and every frame just blits them as filtered quads.
 	 * A hard 1–3px disc shimmers against the pixel grid while it falls; a blurry sprite scaled bilinearly stays smooth at any size.
 	 * Their colors are scene-independent, so they live outside [tiles] and survive scene changes.
 	 */
@@ -163,10 +161,9 @@ class SceneRenderer {
 	/**
 	 * The optional text overlay, drawn above everything so no weather ever obscures it.
 	 *
-	 * It rides at the top of the sky, just under the status bar. Everywhere lower is spoken for: the scenery's
-	 * silhouettes own the bottom third and are far too busy to read text against, while below them a launcher's
-	 * dock and the lock screen's shortcuts claim the rest. The one thing that shares this band is the sun or
-	 * moon drifting through, so the text keeps a shadow and simply draws over it.
+	 * It rides at the top of the sky, just under the status bar.
+	 * Everywhere lower is spoken for: the scenery's silhouettes own the bottom third and are far too busy to read text against, while below them a launcher's dock and the lock screen's shortcuts claim the rest.
+	 * The one thing that shares this band is the sun or moon drifting through, so the text keeps a shadow and simply draws over it.
 	 */
 	private fun drawOverlayLabels(canvas: Canvas, width: Float, height: Float, labels: OverlayLabels) {
 		textPaint.setShadowLayer(height * 0.005f, 0f, height * 0.0012f, Color.argb(165, 8, 12, 20))
@@ -300,9 +297,8 @@ class SceneRenderer {
 	}
 
 	/**
-	 * At most one meteor per slot and most slots stay empty, so a clear night earns a rare treat rather
-	 * than a fireworks show. The streak flies a seeded straight line under a sine envelope, swelling and
-	 * dying instead of blinking in and out — and like everything else it is a pure function of time.
+	 * At most one meteor per slot and most slots stay empty, so a clear night earns a rare treat rather than a fireworks show.
+	 * The streak flies a seeded straight line under a sine envelope, swelling and dying instead of blinking in and out — and like everything else it is a pure function of time.
 	 */
 	private fun drawShootingStar(canvas: Canvas, width: Float, height: Float, timeSeconds: Float) {
 		val slot = (timeSeconds / METEOR_SLOT_SECONDS).toInt()
@@ -372,9 +368,8 @@ class SceneRenderer {
 		val litScale = 0.35f + 0.65f * litFraction
 
 		/*
-		 * Two-sine breathing halo: a slow deep swell with a faster shimmer on top, so the glow visibly
-		 * blooms and recedes instead of subtly wobbling. Two blits of one pre-rendered radial sprite deepen
-		 * the bloom — building RadialGradients here churned two shader allocations every frame.
+		 * Two-sine breathing halo: a slow deep swell with a faster shimmer on top, so the glow visibly blooms and recedes instead of subtly wobbling.
+		 * Two blits of one pre-rendered radial sprite deepen the bloom — building RadialGradients here churned two shader allocations every frame.
 		 */
 		val halo = tile("celestialHalo", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildHaloSprite(it, core) }
 		val pulse = 0.5f + 0.35f * sin(timeSeconds * 0.8f) + 0.15f * sin(timeSeconds * 2.1f)
@@ -400,8 +395,8 @@ class SceneRenderer {
 	}
 
 	/**
-	 * The moon rasterised once per phase step: the lit shape bounded by the circular limb and the elliptical terminator, and the craters clipped to the lit side.
-	 * The dark side deliberately draws nothing — the sky shows straight through, keeping the moon stylised rather than realistic.
+	 * The moon rasterized once per phase step: the lit shape bounded by the circular limb and the elliptical terminator, and the craters clipped to the lit side.
+	 * The dark side deliberately draws nothing — the sky shows straight through, keeping the moon stylized rather than realistic.
 	 * Waning phases mirror the waxing construction horizontally instead of duplicating the arc plumbing.
 	 */
 	private fun buildMoonSprite(canvas: Canvas, core: Int, moonPhase: Float) {
@@ -459,8 +454,8 @@ class SceneRenderer {
 	}
 
 	/**
-	 * Two parallax layers of soft cloud masses drifting over the overcast/precipitation ceiling, so the sky
-	 * churns rather than sits flat. Storm decks are darkened and snow decks lightened to match their skies.
+	 * Two parallax layers of soft cloud masses drifting over the overcast/precipitation ceiling, so the sky churns rather than sits flat.
+	 * Storm decks are darkened and snow decks lightened to match their skies.
 	 */
 	private fun drawCloudDrift(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
 		val base = overcastCeiling(params.dayPhase)
@@ -473,15 +468,18 @@ class SceneRenderer {
 		val destHeight = height * 0.72f
 		val tileWidth = (width / TILE_DOWNSCALE).toInt()
 		/*
-		 * BlurMaskFilter draws past the tile edge and gets hard-clipped — on landscape tablets that
-		 * reads as a dark horizontal band across the rain/overcast deck. Extra bottom pad + a soft
-		 * alpha fade hide the clip.
+		 * BlurMaskFilter draws past the tile edge and gets hard-clipped — on landscape tablets that reads as a dark horizontal band across the rain/overcast deck.
+		 * Extra bottom pad + a soft alpha fade hide the clip.
 		 */
 		val blurPad = (tileWidth * 0.16f).roundToInt()
 		val tileHeight = (destHeight / TILE_DOWNSCALE).toInt() + blurPad
 
 		// Snow clouds stay milky rather than smoky, so the back layer keeps most of its brightness.
-		val backFactor = if (snowy) 0.82f else 0.45f
+		val backFactor = if (snowy) {
+			0.82f
+		} else {
+			0.45f
+		}
 
 		val back = tile("ovcBack", tileWidth, tileHeight) {
 			buildMassTile(it, tileWidth.toFloat(), tileHeight.toFloat(), darken(ceiling, backFactor), 165, tileWidth * 0.14f, 6, 22L)
@@ -494,10 +492,8 @@ class SceneRenderer {
 		}
 
 		/*
-		 * Layers scroll at clearly different speeds, bob vertically in counter-phase, and the front layer's
-		 * opacity swells and fades — together the deck visibly churns rather than sliding as one sheet.
-		 * Bob and swell each sum two incommensurate sines so the churn never repeats on a visible period,
-		 * and gusts surge the whole deck forward and back as a bounded displacement on the constant scroll.
+		 * Layers scroll at clearly different speeds, bob vertically in counter-phase, and the front layer's opacity swells and fades — together the deck visibly churns rather than sliding as one sheet.
+		 * Bob and swell each sum two incommensurate sines so the churn never repeats on a visible period, and gusts surge the whole deck forward and back as a bounded displacement on the constant scroll.
 		 * Each layer's top is overscanned past the screen edge by its own bob amplitude, so the bob never wobbles the tile's hard-clipped top edge into view.
 		 */
 		val bobAmplitude = height * 0.022f
@@ -512,9 +508,9 @@ class SceneRenderer {
 	}
 
 	/**
-	 * A small flock crossing every few minutes on fair days: staggered wing glyphs with phase-offset
-	 * wingbeats and a light vertical bob. Slot-scheduled like meteors and lightning, so most of the time
-	 * the sky is empty and a crossing stays a treat. Drawn behind the scattered puffs for depth.
+	 * A small flock crossing every few minutes on fair days: staggered wing glyphs with phase-offset wingbeats and a light vertical bob.
+	 * Slot-scheduled like meteors and lightning, so most of the time the sky is empty and a crossing stays a treat.
+	 * Drawn behind the scattered puffs for depth.
 	 */
 	private fun drawBirds(canvas: Canvas, width: Float, height: Float, timeSeconds: Float, dayPhase: DayPhase) {
 		val slot = (timeSeconds / BIRD_SLOT_SECONDS).toInt()
@@ -578,10 +574,7 @@ class SceneRenderer {
 		val tileHeight = (destHeight / 2f).toInt()
 		val cloudColor = withAlpha(cloudTint(params.dayPhase), (150f + params.cloudiness * 80f).roundToInt().coerceAtMost(235))
 
-		/*
-		 * Two depth layers: sparse, small, dim puffs creeping high in the back, the full billows in front —
-		 * fair-weather skies get the parallax the overcast deck already has, instead of one flat sheet.
-		 */
+		// Two depth layers: sparse, small, dim puffs creeping high in the back, the full billows in front — fair-weather skies get the parallax the overcast deck already has, instead of one flat sheet.
 		val farColor = withAlpha(cloudTint(params.dayPhase), (Color.alpha(cloudColor) * 0.6f).roundToInt())
 		val far = tile("scatteredFar", tileWidth, tileHeight) {
 			buildScatteredTile(it, tileWidth.toFloat(), tileHeight.toFloat(), params, farColor, puffScale = 0.55f, countFactor = 0.6f, baselineLift = 0.16f, seed = CLOUD_SEED + 1L)
@@ -685,11 +678,7 @@ class SceneRenderer {
 			buildMassTile(it, tileWidth.toFloat(), tileHeight.toFloat(), Color.rgb(232, 236, 240), 70, tileWidth * 0.12f, 5, 31L)
 		}
 
-		/*
-		 * The two layers drift in opposite directions — by far the most legible motion cue for a texture
-		 * this soft — with counter-phased opacity breathing and a slow vertical roll on top, so banks of
-		 * mist visibly slide past each other, thicken, and thin.
-		 */
+		// The two layers drift in opposite directions — by far the most legible motion cue for a texture this soft — with counter-phased opacity breathing and a slow vertical roll on top, so banks of mist visibly slide past each other, thicken, and thin.
 		val breath = 0.5f + 0.5f * (0.7f * sin(timeSeconds * 0.45f) + 0.3f * sin(timeSeconds * 1.13f))
 		val rollAmplitude = height * 0.03f
 		val roll = rollAmplitude * (0.7f * sin(timeSeconds * 0.25f) + 0.3f * sin(timeSeconds * 0.73f))
@@ -707,9 +696,8 @@ class SceneRenderer {
 	}
 
 	/**
-	 * The shared wind signal: windFactor scaled by two incommensurate sines, so every wind-driven layer
-	 * leans and eases together in gusts instead of holding one constant slant. Only amplitudes modulate —
-	 * a frequency or velocity change multiplied by a large timeSeconds teleports whatever it drives.
+	 * The shared wind signal: windFactor scaled by two incommensurate sines, so every wind-driven layer leans and eases together in gusts instead of holding one constant slant.
+	 * Only amplitudes modulate — a frequency or velocity change multiplied by a large timeSeconds teleports whatever it drives.
 	 */
 	private fun gustFactor(timeSeconds: Float, windFactor: Float) = windFactor * (0.7f + 0.21f * sin(timeSeconds * 0.23f) + 0.09f * sin(timeSeconds * 0.67f))
 
@@ -717,9 +705,8 @@ class SceneRenderer {
 	private fun wrapOffset(offset: Float, width: Float) = ((offset % width) + width) % width
 
 	/**
-	 * A cheap hash of particle index and fall cycle onto 0..1, so every particle re-enters on a fresh lane
-	 * each time it wraps instead of re-falling one path forever. Pure arithmetic — no allocation, no RNG
-	 * state — so particle motion stays a pure function of time.
+	 * A cheap hash of particle index and fall cycle onto 0..1, so every particle re-enters on a fresh lane each time it wraps instead of re-falling one path forever.
+	 * Pure arithmetic — no allocation, no RNG state — so particle motion stays a pure function of time.
 	 */
 	private fun laneFraction(index: Int, cycle: Int): Float {
 		var mixed = index * 374_761_393 + cycle * 668_265_263
@@ -736,11 +723,7 @@ class SceneRenderer {
 		val observedFactor = 0.4f + 0.6f * precipitation.observed
 		val count = (precipitationBaseCount(precipitation, width, height) * observedFactor).roundToInt()
 
-		/*
-		 * Only the dim far layers breathe with the squall factor: a particle popping into existence
-		 * mid-fall is a teleport, imperceptible at the far layers' alphas but exactly what the bright
-		 * near layers must never show — so those hold the steady count.
-		 */
+		// Only the dim far layers breathe with the squall factor: a particle popping into existence mid-fall is a teleport, imperceptible at the far layers' alphas but exactly what the bright near layers must never show — so those hold the steady count.
 		val squallCount = (count * squallFactor(timeSeconds)).roundToInt()
 		val heavy = precipitation.severity >= HEAVY_SEVERITY
 
@@ -787,8 +770,10 @@ class SceneRenderer {
 
 	/** Far layer: short, thin, dim streaks that read as distant drizzle, batched into one drawLines call. */
 	private fun drawFarRain(canvas: Canvas, width: Float, height: Float, squallCount: Int, span: Float, slant: Float, stretch: Float, speed: Float, timeSeconds: Float, flash: Float) {
-		// Each streak picks a fresh lane per fall cycle, so no drop re-falls one fixed path forever.
-		// Every layer seeds its own Random: per-particle constants must never depend on another layer's breathing count, or one ±1 tick reshuffles every draw after it and whole layers teleport.
+		/*
+		 * Each streak picks a fresh lane per fall cycle, so no drop re-falls one fixed path forever.
+		 * Every layer seeds its own Random: per-particle constants must never depend on another layer's breathing count, or one ±1 tick reshuffles every draw after it and whole layers teleport.
+		*/
 		val farRandom = Random(PRECIP_SEED)
 		val points = rainBuffer(squallCount * 4)
 		repeat(squallCount) { i ->
@@ -803,8 +788,10 @@ class SceneRenderer {
 			points[i * 4 + 3] = y + length
 		}
 
-		// No blur here: a per-frame BlurMaskFilter over hundreds of segments is what froze rain scenes.
-		// Instead each batch is stroked twice — a wide faint halo under the thin core — so a streak fades out sideways rather than ending in a hard aliased edge.
+		/*
+		 * No blur here: a per-frame BlurMaskFilter over hundreds of segments is what froze rain scenes.
+		 * Instead, each batch is stroked twice — a wide faint halo under the thin core — so a streak fades out sideways rather than ending in a hard aliased edge.
+		 */
 		paint.strokeWidth = 5.5f
 		paint.color = Color.argb(gleam(20, flash), 205, 218, 238)
 		canvas.drawLines(points, 0, squallCount * 4, paint)
@@ -905,8 +892,8 @@ class SceneRenderer {
 	}
 
 	/**
-	 * Two depth layers: small dim flakes drifting far away, big bright ones swaying up close — so it reads
-	 * as snowfall, not stars. [heavy] means a blizzard: bigger, faster flakes leaning hard on the wind.
+	 * Two depth layers: small dim flakes drifting far away, big bright ones swaying up close — so it reads as snowfall, not stars.
+	 * [heavy] means a blizzard: bigger, faster flakes leaning hard on the wind.
 	 * Flakes are blits of the pre-blurred soft-dot sprites, so they stay smooth in motion instead of shimmering as hard-edged discs.
 	 */
 	private fun drawSnow(canvas: Canvas, width: Float, height: Float, count: Int, squallCount: Int, windFactor: Float, timeSeconds: Float, heavy: Boolean) {
@@ -924,8 +911,10 @@ class SceneRenderer {
 
 		val gust = gustFactor(timeSeconds, windFactor)
 
-		// Lane and sway phase re-hash every wrap, and the wrap spans a pad past both edges so soft dots never pop at the border.
-		// Per-layer Randoms and a steady near count keep flakes from teleporting when the squall factor ticks.
+		/*
+		* Lane and sway phase re-hash every wrap, and the wrap spans a pad past both edges so soft dots never pop at the border.
+		* Per-layer Randoms and a steady near count keep flakes from teleporting when the squall factor ticks.
+		*/
 		val span = height + FLAKE_WRAP_PAD * 2f
 		val farRandom = Random(PRECIP_SEED)
 		val farLean = if (heavy) {
@@ -966,8 +955,10 @@ class SceneRenderer {
 
 	/** Sleet: a wintry rain/snow mix — short, sharp icy streaks interleaved with small tumbling pellets. */
 	private fun drawSleet(canvas: Canvas, width: Float, height: Float, count: Int, windFactor: Float, timeSeconds: Float, flash: Float) {
-		// Streaks: shorter and more vertical than rain, tinted cold, falling slower than a downpour.
-		// Sleet skips squall breathing entirely; both its layers are bright enough that a mid-fall pop would show.
+		/*
+		 * Streaks: shorter and more vertical than rain, tinted cold, falling slower than a downpour.
+		 * Sleet skips squall breathing entirely; both its layers are bright enough that a mid-fall pop would show.
+		 */
 		paint.style = Paint.Style.STROKE
 		paint.strokeCap = Paint.Cap.ROUND
 
@@ -1018,10 +1009,10 @@ class SceneRenderer {
 	}
 
 	/**
-	 * Advances the lightning schedule for this frame. Strikes live in fixed slots but fire at a per-slot
-	 * random moment, sometimes twice, sometimes not at all — so the storm never keeps a beat. Roughly 60%
-	 * are sheet strikes: no bolt, just the deck lighting up from inside. Everything derives from
-	 * [timeSeconds] and the slot seed, so the schedule stays a pure function of time.
+	 * Advances the lightning schedule for this frame.
+	 * Strikes live in fixed slots but fire at a per-slot random moment, sometimes twice, sometimes not at all — so the storm never keeps a beat.
+	 * Roughly 60% are sheet strikes: no bolt, just the deck lighting up from inside.
+	 * Everything derives from [timeSeconds] and the slot seed, so the schedule stays a pure function of time.
 	 */
 	private fun updateLightning(timeSeconds: Float) {
 		flashWash = 0f
@@ -1276,7 +1267,7 @@ class SceneRenderer {
 		spritePaint.alpha = 255
 	}
 
-	/** The sun/moon glow rasterised once per scene: a radial falloff from the full-alpha core color, blitted at the breathing size each frame. */
+	/** The sun/moon glow rasterized once per scene: a radial falloff from the full-alpha core color, blitted at the breathing size each frame. */
 	private fun buildHaloSprite(canvas: Canvas, core: Int) {
 		val center = HALO_SPRITE_SIZE / 2f
 
@@ -1330,9 +1321,7 @@ class SceneRenderer {
 		private const val BIRD_CROSSING_SECONDS = 22f
 
 		/**
-		 * Soft cloud/fog tiles are built at a quarter of the surface resolution and stretched at blit time —
-		 * they're heavily blurred anyway, and building them full-size stalls the first frames of a scene
-		 * (BlurMaskFilter rasterisation scales with area, 16x cheaper here).
+		 * Soft cloud/fog tiles are built at a quarter of the surface resolution and stretched at blit time — they're heavily blurred anyway, and building them full-size stalls the first frames of a scene (BlurMaskFilter rasterisation scales with area, 16x cheaper here).
 		 */
 		private const val TILE_DOWNSCALE = 4f
 
@@ -1354,7 +1343,7 @@ class SceneRenderer {
 		/** The moon disc fills this fraction of its sprite, leaving margin so the anti-aliased limb never clips at the bitmap edge. */
 		private const val MOON_DISC_MARGIN = 0.96f
 
-		/** Distinct phase sprites across the synodic month — the sprite cache key quantises to these steps. */
+		/** Distinct phase sprites across the synodic month — the sprite cache key quantizes to these steps. */
 		private const val MOON_PHASE_STEPS = 64
 
 		/** Fraction of a soft-dot sprite's radius that is solid color before the fade to transparent begins. */
@@ -1401,9 +1390,8 @@ private fun birdColor(dayPhase: DayPhase) = when (dayPhase) {
 private fun showsHaze(params: SceneParams) = params.precipitation != null || params.fogDensity > 0f || params.cloudiness > 0.75f
 
 /**
- * Base particle count before the observed-intensity modulation. Screen area over a divisor that shrinks
- * (more particles) as severity climbs; the anchor points reproduce the hand-tuned densities for
- * drizzle, steady rain, storm rain, downpours, steady snow, and blizzards.
+ * Base particle count before the observed-intensity modulation.
+ * Screen area over a divisor that shrinks (more particles) as severity climbs; the anchor points reproduce the hand-tuned densities for drizzle, steady rain, storm rain, downpours, steady snow, and blizzards.
  */
 private fun precipitationBaseCount(precipitation: Precipitation, width: Float, height: Float): Int {
 	val severity = precipitation.severity
@@ -1429,10 +1417,8 @@ private fun lerp(from: Float, to: Float, fraction: Float) = from + (to - from) *
 private fun unlerp(from: Float, to: Float, value: Float) = ((value - from) / (to - from)).coerceIn(0f, 1f)
 
 /**
- * Where the sun/moon hangs, as a fraction of screen height. The phase progress eases it along a
- * continuous arc: it climbs through dawn, sweeps a shallow parabola across the day whose ends meet the
- * twilight heights exactly, and sinks back through dusk — motion on the scale of minutes, so even a
- * calm clear scene is never a still image.
+ * Where the sun/moon hangs, as a fraction of screen height.
+ * The phase progress eases it along a continuous arc: it climbs through dawn, sweeps a shallow parabola across the day whose ends meet the twilight heights exactly, and sinks back through dusk — motion on the scale of minutes, so even a calm clear scene is never a still image.
  */
 private fun celestialHeightFraction(dayPhase: DayPhase, progress: Float) = when (dayPhase) {
 	DayPhase.DAY -> 0.26f - 0.09f * (4f * progress * (1f - progress))

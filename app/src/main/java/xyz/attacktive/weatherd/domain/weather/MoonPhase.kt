@@ -2,7 +2,7 @@ package xyz.attacktive.weatherd.domain.weather
 
 /**
  * Fraction through the synodic month at the given moment: 0 = new moon, 0.5 = full, wrapping just below 1.
- * Quantised to the UTC day so scene params stay stable between frames; the real terminator moves ~12° a day, far below what the wallpaper's moon resolves.
+ * Quantized to the UTC day so scene params stay stable between frames; the real terminator moves ~12° a day, far below what the wallpaper's moon resolves.
  */
 fun moonPhaseFor(nowEpochSeconds: Long): Float {
 	// Whole UTC days on both sides, so the phase steps exactly at midnight UTC instead of at the reference's wall time.

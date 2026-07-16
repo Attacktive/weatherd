@@ -8,7 +8,7 @@ enum class BackdropScene {
 	MOUNTAINS;
 
 	companion object {
-		/** The scene stored under [name], or [NONE] when the value is absent or unrecognised (e.g. read by an older build after a downgrade). */
+		/** The scene stored under [name], or [NONE] when the value is absent or unrecognized (e.g. read by an older build after a downgrade). */
 		fun fromName(name: String?) = entries.firstOrNull { it.name == name } ?: NONE
 	}
 }

@@ -21,7 +21,7 @@ class TemperatureUnitTest {
 	}
 
 	@Test
-	fun `an unrecognised or absent stored name falls back to celsius`() {
+	fun `an unrecognized or absent stored name falls back to celsius`() {
 		assertEquals(TemperatureUnit.FAHRENHEIT, TemperatureUnit.fromName("FAHRENHEIT"))
 		assertEquals(TemperatureUnit.CELSIUS, TemperatureUnit.fromName("KELVIN"))
 		assertEquals(TemperatureUnit.CELSIUS, TemperatureUnit.fromName(null))

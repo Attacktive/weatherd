@@ -11,11 +11,8 @@ import xyz.attacktive.weatherd.domain.weather.moonPhaseFor
 import xyz.attacktive.weatherd.domain.weather.precipitationIntensity
 
 /**
- * Everything the renderer needs, as orthogonal features rather than a scene taxonomy: lighting phase,
- * continuous cloud cover, fog, what precipitates (if anything), lightning, wind, and the day-quantised
- * synodic moon phase (0 = new, 0.5 = full — the default keeps previews and fallbacks on a full moon).
- * [celestialProgress] eases the sun/moon along its arc through the current phase; the midpoint default
- * reproduces the old fixed heights.
+ * Everything the renderer needs, as orthogonal features rather than a scene taxonomy: lighting phase, continuous cloud cover, fog, what precipitates (if anything), lightning, wind, and the day-quantized synodic moon phase (0 = new, 0.5 = full — the default keeps previews and fallbacks on a full moon).
+ * [celestialProgress] eases the sun/moon along its arc through the current phase; the midpoint default reproduces the old fixed heights.
  * [backdropScene] is the user's horizon scenery choice — a setting, not weather, so it defaults to the bare sky.
  * [overlayLabels] is the optional text overlay, already formatted for drawing; null keeps the wallpaper text-free.
  */

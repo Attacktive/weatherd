@@ -53,9 +53,8 @@ import xyz.attacktive.weatherd.service.WeatherLiveWallpaperService
 import android.graphics.Canvas as AndroidCanvas
 
 /**
- * A live preview of the current scene — the same renderer the wallpaper uses, fed the real weather via
- * [HomeViewModel]. Refreshes on resume so returning from Settings (e.g. after changing the city) reflects
- * the new scene, and re-reads the params once a second so the weather loading in and day-phase changes show.
+ * A live preview of the current scene — the same renderer the wallpaper uses, fed the real weather via [HomeViewModel].
+ * Refreshes on resume so returning from Settings (e.g. after changing the city) reflects the new scene, and re-reads the params once a second so the weather loading in and day-phase changes show.
  */
 @Composable
 fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hiltViewModel()) {
@@ -182,7 +181,13 @@ private fun DebugSceneControls(
 		) {
 			Text("Scene preview", color = Color.White, style = MaterialTheme.typography.labelLarge)
 			TextButton(onClick = { onDebugEnabledChange(!debugEnabled) }) {
-				Text(if (debugEnabled) "Live" else "Debug", color = Color.White)
+				val text = if (debugEnabled) {
+					"Live"
+				} else {
+					"Debug"
+				}
+
+				Text(text, color = Color.White)
 			}
 		}
 

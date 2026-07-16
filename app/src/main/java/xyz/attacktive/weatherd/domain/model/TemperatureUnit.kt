@@ -18,7 +18,7 @@ enum class TemperatureUnit {
 	}
 
 	companion object {
-		/** The unit stored under [name], or [CELSIUS] when the value is absent or unrecognised (e.g. read by an older build after a downgrade). */
+		/** The unit stored under [name], or [CELSIUS] when the value is absent or unrecognized (e.g. read by an older build after a downgrade). */
 		fun fromName(name: String?) = entries.firstOrNull { it.name == name } ?: CELSIUS
 	}
 }

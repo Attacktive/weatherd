@@ -20,11 +20,8 @@ import xyz.attacktive.weatherd.domain.weather.weatherLabelFor
 import xyz.attacktive.weatherd.util.AppLogger
 
 /**
- * Shared source of truth for the current [SceneParams], so the live wallpaper and the in-app preview
- * never disagree about what to draw. Weather is fetched lazily and cached; the day phase is re-derived
- * from the clock on every read, so dawn→day→dusk→night transitions happen without a network round-trip.
- * Thread-safe: [refresh] runs off the render thread and publishes the snapshot through a volatile that
- * [paramsFor] reads.
+ * Shared source of truth for the current [SceneParams], so the live wallpaper and the in-app preview never disagree about what to draw. Weather is fetched lazily and cached; the day phase is re-derived from the clock on every read, so dawn→day→dusk→night transitions happen without a network round-trip.
+ * Thread-safe: [refresh] runs off the render thread and publishes the snapshot through a volatile that [paramsFor] reads.
  */
 @Singleton
 class WeatherSceneProvider @Inject constructor(private val locationRepository: LocationRepository, private val weatherRepository: WeatherRepository, private val reverseGeocodingRepository: ReverseGeocodingRepository, private val settingsRepository: SettingsRepository, private val logger: AppLogger) {
@@ -47,10 +44,9 @@ class WeatherSceneProvider @Inject constructor(private val locationRepository: L
 	}
 
 	/**
-	 * Fetches fresh weather for the current location, unless a fetch succeeded within the user's configured
-	 * refresh interval (bypass with [force]). A change in location settings (device↔manual, or a new city)
-	 * also bypasses the interval, so the scene tracks the new place on the next refresh instead of waiting out
-	 * the throttle. No-ops without a location fix or permission, leaving the last known scene in place.
+	 * Fetches fresh weather for the current location, unless a fetch succeeded within the user's configured refresh interval (bypass with [force]).
+	 * A change in location settings (device↔manual, or a new city) also bypasses the interval, so the scene tracks the new place on the next refresh instead of waiting out the throttle.
+	 * No-ops without a location fix or permission, leaving the last known scene in place.
 	 */
 	suspend fun refresh(nowEpochSeconds: Long, force: Boolean = false) {
 		val settings = settingsRepository.settings.first()
@@ -71,7 +67,13 @@ class WeatherSceneProvider @Inject constructor(private val locationRepository: L
 
 		val location = resolveLocation(settings)
 		if (location == null) {
-			logger.debug(TAG, "no location fix; keeping ${if (snapshot == null) "fallback scene" else "last snapshot"}")
+			val fallbackLocation = if (snapshot == null) {
+				"fallback scene"
+			} else {
+				"last snapshot"
+			}
+
+			logger.debug(TAG, "no location fix; keeping $fallbackLocation")
 			return
 		}
 
@@ -110,9 +112,8 @@ class WeatherSceneProvider @Inject constructor(private val locationRepository: L
 	}
 
 	/**
-	 * Keeps [locationLabel] current: the user's own words in manual mode, a reverse-geocoded place name in
-	 * device mode. Geocoding is skipped while the label is toggled off and cached per fix, so a place is
-	 * looked up once — a failed lookup leaves the label null and retries on the next refresh.
+	 * Keeps [locationLabel] current: the user's own words in manual mode, a reverse-geocoded place name in device mode.
+	 * Geocoding is skipped while the label is toggled off and cached per fix, so a place is looked up once — a failed lookup leaves the label null and retries on the next refresh.
 	 */
 	private suspend fun refreshLocationLabel(settings: AppSettings) {
 		if (!settings.useDeviceLocation) {

@@ -10,17 +10,22 @@ import xyz.attacktive.weatherd.domain.weather.SEVERITY_STEADY
 data class SkyGradient(val topColor: Int, val bottomColor: Int)
 
 /**
- * The sky gradient for a scene: a clear base for the phase, blended toward grey by how overcast
- * the features make it, then darkened for storms. Pure ARGB maths so it unit-tests without Android.
+ * The sky gradient for a scene: a clear base for the phase, blended toward gray by how overcast the features make it, then darkened for storms.
+ * Pure ARGB maths so it unit-tests without Android.
  */
 fun skyGradientFor(params: SceneParams): SkyGradient {
 	val base = basePhaseGradient(params.dayPhase)
-	val grey = if (params.precipitation?.kind == PrecipitationKind.SNOW) snowGrey(params.dayPhase) else phaseGrey(params.dayPhase)
+	val gray = if (params.precipitation?.kind == PrecipitationKind.SNOW) {
+		snowGray(params.dayPhase)
+	} else {
+		phaseGray(params.dayPhase)
+	}
+
 	val overcast = overcastAmount(params)
 	val darken = darkenAmount(params)
 
-	val top = darkenColor(lerpColor(base.topColor, grey, overcast), darken)
-	val bottom = darkenColor(lerpColor(base.bottomColor, grey, overcast), darken)
+	val top = darkenColor(lerpColor(base.topColor, gray, overcast), darken)
+	val bottom = darkenColor(lerpColor(base.bottomColor, gray, overcast), darken)
 
 	return SkyGradient(top, bottom)
 }
@@ -32,7 +37,7 @@ private fun basePhaseGradient(dayPhase: DayPhase) = when (dayPhase) {
 	DayPhase.NIGHT -> SkyGradient(rgb(11, 16, 38), rgb(27, 36, 80))
 }
 
-private fun phaseGrey(dayPhase: DayPhase) = when (dayPhase) {
+private fun phaseGray(dayPhase: DayPhase) = when (dayPhase) {
 	DayPhase.DAY -> rgb(150, 160, 170)
 	DayPhase.DAWN -> rgb(120, 120, 140)
 	DayPhase.DUSK -> rgb(110, 110, 130)
@@ -40,7 +45,7 @@ private fun phaseGrey(dayPhase: DayPhase) = when (dayPhase) {
 }
 
 /** Snowfall gets a brighter, milkier sky than rain so flakes read against it and the scene feels wintry rather than gloomy. */
-private fun snowGrey(dayPhase: DayPhase) = when (dayPhase) {
+private fun snowGray(dayPhase: DayPhase) = when (dayPhase) {
 	DayPhase.DAY -> rgb(196, 204, 214)
 	DayPhase.DAWN -> rgb(168, 164, 182)
 	DayPhase.DUSK -> rgb(148, 146, 166)
@@ -48,18 +53,17 @@ private fun snowGrey(dayPhase: DayPhase) = when (dayPhase) {
 }
 
 /**
- * How far the sky blends toward grey. Fog and precipitation force their own greyness; otherwise
- * cloud cover drives it (calibrated so 5% cover reads clear and 85% reads fully overcast).
+ * How far the sky blends toward gray. Fog and precipitation force their own grayness; otherwise cloud cover drives it (calibrated so 5% cover reads clear and 85% reads fully overcast).
  */
 private fun overcastAmount(params: SceneParams): Float = when {
 	params.fogDensity > 0f -> 0.85f
-	params.precipitation != null -> precipitationGrey(params.precipitation)
+	params.precipitation != null -> precipitationGray(params.precipitation)
 	else -> ((params.cloudiness - 0.05f) * (0.85f / 0.8f)).coerceIn(0f, 1f)
 }
 
-private fun precipitationGrey(precipitation: Precipitation) = when (precipitation.kind) {
+private fun precipitationGray(precipitation: Precipitation) = when (precipitation.kind) {
 	PrecipitationKind.SNOW -> 0.6f
-	// Rain/sleet skies sit at 0.7 up to a steady fall, then grey further toward a downpour's 0.82.
+	// Rain/sleet skies sit at 0.7 up to a steady fall, then gray further toward a downpour's 0.82.
 	else -> lerp(0.7f, 0.82f, unlerp(SEVERITY_STEADY, 1f, precipitation.severity))
 }
 

@@ -14,8 +14,8 @@ data class WeatherCondition(
 )
 
 /**
- * Decomposes an Open-Meteo WMO weather code into scene features. Codes 0-3 (and anything unknown)
- * carry no features of their own; the separately-reported cloud cover shapes those skies.
+ * Decomposes an Open-Meteo WMO weather code into scene features.
+ * Codes 0-3 (and anything unknown) carry no features of their own; the separately-reported cloud cover shapes those skies.
  */
 fun conditionFor(weatherCode: Int): WeatherCondition = when (weatherCode) {
 	45, 48 -> WeatherCondition(fog = true)
@@ -61,7 +61,7 @@ fun weatherLabelFor(weatherCode: Int): String? = when (weatherCode) {
 	else -> null
 }
 
-/** Normalises hourly precipitation (mm) to a 0..1 intensity used to modulate particle density. */
+/** Normalizes hourly precipitation (mm) to a 0..1 intensity used to modulate particle density. */
 fun precipitationIntensity(precipitationMillimeters: Double) = (precipitationMillimeters / MAX_PRECIPITATION_MILLIMETERS).toFloat().coerceIn(0f, 1f)
 
 const val SEVERITY_DRIZZLE = 0.35f

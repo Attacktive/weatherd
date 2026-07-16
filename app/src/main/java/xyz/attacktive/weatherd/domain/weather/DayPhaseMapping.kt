@@ -3,12 +3,16 @@ package xyz.attacktive.weatherd.domain.weather
 import xyz.attacktive.weatherd.domain.model.DayPhase
 
 /**
- * Classifies a moment into a lighting phase from the sun times, with a twilight window
- * straddling sunrise and sunset. Falls back to [isDay] when sun times are unavailable.
+ * Classifies a moment into a lighting phase from the sun times, with a twilight window straddling sunrise and sunset.
+ * Falls back to [isDay] when sun times are unavailable.
  */
 fun dayPhaseFor(nowEpochSeconds: Long, sunriseEpochSeconds: Long?, sunsetEpochSeconds: Long?, isDay: Boolean): DayPhase {
 	if (sunriseEpochSeconds == null || sunsetEpochSeconds == null) {
-		return if (isDay) DayPhase.DAY else DayPhase.NIGHT
+		return if (isDay) {
+			DayPhase.DAY
+		} else {
+			DayPhase.NIGHT
+		}
 	}
 
 	return when (nowEpochSeconds) {
@@ -20,9 +24,8 @@ fun dayPhaseFor(nowEpochSeconds: Long, sunriseEpochSeconds: Long?, sunsetEpochSe
 }
 
 /**
- * How far through its current phase window the moment sits, 0..1, quantised to coarse steps so scene
- * params hold stable for minutes at a time. Night reports a fixed midpoint: its window would span two
- * calendar days' sun times, and a moon hanging steady beats one that jumps at midnight.
+ * How far through its current phase window the moment sits, 0..1, quantized to coarse steps so scene params hold stable for minutes at a time.
+ * Night reports a fixed midpoint: its window would span two calendar days' sun times, and a moon hanging steady beats one that jumps at midnight.
  */
 fun dayPhaseProgressFor(nowEpochSeconds: Long, sunriseEpochSeconds: Long?, sunsetEpochSeconds: Long?, dayPhase: DayPhase): Float {
 	if (sunriseEpochSeconds == null || sunsetEpochSeconds == null || dayPhase == DayPhase.NIGHT) {
@@ -47,5 +50,5 @@ fun dayPhaseProgressFor(nowEpochSeconds: Long, sunriseEpochSeconds: Long?, sunse
 
 private const val TWILIGHT_SECONDS = 45L * 60L
 
-/** Progress quantisation steps; at 32 a typical 90-minute twilight ticks roughly every three minutes. */
+/** Progress quantization steps; at 32 a typical 90-minute twilight ticks roughly every three minutes. */
 private const val PROGRESS_STEPS = 32

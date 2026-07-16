@@ -19,11 +19,9 @@ import xyz.attacktive.weatherd.domain.render.SceneRenderer
 import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
 
 /**
- * Live wallpaper that animates the current weather. The scene comes from [WeatherSceneProvider] (shared with
- * the rest of the app): weather is fetched when the wallpaper becomes visible and cached, while the day phase
- * is re-derived from the clock. The static backdrop is cached and only rebuilt when the scene actually
- * changes — a weather refresh or a dawn/day/dusk/night flip; the animated foreground is redrawn each vsync
- * via Choreographer and gated on visibility, so it costs nothing while the screen is off or covered.
+ * Live wallpaper that animates the current weather.
+ * The scene comes from [WeatherSceneProvider] (shared with the rest of the app): weather is fetched when the wallpaper becomes visible and cached, while the day phase is re-derived from the clock.
+ * The static backdrop is cached and only rebuilt when the scene actually changes — a weather refresh or a dawn/day/dusk/night flip; the animated foreground is redrawn each vsync via Choreographer and gated on visibility, so it costs nothing while the screen is off or covered.
  * Scene flips crossfade briefly instead of swapping in one frame.
  */
 @AndroidEntryPoint
@@ -109,8 +107,10 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			var canvas: Canvas? = null
 
 			try {
-				// GPU-composited canvas: bitmap blits and primitives are cheap there, where a software
-				// canvas at full resolution can't hold 60fps. Falls back if the surface refuses.
+				/*
+				 * GPU-composited canvas: bitmap blits and primitives are cheap there, where a software canvas at full resolution can't hold 60fps.
+				 * Falls back if the surface refuses.
+				 */
 				canvas = runCatching { holder.lockHardwareCanvas() }.getOrNull() ?: holder.lockCanvas()
 				if (canvas != null) {
 					drawScene(canvas, current, params, timeSeconds)
@@ -135,9 +135,8 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			}
 
 			/*
-			 * A smoothstepped layer alpha eases the incoming scene in over the outgoing backdrop. The extra
-			 * saveLayerAlpha compositing exists only while a fade runs — steady-state rendering never pays
-			 * for it — and it happens to mask the incoming scene's first-frame tile rebuild too.
+			 * A smoothstepped layer alpha eases the incoming scene in over the outgoing backdrop.
+			 * The extra saveLayerAlpha compositing exists only while a fade runs — steady-state rendering never pays for it — and it happens to mask the incoming scene's first-frame tile rebuild too.
 			 * A negative elapsed means the fade straddled the clock wrap; the guard above just ends it.
 			 */
 			val linear = elapsed / SCENE_FADE_SECONDS
@@ -165,7 +164,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			}
 		}
 
-		/** The cached static backdrop, re-rasterised only when a backdrop-relevant part of the scene changes. */
+		/** The cached static backdrop, re-rasterized only when a backdrop-relevant part of the scene changes. */
 		private fun backdropFor(params: SceneParams): Bitmap {
 			val current = backdrop
 			val signature = backdropSignature(params)
@@ -181,7 +180,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			return fresh
 		}
 
-		/** The backdrop never draws the moon or the sun's arc, so their slow foreground-only ticks must not force a re-rasterise. */
+		/** The backdrop never draws the moon or the sun's arc, so their slow foreground-only ticks must not force a re-rasterize. */
 		private fun backdropSignature(params: SceneParams) = params.copy(moonPhase = 0f, celestialProgress = 0f)
 
 		private fun nowEpochSeconds() = System.currentTimeMillis() / 1000L

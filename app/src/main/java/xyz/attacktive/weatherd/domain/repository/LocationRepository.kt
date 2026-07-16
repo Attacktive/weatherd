@@ -26,8 +26,8 @@ class LocationRepository @Inject constructor(@ApplicationContext private val con
 	fun hasLocationPermission() = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
 	/**
-	 * The device's coordinates, preferring a recent cached fix and actively requesting a fresh one when the
-	 * cache is missing or stale. Returns null only without permission, or when no fix can be obtained at all.
+	 * The device's coordinates, preferring a recent cached fix and actively requesting a fresh one when the cache is missing or stale.
+	 * Returns null only without permission, or when no fix can be obtained at all.
 	 */
 	@SuppressLint("MissingPermission")
 	suspend fun currentLocation(): GeoLocation? {

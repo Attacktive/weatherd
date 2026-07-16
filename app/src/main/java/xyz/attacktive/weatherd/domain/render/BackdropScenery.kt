@@ -175,7 +175,7 @@ private fun duneSweep(random: Random, count: Int): List<OutlinePoint> {
 	}
 }
 
-/** [count] slot boundaries of randomised widths, normalised so the first edge is exactly 0 and the last exactly 1. */
+/** [count] slot boundaries of randomized widths, normalized so the first edge is exactly 0 and the last exactly 1. */
 private fun segmentEdges(random: Random, count: Int): FloatArray {
 	val widths = FloatArray(count) { 0.6f + random.nextFloat() * 0.9f }
 	val total = widths.sum()
