@@ -213,29 +213,8 @@ class SceneRenderer {
 	 * Geometry and fauna anchors rebuild only when the scene or the surface size changes; every frame after that is a handful of cached path fills, optional mist/gulls/sails, and a few cheap accents.
 	 */
 	private fun drawScenery(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
-		val key = "${params.backdropScene}-${width.toInt()}x${height.toInt()}"
-		if (key != sceneryKey) {
-			val outlines = sceneryOutlinesFor(params.backdropScene, width / height) ?: return
-			fillSceneryPath(sceneryFarPath, outlines.far, width, height)
-			fillSceneryPath(sceneryNearPath, outlines.near, width, height)
-			fillAccentPath(sceneryAccentPath, outlines.accents, width, height)
-
-			val shipCrest = outlines.ships.minOfOrNull { ship -> ship.minOf { it.y } } ?: 1f
-			sceneryFarCrestY = minOf(outlines.far.minOf { it.y }, shipCrest) * height
-			sceneryNearCrestY = outlines.near.minOf { it.y } * height
-			sceneryReflectionY = outlines.reflectionY?.times(height) ?: -1f
-			sceneryHasWindows = outlines.windows.isNotEmpty()
-			sceneryWindowXy = packPoints(outlines.windows, width, height)
-			sceneryGulls = outlines.gulls
-			sceneryMarine = outlines.marine
-			sceneryBeaconXy = packPoints(outlines.beacons, width, height)
-			sceneryParasolXy = packPoints(outlines.parasols, width, height)
-			sceneryShipPaths = outlines.ships.map { ship ->
-				Path().also { fillClosedOutline(it, ship, width, height) }
-			}
-
-			sceneryWindmill = outlines.windmill
-			sceneryKey = key
+		if (!cacheScenery(width, height, params)) {
+			return
 		}
 
 		val skyBottom = skyGradientFor(params).bottomColor
@@ -247,7 +226,57 @@ class SceneRenderer {
 		paint.shader = null
 		paint.color = farColor
 		canvas.drawPath(sceneryFarPath, paint)
+		drawFarPlaneDetails(canvas, width, height, params, timeSeconds, skyBottom, farColor)
 
+		drawInterPlaneHaze(canvas, width, skyBottom)
+		paint.shader = null
+		paint.color = nearColor
+		canvas.drawPath(sceneryNearPath, paint)
+		drawNearPlaneDetails(canvas, width, height, params, timeSeconds, nearColor)
+	}
+
+	/** Rebuilds cached scenery paths and accents when the scene or surface size changes. */
+	private fun cacheScenery(width: Float, height: Float, params: SceneParams): Boolean {
+		val key = "${params.backdropScene}-${width.toInt()}x${height.toInt()}"
+		if (key == sceneryKey) {
+			return true
+		}
+
+		val outlines = sceneryOutlinesFor(params.backdropScene, width / height) ?: return false
+		fillSceneryPath(sceneryFarPath, outlines.far, width, height)
+		fillSceneryPath(sceneryNearPath, outlines.near, width, height)
+		fillAccentPath(sceneryAccentPath, outlines.accents, width, height)
+
+		val shipCrest = outlines.ships.minOfOrNull { ship -> ship.minOf { it.y } } ?: 1f
+		sceneryFarCrestY = minOf(outlines.far.minOf { it.y }, shipCrest) * height
+		sceneryNearCrestY = outlines.near.minOf { it.y } * height
+		sceneryReflectionY = outlines.reflectionY?.times(height) ?: -1f
+		sceneryHasWindows = outlines.windows.isNotEmpty()
+		sceneryWindowXy = packPoints(outlines.windows, width, height)
+		sceneryGulls = outlines.gulls
+		sceneryMarine = outlines.marine
+		sceneryBeaconXy = packPoints(outlines.beacons, width, height)
+		sceneryParasolXy = packPoints(outlines.parasols, width, height)
+		sceneryShipPaths = outlines.ships.map { ship ->
+			Path().also { fillClosedOutline(it, ship, width, height) }
+		}
+
+		sceneryWindmill = outlines.windmill
+		sceneryKey = key
+
+		return true
+	}
+
+	/** Ships, sea reflection, marine life, and mountain mist — everything that lives on/behind the far plane. */
+	private fun drawFarPlaneDetails(
+		canvas: Canvas,
+		width: Float,
+		height: Float,
+		params: SceneParams,
+		timeSeconds: Float,
+		skyBottom: Int,
+		farColor: Int
+	) {
 		for (shipPath in sceneryShipPaths) {
 			canvas.drawPath(shipPath, paint)
 		}
@@ -264,12 +293,17 @@ class SceneRenderer {
 		if (params.backdropScene == BackdropScene.MOUNTAINS) {
 			drawValleyMist(canvas, width, height, timeSeconds, skyBottom, params.dayPhase)
 		}
+	}
 
-		drawInterPlaneHaze(canvas, width, skyBottom)
-		paint.shader = null
-		paint.color = nearColor
-		canvas.drawPath(sceneryNearPath, paint)
-
+	/** Parasols, fence accents, windmill sails, windows, beacons, and gulls on the near plane. */
+	private fun drawNearPlaneDetails(
+		canvas: Canvas,
+		width: Float,
+		height: Float,
+		params: SceneParams,
+		timeSeconds: Float,
+		nearColor: Int
+	) {
 		if (sceneryParasolXy.isNotEmpty()) {
 			drawParasols(canvas, height, nearColor)
 		}

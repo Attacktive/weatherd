@@ -74,14 +74,16 @@ private fun metropolis(aspectRatio: Float): SceneryOutlines {
 
 	val far = towerRun(
 		random = Random(11L),
-		count = scaled(10, aspectRatio),
-		topLow = 0.70f,
-		topHigh = 0.79f,
-		baseY = 0.86f,
-		setbacks = true,
+		spec = TowerRunSpec(
+			count = scaled(10, aspectRatio),
+			topLow = 0.70f,
+			topHigh = 0.79f,
+			baseY = 0.86f,
+			setbacks = true,
+			windowChance = 0.35f
+		),
 		windows = farWindows,
 		windowRandom = windowRandom,
-		windowChance = 0.35f,
 		roofCandidates = roofCandidates
 	)
 	val near = rooflineRun(
@@ -163,60 +165,106 @@ private fun countryside(aspectRatio: Float): SceneryOutlines {
 	)
 }
 
+/** Knobs for a distant tower run — keeps [towerRun] under the parameter-count lint. */
+private data class TowerRunSpec(
+	val count: Int,
+	val topLow: Float,
+	val topHigh: Float,
+	val baseY: Float,
+	val setbacks: Boolean = false,
+	val windowChance: Float = 0f
+)
+
 /** Detached towers with street gaps between them, for a distant skyline against the sky. */
 private fun towerRun(
 	random: Random,
-	count: Int,
-	topLow: Float,
-	topHigh: Float,
-	baseY: Float,
-	setbacks: Boolean = false,
+	spec: TowerRunSpec,
 	windows: MutableList<OutlinePoint>? = null,
 	windowRandom: Random? = null,
-	windowChance: Float = 0f,
 	roofCandidates: MutableList<OutlinePoint>? = null
 ): List<OutlinePoint> {
-	val points = mutableListOf(OutlinePoint(0f, baseY))
-	val edges = segmentEdges(random, count)
+	val points = mutableListOf(OutlinePoint(0f, spec.baseY))
+	val edges = segmentEdges(random, spec.count)
 
-	for (index in 0 until count) {
+	for (index in 0 until spec.count) {
 		val left = edges[index]
 		val right = edges[index + 1]
 		val inset = (right - left) * (0.10f + random.nextFloat() * 0.12f)
 		val towerLeft = left + inset
 		val towerRight = right - inset
-		val top = between(random, topLow, topHigh)
-		points += OutlinePoint(towerLeft, baseY)
+		val top = between(random, spec.topLow, spec.topHigh)
+		points += OutlinePoint(towerLeft, spec.baseY)
 
-		if (setbacks && random.nextFloat() < 0.4f && towerRight - towerLeft > 0.04f) {
-			val mid = towerLeft + (towerRight - towerLeft) * (0.35f + random.nextFloat() * 0.3f)
-			val shoulder = top + 0.012f + random.nextFloat() * 0.01f
-			points += OutlinePoint(towerLeft, shoulder)
-			points += OutlinePoint(mid, shoulder)
-			points += OutlinePoint(mid, top)
-			points += OutlinePoint(towerRight, top)
-			points += OutlinePoint(towerRight, baseY)
+		val usedSetback = spec.setbacks &&
+			random.nextFloat() < 0.4f &&
+			towerRight - towerLeft > 0.04f
 
-			if (windows != null && windowRandom != null) {
-				plantWindows(windows, windowRandom, towerLeft, towerRight, top, baseY, windowChance * 0.7f)
-			}
+		if (usedSetback) {
+			appendSetbackTower(points, random, towerLeft, towerRight, top, spec.baseY)
 		} else {
-			points += OutlinePoint(towerLeft, top)
-			points += OutlinePoint(towerRight, top)
-			points += OutlinePoint(towerRight, baseY)
-
-			if (windows != null && windowRandom != null) {
-				plantWindows(windows, windowRandom, towerLeft, towerRight, top, baseY, windowChance)
-			}
+			appendFlatTower(points, towerLeft, towerRight, top, spec.baseY)
 		}
+
+		val chance = if (usedSetback) {
+			spec.windowChance * 0.7f
+		} else {
+			spec.windowChance
+		}
+
+		maybePlantWindows(windows, windowRandom, towerLeft, towerRight, top, spec.baseY, chance)
 
 		// Beacon candidate sits on the roof line itself (same y as the parapet), never hovering above it.
 		roofCandidates?.add(OutlinePoint((towerLeft + towerRight) * 0.5f, top))
 	}
 
-	points += OutlinePoint(1f, baseY)
+	points += OutlinePoint(1f, spec.baseY)
 
 	return points
+}
+
+private fun appendSetbackTower(
+	points: MutableList<OutlinePoint>,
+	random: Random,
+	towerLeft: Float,
+	towerRight: Float,
+	top: Float,
+	baseY: Float
+) {
+	val mid = towerLeft + (towerRight - towerLeft) * (0.35f + random.nextFloat() * 0.3f)
+	val shoulder = top + 0.012f + random.nextFloat() * 0.01f
+	points += OutlinePoint(towerLeft, shoulder)
+	points += OutlinePoint(mid, shoulder)
+	points += OutlinePoint(mid, top)
+	points += OutlinePoint(towerRight, top)
+	points += OutlinePoint(towerRight, baseY)
+}
+
+private fun appendFlatTower(
+	points: MutableList<OutlinePoint>,
+	towerLeft: Float,
+	towerRight: Float,
+	top: Float,
+	baseY: Float
+) {
+	points += OutlinePoint(towerLeft, top)
+	points += OutlinePoint(towerRight, top)
+	points += OutlinePoint(towerRight, baseY)
+}
+
+private fun maybePlantWindows(
+	windows: MutableList<OutlinePoint>?,
+	windowRandom: Random?,
+	left: Float,
+	right: Float,
+	top: Float,
+	baseY: Float,
+	chance: Float
+) {
+	if (windows == null || windowRandom == null) {
+		return
+	}
+
+	plantWindows(windows, windowRandom, left, right, top, baseY, chance)
 }
 
 /** A continuous wall of building roofs at varying heights, some carrying a thin antenna mast. */
@@ -250,9 +298,7 @@ private fun rooflineRun(
 
 		points += OutlinePoint(right, roof)
 
-		if (windows != null && windowRandom != null) {
-			plantWindows(windows, windowRandom, left, right, roof, baseY, windowChance)
-		}
+		maybePlantWindows(windows, windowRandom, left, right, roof, baseY, windowChance)
 	}
 
 	return points
