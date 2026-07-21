@@ -8,6 +8,8 @@ import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -65,6 +67,8 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	var debugEnabled by remember { mutableStateOf(false) }
 	var debugSceneIndex by remember { mutableIntStateOf(0) }
 	var debugPhaseIndex by remember { mutableIntStateOf(DayPhase.DAY.ordinal) }
+	var controlsVisible by remember { mutableStateOf(true) }
+	val previewInteraction = remember { MutableInteractionSource() }
 
 	// The debug cycler overrides the weather but keeps the user's chosen backdrop, so scenery can be previewed under any condition.
 	val params = if (debugEnabled) {
@@ -105,7 +109,15 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 				.also { renderer.renderBackdrop(AndroidCanvas(it), widthPx, heightPx, params) }
 		}
 
-		Canvas(modifier = Modifier.fillMaxSize()) {
+		Canvas(
+			modifier = Modifier
+				.fillMaxSize()
+				.clickable(
+					interactionSource = previewInteraction,
+					indication = null,
+					onClick = { controlsVisible = !controlsVisible }
+				)
+		) {
 			drawIntoCanvas { canvas ->
 				canvas.nativeCanvas.drawBitmap(backdrop, 0f, 0f, null)
 				renderer.renderForeground(canvas.nativeCanvas, widthPx, heightPx, params, timeSeconds)
@@ -121,36 +133,38 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 			Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = Color.White)
 		}
 
-		Column(
-			modifier = Modifier
-				.align(Alignment.BottomCenter)
-				.padding(horizontal = 16.dp, vertical = 24.dp),
-			horizontalAlignment = Alignment.CenterHorizontally,
-			verticalArrangement = Arrangement.spacedBy(8.dp)
-		) {
-			if (debugToolsEnabled) {
-				DebugSceneControls(
-					debugEnabled = debugEnabled,
-					sceneLabel = SCENE_PRESETS[debugSceneIndex].name,
-					phaseLabel = DayPhase.entries[debugPhaseIndex].name,
-					onDebugEnabledChange = { debugEnabled = it },
-					onScenePrevious = {
-						debugSceneIndex = (debugSceneIndex + SCENE_PRESETS.size - 1) % SCENE_PRESETS.size
-					},
-					onSceneNext = {
-						debugSceneIndex = (debugSceneIndex + 1) % SCENE_PRESETS.size
-					},
-					onPhasePrevious = {
-						debugPhaseIndex = (debugPhaseIndex + DayPhase.entries.size - 1) % DayPhase.entries.size
-					},
-					onPhaseNext = {
-						debugPhaseIndex = (debugPhaseIndex + 1) % DayPhase.entries.size
-					}
-				)
-			}
+		if (controlsVisible) {
+			Column(
+				modifier = Modifier
+					.align(Alignment.BottomCenter)
+					.padding(horizontal = 16.dp, vertical = 24.dp),
+				horizontalAlignment = Alignment.CenterHorizontally,
+				verticalArrangement = Arrangement.spacedBy(8.dp)
+			) {
+				if (debugToolsEnabled) {
+					DebugSceneControls(
+						debugEnabled = debugEnabled,
+						sceneLabel = SCENE_PRESETS[debugSceneIndex].name,
+						phaseLabel = DayPhase.entries[debugPhaseIndex].name,
+						onDebugEnabledChange = { debugEnabled = it },
+						onScenePrevious = {
+							debugSceneIndex = (debugSceneIndex + SCENE_PRESETS.size - 1) % SCENE_PRESETS.size
+						},
+						onSceneNext = {
+							debugSceneIndex = (debugSceneIndex + 1) % SCENE_PRESETS.size
+						},
+						onPhasePrevious = {
+							debugPhaseIndex = (debugPhaseIndex + DayPhase.entries.size - 1) % DayPhase.entries.size
+						},
+						onPhaseNext = {
+							debugPhaseIndex = (debugPhaseIndex + 1) % DayPhase.entries.size
+						}
+					)
+				}
 
-			Button(onClick = { context.startActivity(liveWallpaperIntent(context)) }) {
-				Text("Set as live wallpaper")
+				Button(onClick = { context.startActivity(liveWallpaperIntent(context)) }) {
+					Text("Set as live wallpaper")
+				}
 			}
 		}
 	}
