@@ -1,14 +1,57 @@
 package xyz.attacktive.weatherd.domain.render
 
 import kotlin.math.roundToInt
+import kotlin.math.sin
 import kotlin.random.Random
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 
 /** A point on a silhouette's upper edge, in unit coordinates: x across the screen, y down from the top. */
 data class OutlinePoint(val x: Float, val y: Float)
 
-/** The two silhouette planes of a backdrop scene — the renderer closes each down to the bottom edge and fills it — plus optional accent polylines stroked in the near tone (the beach's gulls). */
-data class SceneryOutlines(val far: List<OutlinePoint>, val near: List<OutlinePoint>, val accents: List<List<OutlinePoint>> = emptyList())
+/** What kind of cheap animated critter [SceneryFauna] describes. */
+enum class SceneryFaunaKind {
+	GULL,
+	SHARK,
+	WHALE
+}
+
+/**
+ * A cheap animated accent: gulls and marine life on the coast.
+ * Positions are unit-frame anchors; the renderer animates them from [phase] / [speed] and wall-clock time.
+ */
+data class SceneryFauna(
+	val kind: SceneryFaunaKind,
+	val baseX: Float,
+	val baseY: Float,
+	val scale: Float,
+	val phase: Float,
+	val speed: Float
+)
+
+/**
+ * A countryside windmill: hub and ground-contact in unit coords.
+ * [groundY] is the hill surface the tower must reach — without it the sails float.
+ */
+data class SceneryWindmill(val hubX: Float, val hubY: Float, val groundY: Float, val scale: Float)
+
+/**
+ * The two silhouette planes of a backdrop scene — the renderer closes each down to the bottom edge and fills it — plus optional accent polylines stroked in the near tone (fence posts).
+ * [windows] are warm night-light centers for the metropolis; [beacons] are red tips on the tallest towers only.
+ * [ships] sit on the coast horizon as separate silhouettes; [parasols] on the left beach; [windmill] on the countryside rise.
+ */
+data class SceneryOutlines(
+	val far: List<OutlinePoint>,
+	val near: List<OutlinePoint>,
+	val accents: List<List<OutlinePoint>> = emptyList(),
+	val windows: List<OutlinePoint> = emptyList(),
+	val beacons: List<OutlinePoint> = emptyList(),
+	val ships: List<List<OutlinePoint>> = emptyList(),
+	val parasols: List<OutlinePoint> = emptyList(),
+	val reflectionY: Float? = null,
+	val gulls: List<SceneryFauna> = emptyList(),
+	val marine: List<SceneryFauna> = emptyList(),
+	val windmill: SceneryWindmill? = null
+)
 
 /**
  * The silhouette geometry for [scene], or null for the bare sky.
@@ -20,43 +63,155 @@ fun sceneryOutlinesFor(scene: BackdropScene, aspectRatio: Float): SceneryOutline
 	BackdropScene.METROPOLIS -> metropolis(aspectRatio)
 	BackdropScene.BEACH -> beach(aspectRatio)
 	BackdropScene.MOUNTAINS -> mountains(aspectRatio)
+	BackdropScene.COUNTRYSIDE -> countryside(aspectRatio)
 }
 
-private fun metropolis(aspectRatio: Float) = SceneryOutlines(
-	far = towerRun(Random(11L), count = scaled(9, aspectRatio), topLow = 0.72f, topHigh = 0.80f, baseY = 0.86f),
-	near = rooflineRun(Random(23L), count = scaled(7, aspectRatio), topLow = 0.79f, topHigh = 0.88f)
-)
+private fun metropolis(aspectRatio: Float): SceneryOutlines {
+	val windowRandom = Random(31L)
+	val farWindows = mutableListOf<OutlinePoint>()
+	val nearWindows = mutableListOf<OutlinePoint>()
+	val roofCandidates = mutableListOf<OutlinePoint>()
 
+	val far = towerRun(
+		random = Random(11L),
+		count = scaled(10, aspectRatio),
+		topLow = 0.70f,
+		topHigh = 0.79f,
+		baseY = 0.86f,
+		setbacks = true,
+		windows = farWindows,
+		windowRandom = windowRandom,
+		windowChance = 0.35f,
+		roofCandidates = roofCandidates
+	)
+	val near = rooflineRun(
+		random = Random(23L),
+		count = scaled(8, aspectRatio),
+		topLow = 0.78f,
+		topHigh = 0.88f,
+		windows = nearWindows,
+		windowRandom = windowRandom,
+		windowChance = 0.55f
+	)
+
+	// Cap the lit-window budget so dusk/night stays a handful of rect draws, not a skyline disco.
+	val litWindows = (farWindows + nearWindows).take(MAX_WINDOWS)
+
+	// Aviation lights belong on the tallest far towers only — on the roof, not floating above it — and stay sparse in landscape.
+	val beacons = roofCandidates.sortedBy { it.y }.take(BEACON_COUNT)
+
+	return SceneryOutlines(far = far, near = near, windows = litWindows, beacons = beacons)
+}
+
+/** A shoreline with a bluff, beach parasols on the left, ships on the horizon, and a little life in the water. */
 private fun beach(aspectRatio: Float): SceneryOutlines {
-	// Ship lengths and gull wing spans shrink with wider aspects, exactly inverse to how unit x-coordinates stretch.
-	val featureScale = PORTRAIT_ASPECT / aspectRatio
+	// Ships and umbrellas keep a readable size on wide screens instead of shrinking to hairlines.
+	val featureScale = (PORTRAIT_ASPECT / aspectRatio).coerceAtLeast(MIN_BEACH_FEATURE_SCALE)
+	val shipRandom = Random(89L)
+	val bluff = coastalBluff(Random(79L))
 
 	return SceneryOutlines(
-		far = seaWithShips(Random(89L), featureScale),
-		near = duneSweep(Random(79L), count = scaled(6, aspectRatio)),
-		accents = gulls(Random(97L), featureScale)
+		far = flatSea(),
+		near = bluff,
+		// Ships stay over open water on the right — under the bluff they get swallowed by the near fill.
+		ships = listOf(
+			cargoShip(start = 0.52f + shipRandom.nextFloat() * 0.08f, length = 0.18f * featureScale),
+			sailboat(start = 0.78f + shipRandom.nextFloat() * 0.06f, length = 0.07f * featureScale)
+		),
+		parasols = beachParasols(Random(83L), bluff, featureScale),
+		reflectionY = SEA_HORIZON,
+		gulls = beachGulls(Random(97L), featureScale),
+		marine = beachMarine(Random(101L), featureScale)
 	)
 }
 
 private fun mountains(aspectRatio: Float) = SceneryOutlines(
-	far = peakRange(Random(53L), count = scaled(4, aspectRatio), tipLow = 0.705f, tipHigh = 0.78f, valleyLow = 0.84f, valleyHigh = 0.875f),
-	near = peakRange(Random(67L), count = scaled(6, aspectRatio), tipLow = 0.825f, tipHigh = 0.865f, valleyLow = 0.895f, valleyHigh = 0.925f)
+	far = mountainRange(
+		random = Random(53L),
+		count = scaled(3, aspectRatio),
+		crestLow = 0.70f,
+		crestHigh = 0.78f,
+		saddleLow = 0.80f,
+		saddleHigh = 0.85f,
+		broadCrests = true
+	),
+	near = mountainRange(
+		random = Random(67L),
+		count = scaled(4, aspectRatio),
+		crestLow = 0.83f,
+		crestHigh = 0.875f,
+		saddleLow = 0.89f,
+		saddleHigh = 0.925f,
+		broadCrests = false
+	)
 )
 
+private fun countryside(aspectRatio: Float): SceneryOutlines {
+	val featureScale = (PORTRAIT_ASPECT / aspectRatio).coerceAtLeast(0.55f)
+	val nearHills = rollingHills(Random(59L), count = scaled(5, aspectRatio), topLow = 0.86f, topHigh = 0.91f)
+	val mill = pastureWindmill(Random(71L), nearHills, featureScale)
+
+	// Tower is welded into the near silhouette so it can't float; only the sails are drawn each frame.
+	val withMill = attachWindmillTower(nearHills, mill)
+	val withFarmhouse = attachFarmhouse(withMill, Random(61L), featureScale)
+
+	return SceneryOutlines(
+		far = rollingHills(Random(57L), count = scaled(4, aspectRatio), topLow = 0.78f, topHigh = 0.85f),
+		near = withFarmhouse,
+		accents = fencePosts(Random(63L), featureScale),
+		windmill = mill
+	)
+}
+
 /** Detached towers with street gaps between them, for a distant skyline against the sky. */
-private fun towerRun(random: Random, count: Int, topLow: Float, topHigh: Float, baseY: Float): List<OutlinePoint> {
+private fun towerRun(
+	random: Random,
+	count: Int,
+	topLow: Float,
+	topHigh: Float,
+	baseY: Float,
+	setbacks: Boolean = false,
+	windows: MutableList<OutlinePoint>? = null,
+	windowRandom: Random? = null,
+	windowChance: Float = 0f,
+	roofCandidates: MutableList<OutlinePoint>? = null
+): List<OutlinePoint> {
 	val points = mutableListOf(OutlinePoint(0f, baseY))
 	val edges = segmentEdges(random, count)
 
 	for (index in 0 until count) {
 		val left = edges[index]
 		val right = edges[index + 1]
-		val inset = (right - left) * (0.12f + random.nextFloat() * 0.1f)
+		val inset = (right - left) * (0.10f + random.nextFloat() * 0.12f)
+		val towerLeft = left + inset
+		val towerRight = right - inset
 		val top = between(random, topLow, topHigh)
-		points += OutlinePoint(left + inset, baseY)
-		points += OutlinePoint(left + inset, top)
-		points += OutlinePoint(right - inset, top)
-		points += OutlinePoint(right - inset, baseY)
+		points += OutlinePoint(towerLeft, baseY)
+
+		if (setbacks && random.nextFloat() < 0.4f && towerRight - towerLeft > 0.04f) {
+			val mid = towerLeft + (towerRight - towerLeft) * (0.35f + random.nextFloat() * 0.3f)
+			val shoulder = top + 0.012f + random.nextFloat() * 0.01f
+			points += OutlinePoint(towerLeft, shoulder)
+			points += OutlinePoint(mid, shoulder)
+			points += OutlinePoint(mid, top)
+			points += OutlinePoint(towerRight, top)
+			points += OutlinePoint(towerRight, baseY)
+
+			if (windows != null && windowRandom != null) {
+				plantWindows(windows, windowRandom, towerLeft, towerRight, top, baseY, windowChance * 0.7f)
+			}
+		} else {
+			points += OutlinePoint(towerLeft, top)
+			points += OutlinePoint(towerRight, top)
+			points += OutlinePoint(towerRight, baseY)
+
+			if (windows != null && windowRandom != null) {
+				plantWindows(windows, windowRandom, towerLeft, towerRight, top, baseY, windowChance)
+			}
+		}
+
+		// Beacon candidate sits on the roof line itself (same y as the parapet), never hovering above it.
+		roofCandidates?.add(OutlinePoint((towerLeft + towerRight) * 0.5f, top))
 	}
 
 	points += OutlinePoint(1f, baseY)
@@ -65,9 +220,18 @@ private fun towerRun(random: Random, count: Int, topLow: Float, topHigh: Float, 
 }
 
 /** A continuous wall of building roofs at varying heights, some carrying a thin antenna mast. */
-private fun rooflineRun(random: Random, count: Int, topLow: Float, topHigh: Float): List<OutlinePoint> {
+private fun rooflineRun(
+	random: Random,
+	count: Int,
+	topLow: Float,
+	topHigh: Float,
+	windows: MutableList<OutlinePoint>? = null,
+	windowRandom: Random? = null,
+	windowChance: Float = 0f
+): List<OutlinePoint> {
 	val points = mutableListOf<OutlinePoint>()
 	val edges = segmentEdges(random, count)
+	val baseY = 0.94f
 
 	for (index in 0 until count) {
 		val left = edges[index]
@@ -75,9 +239,9 @@ private fun rooflineRun(random: Random, count: Int, topLow: Float, topHigh: Floa
 		val roof = between(random, topLow, topHigh)
 		points += OutlinePoint(left, roof)
 
-		if (random.nextFloat() < 0.35f) {
+		if (random.nextFloat() < 0.4f) {
 			val mastX = left + (right - left) * (0.25f + random.nextFloat() * 0.3f)
-			val mastTop = roof - 0.02f - random.nextFloat() * 0.02f
+			val mastTop = roof - 0.018f - random.nextFloat() * 0.02f
 			points += OutlinePoint(mastX, roof)
 			points += OutlinePoint(mastX, mastTop)
 			points += OutlinePoint(mastX + MAST_WIDTH, mastTop)
@@ -85,94 +249,337 @@ private fun rooflineRun(random: Random, count: Int, topLow: Float, topHigh: Floa
 		}
 
 		points += OutlinePoint(right, roof)
+
+		if (windows != null && windowRandom != null) {
+			plantWindows(windows, windowRandom, left, right, roof, baseY, windowChance)
+		}
 	}
 
 	return points
 }
 
-/** The flat sea broken by a freighter and a distant sailboat, so the horizon reads as water rather than a bare line. */
-private fun seaWithShips(random: Random, featureScale: Float): List<OutlinePoint> {
-	val points = mutableListOf(OutlinePoint(0f, SEA_HORIZON))
-	points += cargoShip(start = 0.12f + random.nextFloat() * 0.2f, length = 0.09f * featureScale)
-	points += sailboat(start = 0.55f + random.nextFloat() * 0.25f, length = 0.033f * featureScale)
-	points += OutlinePoint(1f, SEA_HORIZON)
+/** Seeded warm-window centers inside a building slab; denser near the roof, sparse enough to stay cheap to draw. */
+private fun plantWindows(
+	into: MutableList<OutlinePoint>,
+	random: Random,
+	left: Float,
+	right: Float,
+	top: Float,
+	baseY: Float,
+	chance: Float
+) {
+	val cols = ((right - left) / 0.012f).roundToInt().coerceIn(1, 5)
+	val rows = ((baseY - top) / 0.018f).roundToInt().coerceIn(1, 6)
+
+	for (row in 0 until rows) {
+		for (col in 0 until cols) {
+			if (random.nextFloat() > chance) {
+				continue
+			}
+
+			val x = left + (right - left) * ((col + 0.5f) / cols)
+			val y = top + (baseY - top) * ((row + 0.55f) / (rows + 0.5f))
+			into += OutlinePoint(x, y)
+		}
+	}
+}
+
+/** Bare sea horizon — ships are drawn separately so they stay recognizable. */
+private fun flatSea() = listOf(OutlinePoint(0f, SEA_HORIZON), OutlinePoint(1f, SEA_HORIZON))
+
+/** A freighter: long low hull, stern bridge, funnel — unmistakable against the open water. */
+private fun cargoShip(start: Float, length: Float): List<OutlinePoint> {
+	val water = SEA_HORIZON
+	val deck = water - 0.022f
+	val bridgeTop = water - 0.052f
+	val funnelTop = water - 0.07f
+
+	return listOf(
+		OutlinePoint(start, water),
+		OutlinePoint(start + length * 0.03f, deck),
+		OutlinePoint(start + length * 0.5f, deck),
+		OutlinePoint(start + length * 0.5f, bridgeTop),
+		OutlinePoint(start + length * 0.58f, bridgeTop),
+		OutlinePoint(start + length * 0.58f, funnelTop),
+		OutlinePoint(start + length * 0.66f, funnelTop),
+		OutlinePoint(start + length * 0.66f, bridgeTop),
+		OutlinePoint(start + length * 0.8f, bridgeTop),
+		OutlinePoint(start + length * 0.8f, deck),
+		OutlinePoint(start + length * 0.97f, deck),
+		OutlinePoint(start + length, water)
+	)
+}
+
+/** A sailboat: chunky hull first, then a tall sail — so it doesn't read as a lonely triangle island. */
+private fun sailboat(start: Float, length: Float): List<OutlinePoint> {
+	val water = SEA_HORIZON
+	val deck = water - 0.016f
+	val mastTop = water - 0.078f
+
+	return listOf(
+		OutlinePoint(start, water),
+		OutlinePoint(start + length * 0.06f, deck),
+		OutlinePoint(start + length * 0.28f, deck),
+		OutlinePoint(start + length * 0.34f, mastTop),
+		OutlinePoint(start + length * 0.4f, mastTop),
+		OutlinePoint(start + length * 0.72f, deck),
+		OutlinePoint(start + length * 0.94f, deck),
+		OutlinePoint(start + length, water)
+	)
+}
+
+/**
+ * A coastal bluff on the left dropping to a sandy shelf on the right.
+ * Stays below the ship masts so the two-plane depth order still holds.
+ */
+private fun coastalBluff(random: Random): List<OutlinePoint> {
+	val points = mutableListOf<OutlinePoint>()
+	val steps = 12
+
+	for (index in 0..steps) {
+		val t = index / steps.toFloat()
+		val x = t
+		val y = when {
+			t < 0.30f -> 0.845f + sin(t * 14f) * 0.006f + random.nextFloat() * 0.005f
+			t < 0.46f -> {
+				val slide = (t - 0.30f) / 0.16f
+				lerp(0.85f, 0.935f, slide * slide) + random.nextFloat() * 0.004f
+			}
+			else -> {
+				val shelf = 0.935f + sin(t * 9f) * 0.005f
+				(shelf + random.nextFloat() * 0.008f).coerceIn(0.91f, 0.955f)
+			}
+		}
+
+		points += OutlinePoint(x, y.coerceIn(0.83f, 0.955f))
+	}
 
 	return points
 }
 
-/** A low hull with a bridge block toward the stern, the way a laden freighter sits on the horizon. */
-private fun cargoShip(start: Float, length: Float): List<OutlinePoint> {
-	val deck = SEA_HORIZON - 0.012f
-	val bridgeTop = SEA_HORIZON - 0.024f
+/**
+ * Thatched parasols planted on the bluff crest so the canopy sticks up into the sky.
+ * Buried on the sand shelf (same tone as the near fill) they vanish completely.
+ */
+private fun beachParasols(random: Random, bluff: List<OutlinePoint>, featureScale: Float): List<OutlinePoint> = List(2) { index ->
+	val x = (0.08f + index * 0.11f * featureScale + random.nextFloat() * 0.012f).coerceAtMost(0.28f)
+	val crestY = sampleOutlineY(bluff, x)
 
-	return listOf(
-		OutlinePoint(start, SEA_HORIZON),
-		OutlinePoint(start + length * 0.06f, deck),
-		OutlinePoint(start + length * 0.62f, deck),
-		OutlinePoint(start + length * 0.62f, bridgeTop),
-		OutlinePoint(start + length * 0.82f, bridgeTop),
-		OutlinePoint(start + length * 0.82f, deck),
-		OutlinePoint(start + length * 0.95f, deck),
-		OutlinePoint(start + length, SEA_HORIZON)
+	OutlinePoint(x, crestY)
+}
+
+/** Seagull anchors above the water; the renderer drifts them and flaps their wings. */
+private fun beachGulls(random: Random, featureScale: Float): List<SceneryFauna> = List(4) {
+	SceneryFauna(
+		kind = SceneryFaunaKind.GULL,
+		baseX = 0.05f + random.nextFloat() * 0.7f,
+		baseY = 0.70f + random.nextFloat() * 0.08f,
+		scale = (0.9f + random.nextFloat() * 0.4f) * featureScale,
+		phase = random.nextFloat() * TAU,
+		speed = 0.012f + random.nextFloat() * 0.018f
 	)
 }
 
-/** A triangular sail over a hull sliver. */
-private fun sailboat(start: Float, length: Float): List<OutlinePoint> {
-	val deck = SEA_HORIZON - 0.008f
-	val mastTop = SEA_HORIZON - 0.038f
-
-	return listOf(
-		OutlinePoint(start, SEA_HORIZON),
-		OutlinePoint(start + length * 0.1f, deck),
-		OutlinePoint(start + length * 0.35f, deck),
-		OutlinePoint(start + length * 0.42f, mastTop),
-		OutlinePoint(start + length * 0.46f, mastTop),
-		OutlinePoint(start + length * 0.75f, deck),
-		OutlinePoint(start + length * 0.9f, deck),
-		OutlinePoint(start + length, SEA_HORIZON)
+/** Sharks and a whale in the water beyond the beach — fins and a slow breach, not a nature documentary. */
+private fun beachMarine(random: Random, featureScale: Float): List<SceneryFauna> {
+	val sharks = List(2) {
+		SceneryFauna(
+			kind = SceneryFaunaKind.SHARK,
+			baseX = 0.35f + random.nextFloat() * 0.45f,
+			baseY = SEA_HORIZON + 0.015f + random.nextFloat() * 0.025f,
+			scale = (0.8f + random.nextFloat() * 0.4f) * featureScale,
+			phase = random.nextFloat() * TAU,
+			speed = 0.008f + random.nextFloat() * 0.01f
+		)
+	}
+	val whale = SceneryFauna(
+		kind = SceneryFaunaKind.WHALE,
+		baseX = 0.42f + random.nextFloat() * 0.25f,
+		baseY = SEA_HORIZON + 0.03f,
+		scale = (1.3f + random.nextFloat() * 0.3f) * featureScale,
+		phase = random.nextFloat() * TAU,
+		speed = 0.004f + random.nextFloat() * 0.004f
 	)
+
+	return sharks + whale
 }
 
-/** A few gulls gliding over the water: shallow W strokes above the horizon. */
-private fun gulls(random: Random, featureScale: Float): List<List<OutlinePoint>> = List(3) {
-	val centerX = 0.12f + random.nextFloat() * 0.76f
-	val centerY = 0.72f + random.nextFloat() * 0.06f
-	val span = (0.014f + random.nextFloat() * 0.008f) * featureScale
-	val dip = 0.007f + random.nextFloat() * 0.003f
-
-	listOf(
-		OutlinePoint(centerX - span, centerY),
-		OutlinePoint(centerX - span * 0.5f, centerY - dip),
-		OutlinePoint(centerX, centerY - dip * 0.3f),
-		OutlinePoint(centerX + span * 0.5f, centerY - dip),
-		OutlinePoint(centerX + span, centerY)
-	)
-}
-
-/** Triangular peaks with jittered summits and valley floors. */
-private fun peakRange(random: Random, count: Int, tipLow: Float, tipHigh: Float, valleyLow: Float, valleyHigh: Float): List<OutlinePoint> {
-	val points = mutableListOf(OutlinePoint(0f, between(random, valleyLow, valleyHigh)))
+/**
+ * A mountain skyline of broad massifs — shoulders, soft crests, shallow saddles — not a row of shark-tooth spikes.
+ * Each massif gets several points so slopes read as ridges instead of single-tip zigzags.
+ */
+private fun mountainRange(
+	random: Random,
+	count: Int,
+	crestLow: Float,
+	crestHigh: Float,
+	saddleLow: Float,
+	saddleHigh: Float,
+	broadCrests: Boolean
+): List<OutlinePoint> {
+	val points = mutableListOf(OutlinePoint(0f, between(random, saddleLow, saddleHigh)))
 	val edges = segmentEdges(random, count)
 
 	for (index in 0 until count) {
-		val summit = edges[index] + (edges[index + 1] - edges[index]) * (0.35f + random.nextFloat() * 0.3f)
-		points += OutlinePoint(summit, between(random, tipLow, tipHigh))
-		points += OutlinePoint(edges[index + 1], between(random, valleyLow, valleyHigh))
+		val left = edges[index]
+		val right = edges[index + 1]
+		val span = right - left
+		val crest = between(random, crestLow, crestHigh)
+		val saddle = between(random, saddleLow, saddleHigh)
+
+		// Rising shoulder — halfway up before the crest, so the slope isn't a straight knife-edge.
+		val riseX = left + span * (0.18f + random.nextFloat() * 0.12f)
+		val riseY = lerp(points.last().y, crest, 0.45f + random.nextFloat() * 0.15f)
+		points += OutlinePoint(riseX, riseY)
+
+		if (broadCrests && span > 0.12f) {
+			// A short ridge top: two close points at nearly the same height, maybe a gentle dip between.
+			val crestLeft = left + span * (0.38f + random.nextFloat() * 0.08f)
+			val crestRight = left + span * (0.55f + random.nextFloat() * 0.1f)
+			val crestDip = crest + 0.008f + random.nextFloat() * 0.01f
+			points += OutlinePoint(crestLeft, crest)
+			if (random.nextFloat() < 0.65f) {
+				points += OutlinePoint((crestLeft + crestRight) * 0.5f, crestDip)
+			}
+			points += OutlinePoint(crestRight, crest + random.nextFloat() * 0.006f)
+		} else {
+			val summit = left + span * (0.4f + random.nextFloat() * 0.2f)
+			points += OutlinePoint(summit, crest)
+			// Soften the tip with a near-side shoulder so it isn't a perfect triangle.
+			val fallX = summit + (right - summit) * (0.35f + random.nextFloat() * 0.2f)
+			points += OutlinePoint(fallX, lerp(crest, saddle, 0.4f + random.nextFloat() * 0.2f))
+		}
+
+		points += OutlinePoint(right, saddle)
 	}
 
 	return points
 }
 
-/** The shore rising from the water's edge on the right toward soft dunes on the left, always below [SEA_HORIZON]. */
-private fun duneSweep(random: Random, count: Int): List<OutlinePoint> {
+/** Gentle rolling farmland hills — broader, softer than mountain peaks. */
+private fun rollingHills(random: Random, count: Int, topLow: Float, topHigh: Float): List<OutlinePoint> {
+	val points = mutableListOf<OutlinePoint>()
 	val edges = segmentEdges(random, count)
 
-	return (0..count).map { index ->
-		val lift = (1f - edges[index]) * 0.05f
-		val y = 0.955f - lift - random.nextFloat() * 0.012f
-		OutlinePoint(edges[index], y.coerceIn(0.88f, 0.955f))
+	for (index in 0..count) {
+		val x = edges[index]
+		val crest = between(random, topLow, topHigh)
+		val y = if (index == 0 || index == count) {
+			crest + 0.02f
+		} else {
+			crest
+		}
+
+		points += OutlinePoint(x, y.coerceIn(0.76f, 0.94f))
 	}
+
+	return points
+}
+
+/**
+ * Cuts a filled farmhouse into the near hill silhouette so it reads as a building on the rise, not a stroked canopy glyph.
+ * Points stay left-to-right so the outline tests keep passing.
+ */
+private fun attachFarmhouse(hills: List<OutlinePoint>, random: Random, featureScale: Float): List<OutlinePoint> {
+	val houseLeft = 0.56f + random.nextFloat() * 0.14f
+	val houseWidth = 0.08f * featureScale
+	val houseRight = (houseLeft + houseWidth).coerceAtMost(0.92f)
+	val span = houseRight - houseLeft
+	val groundY = sampleOutlineY(hills, (houseLeft + houseRight) * 0.5f)
+	val eaves = groundY - 0.022f
+	val ridge = eaves - 0.02f
+	val chimneyWidth = (span * 0.1f).coerceAtLeast(0.003f)
+	val chimneyLeft = houseLeft + span * 0.68f
+	val chimneyRight = (chimneyLeft + chimneyWidth).coerceAtMost(houseRight - span * 0.05f)
+	val chimneyTop = ridge - 0.012f
+
+	val before = hills.filter { it.x < houseLeft }
+	val after = hills.filter { it.x > houseRight }
+
+	return before + listOf(
+		OutlinePoint(houseLeft, groundY),
+		OutlinePoint(houseLeft, eaves),
+		OutlinePoint(houseLeft + span * 0.5f, ridge),
+		OutlinePoint(chimneyLeft, ridge),
+		OutlinePoint(chimneyLeft, chimneyTop),
+		OutlinePoint(chimneyRight, chimneyTop),
+		OutlinePoint(chimneyRight, ridge),
+		OutlinePoint(houseRight, eaves),
+		OutlinePoint(houseRight, groundY)
+	) + after
+}
+
+/** Short fence-post ticks along the near hillside. */
+private fun fencePosts(random: Random, featureScale: Float): List<List<OutlinePoint>> {
+	val start = 0.12f + random.nextFloat() * 0.15f
+	val spacing = 0.028f * featureScale
+
+	return List(5) { index ->
+		val x = start + index * spacing
+		val top = 0.90f + random.nextFloat() * 0.01f
+
+		listOf(
+			OutlinePoint(x, top),
+			OutlinePoint(x, top + 0.018f)
+		)
+	}
+}
+
+/** A windmill on the near pasture — short tower planted on the hill, hub just above the crest. */
+private fun pastureWindmill(random: Random, hills: List<OutlinePoint>, featureScale: Float): SceneryWindmill {
+	val hubX = 0.20f + random.nextFloat() * 0.18f
+	val groundY = sampleOutlineY(hills, hubX)
+	val towerH = 0.038f * featureScale
+	val hubY = (groundY - towerH).coerceAtLeast(0.78f)
+
+	return SceneryWindmill(hubX = hubX, hubY = hubY, groundY = groundY, scale = featureScale)
+}
+
+/**
+ * Cuts the windmill tower into the near hill so the mast is part of the ground silhouette.
+ * Sails stay as a separate animated draw at [mill.hubX]/[mill.hubY].
+ */
+private fun attachWindmillTower(hills: List<OutlinePoint>, mill: SceneryWindmill): List<OutlinePoint> {
+	val half = (0.009f * mill.scale).coerceAtLeast(0.004f)
+	val left = (mill.hubX - half).coerceAtLeast(0.02f)
+	val right = (mill.hubX + half).coerceAtMost(0.48f)
+	val before = hills.filter { it.x < left }
+	val after = hills.filter { it.x > right }
+
+	return before + listOf(
+		OutlinePoint(left, mill.groundY),
+		OutlinePoint(left, mill.hubY),
+		OutlinePoint(right, mill.hubY),
+		OutlinePoint(right, mill.groundY)
+	) + after
+}
+
+/** Linear y sample along a left-to-right outline, for planting the farmhouse on the hill. */
+private fun sampleOutlineY(outline: List<OutlinePoint>, x: Float): Float {
+	if (outline.isEmpty()) {
+		return 0.9f
+	}
+
+	if (x <= outline.first().x) {
+		return outline.first().y
+	}
+
+	if (x >= outline.last().x) {
+		return outline.last().y
+	}
+
+	for (index in 0 until outline.lastIndex) {
+		val left = outline[index]
+		val right = outline[index + 1]
+		if (x in left.x..right.x) {
+			val span = (right.x - left.x).coerceAtLeast(1e-4f)
+			val t = (x - left.x) / span
+
+			return lerp(left.y, right.y, t)
+		}
+	}
+
+	return outline.last().y
 }
 
 /** [count] slot boundaries of randomized widths, normalized so the first edge is exactly 0 and the last exactly 1. */
@@ -195,10 +602,23 @@ private fun scaled(baseCount: Int, aspectRatio: Float) = (baseCount * aspectRati
 
 private fun between(random: Random, low: Float, high: Float) = low + (high - low) * random.nextFloat()
 
+private fun lerp(from: Float, to: Float, t: Float) = from + (to - from) * t
+
 private const val PORTRAIT_ASPECT = 0.46f
 
-/** Where the beach scene's sea meets the sky, as a fraction of screen height. */
+/** Where the coast scene's sea meets the sky, as a fraction of screen height. */
 private const val SEA_HORIZON = 0.85f
 
 /** Antenna masts are a hair's width regardless of how many buildings share the skyline. */
 private const val MAST_WIDTH = 0.005f
+
+/** Hard ceiling on metropolis window dots so the per-frame scenery pass stays cheap on a live wallpaper. */
+private const val MAX_WINDOWS = 72
+
+/** Only the tallest far towers get a red aviation light — sparse on purpose, especially in landscape. */
+private const val BEACON_COUNT = 3
+
+/** Beach ships/umbrellas refuse to shrink below this when the screen goes wide. */
+private const val MIN_BEACH_FEATURE_SCALE = 0.7f
+
+private const val TAU = (Math.PI * 2.0).toFloat()

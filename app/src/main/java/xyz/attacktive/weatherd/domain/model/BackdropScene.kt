@@ -5,7 +5,8 @@ enum class BackdropScene {
 	NONE,
 	METROPOLIS,
 	BEACH,
-	MOUNTAINS;
+	MOUNTAINS,
+	COUNTRYSIDE;
 
 	companion object {
 		/** The scene stored under [name], or [NONE] when the value is absent or unrecognized (e.g. read by an older build after a downgrade). */

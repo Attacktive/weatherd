@@ -43,6 +43,17 @@ class SceneRenderer {
 	private val sceneryNearPath = Path()
 	private val sceneryAccentPath = Path()
 	private var sceneryKey: String? = null
+	private var sceneryFarCrestY = 0f
+	private var sceneryNearCrestY = 0f
+	private var sceneryReflectionY = -1f
+	private var sceneryWindowXy = FloatArray(0)
+	private var sceneryHasWindows = false
+	private var sceneryGulls: List<SceneryFauna> = emptyList()
+	private var sceneryMarine: List<SceneryFauna> = emptyList()
+	private var sceneryBeaconXy = FloatArray(0)
+	private var sceneryParasolXy = FloatArray(0)
+	private var sceneryShipPaths: List<Path> = emptyList()
+	private var sceneryWindmill: SceneryWindmill? = null
 	private val tiles = HashMap<String, Bitmap>()
 	private var tilesKey: String? = null
 	private var rainPoints = FloatArray(0)
@@ -131,7 +142,7 @@ class SceneRenderer {
 
 		// The scenery draws after the celestial body and clouds (they belong to the sky behind it) but before fog, rain, and lightning (weather happens in front of the horizon).
 		if (params.backdropScene != BackdropScene.NONE) {
-			drawScenery(canvas, w, h, params)
+			drawScenery(canvas, w, h, params, timeSeconds)
 		}
 
 		if (params.fogDensity > 0f) {
@@ -199,32 +210,405 @@ class SceneRenderer {
 
 	/**
 	 * The user's chosen horizon silhouettes: two depth planes tinted from the current sky's bottom color, so storm gloom, snow milkiness, and night all carry onto them for free.
-	 * The geometry rebuilds only when the scene or the surface size changes; every frame after that is two cached path fills.
+	 * Geometry and fauna anchors rebuild only when the scene or the surface size changes; every frame after that is a handful of cached path fills, optional mist/gulls/sails, and a few cheap accents.
 	 */
-	private fun drawScenery(canvas: Canvas, width: Float, height: Float, params: SceneParams) {
+	private fun drawScenery(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
 		val key = "${params.backdropScene}-${width.toInt()}x${height.toInt()}"
 		if (key != sceneryKey) {
 			val outlines = sceneryOutlinesFor(params.backdropScene, width / height) ?: return
 			fillSceneryPath(sceneryFarPath, outlines.far, width, height)
 			fillSceneryPath(sceneryNearPath, outlines.near, width, height)
 			fillAccentPath(sceneryAccentPath, outlines.accents, width, height)
+
+			val shipCrest = outlines.ships.minOfOrNull { ship -> ship.minOf { it.y } } ?: 1f
+			sceneryFarCrestY = minOf(outlines.far.minOf { it.y }, shipCrest) * height
+			sceneryNearCrestY = outlines.near.minOf { it.y } * height
+			sceneryReflectionY = outlines.reflectionY?.times(height) ?: -1f
+			sceneryHasWindows = outlines.windows.isNotEmpty()
+			sceneryWindowXy = packPoints(outlines.windows, width, height)
+			sceneryGulls = outlines.gulls
+			sceneryMarine = outlines.marine
+			sceneryBeaconXy = packPoints(outlines.beacons, width, height)
+			sceneryParasolXy = packPoints(outlines.parasols, width, height)
+			sceneryShipPaths = outlines.ships.map { ship ->
+				Path().also { fillClosedOutline(it, ship, width, height) }
+			}
+
+			sceneryWindmill = outlines.windmill
 			sceneryKey = key
 		}
 
 		val skyBottom = skyGradientFor(params).bottomColor
 		val nearColor = darken(skyBottom, 0.2f)
+		val farColor = lerpColor(skyBottom, nearColor, 0.55f)
 
 		paint.style = Paint.Style.FILL
-		paint.color = lerpColor(skyBottom, nearColor, 0.55f)
+		drawHorizonGlow(canvas, width, height, params.dayPhase, skyBottom)
+		paint.shader = null
+		paint.color = farColor
 		canvas.drawPath(sceneryFarPath, paint)
+
+		for (shipPath in sceneryShipPaths) {
+			canvas.drawPath(shipPath, paint)
+		}
+
+		if (sceneryReflectionY >= 0f) {
+			drawBeachReflection(canvas, width, height, params.dayPhase, skyBottom)
+			paint.shader = null
+		}
+
+		if (sceneryMarine.isNotEmpty()) {
+			drawMarineLife(canvas, width, height, timeSeconds, farColor)
+		}
+
+		if (params.backdropScene == BackdropScene.MOUNTAINS) {
+			drawValleyMist(canvas, width, height, timeSeconds, skyBottom, params.dayPhase)
+		}
+
+		drawInterPlaneHaze(canvas, width, skyBottom)
+		paint.shader = null
 		paint.color = nearColor
 		canvas.drawPath(sceneryNearPath, paint)
 
+		if (sceneryParasolXy.isNotEmpty()) {
+			drawParasols(canvas, height, nearColor)
+		}
+
 		if (!sceneryAccentPath.isEmpty) {
 			paint.style = Paint.Style.STROKE
+			paint.color = nearColor
 			paint.strokeWidth = height * 0.0022f
 			canvas.drawPath(sceneryAccentPath, paint)
 			paint.style = Paint.Style.FILL
+		}
+
+		sceneryWindmill?.let {
+			drawWindmillSails(canvas, width, height, it, timeSeconds, nearColor)
+		}
+
+		if (sceneryHasWindows) {
+			drawCityWindows(canvas, height, params.dayPhase)
+		}
+
+		if (sceneryBeaconXy.isNotEmpty()) {
+			drawTowerBeacons(canvas, height, timeSeconds)
+		}
+
+		if (sceneryGulls.isNotEmpty() && params.dayPhase != DayPhase.NIGHT) {
+			drawBeachGulls(canvas, width, height, timeSeconds, nearColor)
+		}
+	}
+
+	/** Packs unit-frame points into a flat pixel xy array once per scenery rebuild. */
+	private fun packPoints(points: List<OutlinePoint>, width: Float, height: Float) =
+		if (points.isEmpty()) {
+			FloatArray(0)
+		} else {
+			FloatArray(points.size * 2).also { xy ->
+				points.forEachIndexed { index, point ->
+					xy[index * 2] = point.x * width
+					xy[index * 2 + 1] = point.y * height
+				}
+			}
+		}
+
+	/** Slow red aviation blips on the tallest roofs — a soft pulse, sitting on the parapet. */
+	private fun drawTowerBeacons(canvas: Canvas, height: Float, timeSeconds: Float) {
+		val radius = height * 0.0028f
+		paint.style = Paint.Style.FILL
+
+		var index = 0
+		while (index < sceneryBeaconXy.size) {
+			val x = sceneryBeaconXy[index]
+			val y = sceneryBeaconXy[index + 1]
+			val pulse = 0.35f + 0.65f * ((sin(timeSeconds * 2.4f + index * 0.7f) + 1f) * 0.5f)
+			val alpha = (220f * pulse).roundToInt().coerceIn(40, 230)
+			paint.color = Color.argb(alpha, 255, 64, 72)
+			canvas.drawCircle(x, y, radius, paint)
+			index += 2
+		}
+	}
+
+	/**
+	 * Thatched beach parasols on the bluff crest — smaller cones so neighbors don't overlap.
+	 * Feet stay on the ridge; only the canopy/pole scale shrank.
+	 */
+	private fun drawParasols(canvas: Canvas, height: Float, color: Int) {
+		paint.strokeCap = Paint.Cap.ROUND
+		paint.color = withAlpha(color, 245)
+
+		var index = 0
+		while (index < sceneryParasolXy.size) {
+			val x = sceneryParasolXy[index]
+			val footY = sceneryParasolXy[index + 1]
+			val poleH = height * 0.042f
+			val canopyH = height * 0.024f
+			val canopyW = height * 0.026f
+			val peakY = footY - poleH
+			val brimY = peakY + canopyH
+			val fringe = height * 0.0035f
+			val tuft = height * 0.0055f
+
+			paint.style = Paint.Style.STROKE
+			paint.strokeWidth = height * 0.0024f
+			canvas.drawLine(x, footY, x, brimY - fringe * 0.5f, paint)
+
+			paint.style = Paint.Style.FILL
+			birdPath.reset()
+			birdPath.moveTo(x, peakY)
+			birdPath.lineTo(x - canopyW, brimY)
+
+			val teeth = 6
+			for (tooth in 1 until teeth) {
+				val t = tooth / teeth.toFloat()
+				val fx = x - canopyW + canopyW * 2f * t
+				val fy = if (tooth % 2 == 0) {
+					brimY + fringe
+				} else {
+					brimY
+				}
+
+				birdPath.lineTo(fx, fy)
+			}
+
+			birdPath.lineTo(x + canopyW, brimY)
+			birdPath.close()
+			canvas.drawPath(birdPath, paint)
+
+			birdPath.reset()
+			birdPath.moveTo(x, peakY - tuft)
+			birdPath.lineTo(x - tuft * 0.5f, peakY)
+			birdPath.lineTo(x + tuft * 0.5f, peakY)
+			birdPath.close()
+			canvas.drawPath(birdPath, paint)
+			index += 2
+		}
+	}
+
+	/**
+	 * Rotating sails only — the tower is already part of the near-hill silhouette, so it can't float off the crest.
+	 */
+	private fun drawWindmillSails(canvas: Canvas, width: Float, height: Float, mill: SceneryWindmill, timeSeconds: Float, color: Int) {
+		val hubX = mill.hubX * width
+		val hubY = mill.hubY * height
+		val scale = mill.scale
+		val bladeLen = height * 0.032f * scale
+		val bladeHalf = height * 0.0045f * scale
+		val hubR = height * 0.006f * scale
+		val angle = timeSeconds * 0.7f
+
+		paint.style = Paint.Style.FILL
+		paint.color = withAlpha(color, 245)
+
+		for (blade in 0 until 4) {
+			val theta = angle + blade * (PI_F * 0.5f)
+			val tipX = hubX + cos(theta) * bladeLen
+			val tipY = hubY + sin(theta) * bladeLen
+			val ox = -sin(theta) * bladeHalf
+			val oy = cos(theta) * bladeHalf
+			birdPath.reset()
+			birdPath.moveTo(hubX, hubY)
+			birdPath.lineTo(tipX + ox, tipY + oy)
+			birdPath.lineTo(tipX - ox, tipY - oy)
+			birdPath.close()
+			canvas.drawPath(birdPath, paint)
+		}
+
+		canvas.drawCircle(hubX, hubY, hubR, paint)
+	}
+
+	/** Shark fins and a whale back in the water — drawn on the far plane before the near bluff covers the beach. */
+	private fun drawMarineLife(canvas: Canvas, width: Float, height: Float, timeSeconds: Float, color: Int) {
+		paint.style = Paint.Style.FILL
+		paint.color = withAlpha(color, 210)
+
+		for (critter in sceneryMarine) {
+			val drift = sin(timeSeconds * critter.speed * 8f + critter.phase) * width * 0.02f
+			val x = critter.baseX * width + drift
+			val y = critter.baseY * height
+
+			when (critter.kind) {
+				SceneryFaunaKind.SHARK -> {
+					val finH = height * 0.012f * critter.scale
+					val finW = width * 0.012f * critter.scale
+					birdPath.reset()
+					birdPath.moveTo(x, y)
+					birdPath.lineTo(x - finW * 0.35f, y + finH)
+					birdPath.lineTo(x + finW * 0.55f, y + finH * 0.15f)
+					birdPath.close()
+					canvas.drawPath(birdPath, paint)
+				}
+				SceneryFaunaKind.WHALE -> {
+					val bodyW = width * 0.055f * critter.scale
+					val bodyH = height * 0.012f * critter.scale
+					val breach = (sin(timeSeconds * 0.35f + critter.phase) * 0.5f + 0.5f).coerceIn(0f, 1f)
+					val lift = -breach * height * 0.01f
+					canvas.drawOval(x - bodyW, y - bodyH + lift, x + bodyW * 0.7f, y + bodyH * 0.4f + lift, paint)
+
+					// Occasional spout when the back is highest.
+					if (breach > 0.85f) {
+						paint.style = Paint.Style.STROKE
+						paint.strokeWidth = height * 0.002f
+						paint.color = withAlpha(color, 160)
+						val spoutX = x + bodyW * 0.35f
+						canvas.drawLine(spoutX, y + lift - bodyH, spoutX, y + lift - bodyH - height * 0.018f * breach, paint)
+						paint.style = Paint.Style.FILL
+						paint.color = withAlpha(color, 210)
+					}
+				}
+				else -> Unit
+			}
+		}
+	}
+
+	/** A few gulls drifting and flapping over the beach — always on for daytime beach scenes, cheap stroked W glyphs. */
+	private fun drawBeachGulls(canvas: Canvas, width: Float, height: Float, timeSeconds: Float, color: Int) {
+		paint.style = Paint.Style.STROKE
+		paint.strokeCap = Paint.Cap.ROUND
+		paint.strokeJoin = Paint.Join.ROUND
+		paint.color = withAlpha(color, 200)
+
+		for (gull in sceneryGulls) {
+			val drift = ((gull.baseX + timeSeconds * gull.speed) % 1.15f + 1.15f) % 1.15f - 0.08f
+			val x = drift * width
+			val y = (gull.baseY + sin(timeSeconds * 0.9f + gull.phase) * 0.012f) * height
+			val wing = width * 0.014f * gull.scale
+			val flap = sin(timeSeconds * 8f + gull.phase) * wing * 0.55f
+			paint.strokeWidth = wing * 0.2f
+			birdPath.reset()
+			birdPath.moveTo(x - wing, y - flap)
+			birdPath.quadTo(x - wing * 0.35f, y + wing * 0.2f, x, y)
+			birdPath.quadTo(x + wing * 0.35f, y + wing * 0.2f, x + wing, y - flap)
+			canvas.drawPath(birdPath, paint)
+		}
+
+		paint.style = Paint.Style.FILL
+	}
+
+	/** A short gradient band just above the far crest — warm at dawn/dusk, soft by day, cool and thin at night. */
+	private fun drawHorizonGlow(canvas: Canvas, width: Float, height: Float, dayPhase: DayPhase, skyBottom: Int) {
+		val (alpha, tint) = when (dayPhase) {
+			DayPhase.DAWN -> 90 to lighten(skyBottom, 0.35f)
+			DayPhase.DUSK -> 95 to lighten(skyBottom, 0.3f)
+			DayPhase.DAY -> 40 to lighten(skyBottom, 0.2f)
+			DayPhase.NIGHT -> 35 to Color.rgb(120, 150, 210)
+		}
+
+		val bandTop = (sceneryFarCrestY - height * 0.06f).coerceAtLeast(height * 0.55f)
+
+		paint.shader = LinearGradient(0f, bandTop, 0f, sceneryFarCrestY, withAlpha(tint, 0), withAlpha(tint, alpha), Shader.TileMode.CLAMP)
+		canvas.drawRect(0f, bandTop, width, sceneryFarCrestY, paint)
+	}
+
+	/** A translucent wash between the two crests so the far plane reads as atmospheric depth rather than a second flat sticker. */
+	private fun drawInterPlaneHaze(canvas: Canvas, width: Float, skyBottom: Int) {
+		val top = sceneryFarCrestY
+		val bottom = sceneryNearCrestY
+		if (bottom <= top) {
+			return
+		}
+
+		val haze = lighten(skyBottom, 0.15f)
+		paint.shader = LinearGradient(0f, top, 0f, bottom, withAlpha(haze, 55), withAlpha(haze, 0), Shader.TileMode.CLAMP)
+		canvas.drawRect(0f, top, width, bottom, paint)
+	}
+
+	/**
+	 * Soft mist bands drifting through the mountain valley between the two ridges.
+	 * Cheap ovals + low alpha — no blur filters, so the live wallpaper stays light.
+	 */
+	private fun drawValleyMist(canvas: Canvas, width: Float, height: Float, timeSeconds: Float, skyBottom: Int, dayPhase: DayPhase) {
+		val top = sceneryFarCrestY
+		val bottom = sceneryNearCrestY
+		if (bottom <= top + height * 0.02f) {
+			return
+		}
+
+		val mist = lighten(skyBottom, 0.35f)
+		val baseAlpha = when (dayPhase) {
+			DayPhase.DAY -> 55
+			DayPhase.DAWN, DayPhase.DUSK -> 70
+			DayPhase.NIGHT -> 35
+		}
+
+		val valley = bottom - top
+		paint.style = Paint.Style.FILL
+
+		for (band in 0 until 3) {
+			val speed = 0.012f + band * 0.006f
+			val travel = width * 1.35f
+			val drift = ((timeSeconds * speed * width + band * width * 0.37f) % travel + travel) % travel - width * 0.2f
+			val cy = top + valley * (0.28f + band * 0.22f) + sin(timeSeconds * 0.18f + band * 1.7f) * height * 0.006f
+			val bandH = valley * (0.18f + band * 0.04f)
+			val bandW = width * (0.5f + band * 0.12f)
+			val alpha = (baseAlpha * (1f - band * 0.12f)).roundToInt().coerceIn(20, 80)
+			val topY = cy - bandH * 0.5f
+			val bottomY = cy + bandH * 0.5f
+
+			fun drawBand(originX: Float) {
+				paint.shader = RadialGradient(
+					originX + bandW * 0.5f,
+					cy,
+					bandW * 0.55f,
+					withAlpha(mist, alpha),
+					withAlpha(mist, 0),
+					Shader.TileMode.CLAMP
+				)
+
+				canvas.drawOval(originX, topY, originX + bandW, bottomY, paint)
+			}
+
+			drawBand(drift)
+
+			// Wrap so a band exiting one side re-enters the other without a pop.
+			drawBand(drift - travel)
+		}
+
+		paint.shader = null
+	}
+
+	/** A short vertical wash under the sea line; muted at night so the water stays a silhouette. */
+	private fun drawBeachReflection(canvas: Canvas, width: Float, height: Float, dayPhase: DayPhase, skyBottom: Int) {
+		val alpha = when (dayPhase) {
+			DayPhase.DAWN, DayPhase.DUSK -> 70
+			DayPhase.DAY -> 45
+			DayPhase.NIGHT -> 18
+		}
+
+		val bandBottom = (sceneryReflectionY + height * 0.045f).coerceAtMost(height)
+
+		paint.shader = LinearGradient(
+			0f,
+			sceneryReflectionY,
+			0f,
+			bandBottom,
+			withAlpha(lighten(skyBottom, 0.25f), alpha),
+			withAlpha(skyBottom, 0),
+			Shader.TileMode.CLAMP
+		)
+
+		canvas.drawRect(0f, sceneryReflectionY, width, bandBottom, paint)
+	}
+
+	/** Seeded warm window rects for the metropolis — static positions, phase-only opacity, no twinkle. */
+	private fun drawCityWindows(canvas: Canvas, height: Float, dayPhase: DayPhase) {
+		val alpha = when (dayPhase) {
+			DayPhase.NIGHT -> 210
+			DayPhase.DUSK -> 150
+			DayPhase.DAWN -> 40
+			DayPhase.DAY -> return
+		}
+
+		val w = height * 0.0028f
+		val h = height * 0.0036f
+		paint.color = Color.argb(alpha, 255, 214, 140)
+
+		var index = 0
+		while (index < sceneryWindowXy.size) {
+			val x = sceneryWindowXy[index]
+			val y = sceneryWindowXy[index + 1]
+			canvas.drawRect(x, y, x + w, y + h, paint)
+			index += 2
 		}
 	}
 
@@ -239,6 +623,18 @@ class SceneRenderer {
 
 		path.lineTo(width, height)
 		path.lineTo(0f, height)
+		path.close()
+	}
+
+	/** Scales a closed unit polygon (ships) to pixels without stretching it to the frame bottom. */
+	private fun fillClosedOutline(path: Path, outline: List<OutlinePoint>, width: Float, height: Float) {
+		path.rewind()
+		path.moveTo(outline.first().x * width, outline.first().y * height)
+
+		for (index in 1 until outline.size) {
+			path.lineTo(outline[index].x * width, outline[index].y * height)
+		}
+
 		path.close()
 	}
 

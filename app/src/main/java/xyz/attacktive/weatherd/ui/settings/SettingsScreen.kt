@@ -384,10 +384,11 @@ private fun formatInterval(minutes: Int) = when {
 }
 
 private fun formatBackdrop(scene: BackdropScene) = when (scene) {
-	BackdropScene.NONE -> "None — just the sky"
+	BackdropScene.NONE -> "None"
 	BackdropScene.METROPOLIS -> "Metropolis"
 	BackdropScene.BEACH -> "Beach"
 	BackdropScene.MOUNTAINS -> "Mountains"
+	BackdropScene.COUNTRYSIDE -> "Countryside"
 }
 
 private fun formatUnit(unit: TemperatureUnit) = when (unit) {
