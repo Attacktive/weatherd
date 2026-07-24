@@ -691,15 +691,15 @@ class SceneRenderer {
 		paint.style = Paint.Style.FILL
 
 		repeat(count) {
-			val x = random.nextFloat() * width
-			val y = random.nextFloat() * height * 0.62f
-			val radius = random.nextFloat() * 1.6f + 0.6f
-			val baseAlpha = random.nextFloat() * 150f + 80f
-			val phase = random.nextFloat() * TAU
+			val x = random.nextFloat(0f, width)
+			val y = random.nextFloat(0f, height * 0.62f)
+			val radius = random.nextFloat(0.6f, 2.2f)
+			val baseAlpha = random.nextFloat(80f, 230f)
+			val phase = random.nextFloat(0f, TAU)
 			val bright = random.nextFloat() < 0.14f
 
 			// Every star used to twinkle at one shared 2.2 rad/s — synchronized twinkle reads as a screensaver. Each now has its own rate, and the bright ones breathe slowly instead of flickering.
-			val frequency = 1.4f + random.nextFloat() * 1.7f
+			val frequency = random.nextFloat(1.4f, 3.1f)
 			val rate = if (bright) {
 				frequency * 0.45f
 			} else {
@@ -738,7 +738,7 @@ class SceneRenderer {
 			return
 		}
 
-		val start = random.nextFloat() * (METEOR_SLOT_SECONDS - METEOR_DURATION - 1f)
+		val start = random.nextFloat(METEOR_SLOT_SECONDS - METEOR_DURATION - 1f)
 		val local = timeSeconds - slot * METEOR_SLOT_SECONDS - start
 		if (local !in 0f..METEOR_DURATION) {
 			return
@@ -746,9 +746,9 @@ class SceneRenderer {
 
 		val progress = local / METEOR_DURATION
 		val envelope = sin(progress * PI_F)
-		val fromX = width * (0.15f + random.nextFloat() * 0.6f)
-		val fromY = height * (0.06f + random.nextFloat() * 0.22f)
-		val angle = (20f + random.nextFloat() * 25f) * DEGREES_TO_RADIANS
+		val fromX = width * random.nextFloat(0.15f, 0.75f)
+		val fromY = height * random.nextFloat(0.06f, 0.28f)
+		val angle = random.nextFloat(20f, 45f) * DEGREES_TO_RADIANS
 		val direction = if (random.nextFloat() < 0.5f) {
 			-1f
 		} else {
@@ -950,7 +950,7 @@ class SceneRenderer {
 			return
 		}
 
-		val start = random.nextFloat() * (BIRD_SLOT_SECONDS - BIRD_CROSSING_SECONDS)
+		val start = random.nextFloat(BIRD_SLOT_SECONDS - BIRD_CROSSING_SECONDS)
 		val local = timeSeconds - slot * BIRD_SLOT_SECONDS - start
 		if (local !in 0f..BIRD_CROSSING_SECONDS) {
 			return
@@ -963,8 +963,8 @@ class SceneRenderer {
 			1f
 		}
 
-		val flockSize = 3 + (random.nextFloat() * 3f).toInt()
-		val baseY = height * (0.14f + random.nextFloat() * 0.12f)
+		val flockSize = 3 + random.nextFloat(3f).toInt()
+		val baseY = height * random.nextFloat(0.14f, 0.26f)
 		val span = width * 1.2f
 		val leadX = if (direction > 0f) {
 			-width * 0.1f + span * progress
@@ -1039,9 +1039,9 @@ class SceneRenderer {
 		val count = ((2 + params.cloudiness * 5f) * countFactor).roundToInt().coerceAtLeast(1)
 
 		repeat(count) {
-			val cx = random.nextFloat() * width
-			val baseline = height * (0.35f - baselineLift + random.nextFloat() * 0.45f)
-			val scale = width * (0.07f + random.nextFloat() * 0.05f) * puffScale
+			val cx = random.nextFloat(width)
+			val baseline = height * random.nextFloat(0.35f - baselineLift, 0.8f - baselineLift)
+			val scale = width * random.nextFloat(0.07f, 0.12f) * puffScale
 
 			wrapX(width, cx, scale * 3f) { x ->
 				drawPuff(canvas, x, baseline - scale * 0.12f, scale, highlight)
@@ -1075,10 +1075,11 @@ class SceneRenderer {
 		brush.maskFilter = BlurMaskFilter(blur, BlurMaskFilter.Blur.NORMAL)
 
 		val random = Random(seed)
+
 		repeat(count) {
-			val cx = random.nextFloat() * width
-			val cy = height * (0.12f + random.nextFloat() * 0.6f)
-			val rx = width * (0.16f + random.nextFloat() * 0.16f)
+			val cx = random.nextFloat(width)
+			val cy = height * random.nextFloat(0.12f, 0.72f)
+			val rx = width * random.nextFloat(0.16f, 0.32f)
 
 			wrapX(width, cx, rx * 1.6f) { x ->
 				canvas.drawCircle(x, cy, rx, brush)
@@ -1206,9 +1207,10 @@ class SceneRenderer {
 		*/
 		val farRandom = Random(PRECIP_SEED)
 		val points = rainBuffer(squallCount * 4)
+
 		repeat(squallCount) { i ->
-			val length = (10f + farRandom.nextFloat() * 10f) * stretch
-			val travel = farRandom.nextFloat() * height + timeSeconds * 650f * speed
+			val length = farRandom.nextFloat(10f, 20f) * stretch
+			val travel = farRandom.nextFloat(height) + timeSeconds * 650f * speed
 			val cycle = (travel / span).toInt()
 			val x = laneFraction(i * 2, cycle) * (width + 200f) - 100f
 			val y = travel % span - RAIN_WRAP_PAD
@@ -1235,9 +1237,10 @@ class SceneRenderer {
 	private fun drawNearRain(canvas: Canvas, width: Float, height: Float, nearCount: Int, span: Float, slant: Float, stretch: Float, speed: Float, timeSeconds: Float, heavy: Boolean, flash: Float) {
 		val nearRandom = Random(PRECIP_SEED + 1L)
 		val points = rainBuffer(nearCount * 4)
+
 		repeat(nearCount) { i ->
-			val length = (30f + nearRandom.nextFloat() * 22f) * stretch
-			val travel = nearRandom.nextFloat() * height + timeSeconds * 1150f * speed
+			val length = nearRandom.nextFloat(30f, 52f) * stretch
+			val travel = nearRandom.nextFloat(height) + timeSeconds * 1150f * speed
 			val cycle = (travel / span).toInt()
 			val x = laneFraction(i * 2 + 1, cycle) * (width + 200f) - 100f
 			val y = travel % span - RAIN_WRAP_PAD
@@ -1288,9 +1291,10 @@ class SceneRenderer {
 
 		val random = Random(PRECIP_SEED + 2L)
 		val points = rainBuffer(closeCount * 4)
+
 		repeat(closeCount) { i ->
-			val length = (46f + random.nextFloat() * 26f) * stretch
-			val travel = random.nextFloat() * height + timeSeconds * 1450f * speed
+			val length = random.nextFloat(46f, 72f) * stretch
+			val travel = random.nextFloat(height) + timeSeconds * 1450f * speed
 			val cycle = (travel / span).toInt()
 			val x = laneFraction(i + CLOSE_DROP_LANE_OFFSET, cycle) * (width + 200f) - 100f
 			val y = travel % span - RAIN_WRAP_PAD
@@ -1354,13 +1358,14 @@ class SceneRenderer {
 		}
 
 		repeat(squallCount / 2) { i ->
-			val travel = farRandom.nextFloat() * height + timeSeconds * 70f * speed
+			val travel = farRandom.nextFloat(height) + timeSeconds * 70f * speed
 			val cycle = (travel / span).toInt()
 			val baseX = laneFraction(i * 2, cycle) * width
 			val phase = laneFraction(i * 2, cycle + SWAY_PHASE_SALT) * TAU
 			val y = travel % span - FLAKE_WRAP_PAD
 			val sway = sin(timeSeconds * 0.7f + phase) * (width * 0.02f) + gust * farLean
-			val radius = (farRandom.nextFloat() * 1.4f + 1.2f) * size
+			val radius = farRandom.nextFloat(1.2f, 2.6f) * size
+
 			drawSoftDot(canvas, farFlakeSprite, baseX + sway, y, radius)
 		}
 
@@ -1372,13 +1377,14 @@ class SceneRenderer {
 		}
 
 		repeat(count - count / 2) { i ->
-			val travel = nearRandom.nextFloat() * height + timeSeconds * 165f * speed
+			val travel = nearRandom.nextFloat(height) + timeSeconds * 165f * speed
 			val cycle = (travel / span).toInt()
 			val baseX = laneFraction(i * 2 + 1, cycle) * width
 			val phase = laneFraction(i * 2 + 1, cycle + SWAY_PHASE_SALT) * TAU
 			val y = travel % span - FLAKE_WRAP_PAD
 			val sway = sin(timeSeconds * 1.1f + phase) * (width * 0.045f) + gust * nearLean
-			val radius = (nearRandom.nextFloat() * 3.2f + 2.6f) * size
+			val radius = nearRandom.nextFloat(2.6f, 5.8f) * size
+
 			drawSoftDot(canvas, nearFlakeSprite, baseX + sway, y, radius)
 		}
 	}
@@ -1399,9 +1405,10 @@ class SceneRenderer {
 		val points = rainBuffer(streakCount * 4)
 
 		val span = height + 120f
+
 		repeat(streakCount) { i ->
-			val length = 14f + streakRandom.nextFloat() * 12f
-			val travel = streakRandom.nextFloat() * height + timeSeconds * 820f
+			val length = streakRandom.nextFloat(14f, 26f)
+			val travel = streakRandom.nextFloat(height) + timeSeconds * 820f
 			val cycle = (travel / span).toInt()
 			val x = laneFraction(i * 2, cycle) * (width + 200f) - 100f
 			val y = travel % span - 60f
@@ -1426,14 +1433,16 @@ class SceneRenderer {
 		val pelletCount = count / 2
 		val pelletRandom = Random(PRECIP_SEED + 1L)
 		val pelletSpan = height + FLAKE_WRAP_PAD * 2f
+
 		repeat(pelletCount) { i ->
-			val travel = pelletRandom.nextFloat() * height + timeSeconds * 240f
+			val travel = pelletRandom.nextFloat(height) + timeSeconds * 240f
 			val cycle = (travel / pelletSpan).toInt()
 			val baseX = laneFraction(i * 2 + 1, cycle) * width
 			val phase = laneFraction(i * 2 + 1, cycle + SWAY_PHASE_SALT) * TAU
 			val y = travel % pelletSpan - FLAKE_WRAP_PAD
 			val sway = sin(timeSeconds * 1.6f + phase) * (width * 0.012f) + gust * 23f
-			val radius = pelletRandom.nextFloat() * 1.6f + 1.2f
+			val radius = pelletRandom.nextFloat(1.2f, 2.8f)
+
 			drawSoftDot(canvas, pelletSprite, baseX + sway, y, radius)
 		}
 	}
@@ -1457,7 +1466,7 @@ class SceneRenderer {
 
 		flashSheet = random.nextFloat() < 0.6f
 		val strikeWindow = STRIKE_SLOT_SECONDS - SHEET_DURATION - ECHO_DELAY - AFTERGLOW_SECONDS
-		val strikeAt = random.nextFloat() * strikeWindow
+		val strikeAt = random.nextFloat(strikeWindow)
 		val local = timeSeconds - flashSlot * STRIKE_SLOT_SECONDS - strikeAt
 
 		val strike = coreFlash(local, flashSheet)
@@ -1532,9 +1541,9 @@ class SceneRenderer {
 			canvas.drawRect(0f, 0f, width, height, paint)
 
 			val glow = tile("sheetGlow", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildHaloSprite(it, Color.rgb(226, 228, 252)) }
-			val glowX = width * (0.2f + random.nextFloat() * 0.6f)
-			val glowY = height * (0.1f + random.nextFloat() * 0.15f)
-			val glowRadius = width * (0.5f + random.nextFloat() * 0.25f)
+			val glowX = width * random.nextFloat(0.2f, 0.8f)
+			val glowY = height * random.nextFloat(0.1f, 0.25f)
+			val glowRadius = width * random.nextFloat(0.5f, 0.75f)
 			blitSprite(canvas, glow, glowX, glowY, glowRadius, (170f * flashWash).roundToInt())
 
 			return
@@ -1573,7 +1582,7 @@ class SceneRenderer {
 
 	/** Regenerates [boltPath] and its thinner [forkPath] branch from the slot's geometry seed — the mid-bolt fork is what makes the strike read as lightning rather than a zigzag line. */
 	private fun buildBolt(width: Float, height: Float, random: Random) {
-		var x = width * (0.3f + random.nextFloat() * 0.4f)
+		var x = width * random.nextFloat(0.3f, 0.7f)
 		var y = 0f
 		boltPath.reset()
 		boltPath.moveTo(x, y)
@@ -1583,7 +1592,7 @@ class SceneRenderer {
 		var forkY = y
 
 		repeat(BOLT_STEPS) { step ->
-			x += (random.nextFloat() - 0.5f) * width * 0.18f
+			x += random.nextFloat(-width * 0.09f, width * 0.09f)
 			y += segment
 
 			boltPath.lineTo(x, y)
@@ -1603,7 +1612,7 @@ class SceneRenderer {
 		}
 
 		repeat(3) {
-			forkX += forkDirection * (0.04f + random.nextFloat() * 0.08f) * width
+			forkX += forkDirection * random.nextFloat(0.04f, 0.12f) * width
 			forkY += segment * 0.7f
 			forkPath.lineTo(forkX, forkY)
 		}

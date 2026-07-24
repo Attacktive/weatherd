@@ -117,8 +117,8 @@ private fun beach(aspectRatio: Float): SceneryOutlines {
 		near = bluff,
 		// Ships stay over open water on the right — under the bluff they get swallowed by the near fill.
 		ships = listOf(
-			cargoShip(start = 0.52f + shipRandom.nextFloat() * 0.08f, length = 0.18f * featureScale),
-			sailboat(start = 0.78f + shipRandom.nextFloat() * 0.06f, length = 0.07f * featureScale)
+			cargoShip(start = shipRandom.nextFloat(0.52f, 0.60f), length = 0.18f * featureScale),
+			sailboat(start = shipRandom.nextFloat(0.78f, 0.84f), length = 0.07f * featureScale)
 		),
 		parasols = beachParasols(Random(83L), bluff, featureScale),
 		reflectionY = SEA_HORIZON,
@@ -189,10 +189,10 @@ private fun towerRun(
 	for (index in 0 until spec.count) {
 		val left = edges[index]
 		val right = edges[index + 1]
-		val inset = (right - left) * (0.10f + random.nextFloat() * 0.12f)
+		val inset = (right - left) * random.nextFloat(0.10f, 0.22f)
 		val towerLeft = left + inset
 		val towerRight = right - inset
-		val top = between(random, spec.topLow, spec.topHigh)
+		val top = random.nextFloat(spec.topLow, spec.topHigh)
 		points += OutlinePoint(towerLeft, spec.baseY)
 
 		val usedSetback = spec.setbacks &&
@@ -230,8 +230,8 @@ private fun appendSetbackTower(
 	top: Float,
 	baseY: Float
 ) {
-	val mid = towerLeft + (towerRight - towerLeft) * (0.35f + random.nextFloat() * 0.3f)
-	val shoulder = top + 0.012f + random.nextFloat() * 0.01f
+	val mid = towerLeft + (towerRight - towerLeft) * random.nextFloat(0.35f, 0.65f)
+	val shoulder = top + random.nextFloat(0.012f, 0.022f)
 	points += OutlinePoint(towerLeft, shoulder)
 	points += OutlinePoint(mid, shoulder)
 	points += OutlinePoint(mid, top)
@@ -284,12 +284,12 @@ private fun rooflineRun(
 	for (index in 0 until count) {
 		val left = edges[index]
 		val right = edges[index + 1]
-		val roof = between(random, topLow, topHigh)
+		val roof = random.nextFloat(topLow, topHigh)
 		points += OutlinePoint(left, roof)
 
 		if (random.nextFloat() < 0.4f) {
-			val mastX = left + (right - left) * (0.25f + random.nextFloat() * 0.3f)
-			val mastTop = roof - 0.018f - random.nextFloat() * 0.02f
+			val mastX = left + (right - left) * random.nextFloat(0.25f, 0.55f)
+			val mastTop = roof - random.nextFloat(0.018f, 0.038f)
 			points += OutlinePoint(mastX, roof)
 			points += OutlinePoint(mastX, mastTop)
 			points += OutlinePoint(mastX + MAST_WIDTH, mastTop)
@@ -386,14 +386,14 @@ private fun coastalBluff(random: Random): List<OutlinePoint> {
 		val t = index / steps.toFloat()
 		val x = t
 		val y = when {
-			t < 0.30f -> 0.845f + sin(t * 14f) * 0.006f + random.nextFloat() * 0.005f
+			t < 0.30f -> 0.845f + sin(t * 14f) * 0.006f + random.nextFloat(0.005f)
 			t < 0.46f -> {
 				val slide = (t - 0.30f) / 0.16f
-				lerp(0.85f, 0.935f, slide * slide) + random.nextFloat() * 0.004f
+				lerp(0.85f, 0.935f, slide * slide) + random.nextFloat(0.004f)
 			}
 			else -> {
 				val shelf = 0.935f + sin(t * 9f) * 0.005f
-				(shelf + random.nextFloat() * 0.008f).coerceIn(0.91f, 0.955f)
+				(shelf + random.nextFloat(0.008f)).coerceIn(0.91f, 0.955f)
 			}
 		}
 
@@ -408,7 +408,7 @@ private fun coastalBluff(random: Random): List<OutlinePoint> {
  * Buried on the sand shelf (same tone as the near fill) they vanish completely.
  */
 private fun beachParasols(random: Random, bluff: List<OutlinePoint>, featureScale: Float): List<OutlinePoint> = List(2) { index ->
-	val x = (0.08f + index * 0.11f * featureScale + random.nextFloat() * 0.012f).coerceAtMost(0.28f)
+	val x = (0.08f + index * 0.11f * featureScale + random.nextFloat(0.012f)).coerceAtMost(0.28f)
 	val crestY = sampleOutlineY(bluff, x)
 
 	OutlinePoint(x, crestY)
@@ -418,11 +418,11 @@ private fun beachParasols(random: Random, bluff: List<OutlinePoint>, featureScal
 private fun beachGulls(random: Random, featureScale: Float): List<SceneryFauna> = List(4) {
 	SceneryFauna(
 		kind = SceneryFaunaKind.GULL,
-		baseX = 0.05f + random.nextFloat() * 0.7f,
-		baseY = 0.70f + random.nextFloat() * 0.08f,
-		scale = (0.9f + random.nextFloat() * 0.4f) * featureScale,
-		phase = random.nextFloat() * TAU,
-		speed = 0.012f + random.nextFloat() * 0.018f
+		baseX = random.nextFloat(0.05f, 0.75f),
+		baseY = random.nextFloat(0.70f, 0.78f),
+		scale = random.nextFloat(0.9f, 1.3f) * featureScale,
+		phase = random.nextFloat(TAU),
+		speed = random.nextFloat(0.012f, 0.03f)
 	)
 }
 
@@ -431,20 +431,20 @@ private fun beachMarine(random: Random, featureScale: Float): List<SceneryFauna>
 	val sharks = List(2) {
 		SceneryFauna(
 			kind = SceneryFaunaKind.SHARK,
-			baseX = 0.35f + random.nextFloat() * 0.45f,
-			baseY = SEA_HORIZON + 0.015f + random.nextFloat() * 0.025f,
-			scale = (0.8f + random.nextFloat() * 0.4f) * featureScale,
-			phase = random.nextFloat() * TAU,
-			speed = 0.008f + random.nextFloat() * 0.01f
+			baseX = random.nextFloat(0.35f, 0.8f),
+			baseY = SEA_HORIZON + random.nextFloat(0.015f, 0.04f),
+			scale = random.nextFloat(0.8f, 1.2f) * featureScale,
+			phase = random.nextFloat(TAU),
+			speed = random.nextFloat(0.008f, 0.018f)
 		)
 	}
 	val whale = SceneryFauna(
 		kind = SceneryFaunaKind.WHALE,
-		baseX = 0.42f + random.nextFloat() * 0.25f,
+		baseX = random.nextFloat(0.42f, 0.67f),
 		baseY = SEA_HORIZON + 0.03f,
-		scale = (1.3f + random.nextFloat() * 0.3f) * featureScale,
-		phase = random.nextFloat() * TAU,
-		speed = 0.004f + random.nextFloat() * 0.004f
+		scale = random.nextFloat(1.3f, 1.6f) * featureScale,
+		phase = random.nextFloat(TAU),
+		speed = random.nextFloat(0.004f, 0.008f)
 	)
 
 	return sharks + whale
@@ -463,37 +463,37 @@ private fun mountainRange(
 	saddleHigh: Float,
 	broadCrests: Boolean
 ): List<OutlinePoint> {
-	val points = mutableListOf(OutlinePoint(0f, between(random, saddleLow, saddleHigh)))
+	val points = mutableListOf(OutlinePoint(0f, random.nextFloat(saddleLow, saddleHigh)))
 	val edges = segmentEdges(random, count)
 
 	for (index in 0 until count) {
 		val left = edges[index]
 		val right = edges[index + 1]
 		val span = right - left
-		val crest = between(random, crestLow, crestHigh)
-		val saddle = between(random, saddleLow, saddleHigh)
+		val crest = random.nextFloat(crestLow, crestHigh)
+		val saddle = random.nextFloat(saddleLow, saddleHigh)
 
 		// Rising shoulder — halfway up before the crest, so the slope isn't a straight knife-edge.
-		val riseX = left + span * (0.18f + random.nextFloat() * 0.12f)
-		val riseY = lerp(points.last().y, crest, 0.45f + random.nextFloat() * 0.15f)
+		val riseX = left + span * random.nextFloat(0.18f, 0.3f)
+		val riseY = lerp(points.last().y, crest, random.nextFloat(0.45f, 0.6f))
 		points += OutlinePoint(riseX, riseY)
 
 		if (broadCrests && span > 0.12f) {
 			// A short ridge top: two close points at nearly the same height, maybe a gentle dip between.
-			val crestLeft = left + span * (0.38f + random.nextFloat() * 0.08f)
-			val crestRight = left + span * (0.55f + random.nextFloat() * 0.1f)
-			val crestDip = crest + 0.008f + random.nextFloat() * 0.01f
+			val crestLeft = left + span * random.nextFloat(0.38f, 0.46f)
+			val crestRight = left + span * random.nextFloat(0.55f, 0.65f)
+			val crestDip = crest + random.nextFloat(0.008f, 0.018f)
 			points += OutlinePoint(crestLeft, crest)
 			if (random.nextFloat() < 0.65f) {
 				points += OutlinePoint((crestLeft + crestRight) * 0.5f, crestDip)
 			}
-			points += OutlinePoint(crestRight, crest + random.nextFloat() * 0.006f)
+			points += OutlinePoint(crestRight, crest + random.nextFloat(0.006f))
 		} else {
-			val summit = left + span * (0.4f + random.nextFloat() * 0.2f)
+			val summit = left + span * random.nextFloat(0.4f, 0.6f)
 			points += OutlinePoint(summit, crest)
 			// Soften the tip with a near-side shoulder so it isn't a perfect triangle.
-			val fallX = summit + (right - summit) * (0.35f + random.nextFloat() * 0.2f)
-			points += OutlinePoint(fallX, lerp(crest, saddle, 0.4f + random.nextFloat() * 0.2f))
+			val fallX = summit + (right - summit) * random.nextFloat(0.35f, 0.55f)
+			points += OutlinePoint(fallX, lerp(crest, saddle, random.nextFloat(0.4f, 0.6f)))
 		}
 
 		points += OutlinePoint(right, saddle)
@@ -509,7 +509,7 @@ private fun rollingHills(random: Random, count: Int, topLow: Float, topHigh: Flo
 
 	for (index in 0..count) {
 		val x = edges[index]
-		val crest = between(random, topLow, topHigh)
+		val crest = random.nextFloat(topLow, topHigh)
 		val y = if (index == 0 || index == count) {
 			crest + 0.02f
 		} else {
@@ -527,7 +527,7 @@ private fun rollingHills(random: Random, count: Int, topLow: Float, topHigh: Flo
  * Points stay left-to-right so the outline tests keep passing.
  */
 private fun attachFarmhouse(hills: List<OutlinePoint>, random: Random, featureScale: Float): List<OutlinePoint> {
-	val houseLeft = 0.56f + random.nextFloat() * 0.14f
+	val houseLeft = random.nextFloat(0.56f, 0.7f)
 	val houseWidth = 0.08f * featureScale
 	val houseRight = (houseLeft + houseWidth).coerceAtMost(0.92f)
 	val span = houseRight - houseLeft
@@ -557,12 +557,12 @@ private fun attachFarmhouse(hills: List<OutlinePoint>, random: Random, featureSc
 
 /** Short fence-post ticks along the near hillside. */
 private fun fencePosts(random: Random, featureScale: Float): List<List<OutlinePoint>> {
-	val start = 0.12f + random.nextFloat() * 0.15f
+	val start = random.nextFloat(0.12f, 0.27f)
 	val spacing = 0.028f * featureScale
 
 	return List(5) { index ->
 		val x = start + index * spacing
-		val top = 0.90f + random.nextFloat() * 0.01f
+		val top = random.nextFloat(0.90f, 0.91f)
 
 		listOf(
 			OutlinePoint(x, top),
@@ -573,7 +573,7 @@ private fun fencePosts(random: Random, featureScale: Float): List<List<OutlinePo
 
 /** A windmill on the near pasture — short tower planted on the hill, hub just above the crest. */
 private fun pastureWindmill(random: Random, hills: List<OutlinePoint>, featureScale: Float): SceneryWindmill {
-	val hubX = 0.20f + random.nextFloat() * 0.18f
+	val hubX = random.nextFloat(0.20f, 0.38f)
 	val groundY = sampleOutlineY(hills, hubX)
 	val towerH = 0.038f * featureScale
 	val hubY = (groundY - towerH).coerceAtLeast(0.78f)
@@ -630,7 +630,7 @@ private fun sampleOutlineY(outline: List<OutlinePoint>, x: Float): Float {
 
 /** [count] slot boundaries of randomized widths, normalized so the first edge is exactly 0 and the last exactly 1. */
 private fun segmentEdges(random: Random, count: Int): FloatArray {
-	val widths = FloatArray(count) { 0.6f + random.nextFloat() * 0.9f }
+	val widths = FloatArray(count) { random.nextFloat(0.6f, 1.5f) }
 	val total = widths.sum()
 	val edges = FloatArray(count + 1)
 
@@ -645,8 +645,6 @@ private fun segmentEdges(random: Random, count: Int): FloatArray {
 
 /** How many features fit the screen: the counts are tuned for a portrait phone and grow with wider aspects. */
 private fun scaled(baseCount: Int, aspectRatio: Float) = (baseCount * aspectRatio / PORTRAIT_ASPECT).roundToInt().coerceAtLeast(2)
-
-private fun between(random: Random, low: Float, high: Float) = low + (high - low) * random.nextFloat()
 
 private fun lerp(from: Float, to: Float, t: Float) = from + (to - from) * t
 
