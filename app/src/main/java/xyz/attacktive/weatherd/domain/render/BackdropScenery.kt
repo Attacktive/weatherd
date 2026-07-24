@@ -431,16 +431,17 @@ private fun beachMarine(random: Random, featureScale: Float): List<SceneryFauna>
 	val sharks = List(2) {
 		SceneryFauna(
 			kind = SceneryFaunaKind.SHARK,
-			baseX = random.nextFloat(0.35f, 0.8f),
+			baseX = random.nextFloat(0.5f, 0.8f),
 			baseY = SEA_HORIZON + random.nextFloat(0.015f, 0.04f),
-			scale = random.nextFloat(0.8f, 1.2f) * featureScale,
+			scale = random.nextFloat(2f, 3f) * featureScale,
 			phase = random.nextFloat(TAU),
 			speed = random.nextFloat(0.008f, 0.018f)
 		)
 	}
+
 	val whale = SceneryFauna(
 		kind = SceneryFaunaKind.WHALE,
-		baseX = random.nextFloat(0.42f, 0.67f),
+		baseX = random.nextFloat(0.53f, 0.7f),
 		baseY = SEA_HORIZON + 0.03f,
 		scale = random.nextFloat(1.3f, 1.6f) * featureScale,
 		phase = random.nextFloat(TAU),
