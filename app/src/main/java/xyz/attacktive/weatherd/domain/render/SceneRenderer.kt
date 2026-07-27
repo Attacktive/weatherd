@@ -530,8 +530,18 @@ class SceneRenderer {
 
 		val bandTop = (sceneryFarCrestY - height * 0.06f).coerceAtLeast(height * 0.55f)
 
-		paint.shader = LinearGradient(0f, bandTop, 0f, sceneryFarCrestY, withAlpha(tint, 0), withAlpha(tint, alpha), Shader.TileMode.CLAMP)
-		canvas.drawRect(0f, bandTop, width, sceneryFarCrestY, paint)
+		paint.shader = LinearGradient(
+			0f,
+			bandTop,
+			0f,
+			sceneryFarCrestY,
+			withAlpha(tint, 0),
+			withAlpha(tint, alpha),
+			Shader.TileMode.CLAMP
+		)
+
+		// Fill past the crest (CLAMP holds the end color, and the silhouettes cover it) so the band never stops on a hard bright edge across the sky.
+		canvas.drawRect(0f, bandTop, width, height, paint)
 	}
 
 	/** A translucent wash between the two crests so the far plane reads as atmospheric depth rather than a second flat sticker. */
@@ -542,9 +552,22 @@ class SceneRenderer {
 			return
 		}
 
+		// The wash ramps in above the far crest too — starting it at full strength on the crest line drew a seam right across the sky.
+		val fade = (bottom - top) * 0.5f
+		val fadeTop = top - fade
 		val haze = lighten(skyBottom, 0.15f)
-		paint.shader = LinearGradient(0f, top, 0f, bottom, withAlpha(haze, 55), withAlpha(haze, 0), Shader.TileMode.CLAMP)
-		canvas.drawRect(0f, top, width, bottom, paint)
+
+		paint.shader = LinearGradient(
+			0f,
+			fadeTop,
+			0f,
+			bottom,
+			intArrayOf(withAlpha(haze, 0), withAlpha(haze, 55), withAlpha(haze, 0)),
+			floatArrayOf(0f, fade / (bottom - fadeTop), 1f),
+			Shader.TileMode.CLAMP
+		)
+
+		canvas.drawRect(0f, fadeTop, width, bottom, paint)
 	}
 
 	/**
