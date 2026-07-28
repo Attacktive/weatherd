@@ -1230,7 +1230,7 @@ class SceneRenderer {
 		/*
 		 * Each streak picks a fresh lane per fall cycle, so no drop re-falls one fixed path forever.
 		 * Every layer seeds its own Random: per-particle constants must never depend on another layer's breathing count, or one ±1 tick reshuffles every draw after it and whole layers teleport.
-		*/
+		 */
 		val farRandom = Random(PRECIP_SEED)
 		val points = rainBuffer(squallCount * 4)
 
@@ -1372,9 +1372,9 @@ class SceneRenderer {
 		val gust = gustFactor(timeSeconds, windFactor)
 
 		/*
-		* Lane and sway phase re-hash every wrap, and the wrap spans a pad past both edges so soft dots never pop at the border.
-		* Per-layer Randoms and a steady near count keep flakes from teleporting when the squall factor ticks.
-		*/
+		 * Lane and sway phase re-hash every wrap, and the wrap spans a pad past both edges so soft dots never pop at the border.
+		 * Per-layer Randoms and a steady near count keep flakes from teleporting when the squall factor ticks.
+		 */
 		val span = height + FLAKE_WRAP_PAD * 2f
 		val farRandom = Random(PRECIP_SEED)
 		val farLean = if (heavy) {
