@@ -1132,7 +1132,10 @@ class SceneRenderer {
 			buildMassTile(it, tileWidth.toFloat(), tileHeight.toFloat(), Color.rgb(232, 236, 240), 70, tileWidth * 0.12f, 5, 31L)
 		}
 
-		// The two layers drift in opposite directions — by far the most legible motion cue for a texture this soft — with counter-phased opacity breathing and a slow vertical roll on top, so banks of mist visibly slide past each other, thicken, and thin.
+		/*
+		 * The two layers drift in opposite directions — by far the most legible motion cue for a texture this soft.
+		 * Counter-phased opacity breathing and a slow vertical roll on top, so banks of mist visibly slide past each other, thicken, and thin.
+		 */
 		val breath = 0.5f + 0.5f * (0.7f * sin(timeSeconds * 0.45f) + 0.3f * sin(timeSeconds * 1.13f))
 		val rollAmplitude = height * 0.03f
 		val roll = rollAmplitude * (0.7f * sin(timeSeconds * 0.25f) + 0.3f * sin(timeSeconds * 0.73f))
@@ -1783,7 +1786,8 @@ class SceneRenderer {
 		private const val BIRD_CROSSING_SECONDS = 22f
 
 		/**
-		 * Soft cloud/fog tiles are built at a quarter of the surface resolution and stretched at blit time — they're heavily blurred anyway, and building them full-size stalls the first frames of a scene (BlurMaskFilter rasterisation scales with area, 16x cheaper here).
+		 * Soft cloud/fog tiles are built at a quarter of the surface resolution and stretched at blit time.
+		 * They're heavily blurred anyway, and building them full-size stalls the first frames of a scene (BlurMaskFilter rasterisation scales with area, 16x cheaper here).
 		 */
 		private const val TILE_DOWNSCALE = 4f
 
