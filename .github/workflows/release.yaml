@@ -61,5 +61,5 @@ jobs:
           mappingFile: 'app/build/outputs/mapping/release/mapping.txt'
           debugSymbols: 'app/build/outputs/native-debug-symbols/release/native-debug-symbols.zip'
           whatsNewDirectory: 'whatsnew'
-          tracks: 'alpha'
+          tracks: 'beta'
           status: 'completed'
