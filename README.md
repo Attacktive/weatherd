@@ -8,9 +8,14 @@ Uses device location or a manually searched city, refreshes on a configurable in
 
 **Min SDK:** Android 8.0 (API 26)
 
+<a href="https://play.google.com/store/apps/details?id=xyz.attacktive.weatherd">
+	<img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" width="200">
+</a>
+
 ## Sister project
 
-[Wallhavend](https://github.com/Attacktive/Wallhavend-android) rotates real photo wallpapers from [Wallhaven](https://wallhaven.cc) on a schedule — same bones, opposite art department. [Get it on Google Play](https://play.google.com/store/apps/details?id=xyz.attacktive.wallhavend).
+[Wallhavend](https://github.com/Attacktive/Wallhavend-android) rotates real photo wallpapers from [Wallhaven](https://wallhaven.cc) on a schedule — same bones, opposite art department.
+[Get it on Google Play](https://play.google.com/store/apps/details?id=xyz.attacktive.wallhavend).
 
 ## Building from source
 
