@@ -13,7 +13,7 @@ class MoonPhaseTest {
 
 	@Test
 	fun `full moon lands half a synodic month later`() {
-		// 2000-01-21 04:40 UTC, the full moon following the reference; day quantisation allows a couple of percent.
+		// 2000-01-21 04:40 UTC, the full moon following the reference; day quantization allows a couple of percent.
 		assertEquals(0.5f, moonPhaseFor(948_429_600L), 0.04f)
 	}
 

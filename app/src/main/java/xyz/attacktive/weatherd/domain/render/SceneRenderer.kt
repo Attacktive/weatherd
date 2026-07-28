@@ -1721,7 +1721,7 @@ class SceneRenderer {
 		canvas.drawBitmap(sprite, null, spriteDest, spritePaint)
 	}
 
-	/** Blits [sprite] as a square of [radius] around a center at [alpha], restoring the shared paint's opacity afterwards. */
+	/** Blits [sprite] as a square of [radius] around a center at [alpha], restoring the shared paint's opacity afterward. */
 	private fun blitSprite(canvas: Canvas, sprite: Bitmap, centerX: Float, centerY: Float, radius: Float, alpha: Int) {
 		spritePaint.alpha = alpha.coerceIn(0, 255)
 		spriteDest.set(centerX - radius, centerY - radius, centerX + radius, centerY + radius)
