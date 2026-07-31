@@ -25,6 +25,7 @@ jobs:
         uses: 'github/codeql-action/init@v4.37.3'
         with:
           languages: 'java-kotlin'
+          build-mode: 'manual'
       - name: 'Build'
         run: './gradlew assembleDebug'
       - name: 'Perform CodeQL Analysis'
