@@ -363,7 +363,8 @@ class SceneRenderer {
 
 		sceneryWindmill?.let {
 			// Classic white canvas sails against the sky; the tower stays part of the painted hill.
-			drawWindmillSails(canvas, width, height, it, timeSeconds, sceneryLayerColor(SceneryMaterial.SAIL, SceneryPlane.NEAR, params, skyBottom))
+			val sailColor = sceneryLayerColor(SceneryMaterial.SAIL, SceneryPlane.NEAR, params, skyBottom)
+			drawWindmillSails(canvas, width, height, it, timeSeconds, sailColor)
 		}
 
 		if (sceneryHasWindows) {

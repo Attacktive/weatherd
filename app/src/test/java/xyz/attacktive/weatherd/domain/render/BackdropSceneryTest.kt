@@ -1,5 +1,6 @@
 package xyz.attacktive.weatherd.domain.render
 
+import kotlin.math.abs
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -71,7 +72,7 @@ class BackdropSceneryTest {
 	}
 
 	@Test
-	fun `the beach carries gulls parasols ships and marine life`() {
+	fun `the beach carries gulls parasols a sloop and marine life`() {
 		val outlines = sceneryOutlinesFor(BackdropScene.BEACH, PORTRAIT)!!
 
 		assertTrue(outlines.gulls.isNotEmpty())
@@ -91,8 +92,8 @@ class BackdropSceneryTest {
 		)
 
 		// The boat sits over open water, not under the bluff, with the rig visibly clear of the waterline.
-		assertTrue(outlines.glyphs.all { ship -> ship.outline.first().x >= 0.5f })
-		assertTrue(outlines.glyphs.any { ship -> ship.outline.any { it.y < 0.83f } })
+		assertTrue(outlines.glyphs.all { part -> part.outline.first().x >= 0.5f })
+		assertTrue(outlines.glyphs.any { part -> part.outline.any { it.y < 0.83f } })
 	}
 
 	@Test
@@ -161,6 +162,7 @@ class BackdropSceneryTest {
 			listOf(SceneryMaterial.BARN, SceneryMaterial.HULL, SceneryMaterial.HULL),
 			outlines.glyphs.map { it.material }
 		)
+
 		assertTrue(outlines.glyphs.all { it.plane == SceneryPlane.NEAR })
 		assertTrue(outlines.glyphs.all { glyph -> glyph.outline.all { it.y in 0.78f..0.955f } })
 
@@ -173,7 +175,7 @@ class BackdropSceneryTest {
 		// Tower is welded into the near outline at the hub — not a separate floating draw.
 		assertTrue(
 			"near outline should include the mill hub height",
-			outlines.near.any { kotlin.math.abs(it.x - mill.hubX) < 0.02f && kotlin.math.abs(it.y - mill.hubY) < 1e-3f }
+			outlines.near.any { abs(it.x - mill.hubX) < 0.02f && abs(it.y - mill.hubY) < 1e-3f }
 		)
 	}
 
@@ -210,7 +212,7 @@ class BackdropSceneryTest {
 		val farRoofYs = outlines.far.map { it.y }.toSet()
 		val roofBeacons = outlines.beacons.take(3)
 		roofBeacons.forEach { beacon ->
-			assertTrue("beacon y=${beacon.y} should sit on a roof", farRoofYs.any { kotlin.math.abs(it - beacon.y) < 1e-4f })
+			assertTrue("beacon y=${beacon.y} should sit on a roof", farRoofYs.any { abs(it - beacon.y) < 1e-4f })
 		}
 
 		assertTrue(roofBeacons.maxOf { it.y } <= outlines.far.minOf { it.y } + 0.05f)

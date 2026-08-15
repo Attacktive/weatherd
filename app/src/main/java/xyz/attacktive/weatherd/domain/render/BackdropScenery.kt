@@ -41,11 +41,7 @@ enum class SceneryPlane {
  * One filled region of a scene: an upper edge the renderer closes down to the frame bottom.
  * Layers draw in list order, back to front.
  */
-data class SceneryLayer(
-	val outline: List<OutlinePoint>,
-	val material: SceneryMaterial,
-	val plane: SceneryPlane
-)
+data class SceneryLayer(val outline: List<OutlinePoint>, val material: SceneryMaterial, val plane: SceneryPlane)
 
 /** What kind of cheap animated critter [SceneryFauna] describes. */
 enum class SceneryFaunaKind {
@@ -74,14 +70,10 @@ data class SceneryFauna(
 data class SceneryWindmill(val hubX: Float, val hubY: Float, val groundY: Float, val scale: Float)
 
 /** A closed painted shape drawn over its [plane] — a part of the beach sloop, a mountain snowcap, the countryside farmhouse. */
-data class SceneryGlyph(
-	val outline: List<OutlinePoint>,
-	val material: SceneryMaterial,
-	val plane: SceneryPlane = SceneryPlane.FAR
-)
+data class SceneryGlyph(val outline: List<OutlinePoint>, val material: SceneryMaterial, val plane: SceneryPlane = SceneryPlane.FAR)
 
 /**
- * The painted layers of a backdrop scene, back to front, plus optional accent polylines stroked in the near tone (fence posts).
+ * The painted layers of a backdrop scene, back to front, plus optional accent polylines stroked as dark wood (the pasture fence).
  * [windows] are warm night-light centers for the metropolis; [beacons] are red tips on the tallest towers only.
  * [glyphs] are closed painted shapes over their plane (the beach sloop and snowcaps on the far, the farmhouse on the near); [parasols] on the left beach; [windmill] on the countryside rise.
  */
@@ -200,12 +192,14 @@ private fun constructionCrane(site: List<OutlinePoint>, aspectRatio: Float): Sit
 		OutlinePoint(mastX + mastHalf, slabY + 0.002f),
 		OutlinePoint(mastX - mastHalf, slabY + 0.002f)
 	)
+
 	val jib = listOf(
 		OutlinePoint(mastX - jibLen * 0.3f, jibY - jibHalf),
 		OutlinePoint(mastX + jibLen * 0.7f, jibY - jibHalf),
 		OutlinePoint(mastX + jibLen * 0.7f, jibY + jibHalf),
 		OutlinePoint(mastX - jibLen * 0.3f, jibY + jibHalf)
 	)
+
 	val apex = listOf(
 		OutlinePoint(mastX - mastHalf, jibY - jibHalf),
 		OutlinePoint(mastX, jibY - rise * 0.22f),
@@ -288,6 +282,7 @@ private fun mountains(aspectRatio: Float): SceneryOutlines {
 		saddleHigh = 0.85f,
 		broadCrests = true
 	)
+
 	val near = mountainRange(
 		random = Random(67L),
 		count = scaled(4, aspectRatio),
@@ -420,10 +415,7 @@ private fun towerRun(
 		points += OutlinePoint(towerLeft, spec.baseY)
 
 		val isConstruction = index == spec.constructionIndex
-		val usedSetback = !isConstruction &&
-			spec.setbacks &&
-			random.nextFloat() < 0.4f &&
-			towerRight - towerLeft > 0.04f
+		val usedSetback = !isConstruction && spec.setbacks && random.nextFloat() < 0.4f && towerRight - towerLeft > 0.04f
 
 		when {
 			isConstruction -> {
@@ -572,6 +564,7 @@ private fun sailboat(start: Float, length: Float, aspectRatio: Float): List<Scen
 		OutlinePoint(start + length * 0.94f, deck),
 		OutlinePoint(start + length, water)
 	)
+
 	val mast = listOf(
 		OutlinePoint(mastX - length * 0.01f, mastTop),
 		OutlinePoint(mastX + length * 0.01f, mastTop),
@@ -776,6 +769,7 @@ private fun farmhouseGlyphs(hills: List<OutlinePoint>, random: Random, featureSc
 		OutlinePoint(houseRight, groundY + rise * 0.25f),
 		OutlinePoint(houseLeft, groundY + rise * 0.25f)
 	)
+
 	val roof = listOf(
 		OutlinePoint(houseLeft - overhang, eaves),
 		OutlinePoint(houseLeft + span * 0.5f, ridge),
