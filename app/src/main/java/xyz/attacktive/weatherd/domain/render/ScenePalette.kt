@@ -69,6 +69,9 @@ private fun intrinsicColor(material: SceneryMaterial) = when (material) {
 	SceneryMaterial.FOREST -> rgb(108, 165, 92)
 	SceneryMaterial.MEADOW -> rgb(158, 192, 110)
 	SceneryMaterial.SNOW -> rgb(240, 244, 248)
+	SceneryMaterial.PASTURE -> rgb(129, 172, 121)
+	SceneryMaterial.WHEAT -> rgb(235, 198, 92)
+	SceneryMaterial.BARN -> rgb(170, 66, 54)
 }
 
 /**

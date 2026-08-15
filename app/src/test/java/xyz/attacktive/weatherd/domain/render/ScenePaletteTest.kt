@@ -33,10 +33,14 @@ class ScenePaletteTest {
 
 		val water = sceneryLayerColor(SceneryMaterial.WATER, SceneryPlane.FAR, params, skyBottom)
 		val sand = sceneryLayerColor(SceneryMaterial.SAND, SceneryPlane.NEAR, params, skyBottom)
+		val pasture = sceneryLayerColor(SceneryMaterial.PASTURE, SceneryPlane.FAR, params, skyBottom)
+		val wheat = sceneryLayerColor(SceneryMaterial.WHEAT, SceneryPlane.NEAR, params, skyBottom)
 
-		// Water reads cool and sand warm — the point of painting at all.
+		// Water reads cool, sand and wheat warm, pasture green — the point of painting at all.
 		assertTrue("water should be blue/green dominant", blue(water) > red(water))
 		assertTrue("sand should be warm", red(sand) > blue(sand))
+		assertTrue("pasture should be green dominant", green(pasture) > red(pasture) && green(pasture) > blue(pasture))
+		assertTrue("wheat should be warm", red(wheat) > blue(wheat))
 	}
 
 	@Test

@@ -22,7 +22,10 @@ enum class SceneryMaterial {
 	ROCK,
 	FOREST,
 	MEADOW,
-	SNOW
+	SNOW,
+	PASTURE,
+	WHEAT,
+	BARN
 }
 
 /** Which depth plane a layer belongs to — drives crest bookkeeping, atmospheric strength, and the glow/haze bands between planes. */
@@ -67,13 +70,17 @@ data class SceneryFauna(
  */
 data class SceneryWindmill(val hubX: Float, val hubY: Float, val groundY: Float, val scale: Float)
 
-/** A closed painted shape drawn over the far plane — a part of the beach sloop, a mountain snowcap. */
-data class SceneryGlyph(val outline: List<OutlinePoint>, val material: SceneryMaterial)
+/** A closed painted shape drawn over its [plane] — a part of the beach sloop, a mountain snowcap, the countryside farmhouse. */
+data class SceneryGlyph(
+	val outline: List<OutlinePoint>,
+	val material: SceneryMaterial,
+	val plane: SceneryPlane = SceneryPlane.FAR
+)
 
 /**
  * The painted layers of a backdrop scene, back to front, plus optional accent polylines stroked in the near tone (fence posts).
  * [windows] are warm night-light centers for the metropolis; [beacons] are red tips on the tallest towers only.
- * [glyphs] are closed painted shapes over the far plane (the beach sloop, mountain snowcaps); [parasols] on the left beach; [windmill] on the countryside rise.
+ * [glyphs] are closed painted shapes over their plane (the beach sloop and snowcaps on the far, the farmhouse on the near); [parasols] on the left beach; [windmill] on the countryside rise.
  */
 data class SceneryOutlines(
 	val layers: List<SceneryLayer>,
@@ -252,21 +259,27 @@ private fun slopeCrossing(range: List<OutlinePoint>, index: Int, direction: Int,
 	return OutlinePoint(lerp(vertex.x, neighbor.x, t), snowline)
 }
 
+/** Hazy pasture hills behind a sunlit meadow rise carrying the farmhouse and windmill, with a ripe wheat strip along the bottom. */
 private fun countryside(aspectRatio: Float): SceneryOutlines {
 	val featureScale = (PORTRAIT_ASPECT / aspectRatio).coerceAtLeast(0.55f)
+	val farHills = rollingHills(Random(57L), count = scaled(4, aspectRatio), topLow = 0.78f, topHigh = 0.85f)
 	val nearHills = rollingHills(Random(59L), count = scaled(5, aspectRatio), topLow = 0.86f, topHigh = 0.91f)
 	val mill = pastureWindmill(Random(71L), nearHills, featureScale)
 
 	// Tower is welded into the near silhouette so it can't float; only the sails are drawn each frame.
 	val withMill = attachWindmillTower(nearHills, mill)
-	val withFarmhouse = attachFarmhouse(withMill, Random(61L), featureScale)
+
+	// The warm band that keeps the farmland from being green-on-green; the fence line straddles its crest.
+	val wheat = rollingHills(Random(77L), count = scaled(6, aspectRatio), topLow = 0.92f, topHigh = 0.94f)
 
 	return SceneryOutlines(
-		layers = silhouetteLayers(
-			far = rollingHills(Random(57L), count = scaled(4, aspectRatio), topLow = 0.78f, topHigh = 0.85f),
-			near = withFarmhouse
+		layers = listOf(
+			SceneryLayer(farHills, SceneryMaterial.PASTURE, SceneryPlane.FAR),
+			SceneryLayer(withMill, SceneryMaterial.MEADOW, SceneryPlane.NEAR),
+			SceneryLayer(wheat, SceneryMaterial.WHEAT, SceneryPlane.NEAR)
 		),
-		accents = fencePosts(Random(63L), featureScale),
+		accents = pastureFence(Random(63L), wheat, featureScale),
+		glyphs = farmhouseGlyphs(withMill, Random(61L), featureScale, aspectRatio),
 		windmill = mill
 	)
 }
@@ -639,52 +652,71 @@ private fun rollingHills(random: Random, count: Int, topLow: Float, topHigh: Flo
 }
 
 /**
- * Cuts a filled farmhouse into the near hill silhouette so it reads as a building on the rise, not a stroked canopy glyph.
- * Points stay left-to-right so the outline tests keep passing.
+ * The farmhouse as painted near-plane glyphs — a red barn body under a dark roof, chimney rising from behind the roof slope.
+ * Replaces the old silhouette cut: a house welded into the hill outline could only ever be hill-colored.
+ * Heights derive from the house's own on-screen width (span × aspect converts x units to y units), so the barn keeps its proportions at every aspect.
  */
-private fun attachFarmhouse(hills: List<OutlinePoint>, random: Random, featureScale: Float): List<OutlinePoint> {
+private fun farmhouseGlyphs(hills: List<OutlinePoint>, random: Random, featureScale: Float, aspectRatio: Float): List<SceneryGlyph> {
 	val houseLeft = random.nextFloat(0.56f, 0.7f)
 	val houseWidth = 0.08f * featureScale
 	val houseRight = (houseLeft + houseWidth).coerceAtMost(0.92f)
 	val span = houseRight - houseLeft
 	val groundY = sampleOutlineY(hills, (houseLeft + houseRight) * 0.5f)
-	val eaves = groundY - 0.022f
-	val ridge = eaves - 0.02f
+	val rise = span * aspectRatio
+	val eaves = groundY - rise * 0.6f
+	val ridge = eaves - rise * 0.55f
+	val overhang = span * 0.07f
+
+	// The body sinks a touch below the ground sample so a hill dip can't slide daylight under the barn.
+	val body = listOf(
+		OutlinePoint(houseLeft, eaves),
+		OutlinePoint(houseRight, eaves),
+		OutlinePoint(houseRight, groundY + rise * 0.25f),
+		OutlinePoint(houseLeft, groundY + rise * 0.25f)
+	)
+	val roof = listOf(
+		OutlinePoint(houseLeft - overhang, eaves),
+		OutlinePoint(houseLeft + span * 0.5f, ridge),
+		OutlinePoint(houseRight + overhang, eaves)
+	)
+
 	val chimneyWidth = (span * 0.1f).coerceAtLeast(0.003f)
 	val chimneyLeft = houseLeft + span * 0.68f
 	val chimneyRight = (chimneyLeft + chimneyWidth).coerceAtMost(houseRight - span * 0.05f)
-	val chimneyTop = ridge - 0.012f
+	val chimney = listOf(
+		OutlinePoint(chimneyLeft, ridge - rise * 0.33f),
+		OutlinePoint(chimneyRight, ridge - rise * 0.33f),
+		OutlinePoint(chimneyRight, eaves),
+		OutlinePoint(chimneyLeft, eaves)
+	)
 
-	val before = hills.filter { it.x < houseLeft }
-	val after = hills.filter { it.x > houseRight }
-
-	return before + listOf(
-		OutlinePoint(houseLeft, groundY),
-		OutlinePoint(houseLeft, eaves),
-		OutlinePoint(houseLeft + span * 0.5f, ridge),
-		OutlinePoint(chimneyLeft, ridge),
-		OutlinePoint(chimneyLeft, chimneyTop),
-		OutlinePoint(chimneyRight, chimneyTop),
-		OutlinePoint(chimneyRight, ridge),
-		OutlinePoint(houseRight, eaves),
-		OutlinePoint(houseRight, groundY)
-	) + after
+	// Chimney before roof: the roof fill hides its lower half, so the stack reads as rising from behind the slope.
+	return listOf(
+		SceneryGlyph(body, SceneryMaterial.BARN, SceneryPlane.NEAR),
+		SceneryGlyph(chimney, SceneryMaterial.HULL, SceneryPlane.NEAR),
+		SceneryGlyph(roof, SceneryMaterial.HULL, SceneryPlane.NEAR)
+	)
 }
 
-/** Short fence-post ticks along the near hillside. */
-private fun fencePosts(random: Random, featureScale: Float): List<List<OutlinePoint>> {
+/** A post-and-rail fence along the wheat boundary: posts planted on the [ground] contour with two rails threaded through them. */
+private fun pastureFence(random: Random, ground: List<OutlinePoint>, featureScale: Float): List<List<OutlinePoint>> {
 	val start = random.nextFloat(0.12f, 0.27f)
 	val spacing = 0.028f * featureScale
-
-	return List(5) { index ->
+	val postTops = List(6) { index ->
 		val x = start + index * spacing
-		val top = random.nextFloat(0.90f, 0.91f)
 
-		listOf(
-			OutlinePoint(x, top),
-			OutlinePoint(x, top + 0.018f)
-		)
+		OutlinePoint(x, sampleOutlineY(ground, x) - 0.02f)
 	}
+
+	val posts = postTops.map { top ->
+		listOf(top, OutlinePoint(top.x, top.y + 0.024f))
+	}
+
+	val rails = listOf(0.006f, 0.014f).map { drop ->
+		postTops.map { OutlinePoint(it.x, it.y + drop) }
+	}
+
+	return posts + rails
 }
 
 /** A windmill on the near pasture — short tower planted on the hill, hub just above the crest. */

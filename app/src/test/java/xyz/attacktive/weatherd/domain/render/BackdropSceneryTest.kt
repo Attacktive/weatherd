@@ -107,12 +107,22 @@ class BackdropSceneryTest {
 
 	@Test
 	fun `scenes not repainted yet stay two-plane silhouettes`() {
-		for (scene in listOf(BackdropScene.METROPOLIS, BackdropScene.COUNTRYSIDE)) {
+		for (scene in listOf(BackdropScene.METROPOLIS)) {
 			val outlines = sceneryOutlinesFor(scene, PORTRAIT)!!
 
 			assertEquals("$scene layer count", 2, outlines.layers.size)
 			assertTrue("$scene must stay a silhouette", outlines.layers.all { it.material == SceneryMaterial.SILHOUETTE })
 		}
+	}
+
+	@Test
+	fun `the countryside is painted in pasture and meadow with a wheat strip`() {
+		val outlines = sceneryOutlinesFor(BackdropScene.COUNTRYSIDE, PORTRAIT)!!
+
+		assertEquals(
+			listOf(SceneryMaterial.PASTURE, SceneryMaterial.MEADOW, SceneryMaterial.WHEAT),
+			outlines.layers.map { it.material }
+		)
 	}
 
 	@Test
@@ -137,13 +147,20 @@ class BackdropSceneryTest {
 	}
 
 	@Test
-	fun `the countryside carries a farmhouse bump and a grounded windmill`() {
+	fun `the countryside carries a painted farmhouse and a grounded windmill`() {
 		val outlines = sceneryOutlinesFor(BackdropScene.COUNTRYSIDE, PORTRAIT)!!
-		val nearHighest = outlines.near.minOf { it.y }
 		val mill = outlines.windmill!!
 
-		assertTrue("farmhouse or mill should rise above the bare hill crest", nearHighest < 0.86f)
-		assertTrue(outlines.accents.isNotEmpty())
+		// A red barn body with a dark chimney and roof, standing over the near plane.
+		assertEquals(
+			listOf(SceneryMaterial.BARN, SceneryMaterial.HULL, SceneryMaterial.HULL),
+			outlines.glyphs.map { it.material }
+		)
+		assertTrue(outlines.glyphs.all { it.plane == SceneryPlane.NEAR })
+		assertTrue(outlines.glyphs.all { glyph -> glyph.outline.all { it.y in 0.78f..0.955f } })
+
+		// Fence: six posts plus two rails threaded through them.
+		assertEquals(8, outlines.accents.size)
 		assertTrue("hub must sit above the hill", mill.hubY < mill.groundY)
 		assertTrue("tower must reach the hill, not float", mill.groundY - mill.hubY >= 0.02f)
 		assertTrue("tower should stay short so sails aren't sky-high", mill.groundY - mill.hubY <= 0.06f)
@@ -153,6 +170,22 @@ class BackdropSceneryTest {
 			"near outline should include the mill hub height",
 			outlines.near.any { kotlin.math.abs(it.x - mill.hubX) < 0.02f && kotlin.math.abs(it.y - mill.hubY) < 1e-3f }
 		)
+	}
+
+	@Test
+	fun `the barn keeps its proportions at every aspect`() {
+		val ratios = listOf(PORTRAIT, 1f, 2f).map { aspect ->
+			val points = sceneryOutlinesFor(BackdropScene.COUNTRYSIDE, aspect)!!.glyphs.flatMap { it.outline }
+			val width = points.maxOf { it.x } - points.minOf { it.x }
+			val height = points.maxOf { it.y } - points.minOf { it.y }
+
+			// On-screen height over on-screen width: dividing by the aspect converts the unit-frame width into height units.
+			height / (width * aspect)
+		}
+
+		ratios.zipWithNext().forEach { (a, b) ->
+			assertEquals("on-screen proportions must not drift with aspect", a, b, 0.01f)
+		}
 	}
 
 	@Test
@@ -222,7 +255,9 @@ class BackdropSceneryTest {
 	}
 
 	private fun farCrest(outlines: SceneryOutlines): Float {
-		val glyphCrest = outlines.glyphs.minOfOrNull { ship -> ship.outline.minOf { it.y } } ?: 1f
+		val glyphCrest = outlines.glyphs
+			.filter { it.plane == SceneryPlane.FAR }
+			.minOfOrNull { glyph -> glyph.outline.minOf { it.y } } ?: 1f
 
 		return minOf(outlines.far.minOf { it.y }, glyphCrest)
 	}

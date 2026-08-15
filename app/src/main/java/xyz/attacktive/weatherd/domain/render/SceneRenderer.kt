@@ -265,7 +265,10 @@ class SceneRenderer {
 
 		fillAccentPath(sceneryAccentPath, outlines.accents, width, height)
 
-		val glyphCrest = outlines.glyphs.minOfOrNull { glyph -> glyph.outline.minOf { it.y } } ?: 1f
+		val glyphCrest = outlines.glyphs
+			.filter { it.plane == SceneryPlane.FAR }
+			.minOfOrNull { glyph -> glyph.outline.minOf { it.y } } ?: 1f
+
 		sceneryFarCrestY = minOf(planeCrest(outlines, SceneryPlane.FAR), glyphCrest) * height
 		sceneryNearCrestY = planeCrest(outlines, SceneryPlane.NEAR) * height
 		sceneryReflectionY = outlines.reflectionY?.times(height) ?: -1f
@@ -278,7 +281,7 @@ class SceneRenderer {
 		sceneryGlyphPaths = outlines.glyphs.map { glyph ->
 			val path = Path().also { fillClosedOutline(it, glyph.outline, width, height) }
 
-			SceneryLayerPath(path, glyph.material, SceneryPlane.FAR)
+			SceneryLayerPath(path, glyph.material, glyph.plane)
 		}
 
 		sceneryWindmill = outlines.windmill
@@ -297,6 +300,10 @@ class SceneRenderer {
 		skyBottom: Int
 	) {
 		for (part in sceneryGlyphPaths) {
+			if (part.plane != SceneryPlane.FAR) {
+				continue
+			}
+
 			paint.color = sceneryLayerColor(part.material, SceneryPlane.FAR, params, skyBottom)
 			canvas.drawPath(part.path, paint)
 		}
@@ -316,7 +323,7 @@ class SceneRenderer {
 		}
 	}
 
-	/** Parasols, fence accents, windmill sails, windows, beacons, and gulls on the near plane. */
+	/** Near-plane glyphs (the farmhouse), parasols, fence accents, windmill sails, windows, beacons, and gulls. */
 	private fun drawNearPlaneDetails(
 		canvas: Canvas,
 		width: Float,
@@ -326,6 +333,15 @@ class SceneRenderer {
 		skyBottom: Int,
 		nearColor: Int
 	) {
+		for (part in sceneryGlyphPaths) {
+			if (part.plane != SceneryPlane.NEAR) {
+				continue
+			}
+
+			paint.color = sceneryLayerColor(part.material, SceneryPlane.NEAR, params, skyBottom)
+			canvas.drawPath(part.path, paint)
+		}
+
 		if (sceneryParasolXy.isNotEmpty()) {
 			val poleColor = sceneryLayerColor(SceneryMaterial.HULL, SceneryPlane.NEAR, params, skyBottom)
 			val canopyColor = sceneryLayerColor(SceneryMaterial.PARASOL, SceneryPlane.NEAR, params, skyBottom)
@@ -333,15 +349,17 @@ class SceneRenderer {
 		}
 
 		if (!sceneryAccentPath.isEmpty) {
+			// Fence posts read as weathered wood, not cutouts of the hill behind them.
 			paint.style = Paint.Style.STROKE
-			paint.color = nearColor
+			paint.color = sceneryLayerColor(SceneryMaterial.HULL, SceneryPlane.NEAR, params, skyBottom)
 			paint.strokeWidth = height * 0.0022f
 			canvas.drawPath(sceneryAccentPath, paint)
 			paint.style = Paint.Style.FILL
 		}
 
 		sceneryWindmill?.let {
-			drawWindmillSails(canvas, width, height, it, timeSeconds, nearColor)
+			// Classic white canvas sails against the sky; the tower stays part of the painted hill.
+			drawWindmillSails(canvas, width, height, it, timeSeconds, sceneryLayerColor(SceneryMaterial.SAIL, SceneryPlane.NEAR, params, skyBottom))
 		}
 
 		if (sceneryHasWindows) {
