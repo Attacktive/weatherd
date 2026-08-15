@@ -30,6 +30,71 @@ fun skyGradientFor(params: SceneParams): SkyGradient {
 	return SkyGradient(top, bottom)
 }
 
+/**
+ * The sky-derived tone a scenery plane takes with no intrinsic color — the pre-paint silhouette look.
+ * The single source for these tones: the renderer uses it for detail tinting and [sceneryLayerColor] as the atmospheric target.
+ */
+fun sceneryPlaneTone(plane: SceneryPlane, skyBottom: Int): Int {
+	// The near plane keeps 20% of the sky tone's brightness; the far plane sits 55% of the way from sky to near.
+	val near = darkenColor(skyBottom, 0.8f)
+
+	return when (plane) {
+		SceneryPlane.NEAR -> near
+		SceneryPlane.FAR -> lerpColor(skyBottom, near, 0.55f)
+	}
+}
+
+/**
+ * The color a painted layer draws with: its intrinsic daylight color pulled toward the sky-derived plane tone by how much atmosphere sits in front of it.
+ * Clear day keeps colors honest, overcast/fog/precipitation grays them, dawn/dusk backlights them, and night collapses to the silhouette look.
+ */
+fun sceneryLayerColor(material: SceneryMaterial, plane: SceneryPlane, params: SceneParams, skyBottom: Int): Int {
+	val target = sceneryPlaneTone(plane, skyBottom)
+	if (material == SceneryMaterial.SILHOUETTE) {
+		return target
+	}
+
+	return lerpColor(intrinsicColor(material), target, atmosphereAmount(params, plane))
+}
+
+/** Flat-illustration daylight colors; the atmosphere blend does all weather and time-of-day adaptation. */
+private fun intrinsicColor(material: SceneryMaterial) = when (material) {
+	SceneryMaterial.SILHOUETTE -> BLACK
+	SceneryMaterial.WATER -> rgb(64, 142, 152)
+	SceneryMaterial.SAND -> rgb(233, 209, 164)
+	SceneryMaterial.HULL -> rgb(70, 62, 58)
+	SceneryMaterial.SAIL -> rgb(238, 234, 224)
+	SceneryMaterial.PARASOL -> rgb(214, 84, 70)
+}
+
+/**
+ * How far a layer's intrinsic color gives way to the atmospheric tone: day phase sets the floor (night is nearly full silhouette), the far plane sits deeper in haze, and the same overcast/fog/precipitation signals that gray the sky push it the rest of the way to 1.
+ */
+private fun atmosphereAmount(params: SceneParams, plane: SceneryPlane): Float {
+	val base = when (params.dayPhase) {
+		DayPhase.DAY -> 0.35f
+		DayPhase.DAWN, DayPhase.DUSK -> 0.75f
+		DayPhase.NIGHT -> 0.95f
+	}
+
+	val depth = if (plane == SceneryPlane.FAR) {
+		0.12f
+	} else {
+		0f
+	}
+
+	val weather = maxOf(
+		overcastAmount(params),
+		if (params.thunder) {
+			1f
+		} else {
+			0f
+		}
+	)
+
+	return lerp((base + depth).coerceAtMost(1f), 1f, weather)
+}
+
 private fun basePhaseGradient(dayPhase: DayPhase) = when (dayPhase) {
 	DayPhase.DAY -> SkyGradient(rgb(74, 144, 217), rgb(169, 214, 245))
 	DayPhase.DAWN -> SkyGradient(rgb(52, 64, 107), rgb(246, 169, 132))

@@ -8,6 +8,35 @@ import xyz.attacktive.weatherd.domain.model.BackdropScene
 /** A point on a silhouette's upper edge, in unit coordinates: x across the screen, y down from the top. */
 data class OutlinePoint(val x: Float, val y: Float)
 
+/**
+ * What a painted layer is made of; [ScenePalette][sceneryLayerColor] maps it to a color under the current weather and day phase.
+ * [SILHOUETTE] is the backward-compatible material: it takes the sky-derived plane tone exactly, reproducing the pre-paint look.
+ */
+enum class SceneryMaterial {
+	SILHOUETTE,
+	WATER,
+	SAND,
+	HULL,
+	SAIL,
+	PARASOL
+}
+
+/** Which depth plane a layer belongs to — drives crest bookkeeping, atmospheric strength, and the glow/haze bands between planes. */
+enum class SceneryPlane {
+	FAR,
+	NEAR
+}
+
+/**
+ * One filled region of a scene: an upper edge the renderer closes down to the frame bottom.
+ * Layers draw in list order, back to front.
+ */
+data class SceneryLayer(
+	val outline: List<OutlinePoint>,
+	val material: SceneryMaterial,
+	val plane: SceneryPlane
+)
+
 /** What kind of cheap animated critter [SceneryFauna] describes. */
 enum class SceneryFaunaKind {
 	GULL,
@@ -34,18 +63,20 @@ data class SceneryFauna(
  */
 data class SceneryWindmill(val hubX: Float, val hubY: Float, val groundY: Float, val scale: Float)
 
+/** One painted part of a vessel — a closed unit-coordinate polygon and what it's made of. */
+data class SceneryShip(val outline: List<OutlinePoint>, val material: SceneryMaterial)
+
 /**
- * The two silhouette planes of a backdrop scene — the renderer closes each down to the bottom edge and fills it — plus optional accent polylines stroked in the near tone (fence posts).
+ * The painted layers of a backdrop scene, back to front, plus optional accent polylines stroked in the near tone (fence posts).
  * [windows] are warm night-light centers for the metropolis; [beacons] are red tips on the tallest towers only.
  * [ships] sit on the coast horizon as separate silhouettes; [parasols] on the left beach; [windmill] on the countryside rise.
  */
 data class SceneryOutlines(
-	val far: List<OutlinePoint>,
-	val near: List<OutlinePoint>,
+	val layers: List<SceneryLayer>,
 	val accents: List<List<OutlinePoint>> = emptyList(),
 	val windows: List<OutlinePoint> = emptyList(),
 	val beacons: List<OutlinePoint> = emptyList(),
-	val ships: List<List<OutlinePoint>> = emptyList(),
+	val ships: List<SceneryShip> = emptyList(),
 	val parasols: List<OutlinePoint> = emptyList(),
 	val reflectionY: Float? = null,
 	val gulls: List<SceneryFauna> = emptyList(),
@@ -102,8 +133,14 @@ private fun metropolis(aspectRatio: Float): SceneryOutlines {
 	// Aviation lights belong on the tallest far towers only — on the roof, not floating above it — and stay sparse in landscape.
 	val beacons = roofCandidates.sortedBy { it.y }.take(BEACON_COUNT)
 
-	return SceneryOutlines(far = far, near = near, windows = litWindows, beacons = beacons)
+	return SceneryOutlines(layers = silhouetteLayers(far, near), windows = litWindows, beacons = beacons)
 }
+
+/** Wraps a classic far/near silhouette pair as [SceneryMaterial.SILHOUETTE] layers, for scenes not repainted yet. */
+private fun silhouetteLayers(far: List<OutlinePoint>, near: List<OutlinePoint>) = listOf(
+	SceneryLayer(far, SceneryMaterial.SILHOUETTE, SceneryPlane.FAR),
+	SceneryLayer(near, SceneryMaterial.SILHOUETTE, SceneryPlane.NEAR)
+)
 
 /** A shoreline with a bluff, beach parasols on the left, ships on the horizon, and a little life in the water. */
 private fun beach(aspectRatio: Float): SceneryOutlines {
@@ -113,13 +150,12 @@ private fun beach(aspectRatio: Float): SceneryOutlines {
 	val bluff = coastalBluff(Random(79L))
 
 	return SceneryOutlines(
-		far = flatSea(),
-		near = bluff,
-		// Ships stay over open water on the right — under the bluff they get swallowed by the near fill.
-		ships = listOf(
-			cargoShip(start = shipRandom.nextFloat(0.52f, 0.60f), length = 0.18f * featureScale),
-			sailboat(start = shipRandom.nextFloat(0.78f, 0.84f), length = 0.07f * featureScale)
+		layers = listOf(
+			SceneryLayer(flatSea(), SceneryMaterial.WATER, SceneryPlane.FAR),
+			SceneryLayer(bluff, SceneryMaterial.SAND, SceneryPlane.NEAR)
 		),
+		// The boat stays over open water on the right — under the bluff it gets swallowed by the near fill.
+		ships = sailboat(start = shipRandom.nextFloat(0.60f, 0.70f), length = 0.10f * featureScale, aspectRatio = aspectRatio),
 		parasols = beachParasols(Random(83L), bluff, featureScale),
 		reflectionY = SEA_HORIZON,
 		gulls = beachGulls(Random(97L), featureScale),
@@ -128,23 +164,25 @@ private fun beach(aspectRatio: Float): SceneryOutlines {
 }
 
 private fun mountains(aspectRatio: Float) = SceneryOutlines(
-	far = mountainRange(
-		random = Random(53L),
-		count = scaled(3, aspectRatio),
-		crestLow = 0.70f,
-		crestHigh = 0.78f,
-		saddleLow = 0.80f,
-		saddleHigh = 0.85f,
-		broadCrests = true
-	),
-	near = mountainRange(
-		random = Random(67L),
-		count = scaled(4, aspectRatio),
-		crestLow = 0.83f,
-		crestHigh = 0.875f,
-		saddleLow = 0.89f,
-		saddleHigh = 0.925f,
-		broadCrests = false
+	layers = silhouetteLayers(
+		far = mountainRange(
+			random = Random(53L),
+			count = scaled(3, aspectRatio),
+			crestLow = 0.70f,
+			crestHigh = 0.78f,
+			saddleLow = 0.80f,
+			saddleHigh = 0.85f,
+			broadCrests = true
+		),
+		near = mountainRange(
+			random = Random(67L),
+			count = scaled(4, aspectRatio),
+			crestLow = 0.83f,
+			crestHigh = 0.875f,
+			saddleLow = 0.89f,
+			saddleHigh = 0.925f,
+			broadCrests = false
+		)
 	)
 )
 
@@ -158,8 +196,10 @@ private fun countryside(aspectRatio: Float): SceneryOutlines {
 	val withFarmhouse = attachFarmhouse(withMill, Random(61L), featureScale)
 
 	return SceneryOutlines(
-		far = rollingHills(Random(57L), count = scaled(4, aspectRatio), topLow = 0.78f, topHigh = 0.85f),
-		near = withFarmhouse,
+		layers = silhouetteLayers(
+			far = rollingHills(Random(57L), count = scaled(4, aspectRatio), topLow = 0.78f, topHigh = 0.85f),
+			near = withFarmhouse
+		),
 		accents = fencePosts(Random(63L), featureScale),
 		windmill = mill
 	)
@@ -333,44 +373,53 @@ private fun plantWindows(
 /** Bare sea horizon — ships are drawn separately so they stay recognizable. */
 private fun flatSea() = listOf(OutlinePoint(0f, SEA_HORIZON), OutlinePoint(1f, SEA_HORIZON))
 
-/** A freighter: long low hull, stern bridge, funnel — unmistakable against the open water. */
-private fun cargoShip(start: Float, length: Float): List<OutlinePoint> {
+/**
+ * A sloop under sail: chunky dark hull, thin mast, tall mainsail with a gently concave leech, and a jib flying from the bow.
+ * Heights derive from the boat's own on-screen length (length × aspect converts x units to y units), so the shape survives every aspect.
+ */
+private fun sailboat(start: Float, length: Float, aspectRatio: Float): List<SceneryShip> {
 	val water = SEA_HORIZON
-	val deck = water - 0.022f
-	val bridgeTop = water - 0.052f
-	val funnelTop = water - 0.07f
+	val rise = length * aspectRatio
+	val deck = water - rise * 0.14f
+	val boom = water - rise * 0.24f
+	val mastTop = water - rise
+	val mastX = start + length * 0.45f
 
-	return listOf(
-		OutlinePoint(start, water),
-		OutlinePoint(start + length * 0.03f, deck),
-		OutlinePoint(start + length * 0.5f, deck),
-		OutlinePoint(start + length * 0.5f, bridgeTop),
-		OutlinePoint(start + length * 0.58f, bridgeTop),
-		OutlinePoint(start + length * 0.58f, funnelTop),
-		OutlinePoint(start + length * 0.66f, funnelTop),
-		OutlinePoint(start + length * 0.66f, bridgeTop),
-		OutlinePoint(start + length * 0.8f, bridgeTop),
-		OutlinePoint(start + length * 0.8f, deck),
-		OutlinePoint(start + length * 0.97f, deck),
-		OutlinePoint(start + length, water)
-	)
-}
-
-/** A sailboat: chunky hull first, then a tall sail — so it doesn't read as a lonely triangle island. */
-private fun sailboat(start: Float, length: Float): List<OutlinePoint> {
-	val water = SEA_HORIZON
-	val deck = water - 0.016f
-	val mastTop = water - 0.078f
-
-	return listOf(
+	val hull = listOf(
 		OutlinePoint(start, water),
 		OutlinePoint(start + length * 0.06f, deck),
-		OutlinePoint(start + length * 0.28f, deck),
-		OutlinePoint(start + length * 0.34f, mastTop),
-		OutlinePoint(start + length * 0.4f, mastTop),
-		OutlinePoint(start + length * 0.72f, deck),
 		OutlinePoint(start + length * 0.94f, deck),
 		OutlinePoint(start + length, water)
+	)
+	val mast = listOf(
+		OutlinePoint(mastX - length * 0.01f, mastTop),
+		OutlinePoint(mastX + length * 0.01f, mastTop),
+		OutlinePoint(mastX + length * 0.01f, deck),
+		OutlinePoint(mastX - length * 0.01f, deck)
+	)
+
+	// The leech (trailing edge) bellies toward the mast; sampled points fake the curve within the straight-edged outline contract.
+	val boomEnd = OutlinePoint(start + length * 0.82f, boom)
+	val mainsail = mutableListOf(OutlinePoint(mastX, mastTop), OutlinePoint(mastX, boom), boomEnd)
+	for (step in 1..3) {
+		val t = step / 4f
+		val x = lerp(boomEnd.x, mastX, t) - sin(t * TAU * 0.5f) * length * 0.05f
+		val y = lerp(boomEnd.y, mastTop, t)
+		mainsail += OutlinePoint(x, y)
+	}
+
+	// The jib hangs off the forestay: masthead down to the bow, clew stopping short of the mast so the two sails read separately.
+	val jib = listOf(
+		OutlinePoint(mastX - length * 0.03f, mastTop + rise * 0.08f),
+		OutlinePoint(start + length * 0.04f, boom),
+		OutlinePoint(mastX - length * 0.05f, boom)
+	)
+
+	return listOf(
+		SceneryShip(hull, SceneryMaterial.HULL),
+		SceneryShip(mast, SceneryMaterial.HULL),
+		SceneryShip(mainsail, SceneryMaterial.SAIL),
+		SceneryShip(jib, SceneryMaterial.SAIL)
 	)
 }
 

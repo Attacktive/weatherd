@@ -39,8 +39,7 @@ class SceneRenderer {
 	private val boltPath = Path()
 	private val forkPath = Path()
 	private val birdPath = Path()
-	private val sceneryFarPath = Path()
-	private val sceneryNearPath = Path()
+	private var sceneryLayerPaths: List<SceneryLayerPath> = emptyList()
 	private val sceneryAccentPath = Path()
 	private var sceneryKey: String? = null
 	private var sceneryFarCrestY = 0f
@@ -52,7 +51,7 @@ class SceneRenderer {
 	private var sceneryMarine: List<SceneryFauna> = emptyList()
 	private var sceneryBeaconXy = FloatArray(0)
 	private var sceneryParasolXy = FloatArray(0)
-	private var sceneryShipPaths: List<Path> = emptyList()
+	private var sceneryShipPaths: List<SceneryLayerPath> = emptyList()
 	private var sceneryWindmill: SceneryWindmill? = null
 	private val tiles = HashMap<String, Bitmap>()
 	private var tilesKey: String? = null
@@ -218,22 +217,36 @@ class SceneRenderer {
 		}
 
 		val skyBottom = skyGradientFor(params).bottomColor
-		val nearColor = darken(skyBottom, 0.2f)
-		val farColor = lerpColor(skyBottom, nearColor, 0.55f)
+		val nearColor = sceneryPlaneTone(SceneryPlane.NEAR, skyBottom)
 
 		paint.style = Paint.Style.FILL
 		drawHorizonGlow(canvas, width, height, params.dayPhase, skyBottom)
 		paint.shader = null
-		paint.color = farColor
-		canvas.drawPath(sceneryFarPath, paint)
-		drawFarPlaneDetails(canvas, width, height, params, timeSeconds, skyBottom, farColor)
+		drawSceneryLayers(canvas, SceneryPlane.FAR, params, skyBottom)
+		drawFarPlaneDetails(canvas, width, height, params, timeSeconds, skyBottom)
 
 		drawInterPlaneHaze(canvas, width, skyBottom)
 		paint.shader = null
-		paint.color = nearColor
-		canvas.drawPath(sceneryNearPath, paint)
-		drawNearPlaneDetails(canvas, width, height, params, timeSeconds, nearColor)
+		drawSceneryLayers(canvas, SceneryPlane.NEAR, params, skyBottom)
+		drawNearPlaneDetails(canvas, width, height, params, timeSeconds, skyBottom, nearColor)
 	}
+
+	/** Fills one depth plane's cached layer paths, each in its material's color for the current weather and phase. */
+	private fun drawSceneryLayers(canvas: Canvas, plane: SceneryPlane, params: SceneParams, skyBottom: Int) {
+		for (layer in sceneryLayerPaths) {
+			if (layer.plane != plane) {
+				continue
+			}
+
+			paint.color = sceneryLayerColor(layer.material, plane, params, skyBottom)
+			canvas.drawPath(layer.path, paint)
+		}
+	}
+
+	/** The highest outline point of one plane's layers, in unit y; the frame bottom when the plane is empty. */
+	private fun planeCrest(outlines: SceneryOutlines, plane: SceneryPlane) = outlines.layers
+		.filter { it.plane == plane }
+		.minOfOrNull { layer -> layer.outline.minOf { it.y } } ?: 1f
 
 	/** Rebuilds cached scenery paths and accents when the scene or surface size changes. */
 	private fun cacheScenery(width: Float, height: Float, params: SceneParams): Boolean {
@@ -243,13 +256,18 @@ class SceneRenderer {
 		}
 
 		val outlines = sceneryOutlinesFor(params.backdropScene, width / height) ?: return false
-		fillSceneryPath(sceneryFarPath, outlines.far, width, height)
-		fillSceneryPath(sceneryNearPath, outlines.near, width, height)
+		sceneryLayerPaths = outlines.layers.map { layer ->
+			val path = Path()
+			fillSceneryPath(path, layer.outline, width, height)
+
+			SceneryLayerPath(path, layer.material, layer.plane)
+		}
+
 		fillAccentPath(sceneryAccentPath, outlines.accents, width, height)
 
-		val shipCrest = outlines.ships.minOfOrNull { ship -> ship.minOf { it.y } } ?: 1f
-		sceneryFarCrestY = minOf(outlines.far.minOf { it.y }, shipCrest) * height
-		sceneryNearCrestY = outlines.near.minOf { it.y } * height
+		val shipCrest = outlines.ships.minOfOrNull { ship -> ship.outline.minOf { it.y } } ?: 1f
+		sceneryFarCrestY = minOf(planeCrest(outlines, SceneryPlane.FAR), shipCrest) * height
+		sceneryNearCrestY = planeCrest(outlines, SceneryPlane.NEAR) * height
 		sceneryReflectionY = outlines.reflectionY?.times(height) ?: -1f
 		sceneryHasWindows = outlines.windows.isNotEmpty()
 		sceneryWindowXy = packPoints(outlines.windows, width, height)
@@ -258,7 +276,9 @@ class SceneRenderer {
 		sceneryBeaconXy = packPoints(outlines.beacons, width, height)
 		sceneryParasolXy = packPoints(outlines.parasols, width, height)
 		sceneryShipPaths = outlines.ships.map { ship ->
-			Path().also { fillClosedOutline(it, ship, width, height) }
+			val path = Path().also { fillClosedOutline(it, ship.outline, width, height) }
+
+			SceneryLayerPath(path, ship.material, SceneryPlane.FAR)
 		}
 
 		sceneryWindmill = outlines.windmill
@@ -274,11 +294,11 @@ class SceneRenderer {
 		height: Float,
 		params: SceneParams,
 		timeSeconds: Float,
-		skyBottom: Int,
-		farColor: Int
+		skyBottom: Int
 	) {
-		for (shipPath in sceneryShipPaths) {
-			canvas.drawPath(shipPath, paint)
+		for (part in sceneryShipPaths) {
+			paint.color = sceneryLayerColor(part.material, SceneryPlane.FAR, params, skyBottom)
+			canvas.drawPath(part.path, paint)
 		}
 
 		if (sceneryReflectionY >= 0f) {
@@ -287,7 +307,8 @@ class SceneRenderer {
 		}
 
 		if (sceneryMarine.isNotEmpty()) {
-			drawMarineLife(canvas, width, height, timeSeconds, farColor)
+			val waterColor = sceneryLayerColor(SceneryMaterial.WATER, SceneryPlane.FAR, params, skyBottom)
+			drawMarineLife(canvas, width, height, timeSeconds, darken(waterColor, 0.6f))
 		}
 
 		if (params.backdropScene == BackdropScene.MOUNTAINS) {
@@ -302,10 +323,13 @@ class SceneRenderer {
 		height: Float,
 		params: SceneParams,
 		timeSeconds: Float,
+		skyBottom: Int,
 		nearColor: Int
 	) {
 		if (sceneryParasolXy.isNotEmpty()) {
-			drawParasols(canvas, height, nearColor)
+			val poleColor = sceneryLayerColor(SceneryMaterial.HULL, SceneryPlane.NEAR, params, skyBottom)
+			val canopyColor = sceneryLayerColor(SceneryMaterial.PARASOL, SceneryPlane.NEAR, params, skyBottom)
+			drawParasols(canvas, height, poleColor, canopyColor)
 		}
 
 		if (!sceneryAccentPath.isEmpty) {
@@ -367,9 +391,8 @@ class SceneRenderer {
 	 * Thatched beach parasols on the bluff crest — smaller cones so neighbors don't overlap.
 	 * Feet stay on the ridge; only the canopy/pole scale shrank.
 	 */
-	private fun drawParasols(canvas: Canvas, height: Float, color: Int) {
+	private fun drawParasols(canvas: Canvas, height: Float, poleColor: Int, canopyColor: Int) {
 		paint.strokeCap = Paint.Cap.ROUND
-		paint.color = withAlpha(color, 245)
 
 		var index = 0
 		while (index < sceneryParasolXy.size) {
@@ -385,9 +408,11 @@ class SceneRenderer {
 
 			paint.style = Paint.Style.STROKE
 			paint.strokeWidth = height * 0.0024f
+			paint.color = withAlpha(poleColor, 245)
 			canvas.drawLine(x, footY, x, brimY - fringe * 0.5f, paint)
 
 			paint.style = Paint.Style.FILL
+			paint.color = withAlpha(canopyColor, 245)
 			birdPath.reset()
 			birdPath.moveTo(x, peakY)
 			birdPath.lineTo(x - canopyW, brimY)
@@ -463,29 +488,32 @@ class SceneRenderer {
 
 			when (critter.kind) {
 				SceneryFaunaKind.SHARK -> {
-					val finH = height * 0.012f * critter.scale
+					// A dorsal fin, not a road sign: convex leading edge up to an upright tip, concave trailing edge scooping back down to the base.
+					// Both axes come from one basis so the fin keeps its shape at every screen aspect.
 					val finW = width * 0.012f * critter.scale
+					val finH = finW * 0.65f
 					birdPath.reset()
-					birdPath.moveTo(x, y)
-					birdPath.lineTo(x - finW * 0.35f, y + finH)
-					birdPath.lineTo(x + finW * 0.55f, y + finH * 0.15f)
+					birdPath.moveTo(x - finW * 0.35f, y + finH)
+					birdPath.quadTo(x - finW * 0.28f, y + finH * 0.25f, x, y)
+					birdPath.quadTo(x + finW * 0.02f, y + finH * 0.65f, x + finW * 0.45f, y + finH)
 					birdPath.close()
 					canvas.drawPath(birdPath, paint)
 				}
 				SceneryFaunaKind.WHALE -> {
+					// Both axes come from one basis so the back never stretches with the screen's aspect.
 					val bodyW = width * 0.055f * critter.scale
-					val bodyH = height * 0.012f * critter.scale
+					val bodyH = bodyW * 0.14f
 					val breach = (sin(timeSeconds * 0.35f + critter.phase) * 0.5f + 0.5f).coerceIn(0f, 1f)
-					val lift = -breach * height * 0.01f
+					val lift = -breach * bodyH * 0.85f
 					canvas.drawOval(x - bodyW, y - bodyH + lift, x + bodyW * 0.7f, y + bodyH * 0.4f + lift, paint)
 
 					// Occasional spout when the back is highest.
 					if (breach > 0.85f) {
 						paint.style = Paint.Style.STROKE
-						paint.strokeWidth = height * 0.002f
+						paint.strokeWidth = bodyH * 0.12f
 						paint.color = withAlpha(color, 160)
 						val spoutX = x + bodyW * 0.35f
-						canvas.drawLine(spoutX, y + lift - bodyH, spoutX, y + lift - bodyH - height * 0.018f * breach, paint)
+						canvas.drawLine(spoutX, y + lift - bodyH, spoutX, y + lift - bodyH - bodyH * 1.05f * breach, paint)
 						paint.style = Paint.Style.FILL
 						paint.color = withAlpha(color, 210)
 					}
@@ -1919,6 +1947,9 @@ private fun hazeColorFor(dayPhase: DayPhase) = when (dayPhase) {
 	DayPhase.DUSK -> Color.rgb(150, 130, 140)
 	DayPhase.NIGHT -> Color.rgb(30, 36, 48)
 }
+
+/** A cached scenery layer path with the material and plane needed to color it each frame. */
+private data class SceneryLayerPath(val path: Path, val material: SceneryMaterial, val plane: SceneryPlane)
 
 private fun darken(color: Int, factor: Float) =
 	Color.rgb((Color.red(color) * factor).roundToInt(), (Color.green(color) * factor).roundToInt(), (Color.blue(color) * factor).roundToInt())

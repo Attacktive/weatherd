@@ -76,7 +76,6 @@ class BackdropSceneryTest {
 
 		assertTrue(outlines.gulls.isNotEmpty())
 		assertTrue(outlines.parasols.isNotEmpty())
-		assertTrue(outlines.ships.size >= 2)
 		assertTrue(outlines.marine.any { it.kind == SceneryFaunaKind.SHARK })
 		assertTrue(outlines.marine.any { it.kind == SceneryFaunaKind.WHALE })
 		assertTrue(outlines.accents.isEmpty())
@@ -85,9 +84,35 @@ class BackdropSceneryTest {
 		// Planted on the bluff crest so the canopy can stick into the sky.
 		assertTrue(outlines.parasols.all { it.y in 0.82f..0.88f })
 
-		// Ships sit over open water, not under the bluff.
-		assertTrue(outlines.ships.all { ship -> ship.first().x >= 0.5f })
-		assertTrue(outlines.ships.any { ship -> ship.any { it.y < 0.80f } })
+		// One sloop: dark hull and mast under two off-white sails.
+		assertEquals(
+			listOf(SceneryMaterial.HULL, SceneryMaterial.HULL, SceneryMaterial.SAIL, SceneryMaterial.SAIL),
+			outlines.ships.map { it.material }
+		)
+
+		// The boat sits over open water, not under the bluff, with the rig visibly clear of the waterline.
+		assertTrue(outlines.ships.all { ship -> ship.outline.first().x >= 0.5f })
+		assertTrue(outlines.ships.any { ship -> ship.outline.any { it.y < 0.83f } })
+	}
+
+	@Test
+	fun `the beach is painted in water and sand`() {
+		val outlines = sceneryOutlinesFor(BackdropScene.BEACH, PORTRAIT)!!
+
+		assertEquals(
+			listOf(SceneryMaterial.WATER, SceneryMaterial.SAND),
+			outlines.layers.map { it.material }
+		)
+	}
+
+	@Test
+	fun `scenes not repainted yet stay two-plane silhouettes`() {
+		for (scene in SCENERY_SCENES.filter { it != BackdropScene.BEACH }) {
+			val outlines = sceneryOutlinesFor(scene, PORTRAIT)!!
+
+			assertEquals("$scene layer count", 2, outlines.layers.size)
+			assertTrue("$scene must stay a silhouette", outlines.layers.all { it.material == SceneryMaterial.SILHOUETTE })
+		}
 	}
 
 	@Test
@@ -176,7 +201,7 @@ class BackdropSceneryTest {
 	}
 
 	private fun farCrest(outlines: SceneryOutlines): Float {
-		val shipCrest = outlines.ships.minOfOrNull { ship -> ship.minOf { it.y } } ?: 1f
+		val shipCrest = outlines.ships.minOfOrNull { ship -> ship.outline.minOf { it.y } } ?: 1f
 
 		return minOf(outlines.far.minOf { it.y }, shipCrest)
 	}
@@ -196,3 +221,10 @@ class BackdropSceneryTest {
 		private val SCENERY_SCENES = BackdropScene.entries.filter { it != BackdropScene.NONE }
 	}
 }
+
+/** The classic depth-plane views over the layered contract, so the geometry pins read as before. */
+private val SceneryOutlines.far: List<OutlinePoint>
+	get() = layers.first { it.plane == SceneryPlane.FAR }.outline
+
+private val SceneryOutlines.near: List<OutlinePoint>
+	get() = layers.first { it.plane == SceneryPlane.NEAR }.outline
