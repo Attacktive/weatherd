@@ -106,13 +106,18 @@ class BackdropSceneryTest {
 	}
 
 	@Test
-	fun `scenes not repainted yet stay two-plane silhouettes`() {
-		for (scene in listOf(BackdropScene.METROPOLIS)) {
-			val outlines = sceneryOutlinesFor(scene, PORTRAIT)!!
+	fun `the metropolis is painted in steel and masonry with a park`() {
+		val outlines = sceneryOutlinesFor(BackdropScene.METROPOLIS, PORTRAIT)!!
 
-			assertEquals("$scene layer count", 2, outlines.layers.size)
-			assertTrue("$scene must stay a silhouette", outlines.layers.all { it.material == SceneryMaterial.SILHOUETTE })
-		}
+		assertEquals(
+			listOf(SceneryMaterial.STEEL, SceneryMaterial.MASONRY, SceneryMaterial.MEADOW),
+			outlines.layers.map { it.material }
+		)
+
+		// Park trees front the masonry blocks; four dark crane parts stand over the construction site.
+		assertTrue(outlines.glyphs.any { it.material == SceneryMaterial.FOREST })
+		assertEquals(4, outlines.glyphs.count { it.material == SceneryMaterial.HULL })
+		assertTrue(outlines.glyphs.all { it.plane == SceneryPlane.NEAR })
 	}
 
 	@Test
@@ -189,26 +194,26 @@ class BackdropSceneryTest {
 	}
 
 	@Test
-	fun `the metropolis puts a few beacons on the tallest roofs only`() {
+	fun `the metropolis puts beacons on the tallest roofs and the crane apex`() {
 		val outlines = sceneryOutlinesFor(BackdropScene.METROPOLIS, PORTRAIT)!!
 
 		assertTrue(outlines.windows.isNotEmpty())
 		assertTrue(outlines.windows.size <= 72)
-		assertEquals(3, outlines.beacons.size)
+		assertEquals(4, outlines.beacons.size)
 
 		outlines.beacons.forEach { point ->
 			assertTrue(point.x in 0f..1f)
 			assertTrue(point.y in 0.69f..0.965f)
 		}
 
-		// Beacons are the tallest roofs: each should match a far-plane roof y, not float above every building.
+		// The first three are the tallest far roofs: each matches a far-plane roof y exactly; the fourth rides the crane apex.
 		val farRoofYs = outlines.far.map { it.y }.toSet()
-		outlines.beacons.forEach { beacon ->
+		val roofBeacons = outlines.beacons.take(3)
+		roofBeacons.forEach { beacon ->
 			assertTrue("beacon y=${beacon.y} should sit on a roof", farRoofYs.any { kotlin.math.abs(it - beacon.y) < 1e-4f })
 		}
 
-		val beaconYs = outlines.beacons.map { it.y }
-		assertTrue(beaconYs.max() <= outlines.far.minOf { it.y } + 0.05f)
+		assertTrue(roofBeacons.maxOf { it.y } <= outlines.far.minOf { it.y } + 0.05f)
 	}
 
 	@Test
@@ -217,7 +222,7 @@ class BackdropSceneryTest {
 		val landscape = sceneryOutlinesFor(BackdropScene.METROPOLIS, 2f)!!
 
 		assertEquals(portrait.beacons.size, landscape.beacons.size)
-		assertEquals(3, landscape.beacons.size)
+		assertEquals(4, landscape.beacons.size)
 	}
 
 	@Test

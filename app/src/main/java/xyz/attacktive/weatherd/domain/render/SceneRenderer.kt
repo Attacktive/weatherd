@@ -229,6 +229,10 @@ class SceneRenderer {
 		paint.shader = null
 		drawSceneryLayers(canvas, SceneryPlane.NEAR, params, skyBottom)
 		drawNearPlaneDetails(canvas, width, height, params, timeSeconds, skyBottom, nearColor)
+
+		if (params.backdropScene == BackdropScene.METROPOLIS && showsHelicopter(params)) {
+			drawHelicopter(canvas, width, height, params, timeSeconds, nearColor)
+		}
 	}
 
 	/** Fills one depth plane's cached layer paths, each in its material's color for the current weather and phase. */
@@ -563,6 +567,71 @@ class SceneRenderer {
 		}
 
 		paint.style = Paint.Style.FILL
+	}
+
+	/**
+	 * A rare helicopter crossing above the skyline — slot-scheduled like the meteors and bird flocks, so most of the time the sky stays empty.
+	 * Every dimension derives from the fuselage length, keeping the shape honest at any aspect; at night it carries a blinking anti-collision light.
+	 */
+	private fun drawHelicopter(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float, color: Int) {
+		val slot = (timeSeconds / HELICOPTER_SLOT_SECONDS).toInt()
+		val random = Random(HELICOPTER_SEED + slot)
+		val quiet = random.nextFloat() < 0.5f
+		if (quiet) {
+			return
+		}
+
+		val start = random.nextFloat(HELICOPTER_SLOT_SECONDS - HELICOPTER_CROSSING_SECONDS)
+		val local = timeSeconds - slot * HELICOPTER_SLOT_SECONDS - start
+		if (local !in 0f..HELICOPTER_CROSSING_SECONDS) {
+			return
+		}
+
+		val progress = local / HELICOPTER_CROSSING_SECONDS
+		val direction = if (random.nextFloat() < 0.5f) {
+			-1f
+		} else {
+			1f
+		}
+
+		val span = width * 1.2f
+		val x = if (direction > 0f) {
+			-width * 0.1f + span * progress
+		} else {
+			width * 1.1f - span * progress
+		}
+
+		val bodyW = width * 0.02f
+		val y = height * random.nextFloat(0.58f, 0.66f) + sin(timeSeconds * 1.1f) * bodyW * 0.3f
+		val bodyH = bodyW * 0.42f
+		val tailLen = bodyW * 1.1f
+		val mastH = bodyH * 0.5f
+
+		paint.style = Paint.Style.FILL
+		paint.color = withAlpha(color, 235)
+		canvas.drawOval(x - bodyW * 0.5f, y - bodyH * 0.5f, x + bodyW * 0.5f, y + bodyH * 0.5f, paint)
+
+		paint.style = Paint.Style.STROKE
+		paint.strokeCap = Paint.Cap.ROUND
+		paint.strokeWidth = bodyH * 0.3f
+		val tailX = x - direction * (bodyW * 0.4f + tailLen)
+		canvas.drawLine(x - direction * bodyW * 0.4f, y, tailX, y - bodyH * 0.35f, paint)
+
+		// The main rotor sweeps as a flickering near-horizontal line — length pulsing with the blade angle fakes the spin.
+		val rotorY = y - bodyH * 0.5f - mastH
+		val rotorR = bodyW * (0.55f + 0.35f * abs(sin(timeSeconds * 9f)))
+		paint.strokeWidth = bodyH * 0.22f
+		canvas.drawLine(x, rotorY, x, y - bodyH * 0.5f, paint)
+		canvas.drawLine(x - rotorR, rotorY, x + rotorR, rotorY, paint)
+		paint.style = Paint.Style.FILL
+
+		if (params.dayPhase == DayPhase.NIGHT || params.dayPhase == DayPhase.DUSK) {
+			val blink = sin(timeSeconds * 6f)
+			if (blink > 0.4f) {
+				paint.color = Color.argb(200, 255, 64, 72)
+				canvas.drawCircle(tailX, y - bodyH * 0.35f, bodyH * 0.28f, paint)
+			}
+		}
 	}
 
 	/** A short gradient band just above the far crest — warm at dawn/dusk, soft by day, cool and thin at night. */
@@ -1802,6 +1871,7 @@ class SceneRenderer {
 		private const val BOLT_SEED = 5L
 		private const val METEOR_SEED = 7L
 		private const val BIRD_SEED = 11L
+		private const val HELICOPTER_SEED = 13L
 		private const val STAR_AREA_PER_STAR = 22_000f
 		private const val BOLT_STEPS = 6
 
@@ -1830,6 +1900,11 @@ class SceneRenderer {
 		private const val BIRD_SLOT_SECONDS = 217f
 
 		private const val BIRD_CROSSING_SECONDS = 22f
+
+		/** Length of one helicopter scheduling slot over the metropolis; about half the slots host one crossing. */
+		private const val HELICOPTER_SLOT_SECONDS = 193f
+
+		private const val HELICOPTER_CROSSING_SECONDS = 26f
 
 		/**
 		 * Soft cloud/fog tiles are built at a quarter of the surface resolution and stretched at blit time.
@@ -1893,6 +1968,9 @@ private fun showsCelestialBody(params: SceneParams) = params.precipitation == nu
 
 /** Birds fly only through fair daylight skies: no precipitation, no fog, cover below the deck threshold, and never at night. */
 private fun showsBirds(params: SceneParams) = params.precipitation == null && params.fogDensity <= 0f && params.cloudiness < 0.55f && params.dayPhase != DayPhase.NIGHT
+
+/** Helicopters fly in weather birds won't — night included, that's when the blinking light pays off — but storms, fog, and a heavy deck still ground them. */
+private fun showsHelicopter(params: SceneParams) = params.precipitation == null && params.fogDensity <= 0f && params.cloudiness < 0.55f && !params.thunder
 
 private fun birdColor(dayPhase: DayPhase) = when (dayPhase) {
 	DayPhase.DAY -> Color.argb(120, 38, 48, 62)

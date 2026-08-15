@@ -2,6 +2,7 @@ package xyz.attacktive.weatherd.domain.render
 
 import kotlin.math.roundToInt
 import kotlin.math.sin
+import kotlin.math.sqrt
 import kotlin.random.Random
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 
@@ -25,7 +26,9 @@ enum class SceneryMaterial {
 	SNOW,
 	PASTURE,
 	WHEAT,
-	BARN
+	BARN,
+	STEEL,
+	MASONRY
 }
 
 /** Which depth plane a layer belongs to — drives crest bookkeeping, atmospheric strength, and the glow/haze bands between planes. */
@@ -108,6 +111,7 @@ fun sceneryOutlinesFor(scene: BackdropScene, aspectRatio: Float): SceneryOutline
 	BackdropScene.COUNTRYSIDE -> countryside(aspectRatio)
 }
 
+/** Hazy steel towers behind warm masonry blocks with real street gaps, fronted by a city park with a few tree crowns. */
 private fun metropolis(aspectRatio: Float): SceneryOutlines {
 	val windowRandom = Random(31L)
 	val farWindows = mutableListOf<OutlinePoint>()
@@ -117,7 +121,7 @@ private fun metropolis(aspectRatio: Float): SceneryOutlines {
 	val far = towerRun(
 		random = Random(11L),
 		spec = TowerRunSpec(
-			count = scaled(10, aspectRatio),
+			count = scaledSparse(6, aspectRatio),
 			topLow = 0.70f,
 			topHigh = 0.79f,
 			baseY = 0.86f,
@@ -128,30 +132,129 @@ private fun metropolis(aspectRatio: Float): SceneryOutlines {
 		windowRandom = windowRandom,
 		roofCandidates = roofCandidates
 	)
-	val near = rooflineRun(
+
+	// Detached blocks instead of the old continuous roofline — the solid parapet read as a wall, not a city.
+	val nearCount = scaledSparse(5, aspectRatio)
+	val construction = mutableListOf<OutlinePoint>()
+	val near = towerRun(
 		random = Random(23L),
-		count = scaled(8, aspectRatio),
-		topLow = 0.78f,
-		topHigh = 0.88f,
+		spec = TowerRunSpec(
+			count = nearCount,
+			topLow = 0.78f,
+			topHigh = 0.88f,
+			baseY = 0.94f,
+			setbacks = true,
+			windowChance = 0.55f,
+			constructionIndex = nearCount - 2
+		),
 		windows = nearWindows,
 		windowRandom = windowRandom,
-		windowChance = 0.55f
+		construction = construction
 	)
+
+	val park = rollingHills(Random(37L), count = scaled(5, aspectRatio), topLow = 0.925f, topHigh = 0.94f)
+	val crane = constructionCrane(construction, aspectRatio)
 
 	// Cap the lit-window budget so dusk/night stays a handful of rect draws, not a skyline disco.
 	val litWindows = (farWindows + nearWindows).take(MAX_WINDOWS)
 
-	// Aviation lights belong on the tallest far towers only — on the roof, not floating above it — and stay sparse in landscape.
-	val beacons = roofCandidates.sortedBy { it.y }.take(BEACON_COUNT)
+	// Aviation lights belong on the tallest far towers — on the roof, not floating above it — plus one on the crane apex.
+	val beacons = roofCandidates.sortedBy { it.y }.take(BEACON_COUNT) + crane.light
 
-	return SceneryOutlines(layers = silhouetteLayers(far, near), windows = litWindows, beacons = beacons)
+	return SceneryOutlines(
+		layers = listOf(
+			SceneryLayer(far, SceneryMaterial.STEEL, SceneryPlane.FAR),
+			SceneryLayer(near, SceneryMaterial.MASONRY, SceneryPlane.NEAR),
+			SceneryLayer(park, SceneryMaterial.MEADOW, SceneryPlane.NEAR)
+		),
+		windows = litWindows,
+		beacons = beacons,
+		glyphs = parkTrees(Random(41L), park, aspectRatio) + crane.glyphs
+	)
 }
 
-/** Wraps a classic far/near silhouette pair as [SceneryMaterial.SILHOUETTE] layers, for scenes not repainted yet. */
-private fun silhouetteLayers(far: List<OutlinePoint>, near: List<OutlinePoint>) = listOf(
-	SceneryLayer(far, SceneryMaterial.SILHOUETTE, SceneryPlane.FAR),
-	SceneryLayer(near, SceneryMaterial.SILHOUETTE, SceneryPlane.NEAR)
-)
+/** A tower crane's painted parts and the anti-collision light riding its apex. */
+private data class SiteCrane(val glyphs: List<SceneryGlyph>, val light: OutlinePoint)
+
+/**
+ * A tower crane standing over the construction site: mast on the slab, jib and counter-jib, apex, and a hook line dropping toward the unfinished floor.
+ * Every dimension derives from the jib length, so the crane keeps its shape at every aspect.
+ */
+private fun constructionCrane(site: List<OutlinePoint>, aspectRatio: Float): SiteCrane {
+	val left = site.first().x
+	val right = site.last().x
+	val top = site.first().y
+	val slabY = site.last().y
+	val span = right - left
+	val jibLen = span * 1.15f
+	val rise = jibLen * aspectRatio
+	val mastX = left + span * 0.35f
+	val mastHalf = jibLen * 0.03f
+	val jibY = top - rise * 0.5f
+	val jibHalf = rise * 0.025f
+
+	// The mast ends on the slab line itself (a hair past, to bury the anti-aliasing) — overshooting drew a dark seam down the facade.
+	val mast = listOf(
+		OutlinePoint(mastX - mastHalf, jibY),
+		OutlinePoint(mastX + mastHalf, jibY),
+		OutlinePoint(mastX + mastHalf, slabY + 0.002f),
+		OutlinePoint(mastX - mastHalf, slabY + 0.002f)
+	)
+	val jib = listOf(
+		OutlinePoint(mastX - jibLen * 0.3f, jibY - jibHalf),
+		OutlinePoint(mastX + jibLen * 0.7f, jibY - jibHalf),
+		OutlinePoint(mastX + jibLen * 0.7f, jibY + jibHalf),
+		OutlinePoint(mastX - jibLen * 0.3f, jibY + jibHalf)
+	)
+	val apex = listOf(
+		OutlinePoint(mastX - mastHalf, jibY - jibHalf),
+		OutlinePoint(mastX, jibY - rise * 0.22f),
+		OutlinePoint(mastX + mastHalf, jibY - jibHalf)
+	)
+
+	val hookX = mastX + jibLen * 0.45f
+	val hookHalf = jibLen * 0.008f
+	val hook = listOf(
+		OutlinePoint(hookX - hookHalf, jibY),
+		OutlinePoint(hookX + hookHalf, jibY),
+		OutlinePoint(hookX + hookHalf, top - rise * 0.12f),
+		OutlinePoint(hookX - hookHalf, top - rise * 0.12f)
+	)
+
+	return SiteCrane(
+		glyphs = listOf(mast, jib, apex, hook).map { SceneryGlyph(it, SceneryMaterial.HULL, SceneryPlane.NEAR) },
+		light = OutlinePoint(mastX, jibY - rise * 0.22f)
+	)
+}
+
+/**
+ * Rounded tree crowns standing over the park band, drawn as near-plane glyphs so they front the masonry blocks.
+ * Heights derive from each crown's on-screen width, so the trees keep their shape at every aspect.
+ */
+private fun parkTrees(random: Random, park: List<OutlinePoint>, aspectRatio: Float): List<SceneryGlyph> {
+	val featureScale = (PORTRAIT_ASPECT / aspectRatio).coerceAtLeast(0.55f)
+	val count = scaledSparse(4, aspectRatio)
+
+	return List(count) { index ->
+		val x = (index + random.nextFloat(0.25f, 0.75f)) / count
+		val width = random.nextFloat(0.035f, 0.05f) * featureScale
+		val rise = width * aspectRatio
+		val groundY = sampleOutlineY(park, x) + rise * 0.1f
+		val half = width * 0.5f
+
+		val crown = listOf(
+			OutlinePoint(x - half * 0.55f, groundY),
+			OutlinePoint(x - half, groundY - rise * 0.4f),
+			OutlinePoint(x - half * 0.8f, groundY - rise * 0.85f),
+			OutlinePoint(x, groundY - rise * 1.05f),
+			OutlinePoint(x + half * 0.8f, groundY - rise * 0.85f),
+			OutlinePoint(x + half, groundY - rise * 0.4f),
+			OutlinePoint(x + half * 0.55f, groundY)
+		)
+
+		SceneryGlyph(crown, SceneryMaterial.FOREST, SceneryPlane.NEAR)
+	}
+}
 
 /** A shoreline with a bluff, beach parasols on the left, a sloop on the horizon, and a little life in the water. */
 private fun beach(aspectRatio: Float): SceneryOutlines {
@@ -291,7 +394,8 @@ private data class TowerRunSpec(
 	val topHigh: Float,
 	val baseY: Float,
 	val setbacks: Boolean = false,
-	val windowChance: Float = 0f
+	val windowChance: Float = 0f,
+	val constructionIndex: Int? = null
 )
 
 /** Detached towers with street gaps between them, for a distant skyline against the sky. */
@@ -300,7 +404,8 @@ private fun towerRun(
 	spec: TowerRunSpec,
 	windows: MutableList<OutlinePoint>? = null,
 	windowRandom: Random? = null,
-	roofCandidates: MutableList<OutlinePoint>? = null
+	roofCandidates: MutableList<OutlinePoint>? = null,
+	construction: MutableList<OutlinePoint>? = null
 ): List<OutlinePoint> {
 	val points = mutableListOf(OutlinePoint(0f, spec.baseY))
 	val edges = segmentEdges(random, spec.count)
@@ -314,20 +419,29 @@ private fun towerRun(
 		val top = random.nextFloat(spec.topLow, spec.topHigh)
 		points += OutlinePoint(towerLeft, spec.baseY)
 
-		val usedSetback = spec.setbacks &&
+		val isConstruction = index == spec.constructionIndex
+		val usedSetback = !isConstruction &&
+			spec.setbacks &&
 			random.nextFloat() < 0.4f &&
 			towerRight - towerLeft > 0.04f
 
-		if (usedSetback) {
-			appendSetbackTower(points, random, towerLeft, towerRight, top, spec.baseY)
-		} else {
-			appendFlatTower(points, towerLeft, towerRight, top, spec.baseY)
+		when {
+			isConstruction -> {
+				val slabY = appendConstructionTower(points, random, towerLeft, towerRight, top, spec.baseY)
+
+				// The site's two corners: left at the core top, right at the slab line — the crane builder reads both.
+				construction?.add(OutlinePoint(towerLeft, top))
+				construction?.add(OutlinePoint(towerRight, slabY))
+			}
+			usedSetback -> appendSetbackTower(points, random, towerLeft, towerRight, top, spec.baseY)
+			else -> appendFlatTower(points, towerLeft, towerRight, top, spec.baseY)
 		}
 
-		val chance = if (usedSetback) {
-			spec.windowChance * 0.7f
-		} else {
-			spec.windowChance
+		// The unfinished tower stays dark: nobody lives on a bare slab.
+		val chance = when {
+			isConstruction -> 0f
+			usedSetback -> spec.windowChance * 0.7f
+			else -> spec.windowChance
 		}
 
 		maybePlantWindows(windows, windowRandom, towerLeft, towerRight, top, spec.baseY, chance)
@@ -339,6 +453,31 @@ private fun towerRun(
 	points += OutlinePoint(1f, spec.baseY)
 
 	return points
+}
+
+/** An unfinished tower for the construction site: a bare slab line with the lift core poking above it. Returns the slab height for the crane to stand on. */
+private fun appendConstructionTower(
+	points: MutableList<OutlinePoint>,
+	random: Random,
+	towerLeft: Float,
+	towerRight: Float,
+	top: Float,
+	baseY: Float
+): Float {
+	val span = towerRight - towerLeft
+	val slabY = top + random.nextFloat(0.014f, 0.022f)
+	val coreLeft = towerLeft + span * random.nextFloat(0.55f, 0.62f)
+	val coreRight = coreLeft + span * random.nextFloat(0.12f, 0.16f)
+
+	points += OutlinePoint(towerLeft, slabY)
+	points += OutlinePoint(coreLeft, slabY)
+	points += OutlinePoint(coreLeft, top)
+	points += OutlinePoint(coreRight, top)
+	points += OutlinePoint(coreRight, slabY)
+	points += OutlinePoint(towerRight, slabY)
+	points += OutlinePoint(towerRight, baseY)
+
+	return slabY
 }
 
 private fun appendSetbackTower(
@@ -384,43 +523,6 @@ private fun maybePlantWindows(
 	}
 
 	plantWindows(windows, windowRandom, left, right, top, baseY, chance)
-}
-
-/** A continuous wall of building roofs at varying heights, some carrying a thin antenna mast. */
-private fun rooflineRun(
-	random: Random,
-	count: Int,
-	topLow: Float,
-	topHigh: Float,
-	windows: MutableList<OutlinePoint>? = null,
-	windowRandom: Random? = null,
-	windowChance: Float = 0f
-): List<OutlinePoint> {
-	val points = mutableListOf<OutlinePoint>()
-	val edges = segmentEdges(random, count)
-	val baseY = 0.94f
-
-	for (index in 0 until count) {
-		val left = edges[index]
-		val right = edges[index + 1]
-		val roof = random.nextFloat(topLow, topHigh)
-		points += OutlinePoint(left, roof)
-
-		if (random.nextFloat() < 0.4f) {
-			val mastX = left + (right - left) * random.nextFloat(0.25f, 0.55f)
-			val mastTop = roof - random.nextFloat(0.018f, 0.038f)
-			points += OutlinePoint(mastX, roof)
-			points += OutlinePoint(mastX, mastTop)
-			points += OutlinePoint(mastX + MAST_WIDTH, mastTop)
-			points += OutlinePoint(mastX + MAST_WIDTH, roof)
-		}
-
-		points += OutlinePoint(right, roof)
-
-		maybePlantWindows(windows, windowRandom, left, right, roof, baseY, windowChance)
-	}
-
-	return points
 }
 
 /** Seeded warm-window centers inside a building slab; denser near the roof, sparse enough to stay cheap to draw. */
@@ -794,15 +896,18 @@ private fun segmentEdges(random: Random, count: Int): FloatArray {
 /** How many features fit the screen: the counts are tuned for a portrait phone and grow with wider aspects. */
 private fun scaled(baseCount: Int, aspectRatio: Float) = (baseCount * aspectRatio / PORTRAIT_ASPECT).roundToInt().coerceAtLeast(2)
 
+/**
+ * Like [scaled] but growing with the square root of the width gain, so rotating a device keeps the same physical spacing between features.
+ * Linear growth packs ~2× the buildings per inch in landscape — a wall, not a skyline.
+ */
+private fun scaledSparse(baseCount: Int, aspectRatio: Float) = (baseCount * sqrt(aspectRatio / PORTRAIT_ASPECT)).roundToInt().coerceAtLeast(2)
+
 private fun lerp(from: Float, to: Float, t: Float) = from + (to - from) * t
 
 private const val PORTRAIT_ASPECT = 0.46f
 
 /** Where the coast scene's sea meets the sky, as a fraction of screen height. */
 private const val SEA_HORIZON = 0.85f
-
-/** Antenna masts are a hair's width regardless of how many buildings share the skyline. */
-private const val MAST_WIDTH = 0.005f
 
 /** Hard ceiling on metropolis window dots so the per-frame scenery pass stays cheap on a live wallpaper. */
 private const val MAX_WINDOWS = 72
