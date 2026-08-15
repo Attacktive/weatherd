@@ -231,7 +231,9 @@ class SceneRenderer {
 		drawNearPlaneDetails(canvas, width, height, params, timeSeconds, skyBottom, nearColor)
 
 		if (params.backdropScene == BackdropScene.METROPOLIS && showsHelicopter(params)) {
-			drawHelicopter(canvas, width, height, params, timeSeconds, nearColor)
+			helicopterPass(width, height, timeSeconds)?.let {
+				drawHelicopter(canvas, params, timeSeconds, it, nearColor)
+			}
 		}
 	}
 
@@ -571,21 +573,21 @@ class SceneRenderer {
 	}
 
 	/**
-	 * A rare helicopter crossing above the skyline — slot-scheduled like the meteors and bird flocks, so most of the time the sky stays empty.
-	 * Every dimension derives from the fuselage length, keeping the shape honest at any aspect; at night it carries a blinking anti-collision light.
+	 * Where a helicopter is over the skyline right now, or null when this slot stays quiet or its crossing hasn't started.
+	 * Slot-scheduled like the meteors and bird flocks, so most of the time the sky is empty.
 	 */
-	private fun drawHelicopter(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float, color: Int) {
+	private fun helicopterPass(width: Float, height: Float, timeSeconds: Float): HelicopterPass? {
 		val slot = (timeSeconds / HELICOPTER_SLOT_SECONDS).toInt()
 		val random = Random(HELICOPTER_SEED + slot)
 		val quiet = random.nextFloat() < 0.5f
 		if (quiet) {
-			return
+			return null
 		}
 
 		val start = random.nextFloat(HELICOPTER_SLOT_SECONDS - HELICOPTER_CROSSING_SECONDS)
 		val local = timeSeconds - slot * HELICOPTER_SLOT_SECONDS - start
 		if (local !in 0f..HELICOPTER_CROSSING_SECONDS) {
-			return
+			return null
 		}
 
 		val progress = local / HELICOPTER_CROSSING_SECONDS
@@ -604,6 +606,16 @@ class SceneRenderer {
 
 		val bodyW = width * 0.02f
 		val y = height * random.nextFloat(0.58f, 0.66f) + sin(timeSeconds * 1.1f) * bodyW * 0.3f
+
+		return HelicopterPass(x, y, direction, bodyW)
+	}
+
+	/**
+	 * The helicopter itself: fuselage, tail boom, and a rotor line flickering to fake the spin.
+	 * Every dimension derives from the fuselage length, keeping the shape honest at any aspect; after dark it carries a blinking anti-collision light.
+	 */
+	private fun drawHelicopter(canvas: Canvas, params: SceneParams, timeSeconds: Float, pass: HelicopterPass, color: Int) {
+		val (x, y, direction, bodyW) = pass
 		val bodyH = bodyW * 0.42f
 		val tailLen = bodyW * 1.1f
 		val mastH = bodyH * 0.5f
@@ -2047,6 +2059,9 @@ private fun hazeColorFor(dayPhase: DayPhase) = when (dayPhase) {
 
 /** A cached scenery layer path with the material and plane needed to color it each frame. */
 private data class SceneryLayerPath(val path: Path, val material: SceneryMaterial, val plane: SceneryPlane)
+
+/** A helicopter mid-crossing: fuselage center, heading, and the fuselage length every other dimension derives from. */
+private data class HelicopterPass(val x: Float, val y: Float, val direction: Float, val bodyW: Float)
 
 private fun darken(color: Int, factor: Float) =
 	Color.rgb((Color.red(color) * factor).roundToInt(), (Color.green(color) * factor).roundToInt(), (Color.blue(color) * factor).roundToInt())
