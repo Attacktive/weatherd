@@ -51,7 +51,7 @@ class SceneRenderer {
 	private var sceneryMarine: List<SceneryFauna> = emptyList()
 	private var sceneryBeaconXy = FloatArray(0)
 	private var sceneryParasolXy = FloatArray(0)
-	private var sceneryShipPaths: List<SceneryLayerPath> = emptyList()
+	private var sceneryGlyphPaths: List<SceneryLayerPath> = emptyList()
 	private var sceneryWindmill: SceneryWindmill? = null
 	private val tiles = HashMap<String, Bitmap>()
 	private var tilesKey: String? = null
@@ -265,8 +265,8 @@ class SceneRenderer {
 
 		fillAccentPath(sceneryAccentPath, outlines.accents, width, height)
 
-		val shipCrest = outlines.ships.minOfOrNull { ship -> ship.outline.minOf { it.y } } ?: 1f
-		sceneryFarCrestY = minOf(planeCrest(outlines, SceneryPlane.FAR), shipCrest) * height
+		val glyphCrest = outlines.glyphs.minOfOrNull { glyph -> glyph.outline.minOf { it.y } } ?: 1f
+		sceneryFarCrestY = minOf(planeCrest(outlines, SceneryPlane.FAR), glyphCrest) * height
 		sceneryNearCrestY = planeCrest(outlines, SceneryPlane.NEAR) * height
 		sceneryReflectionY = outlines.reflectionY?.times(height) ?: -1f
 		sceneryHasWindows = outlines.windows.isNotEmpty()
@@ -275,10 +275,10 @@ class SceneRenderer {
 		sceneryMarine = outlines.marine
 		sceneryBeaconXy = packPoints(outlines.beacons, width, height)
 		sceneryParasolXy = packPoints(outlines.parasols, width, height)
-		sceneryShipPaths = outlines.ships.map { ship ->
-			val path = Path().also { fillClosedOutline(it, ship.outline, width, height) }
+		sceneryGlyphPaths = outlines.glyphs.map { glyph ->
+			val path = Path().also { fillClosedOutline(it, glyph.outline, width, height) }
 
-			SceneryLayerPath(path, ship.material, SceneryPlane.FAR)
+			SceneryLayerPath(path, glyph.material, SceneryPlane.FAR)
 		}
 
 		sceneryWindmill = outlines.windmill
@@ -287,7 +287,7 @@ class SceneRenderer {
 		return true
 	}
 
-	/** Ships, sea reflection, marine life, and mountain mist — everything that lives on/behind the far plane. */
+	/** Painted glyphs (sloop, snowcaps), sea reflection, marine life, and mountain mist — everything that lives on/behind the far plane. */
 	private fun drawFarPlaneDetails(
 		canvas: Canvas,
 		width: Float,
@@ -296,7 +296,7 @@ class SceneRenderer {
 		timeSeconds: Float,
 		skyBottom: Int
 	) {
-		for (part in sceneryShipPaths) {
+		for (part in sceneryGlyphPaths) {
 			paint.color = sceneryLayerColor(part.material, SceneryPlane.FAR, params, skyBottom)
 			canvas.drawPath(part.path, paint)
 		}
@@ -711,7 +711,7 @@ class SceneRenderer {
 		path.close()
 	}
 
-	/** Scales a closed unit polygon (ships) to pixels without stretching it to the frame bottom. */
+	/** Scales a closed unit polygon (glyphs) to pixels without stretching it to the frame bottom. */
 	private fun fillClosedOutline(path: Path, outline: List<OutlinePoint>, width: Float, height: Float) {
 		path.rewind()
 		path.moveTo(outline.first().x * width, outline.first().y * height)

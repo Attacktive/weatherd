@@ -18,7 +18,11 @@ enum class SceneryMaterial {
 	SAND,
 	HULL,
 	SAIL,
-	PARASOL
+	PARASOL,
+	ROCK,
+	FOREST,
+	MEADOW,
+	SNOW
 }
 
 /** Which depth plane a layer belongs to — drives crest bookkeeping, atmospheric strength, and the glow/haze bands between planes. */
@@ -63,20 +67,20 @@ data class SceneryFauna(
  */
 data class SceneryWindmill(val hubX: Float, val hubY: Float, val groundY: Float, val scale: Float)
 
-/** One painted part of a vessel — a closed unit-coordinate polygon and what it's made of. */
-data class SceneryShip(val outline: List<OutlinePoint>, val material: SceneryMaterial)
+/** A closed painted shape drawn over the far plane — a part of the beach sloop, a mountain snowcap. */
+data class SceneryGlyph(val outline: List<OutlinePoint>, val material: SceneryMaterial)
 
 /**
  * The painted layers of a backdrop scene, back to front, plus optional accent polylines stroked in the near tone (fence posts).
  * [windows] are warm night-light centers for the metropolis; [beacons] are red tips on the tallest towers only.
- * [ships] sit on the coast horizon as separate silhouettes; [parasols] on the left beach; [windmill] on the countryside rise.
+ * [glyphs] are closed painted shapes over the far plane (the beach sloop, mountain snowcaps); [parasols] on the left beach; [windmill] on the countryside rise.
  */
 data class SceneryOutlines(
 	val layers: List<SceneryLayer>,
 	val accents: List<List<OutlinePoint>> = emptyList(),
 	val windows: List<OutlinePoint> = emptyList(),
 	val beacons: List<OutlinePoint> = emptyList(),
-	val ships: List<SceneryShip> = emptyList(),
+	val glyphs: List<SceneryGlyph> = emptyList(),
 	val parasols: List<OutlinePoint> = emptyList(),
 	val reflectionY: Float? = null,
 	val gulls: List<SceneryFauna> = emptyList(),
@@ -142,11 +146,11 @@ private fun silhouetteLayers(far: List<OutlinePoint>, near: List<OutlinePoint>) 
 	SceneryLayer(near, SceneryMaterial.SILHOUETTE, SceneryPlane.NEAR)
 )
 
-/** A shoreline with a bluff, beach parasols on the left, ships on the horizon, and a little life in the water. */
+/** A shoreline with a bluff, beach parasols on the left, a sloop on the horizon, and a little life in the water. */
 private fun beach(aspectRatio: Float): SceneryOutlines {
-	// Ships and umbrellas keep a readable size on wide screens instead of shrinking to hairlines.
+	// The boat and umbrellas keep a readable size on wide screens instead of shrinking to hairlines.
 	val featureScale = (PORTRAIT_ASPECT / aspectRatio).coerceAtLeast(MIN_BEACH_FEATURE_SCALE)
-	val shipRandom = Random(89L)
+	val boatRandom = Random(89L)
 	val bluff = coastalBluff(Random(79L))
 
 	return SceneryOutlines(
@@ -155,7 +159,7 @@ private fun beach(aspectRatio: Float): SceneryOutlines {
 			SceneryLayer(bluff, SceneryMaterial.SAND, SceneryPlane.NEAR)
 		),
 		// The boat stays over open water on the right — under the bluff it gets swallowed by the near fill.
-		ships = sailboat(start = shipRandom.nextFloat(0.60f, 0.70f), length = 0.10f * featureScale, aspectRatio = aspectRatio),
+		glyphs = sailboat(start = boatRandom.nextFloat(0.60f, 0.70f), length = 0.10f * featureScale, aspectRatio = aspectRatio),
 		parasols = beachParasols(Random(83L), bluff, featureScale),
 		reflectionY = SEA_HORIZON,
 		gulls = beachGulls(Random(97L), featureScale),
@@ -163,28 +167,90 @@ private fun beach(aspectRatio: Float): SceneryOutlines {
 	)
 }
 
-private fun mountains(aspectRatio: Float) = SceneryOutlines(
-	layers = silhouetteLayers(
-		far = mountainRange(
-			random = Random(53L),
-			count = scaled(3, aspectRatio),
-			crestLow = 0.70f,
-			crestHigh = 0.78f,
-			saddleLow = 0.80f,
-			saddleHigh = 0.85f,
-			broadCrests = true
-		),
-		near = mountainRange(
-			random = Random(67L),
-			count = scaled(4, aspectRatio),
-			crestLow = 0.83f,
-			crestHigh = 0.875f,
-			saddleLow = 0.89f,
-			saddleHigh = 0.925f,
-			broadCrests = false
-		)
+/** Hazy rock ridges behind a forested near range, with snow hugging the tallest far summits. */
+private fun mountains(aspectRatio: Float): SceneryOutlines {
+	val far = mountainRange(
+		random = Random(53L),
+		count = scaled(3, aspectRatio),
+		crestLow = 0.70f,
+		crestHigh = 0.78f,
+		saddleLow = 0.80f,
+		saddleHigh = 0.85f,
+		broadCrests = true
 	)
-)
+	val near = mountainRange(
+		random = Random(67L),
+		count = scaled(4, aspectRatio),
+		crestLow = 0.83f,
+		crestHigh = 0.875f,
+		saddleLow = 0.89f,
+		saddleHigh = 0.925f,
+		broadCrests = false
+	)
+
+	// A sunlit meadow floor in front of the pines — the third color band that keeps the scene from being rock-on-green alone.
+	val meadow = rollingHills(Random(73L), count = scaled(6, aspectRatio), topLow = 0.92f, topHigh = 0.94f)
+
+	return SceneryOutlines(
+		layers = listOf(
+			SceneryLayer(far, SceneryMaterial.ROCK, SceneryPlane.FAR),
+			SceneryLayer(near, SceneryMaterial.FOREST, SceneryPlane.NEAR),
+			SceneryLayer(meadow, SceneryMaterial.MEADOW, SceneryPlane.NEAR)
+		),
+		glyphs = snowcaps(far)
+	)
+}
+
+/**
+ * Snow on the high far summits: each cap's top edge is the ridge outline itself, so snow hugs rock exactly, and the underside sits at a snowline just below the peak with a small central dip.
+ * Only summits rising above [SNOW_SUMMIT_MAX] get a cap, leaving the lower peaks bare for variety.
+ */
+private fun snowcaps(range: List<OutlinePoint>): List<SceneryGlyph> {
+	// The tallest summit always earns snow, however low the seeded ridge came out; the fixed threshold only adds caps on genuinely high peaks.
+	val summitMax = maxOf(SNOW_SUMMIT_MAX, range.minOf { it.y } + 0.01f)
+	val caps = mutableListOf<SceneryGlyph>()
+	var index = 0
+
+	while (index < range.size) {
+		if (range[index].y >= summitMax) {
+			index++
+			continue
+		}
+
+		// The cap spans every consecutive vertex above the summit threshold, so a broad crest gets one cap instead of two.
+		var end = index
+		while (end + 1 < range.size && range[end + 1].y < summitMax) {
+			end++
+		}
+
+		val run = range.subList(index, end + 1)
+		val summitY = run.minOf { it.y }
+		val snowline = maxOf(summitY + SNOWCAP_DEPTH, run.maxOf { it.y } + 0.008f)
+
+		// The cap's bottom corners slide down the actual slopes to the snowline instead of dropping vertically off the run's edge vertices.
+		val left = slopeCrossing(range, index, -1, snowline)
+		val right = slopeCrossing(range, end, 1, snowline)
+		val dip = OutlinePoint((left.x + right.x) * 0.5f, snowline + 0.01f)
+
+		caps += SceneryGlyph(listOf(left) + run + listOf(right, dip), SceneryMaterial.SNOW)
+		index = end + 1
+	}
+
+	return caps
+}
+
+/** Where the slope from vertex [index] toward its [direction]-side neighbor crosses [snowline]; the vertex itself when there is no neighbor below it. */
+private fun slopeCrossing(range: List<OutlinePoint>, index: Int, direction: Int, snowline: Float): OutlinePoint {
+	val vertex = range[index]
+	val neighbor = range.getOrNull(index + direction) ?: return OutlinePoint(vertex.x, snowline)
+	if (neighbor.y <= snowline) {
+		return OutlinePoint(vertex.x, snowline)
+	}
+
+	val t = (snowline - vertex.y) / (neighbor.y - vertex.y)
+
+	return OutlinePoint(lerp(vertex.x, neighbor.x, t), snowline)
+}
 
 private fun countryside(aspectRatio: Float): SceneryOutlines {
 	val featureScale = (PORTRAIT_ASPECT / aspectRatio).coerceAtLeast(0.55f)
@@ -370,14 +436,14 @@ private fun plantWindows(
 	}
 }
 
-/** Bare sea horizon — ships are drawn separately so they stay recognizable. */
+/** Bare sea horizon — the sloop is drawn separately so it stays recognizable. */
 private fun flatSea() = listOf(OutlinePoint(0f, SEA_HORIZON), OutlinePoint(1f, SEA_HORIZON))
 
 /**
  * A sloop under sail: chunky dark hull, thin mast, tall mainsail with a gently concave leech, and a jib flying from the bow.
  * Heights derive from the boat's own on-screen length (length × aspect converts x units to y units), so the shape survives every aspect.
  */
-private fun sailboat(start: Float, length: Float, aspectRatio: Float): List<SceneryShip> {
+private fun sailboat(start: Float, length: Float, aspectRatio: Float): List<SceneryGlyph> {
 	val water = SEA_HORIZON
 	val rise = length * aspectRatio
 	val deck = water - rise * 0.14f
@@ -416,16 +482,16 @@ private fun sailboat(start: Float, length: Float, aspectRatio: Float): List<Scen
 	)
 
 	return listOf(
-		SceneryShip(hull, SceneryMaterial.HULL),
-		SceneryShip(mast, SceneryMaterial.HULL),
-		SceneryShip(mainsail, SceneryMaterial.SAIL),
-		SceneryShip(jib, SceneryMaterial.SAIL)
+		SceneryGlyph(hull, SceneryMaterial.HULL),
+		SceneryGlyph(mast, SceneryMaterial.HULL),
+		SceneryGlyph(mainsail, SceneryMaterial.SAIL),
+		SceneryGlyph(jib, SceneryMaterial.SAIL)
 	)
 }
 
 /**
  * A coastal bluff on the left dropping to a sandy shelf on the right.
- * Stays below the ship masts so the two-plane depth order still holds.
+ * Stays below the sloop's mast so the two-plane depth order still holds.
  */
 private fun coastalBluff(random: Random): List<OutlinePoint> {
 	val points = mutableListOf<OutlinePoint>()
@@ -712,7 +778,13 @@ private const val MAX_WINDOWS = 72
 /** Only the tallest far towers get a red aviation light — sparse on purpose, especially in landscape. */
 private const val BEACON_COUNT = 3
 
-/** Beach ships/umbrellas refuse to shrink below this when the screen goes wide. */
+/** Summits must rise above this (smaller y = higher) to earn a snowcap; lower peaks stay bare. */
+private const val SNOW_SUMMIT_MAX = 0.755f
+
+/** How far a snowcap reaches down from its summit before the snowline cuts it off. */
+private const val SNOWCAP_DEPTH = 0.032f
+
+/** Beach boat/umbrellas refuse to shrink below this when the screen goes wide. */
 private const val MIN_BEACH_FEATURE_SCALE = 0.7f
 
 private const val TAU = (Math.PI * 2.0).toFloat()

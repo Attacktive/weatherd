@@ -87,12 +87,12 @@ class BackdropSceneryTest {
 		// One sloop: dark hull and mast under two off-white sails.
 		assertEquals(
 			listOf(SceneryMaterial.HULL, SceneryMaterial.HULL, SceneryMaterial.SAIL, SceneryMaterial.SAIL),
-			outlines.ships.map { it.material }
+			outlines.glyphs.map { it.material }
 		)
 
 		// The boat sits over open water, not under the bluff, with the rig visibly clear of the waterline.
-		assertTrue(outlines.ships.all { ship -> ship.outline.first().x >= 0.5f })
-		assertTrue(outlines.ships.any { ship -> ship.outline.any { it.y < 0.83f } })
+		assertTrue(outlines.glyphs.all { ship -> ship.outline.first().x >= 0.5f })
+		assertTrue(outlines.glyphs.any { ship -> ship.outline.any { it.y < 0.83f } })
 	}
 
 	@Test
@@ -107,11 +107,32 @@ class BackdropSceneryTest {
 
 	@Test
 	fun `scenes not repainted yet stay two-plane silhouettes`() {
-		for (scene in SCENERY_SCENES.filter { it != BackdropScene.BEACH }) {
+		for (scene in listOf(BackdropScene.METROPOLIS, BackdropScene.COUNTRYSIDE)) {
 			val outlines = sceneryOutlinesFor(scene, PORTRAIT)!!
 
 			assertEquals("$scene layer count", 2, outlines.layers.size)
 			assertTrue("$scene must stay a silhouette", outlines.layers.all { it.material == SceneryMaterial.SILHOUETTE })
+		}
+	}
+
+	@Test
+	fun `the mountains are painted in rock and forest with snowcaps`() {
+		for (aspect in listOf(PORTRAIT, 1f, 2f)) {
+			val outlines = sceneryOutlinesFor(BackdropScene.MOUNTAINS, aspect)!!
+
+			assertEquals(
+				listOf(SceneryMaterial.ROCK, SceneryMaterial.FOREST, SceneryMaterial.MEADOW),
+				outlines.layers.map { it.material }
+			)
+
+			assertTrue("snow must fall on some summit at $aspect", outlines.glyphs.isNotEmpty())
+			assertTrue(outlines.glyphs.all { it.material == SceneryMaterial.SNOW })
+
+			// Caps hug the far crest band: never above the tallest possible summit, never below the deepest snowline plus its dip.
+			for (cap in outlines.glyphs) {
+				assertTrue("caps need enough points to read as a cap", cap.outline.size >= 4)
+				assertTrue(cap.outline.all { it.y in 0.69f..0.83f })
+			}
 		}
 	}
 
@@ -201,9 +222,9 @@ class BackdropSceneryTest {
 	}
 
 	private fun farCrest(outlines: SceneryOutlines): Float {
-		val shipCrest = outlines.ships.minOfOrNull { ship -> ship.outline.minOf { it.y } } ?: 1f
+		val glyphCrest = outlines.glyphs.minOfOrNull { ship -> ship.outline.minOf { it.y } } ?: 1f
 
-		return minOf(outlines.far.minOf { it.y }, shipCrest)
+		return minOf(outlines.far.minOf { it.y }, glyphCrest)
 	}
 
 	private fun forEachPlane(assertion: (BackdropScene, String, List<OutlinePoint>) -> Unit) {
