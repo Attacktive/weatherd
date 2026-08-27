@@ -3,9 +3,11 @@ package xyz.attacktive.weatherd.ui.home
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
 import android.app.WallpaperManager
+import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -162,7 +164,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 					)
 				}
 
-				Button(onClick = { context.startActivity(liveWallpaperIntent(context)) }) {
+				Button(onClick = { setLiveWallpaper(context) }) {
 					Text("Set as live wallpaper")
 				}
 			}
@@ -225,5 +227,28 @@ private fun DebugCycleRow(label: String, onPrevious: () -> Unit, onNext: () -> U
 	}
 }
 
-private fun liveWallpaperIntent(context: Context) = Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER)
-	.putExtra(WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT, ComponentName(context, WeatherLiveWallpaperService::class.java))
+private fun setLiveWallpaper(context: Context) {
+	val intents = listOf(
+		Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER)
+			.putExtra(
+				WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT,
+				ComponentName(context, WeatherLiveWallpaperService::class.java)
+			),
+		Intent(WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER),
+		Intent(Intent.ACTION_SET_WALLPAPER)
+	)
+
+	for (intent in intents) {
+		try {
+			context.startActivity(intent)
+			return
+		} catch (_: ActivityNotFoundException) {
+			// Fall through to the next intent.
+		} catch (_: SecurityException) {
+			// Fall through to the next intent.
+		}
+	}
+
+	Toast.makeText(context, "Unable to open wallpaper chooser", Toast.LENGTH_SHORT)
+		.show()
+}
