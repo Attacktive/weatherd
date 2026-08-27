@@ -234,8 +234,7 @@ private fun setLiveWallpaper(context: Context) {
 				WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT,
 				ComponentName(context, WeatherLiveWallpaperService::class.java)
 			),
-		Intent(WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER),
-		Intent(Intent.ACTION_SET_WALLPAPER)
+		Intent(WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER)
 	)
 
 	for (intent in intents) {
