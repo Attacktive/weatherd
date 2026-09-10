@@ -1,11 +1,11 @@
 package xyz.attacktive.weatherd.domain.render
 
-import android.content.Context
-import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.LocalTime
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.first
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase

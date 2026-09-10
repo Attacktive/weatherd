@@ -5,7 +5,6 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_DRIZZLE
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_HEAVY

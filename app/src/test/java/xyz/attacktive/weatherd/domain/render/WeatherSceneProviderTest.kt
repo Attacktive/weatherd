@@ -1,8 +1,8 @@
 package xyz.attacktive.weatherd.domain.render
 
-import android.content.Context
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
+import android.content.Context
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -10,10 +10,10 @@ import io.mockk.mockk
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.GeoLocation
-import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot

@@ -23,6 +23,7 @@ import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
+import xyz.attacktive.weatherd.domain.render.SceneRenderer.Companion.DOT_CORE_STOP
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_DRIZZLE
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_STEADY
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_STORM
