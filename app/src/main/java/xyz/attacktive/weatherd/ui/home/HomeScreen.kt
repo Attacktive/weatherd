@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -50,6 +51,7 @@ import androidx.core.graphics.createBitmap
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.debugToolsEnabled
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.render.SCENE_PRESETS
@@ -145,7 +147,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 				.align(Alignment.TopEnd)
 				.padding(top = 40.dp, end = 4.dp)
 		) {
-			Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = Color.White)
+			Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.content_description_settings), tint = Color.White)
 		}
 
 		if (controlsVisible) {
@@ -178,7 +180,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 				}
 
 				Button(onClick = { setLiveWallpaper(context) }) {
-					Text("Set as live wallpaper")
+					Text(stringResource(R.string.set_as_live_wallpaper))
 				}
 			}
 		}
@@ -208,12 +210,12 @@ private fun DebugSceneControls(
 			horizontalArrangement = Arrangement.SpaceBetween,
 			verticalAlignment = Alignment.CenterVertically
 		) {
-			Text("Scene preview", color = Color.White, style = MaterialTheme.typography.labelLarge)
+			Text(stringResource(R.string.scene_preview), color = Color.White, style = MaterialTheme.typography.labelLarge)
 			TextButton(onClick = { onDebugEnabledChange(!debugEnabled) }) {
 				val text = if (debugEnabled) {
-					"Live"
+					stringResource(R.string.debug_mode_live)
 				} else {
-					"Debug"
+					stringResource(R.string.debug_mode_debug)
 				}
 
 				Text(text, color = Color.White)
@@ -261,6 +263,6 @@ private fun setLiveWallpaper(context: Context) {
 		}
 	}
 
-	Toast.makeText(context, "Unable to open wallpaper chooser", Toast.LENGTH_SHORT)
+	Toast.makeText(context, context.getString(R.string.wallpaper_chooser_unavailable), Toast.LENGTH_SHORT)
 		.show()
 }

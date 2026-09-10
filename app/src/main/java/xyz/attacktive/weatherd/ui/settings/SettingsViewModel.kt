@@ -1,5 +1,6 @@
 package xyz.attacktive.weatherd.ui.settings
 
+import android.app.Application
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -7,9 +8,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.GeoPlace
 import xyz.attacktive.weatherd.domain.repository.GeocodingRepository
@@ -26,9 +28,10 @@ sealed interface CitySearchState {
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+	application: Application,
 	private val settingsRepository: SettingsRepository,
 	private val geocodingRepository: GeocodingRepository
-): ViewModel() {
+): AndroidViewModel(application) {
 	val settings = settingsRepository.settings
 		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings())
 
@@ -58,7 +61,7 @@ class SettingsViewModel @Inject constructor(
 						CitySearchState.Results(places)
 					}
 				}
-				.onFailure { _citySearch.value = CitySearchState.Error(it.message ?: "Search failed") }
+				.onFailure { _citySearch.value = CitySearchState.Error(it.message ?: getApplication<Application>().getString(R.string.city_search_failed)) }
 		}
 	}
 

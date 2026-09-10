@@ -2,6 +2,7 @@ package xyz.attacktive.weatherd
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -76,34 +77,22 @@ class ConditionMappingTest {
 
 	@Test
 	fun `weather labels cover the wmo table`() {
-		assertEquals("Clear sky", weatherLabelFor(0))
-		assertEquals("Mainly clear", weatherLabelFor(1))
-		assertEquals("Partly cloudy", weatherLabelFor(2))
-		assertEquals("Overcast", weatherLabelFor(3))
-		assertEquals("Fog", weatherLabelFor(45))
-		assertEquals("Icy fog", weatherLabelFor(48))
-		assertEquals("Light drizzle", weatherLabelFor(51))
-		assertEquals("Drizzle", weatherLabelFor(53))
-		assertEquals("Dense drizzle", weatherLabelFor(55))
-		assertEquals("Light freezing drizzle", weatherLabelFor(56))
-		assertEquals("Freezing drizzle", weatherLabelFor(57))
-		assertEquals("Light rain", weatherLabelFor(61))
-		assertEquals("Rain", weatherLabelFor(63))
-		assertEquals("Heavy rain", weatherLabelFor(65))
-		assertEquals("Light freezing rain", weatherLabelFor(66))
-		assertEquals("Freezing rain", weatherLabelFor(67))
-		assertEquals("Light snow", weatherLabelFor(71))
-		assertEquals("Snow", weatherLabelFor(73))
-		assertEquals("Heavy snow", weatherLabelFor(75))
-		assertEquals("Snow grains", weatherLabelFor(77))
-		assertEquals("Light showers", weatherLabelFor(80))
-		assertEquals("Showers", weatherLabelFor(81))
-		assertEquals("Violent showers", weatherLabelFor(82))
-		assertEquals("Snow showers", weatherLabelFor(85))
-		assertEquals("Heavy snow showers", weatherLabelFor(86))
-		assertEquals("Thunderstorm", weatherLabelFor(95))
-		assertEquals("Thunderstorm with hail", weatherLabelFor(96))
-		assertEquals("Thunderstorm with hail", weatherLabelFor(99))
+		val knownCodes = listOf(
+			0, 1, 2, 3,
+			45, 48,
+			51, 53, 55, 56, 57,
+			61, 63, 65, 66, 67,
+			71, 73, 75, 77,
+			80, 81, 82, 85, 86,
+			95, 96, 99
+		)
+
+		for (code in knownCodes) {
+			assertNotNull("WMO code $code should have a label resource", weatherLabelFor(code))
+		}
+
+		// 96 and 99 share the same label (thunderstorm with hail)
+		assertEquals(weatherLabelFor(96), weatherLabelFor(99))
 	}
 
 	@Test

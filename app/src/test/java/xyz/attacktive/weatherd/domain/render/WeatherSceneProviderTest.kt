@@ -1,5 +1,6 @@
 package xyz.attacktive.weatherd.domain.render
 
+import android.content.Context
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import io.mockk.coEvery
@@ -12,6 +13,7 @@ import org.junit.Test
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.GeoLocation
+import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
@@ -22,13 +24,17 @@ import xyz.attacktive.weatherd.domain.repository.WeatherRepository
 import xyz.attacktive.weatherd.util.AppLogger
 
 class WeatherSceneProviderTest {
+	private val context = mockk<Context>(relaxed = true) {
+		every { getString(R.string.weather_rain) } returns "Rain"
+	}
+
 	private val locationRepository = mockk<LocationRepository>()
 	private val weatherRepository = mockk<WeatherRepository>()
 	private val reverseGeocodingRepository = mockk<ReverseGeocodingRepository>()
 	private val settingsRepository = mockk<SettingsRepository>()
 	private val logger = mockk<AppLogger>(relaxed = true)
 
-	private val provider = WeatherSceneProvider(locationRepository, weatherRepository, reverseGeocodingRepository, settingsRepository, logger)
+	private val provider = WeatherSceneProvider(context, locationRepository, weatherRepository, reverseGeocodingRepository, settingsRepository, logger)
 
 	@Test
 	fun `changing location settings refetches within the throttle window`() = runTest {

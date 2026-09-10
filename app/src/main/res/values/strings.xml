@@ -1,3 +1,86 @@
 <resources>
 	<string name="app_name">Weatherd</string>
+
+	<!-- Home screen -->
+	<string name="set_as_live_wallpaper">Set as live wallpaper</string>
+	<string name="wallpaper_chooser_unavailable">Unable to open wallpaper chooser</string>
+	<string name="content_description_settings">Settings</string>
+	<string name="scene_preview">Scene preview</string>
+	<string name="debug_mode_live">Live</string>
+	<string name="debug_mode_debug">Debug</string>
+
+	<!-- Settings screen -->
+	<string name="settings_title">Settings</string>
+	<string name="content_description_back">Back</string>
+	<string name="content_description_search">Search</string>
+	<string name="content_description_clear_city">Clear city</string>
+	<string name="section_refresh_interval">Weather refresh interval</string>
+	<string name="section_frame_rate">Animation frame rate</string>
+	<string name="section_backdrop">Backdrop scenery</string>
+	<string name="section_labels">Labels</string>
+	<string name="section_location">Location</string>
+	<string name="section_current_city">Current city</string>
+	<string name="label_show_weather">Show current weather</string>
+	<string name="subtitle_show_weather">e.g. \"Light rain · 23°\"</string>
+	<string name="label_show_location">Show location name</string>
+	<string name="subtitle_show_location">The place the weather is for</string>
+	<string name="label_use_device_location">Use device location</string>
+	<string name="subtitle_use_device_location">Turn off to pick a city manually</string>
+	<string name="label_city">City</string>
+	<string name="placeholder_city">e.g. Tokyo</string>
+	<string name="city_search_empty">No matching city found.</string>
+	<string name="city_search_failed">Search failed</string>
+	<string name="hint_frame_rate">Fewer frames means less drawing work, which helps on slower phones. The scene still moves at the same speed, just less smoothly.</string>
+	<string name="version_footer">weatherd %1$s</string>
+
+	<!-- Refresh interval formatting -->
+	<string name="interval_minutes">%1$d min</string>
+	<string name="interval_one_hour">1 hour</string>
+	<string name="interval_hours">%1$d hours</string>
+
+	<!-- Frame rate options -->
+	<string name="frame_rate_uncapped">Every frame</string>
+	<string name="frame_rate_30">30 fps</string>
+	<string name="frame_rate_15">15 fps</string>
+	<string name="frame_rate_10">10 fps</string>
+
+	<!-- Backdrop options -->
+	<string name="backdrop_none">None</string>
+	<string name="backdrop_metropolis">Metropolis</string>
+	<string name="backdrop_beach">Beach</string>
+	<string name="backdrop_mountains">Mountains</string>
+	<string name="backdrop_countryside">Countryside</string>
+
+	<!-- Temperature unit labels -->
+	<string name="unit_celsius">°C</string>
+	<string name="unit_fahrenheit">°F</string>
+
+	<!-- Weather condition labels (WMO codes) -->
+	<string name="weather_clear_sky">Clear sky</string>
+	<string name="weather_mainly_clear">Mainly clear</string>
+	<string name="weather_partly_cloudy">Partly cloudy</string>
+	<string name="weather_overcast">Overcast</string>
+	<string name="weather_fog">Fog</string>
+	<string name="weather_icy_fog">Icy fog</string>
+	<string name="weather_light_drizzle">Light drizzle</string>
+	<string name="weather_drizzle">Drizzle</string>
+	<string name="weather_dense_drizzle">Dense drizzle</string>
+	<string name="weather_light_freezing_drizzle">Light freezing drizzle</string>
+	<string name="weather_freezing_drizzle">Freezing drizzle</string>
+	<string name="weather_light_rain">Light rain</string>
+	<string name="weather_rain">Rain</string>
+	<string name="weather_heavy_rain">Heavy rain</string>
+	<string name="weather_light_freezing_rain">Light freezing rain</string>
+	<string name="weather_freezing_rain">Freezing rain</string>
+	<string name="weather_light_snow">Light snow</string>
+	<string name="weather_snow">Snow</string>
+	<string name="weather_heavy_snow">Heavy snow</string>
+	<string name="weather_snow_grains">Snow grains</string>
+	<string name="weather_light_showers">Light showers</string>
+	<string name="weather_showers">Showers</string>
+	<string name="weather_violent_showers">Violent showers</string>
+	<string name="weather_snow_showers">Snow showers</string>
+	<string name="weather_heavy_snow_showers">Heavy snow showers</string>
+	<string name="weather_thunderstorm">Thunderstorm</string>
+	<string name="weather_thunderstorm_with_hail">Thunderstorm with hail</string>
 </resources>

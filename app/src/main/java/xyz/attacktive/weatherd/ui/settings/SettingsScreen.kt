@@ -45,10 +45,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.BuildConfig
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
@@ -67,10 +69,10 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 	Scaffold(
 		topBar = {
 			TopAppBar(
-				title = { Text("Settings") },
+				title = { Text(stringResource(R.string.settings_title)) },
 				navigationIcon = {
 					IconButton(onClick = onNavigateBack) {
-						Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+						Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.content_description_back))
 					}
 				}
 			)
@@ -124,7 +126,7 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 private fun RefreshIntervalSection(settings: AppSettings, onSave: (AppSettings) -> Unit) {
 	var expanded by remember { mutableStateOf(false) }
 
-	SectionLabel("Weather refresh interval")
+	SectionLabel(stringResource(R.string.section_refresh_interval))
 
 	ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
 		OutlinedTextField(
@@ -159,7 +161,7 @@ private fun RefreshIntervalSection(settings: AppSettings, onSave: (AppSettings) 
 private fun FrameRateSection(settings: AppSettings, onSave: (AppSettings) -> Unit) {
 	var expanded by remember { mutableStateOf(false) }
 
-	SectionLabel("Animation frame rate")
+	SectionLabel(stringResource(R.string.section_frame_rate))
 
 	ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
 		OutlinedTextField(
@@ -188,7 +190,7 @@ private fun FrameRateSection(settings: AppSettings, onSave: (AppSettings) -> Uni
 		}
 	}
 
-	HintText("Fewer frames means less drawing work, which helps on slower phones. The scene still moves at the same speed, just less smoothly.")
+	HintText(stringResource(R.string.hint_frame_rate))
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -196,7 +198,7 @@ private fun FrameRateSection(settings: AppSettings, onSave: (AppSettings) -> Uni
 private fun BackdropSection(settings: AppSettings, onSave: (AppSettings) -> Unit) {
 	var expanded by remember { mutableStateOf(false) }
 
-	SectionLabel("Backdrop scenery")
+	SectionLabel(stringResource(R.string.section_backdrop))
 
 	ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
 		OutlinedTextField(
@@ -228,11 +230,11 @@ private fun BackdropSection(settings: AppSettings, onSave: (AppSettings) -> Unit
 
 @Composable
 private fun LabelsSection(settings: AppSettings, onSave: (AppSettings) -> Unit) {
-	SectionLabel("Labels")
+	SectionLabel(stringResource(R.string.section_labels))
 
 	ToggleSetting(
-		label = "Show current weather",
-		subtitle = "e.g. \"Light rain · 23°\"",
+		label = stringResource(R.string.label_show_weather),
+		subtitle = stringResource(R.string.subtitle_show_weather),
 		checked = settings.showWeatherLabel,
 		onToggle = { onSave(settings.copy(showWeatherLabel = it)) }
 	)
@@ -262,8 +264,8 @@ private fun LabelsSection(settings: AppSettings, onSave: (AppSettings) -> Unit) 
 	}
 
 	ToggleSetting(
-		label = "Show location name",
-		subtitle = "The place the weather is for",
+		label = stringResource(R.string.label_show_location),
+		subtitle = stringResource(R.string.subtitle_show_location),
 		checked = settings.showLocationLabel,
 		onToggle = { onSave(settings.copy(showLocationLabel = it)) }
 	)
@@ -278,11 +280,11 @@ private fun LocationSection(
 	onSelectPlace: (GeoPlace) -> Unit,
 	onClearManualLocation: () -> Unit
 ) {
-	SectionLabel("Location")
+	SectionLabel(stringResource(R.string.section_location))
 
 	ToggleSetting(
-		label = "Use device location",
-		subtitle = "Turn off to pick a city manually",
+		label = stringResource(R.string.label_use_device_location),
+		subtitle = stringResource(R.string.subtitle_use_device_location),
 		checked = settings.useDeviceLocation,
 		onToggle = onToggleDeviceLocation
 	)
@@ -311,12 +313,12 @@ private fun CitySearchField(onSearch: (String) -> Unit) {
 	OutlinedTextField(
 		value = query,
 		onValueChange = { query = it },
-		label = { Text("City") },
-		placeholder = { Text("e.g. Tokyo") },
+		label = { Text(stringResource(R.string.label_city)) },
+		placeholder = { Text(stringResource(R.string.placeholder_city)) },
 		singleLine = true,
 		trailingIcon = {
 			IconButton(onClick = { onSearch(query) }) {
-				Icon(Icons.Filled.Search, contentDescription = "Search")
+				Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.content_description_search))
 			}
 		},
 		keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -339,7 +341,7 @@ private fun CitySearchResults(state: CitySearchState, onSelectPlace: (GeoPlace) 
 			CircularProgressIndicator()
 		}
 
-		CitySearchState.Empty -> HintText("No matching city found.")
+		CitySearchState.Empty -> HintText(stringResource(R.string.city_search_empty))
 
 		is CitySearchState.Error -> HintText(state.message)
 
@@ -363,12 +365,12 @@ private fun CitySearchResults(state: CitySearchState, onSelectPlace: (GeoPlace) 
 private fun CurrentManualLocation(label: String, onClear: () -> Unit) {
 	Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
 		Column(modifier = Modifier.weight(1f)) {
-			SectionLabel("Current city")
+			SectionLabel(stringResource(R.string.section_current_city))
 			Text(label)
 		}
 
 		IconButton(onClick = onClear) {
-			Icon(Icons.Filled.Clear, contentDescription = "Clear city")
+			Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.content_description_clear_city))
 		}
 	}
 }
@@ -388,7 +390,7 @@ private fun ToggleSetting(label: String, subtitle: String, checked: Boolean, onT
 @Composable
 private fun VersionFooter() {
 	Text(
-		text = "weatherd ${BuildConfig.VERSION_NAME}",
+		text = stringResource(R.string.version_footer, BuildConfig.VERSION_NAME),
 		style = MaterialTheme.typography.bodyMedium,
 		color = MaterialTheme.colorScheme.onSurfaceVariant,
 		textAlign = TextAlign.Center,
@@ -418,29 +420,33 @@ private fun HintText(text: String) {
 	)
 }
 
+@Composable
 private fun formatInterval(minutes: Int) = when {
-	minutes < 60 -> "$minutes min"
-	minutes == 60 -> "1 hour"
-	minutes % 60 == 0 -> "${minutes / 60} hours"
-	else -> "$minutes min"
+	minutes < 60 -> stringResource(R.string.interval_minutes, minutes)
+	minutes == 60 -> stringResource(R.string.interval_one_hour)
+	minutes % 60 == 0 -> stringResource(R.string.interval_hours, minutes / 60)
+	else -> stringResource(R.string.interval_minutes, minutes)
 }
 
+@Composable
 private fun formatFrameRate(cap: FrameRateCap) = when (cap) {
-	FrameRateCap.UNCAPPED -> "Every frame"
-	FrameRateCap.FPS_30 -> "30 fps"
-	FrameRateCap.FPS_15 -> "15 fps"
-	FrameRateCap.FPS_10 -> "10 fps"
+	FrameRateCap.UNCAPPED -> stringResource(R.string.frame_rate_uncapped)
+	FrameRateCap.FPS_30 -> stringResource(R.string.frame_rate_30)
+	FrameRateCap.FPS_15 -> stringResource(R.string.frame_rate_15)
+	FrameRateCap.FPS_10 -> stringResource(R.string.frame_rate_10)
 }
 
+@Composable
 private fun formatBackdrop(scene: BackdropScene) = when (scene) {
-	BackdropScene.NONE -> "None"
-	BackdropScene.METROPOLIS -> "Metropolis"
-	BackdropScene.BEACH -> "Beach"
-	BackdropScene.MOUNTAINS -> "Mountains"
-	BackdropScene.COUNTRYSIDE -> "Countryside"
+	BackdropScene.NONE -> stringResource(R.string.backdrop_none)
+	BackdropScene.METROPOLIS -> stringResource(R.string.backdrop_metropolis)
+	BackdropScene.BEACH -> stringResource(R.string.backdrop_beach)
+	BackdropScene.MOUNTAINS -> stringResource(R.string.backdrop_mountains)
+	BackdropScene.COUNTRYSIDE -> stringResource(R.string.backdrop_countryside)
 }
 
+@Composable
 private fun formatUnit(unit: TemperatureUnit) = when (unit) {
-	TemperatureUnit.CELSIUS -> "°C"
-	TemperatureUnit.FAHRENHEIT -> "°F"
+	TemperatureUnit.CELSIUS -> stringResource(R.string.unit_celsius)
+	TemperatureUnit.FAHRENHEIT -> stringResource(R.string.unit_fahrenheit)
 }

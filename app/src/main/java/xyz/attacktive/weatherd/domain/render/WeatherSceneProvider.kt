@@ -1,5 +1,7 @@
 package xyz.attacktive.weatherd.domain.render
 
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.LocalTime
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -24,7 +26,7 @@ import xyz.attacktive.weatherd.util.AppLogger
  * Thread-safe: [refresh] runs off the render thread and publishes the snapshot through a volatile that [paramsFor] reads.
  */
 @Singleton
-class WeatherSceneProvider @Inject constructor(private val locationRepository: LocationRepository, private val weatherRepository: WeatherRepository, private val reverseGeocodingRepository: ReverseGeocodingRepository, private val settingsRepository: SettingsRepository, private val logger: AppLogger) {
+class WeatherSceneProvider @Inject constructor(@ApplicationContext private val context: Context, private val locationRepository: LocationRepository, private val weatherRepository: WeatherRepository, private val reverseGeocodingRepository: ReverseGeocodingRepository, private val settingsRepository: SettingsRepository, private val logger: AppLogger) {
 	@Volatile private var snapshot: WeatherSnapshot? = null
 	@Volatile private var lastRefreshEpochSeconds = 0L
 	@Volatile private var lastLocationKey: String? = null
@@ -158,13 +160,13 @@ class WeatherSceneProvider @Inject constructor(private val locationRepository: L
 
 	/** "Rain · 10°" — or the bare temperature when the code falls outside the label table. */
 	private fun weatherText(observation: WeatherObservation): String {
-		val label = weatherLabelFor(observation.weatherCode)
+		val labelResId = weatherLabelFor(observation.weatherCode)
 		val temperature = temperatureUnit.format(observation.temperatureCelsius)
 
-		return if (label == null) {
+		return if (labelResId == null) {
 			temperature
 		} else {
-			"$label · $temperature"
+			"${context.getString(labelResId)} · $temperature"
 		}
 	}
 
