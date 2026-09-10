@@ -2,6 +2,7 @@ package xyz.attacktive.weatherd.domain.render
 
 import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.random.Random
@@ -939,20 +940,26 @@ class SceneRenderer {
 		val centerY = height * celestialHeightFraction(params.dayPhase, params.celestialProgress)
 
 		/*
+		 * Both discs size off the shorter side, so turning the device moves them without resizing them.
+		 * Sizing off width alone more than doubled the sun against the screen on rotation, which no real sky does.
+		 */
+		val span = min(width, height)
+
+		/*
 		 * Two-sine breathing: a slow deep swell with a faster shimmer on top, so the glow visibly blooms and recedes instead of subtly wobbling.
 		 * Both bodies share it, so a scene never has two glows drifting out of step.
 		 */
 		val pulse = 0.5f + 0.35f * sin(timeSeconds * 0.8f) + 0.15f * sin(timeSeconds * 2.1f)
 
 		if (params.dayPhase == DayPhase.NIGHT) {
-			drawMoon(canvas, width, centerX, centerY, params, pulse)
+			drawMoon(canvas, span, centerX, centerY, params, pulse)
 		} else {
-			drawSun(canvas, width, height, centerX, centerY, params, pulse)
+			drawSun(canvas, span, width, height, centerX, centerY, params, pulse)
 		}
 	}
 
-	private fun drawMoon(canvas: Canvas, width: Float, centerX: Float, centerY: Float, params: SceneParams, pulse: Float) {
-		val radius = width * MOON_RADIUS_FRACTION
+	private fun drawMoon(canvas: Canvas, span: Float, centerX: Float, centerY: Float, params: SceneParams, pulse: Float) {
+		val radius = span * MOON_RADIUS_FRACTION
 		val core = Color.rgb(232, 238, 247)
 
 		// A crescent sheds far less light than a full disc, so the whole glow scales with the lit fraction.
@@ -980,8 +987,8 @@ class SceneRenderer {
 	 * Its glow composites with [PorterDuff.Mode.SCREEN], so the bloom lifts the sky it crosses instead of laying opaque paint over it.
 	 * A camera's own artifacts sell the brightness: an anamorphic streak through the disc, and ghosts marching along the axis from the sun through the middle of the frame.
 	 */
-	private fun drawSun(canvas: Canvas, width: Float, height: Float, centerX: Float, centerY: Float, params: SceneParams, pulse: Float) {
-		val radius = width * SUN_RADIUS_FRACTION
+	private fun drawSun(canvas: Canvas, span: Float, width: Float, height: Float, centerX: Float, centerY: Float, params: SceneParams, pulse: Float) {
+		val radius = span * SUN_RADIUS_FRACTION
 		val core = sunColor(params.dayPhase)
 		val halo = tile("celestialHalo", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildHaloSprite(it, core) }
 
@@ -2021,7 +2028,7 @@ class SceneRenderer {
 		/** Edge length of the pre-rendered moon sprite. */
 		private const val MOON_SPRITE_SIZE = 256
 
-		/** The moon's radius as a fraction of screen width; it stays the generous disc it always was, because a moon genuinely does read large. */
+		/** The moon's radius as a fraction of the screen's shorter side; it stays the generous disc it always was, because a moon genuinely does read large. */
 		private const val MOON_RADIUS_FRACTION = 0.1f
 
 		/** The moon disc fills this fraction of its sprite, leaving margin so the anti-aliased limb never clips at the bitmap edge. */
@@ -2031,7 +2038,7 @@ class SceneRenderer {
 		private const val MOON_PHASE_STEPS = 64
 
 		/**
-		 * The sun's radius as a fraction of screen width, less than half the moon's.
+		 * The sun's radius as a fraction of the screen's shorter side, less than half the moon's.
 		 * A sun is a hard little point, and an eye reads a wide disc as a ball however well it is shaded — the brightness has to come from the bloom, not the diameter.
 		 */
 		private const val SUN_RADIUS_FRACTION = 0.045f
