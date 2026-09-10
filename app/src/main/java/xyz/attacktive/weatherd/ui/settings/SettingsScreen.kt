@@ -188,7 +188,7 @@ private fun FrameRateSection(settings: AppSettings, onSave: (AppSettings) -> Uni
 		}
 	}
 
-	HintText("Drawing fewer frames costs less battery. The scene still moves at the same speed, just less smoothly.")
+	HintText("Fewer frames means less drawing work, which helps on slower phones. The scene still moves at the same speed, just less smoothly.")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
