@@ -1,3 +1,86 @@
 <resources>
-	<!-- Translations are maintained separately; this file is the skeleton. -->
+	<string name="app_name">Weatherd</string>
+
+	<!-- Home screen -->
+	<string name="set_as_live_wallpaper">设置为动态壁纸</string>
+	<string name="wallpaper_chooser_unavailable">无法打开壁纸选择器</string>
+	<string name="content_description_settings">设置</string>
+	<string name="scene_preview">场景预览</string>
+	<string name="debug_mode_live">实时</string>
+	<string name="debug_mode_debug">调试</string>
+
+	<!-- Settings screen -->
+	<string name="settings_title">设置</string>
+	<string name="content_description_back">返回</string>
+	<string name="content_description_search">搜索</string>
+	<string name="content_description_clear_city">清除城市</string>
+	<string name="section_refresh_interval">天气刷新间隔</string>
+	<string name="section_frame_rate">动画帧率</string>
+	<string name="section_backdrop">背景风光</string>
+	<string name="section_labels">标签</string>
+	<string name="section_location">位置</string>
+	<string name="section_current_city">当前城市</string>
+	<string name="label_show_weather">显示当前天气</string>
+	<string name="subtitle_show_weather">例如：\"小雨 · 23°\"</string>
+	<string name="label_show_location">显示位置名称</string>
+	<string name="subtitle_show_location">天气所属的地点</string>
+	<string name="label_use_device_location">使用设备位置</string>
+	<string name="subtitle_use_device_location">关闭以手动选择城市</string>
+	<string name="label_city">城市</string>
+	<string name="placeholder_city">例如：东京</string>
+	<string name="city_search_empty">未找到匹配的城市。</string>
+	<string name="city_search_failed">搜索失败</string>
+	<string name="hint_frame_rate">降低帧率可以减轻渲染负载，有助于在性能较低的手机上保持流畅。场景移动速度保持不变，但画面流畅度会有所降低。</string>
+	<string name="version_footer">weatherd %1$s</string>
+
+	<!-- Refresh interval formatting -->
+	<string name="interval_minutes">%1$d 分钟</string>
+	<string name="interval_one_hour">1 小时</string>
+	<string name="interval_hours">%1$d 小时</string>
+
+	<!-- Frame rate options -->
+	<string name="frame_rate_uncapped">不限制</string>
+	<string name="frame_rate_30">30 fps</string>
+	<string name="frame_rate_15">15 fps</string>
+	<string name="frame_rate_10">10 fps</string>
+
+	<!-- Backdrop options -->
+	<string name="backdrop_none">无</string>
+	<string name="backdrop_metropolis">大都市</string>
+	<string name="backdrop_beach">海滩</string>
+	<string name="backdrop_mountains">山峦</string>
+	<string name="backdrop_countryside">乡村</string>
+
+	<!-- Temperature unit labels -->
+	<string name="unit_celsius">°C</string>
+	<string name="unit_fahrenheit">°F</string>
+
+	<!-- Weather condition labels (WMO codes) -->
+	<string name="weather_clear_sky">晴空万里</string>
+	<string name="weather_mainly_clear">大部晴朗</string>
+	<string name="weather_partly_cloudy">多云</string>
+	<string name="weather_overcast">阴天</string>
+	<string name="weather_fog">雾</string>
+	<string name="weather_icy_fog">冻雾</string>
+	<string name="weather_light_drizzle">微量毛毛雨</string>
+	<string name="weather_drizzle">毛毛雨</string>
+	<string name="weather_dense_drizzle">密集毛毛雨</string>
+	<string name="weather_light_freezing_drizzle">微量冻毛毛雨</string>
+	<string name="weather_freezing_drizzle">冻毛毛雨</string>
+	<string name="weather_light_rain">小雨</string>
+	<string name="weather_rain">中雨</string>
+	<string name="weather_heavy_rain">大雨</string>
+	<string name="weather_light_freezing_rain">微量冻雨</string>
+	<string name="weather_freezing_rain">冻雨</string>
+	<string name="weather_light_snow">小雪</string>
+	<string name="weather_snow">中雪</string>
+	<string name="weather_heavy_snow">大雪</string>
+	<string name="weather_snow_grains">米雪</string>
+	<string name="weather_light_showers">微量阵雨</string>
+	<string name="weather_showers">阵雨</string>
+	<string name="weather_violent_showers">强阵雨</string>
+	<string name="weather_snow_showers">阵雪</string>
+	<string name="weather_heavy_snow_showers">强阵雪</string>
+	<string name="weather_thunderstorm">雷阵雨</string>
+	<string name="weather_thunderstorm_with_hail">雷雨伴有冰雹</string>
 </resources>

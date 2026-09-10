@@ -1,3 +1,86 @@
 <resources>
-	<!-- Translations are maintained separately; this file is the skeleton. -->
+	<string name="app_name">Weatherd</string>
+
+	<!-- Home screen -->
+	<string name="set_as_live_wallpaper">Définir comme fond d\'écran animé</string>
+	<string name="wallpaper_chooser_unavailable">Impossible d\'ouvrir le sélecteur de fond d\'écran</string>
+	<string name="content_description_settings">Paramètres</string>
+	<string name="scene_preview">Aperçu de la scène</string>
+	<string name="debug_mode_live">En direct</string>
+	<string name="debug_mode_debug">Débogage</string>
+
+	<!-- Settings screen -->
+	<string name="settings_title">Paramètres</string>
+	<string name="content_description_back">Retour</string>
+	<string name="content_description_search">Rechercher</string>
+	<string name="content_description_clear_city">Effacer la ville</string>
+	<string name="section_refresh_interval">Intervalle d\'actualisation météo</string>
+	<string name="section_frame_rate">Fréquence d\'images de l\'animation</string>
+	<string name="section_backdrop">Décor en arrière-plan</string>
+	<string name="section_labels">Libellés</string>
+	<string name="section_location">Emplacement</string>
+	<string name="section_current_city">Ville actuelle</string>
+	<string name="label_show_weather">Afficher la météo actuelle</string>
+	<string name="subtitle_show_weather">ex. \"Pluie légère · 23°\"</string>
+	<string name="label_show_location">Afficher le nom du lieu</string>
+	<string name="subtitle_show_location">Le lieu correspondant aux prévisions</string>
+	<string name="label_use_device_location">Utiliser la position de l\'appareil</string>
+	<string name="subtitle_use_device_location">Désactiver pour choisir manuellement une ville</string>
+	<string name="label_city">Ville</string>
+	<string name="placeholder_city">ex. Tokyo</string>
+	<string name="city_search_empty">Aucune ville correspondante trouvée.</string>
+	<string name="city_search_failed">Échec de la recherche</string>
+	<string name="hint_frame_rate">Réduire le nombre d\'images diminue la charge graphique, utile pour les appareils moins puissants. La scène bouge à la même vitesse, mais de façon moins fluide.</string>
+	<string name="version_footer">weatherd %1$s</string>
+
+	<!-- Refresh interval formatting -->
+	<string name="interval_minutes">%1$d min</string>
+	<string name="interval_one_hour">1 heure</string>
+	<string name="interval_hours">%1$d heures</string>
+
+	<!-- Frame rate options -->
+	<string name="frame_rate_uncapped">Chaque image</string>
+	<string name="frame_rate_30">30 fps</string>
+	<string name="frame_rate_15">15 fps</string>
+	<string name="frame_rate_10">10 fps</string>
+
+	<!-- Backdrop options -->
+	<string name="backdrop_none">Aucun</string>
+	<string name="backdrop_metropolis">Métropole</string>
+	<string name="backdrop_beach">Plage</string>
+	<string name="backdrop_mountains">Montagnes</string>
+	<string name="backdrop_countryside">Campagne</string>
+
+	<!-- Temperature unit labels -->
+	<string name="unit_celsius">°C</string>
+	<string name="unit_fahrenheit">°F</string>
+
+	<!-- Weather condition labels (WMO codes) -->
+	<string name="weather_clear_sky">Ciel dégagé</string>
+	<string name="weather_mainly_clear">Ciel globalement dégagé</string>
+	<string name="weather_partly_cloudy">Partiellement nuageux</string>
+	<string name="weather_overcast">Couvert</string>
+	<string name="weather_fog">Brouillard</string>
+	<string name="weather_icy_fog">Brouillard givrant</string>
+	<string name="weather_light_drizzle">Bruine légère</string>
+	<string name="weather_drizzle">Bruine</string>
+	<string name="weather_dense_drizzle">Bruine dense</string>
+	<string name="weather_light_freezing_drizzle">Bruine verglaçante légère</string>
+	<string name="weather_freezing_drizzle">Bruine verglaçante</string>
+	<string name="weather_light_rain">Pluie légère</string>
+	<string name="weather_rain">Pluie</string>
+	<string name="weather_heavy_rain">Forte pluie</string>
+	<string name="weather_light_freezing_rain">Pluie verglaçante légère</string>
+	<string name="weather_freezing_rain">Pluie verglaçante</string>
+	<string name="weather_light_snow">Neige légère</string>
+	<string name="weather_snow">Neige</string>
+	<string name="weather_heavy_snow">Forte neige</string>
+	<string name="weather_snow_grains">Neige en grains</string>
+	<string name="weather_light_showers">Averses légères</string>
+	<string name="weather_showers">Averses</string>
+	<string name="weather_violent_showers">Averses violentes</string>
+	<string name="weather_snow_showers">Averses de neige</string>
+	<string name="weather_heavy_snow_showers">Fortes averses de neige</string>
+	<string name="weather_thunderstorm">Orage</string>
+	<string name="weather_thunderstorm_with_hail">Orage de grêle</string>
 </resources>

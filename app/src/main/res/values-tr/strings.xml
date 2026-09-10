@@ -1,3 +1,86 @@
 <resources>
-	<!-- Translations are maintained separately; this file is the skeleton. -->
+	<string name="app_name">Weatherd</string>
+
+	<!-- Home screen -->
+	<string name="set_as_live_wallpaper">Canlı duvar kâğıdı olarak ayarla</string>
+	<string name="wallpaper_chooser_unavailable">Duvar kâğıdı seçici açılamıyor</string>
+	<string name="content_description_settings">Ayarlar</string>
+	<string name="scene_preview">Sahne önizlemesi</string>
+	<string name="debug_mode_live">Canlı</string>
+	<string name="debug_mode_debug">Hata ayıklama</string>
+
+	<!-- Settings screen -->
+	<string name="settings_title">Ayarlar</string>
+	<string name="content_description_back">Geri</string>
+	<string name="content_description_search">Ara</string>
+	<string name="content_description_clear_city">Şehri temizle</string>
+	<string name="section_refresh_interval">Hava durumu yenileme sıklığı</string>
+	<string name="section_frame_rate">Animasyon kare hızı</string>
+	<string name="section_backdrop">Arka plan manzarası</string>
+	<string name="section_labels">Etiketler</string>
+	<string name="section_location">Konum</string>
+	<string name="section_current_city">Geçerli şehir</string>
+	<string name="label_show_weather">Geçerli hava durumunu göster</string>
+	<string name="subtitle_show_weather">örn. \"Hafif yağmur · 23°\"</string>
+	<string name="label_show_location">Konum adını göster</string>
+	<string name="subtitle_show_location">Hava durumunun ait olduğu yer</string>
+	<string name="label_use_device_location">Cihaz konumunu kullan</string>
+	<string name="subtitle_use_device_location">Manuel olarak bir şehir seçmek için kapatın</string>
+	<string name="label_city">Şehir</string>
+	<string name="placeholder_city">örn. Tokyo</string>
+	<string name="city_search_empty">Eşleşen şehir bulunamadı.</string>
+	<string name="city_search_failed">Arama başarısız oldu</string>
+	<string name="hint_frame_rate">Kare hızını düşürmek çizim yükünü azaltır, bu da daha yavaş telefonlarda yardımcı olur. Sahne aynı hızda hareket eder, ancak daha az akıcı görünür.</string>
+	<string name="version_footer">weatherd %1$s</string>
+
+	<!-- Refresh interval formatting -->
+	<string name="interval_minutes">%1$d dk.</string>
+	<string name="interval_one_hour">1 saat</string>
+	<string name="interval_hours">%1$d saat</string>
+
+	<!-- Frame rate options -->
+	<string name="frame_rate_uncapped">Her kare</string>
+	<string name="frame_rate_30">30 fps</string>
+	<string name="frame_rate_15">15 fps</string>
+	<string name="frame_rate_10">10 fps</string>
+
+	<!-- Backdrop options -->
+	<string name="backdrop_none">Yok</string>
+	<string name="backdrop_metropolis">Metropol</string>
+	<string name="backdrop_beach">Plaj</string>
+	<string name="backdrop_mountains">Dağlar</string>
+	<string name="backdrop_countryside">Kırsal</string>
+
+	<!-- Temperature unit labels -->
+	<string name="unit_celsius">°C</string>
+	<string name="unit_fahrenheit">°F</string>
+
+	<!-- Weather condition labels (WMO codes) -->
+	<string name="weather_clear_sky">Açık hava</string>
+	<string name="weather_mainly_clear">Çoğunlukla açık</string>
+	<string name="weather_partly_cloudy">Parçalı bulutlu</string>
+	<string name="weather_overcast">Kapalı</string>
+	<string name="weather_fog">Sis</string>
+	<string name="weather_icy_fog">Buz sisi</string>
+	<string name="weather_light_drizzle">Hafif çiseleme</string>
+	<string name="weather_drizzle">Çiseleme</string>
+	<string name="weather_dense_drizzle">Yoğun çiseleme</string>
+	<string name="weather_light_freezing_drizzle">Hafif dondurucu çiseleme</string>
+	<string name="weather_freezing_drizzle">Dondurucu çiseleme</string>
+	<string name="weather_light_rain">Hafif yağmur</string>
+	<string name="weather_rain">Yağmur</string>
+	<string name="weather_heavy_rain">Şiddetli yağmur</string>
+	<string name="weather_light_freezing_rain">Hafif dondurucu yağmur</string>
+	<string name="weather_freezing_rain">Dondurucu yağmur</string>
+	<string name="weather_light_snow">Hafif kar</string>
+	<string name="weather_snow">Kar</string>
+	<string name="weather_heavy_snow">Yoğun kar</string>
+	<string name="weather_snow_grains">Kar taneleri</string>
+	<string name="weather_light_showers">Hafif sağanak</string>
+	<string name="weather_showers">Sağanak</string>
+	<string name="weather_violent_showers">Şiddetli sağanak</string>
+	<string name="weather_snow_showers">Kar sağanağı</string>
+	<string name="weather_heavy_snow_showers">Yoğun kar sağanağı</string>
+	<string name="weather_thunderstorm">Gök gürültülü fırtına</string>
+	<string name="weather_thunderstorm_with_hail">Dolu ile karışık gök gürültülü fırtına</string>
 </resources>

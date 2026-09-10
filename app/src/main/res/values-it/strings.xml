@@ -1,3 +1,86 @@
 <resources>
-	<!-- Translations are maintained separately; this file is the skeleton. -->
+	<string name="app_name">Weatherd</string>
+
+	<!-- Home screen -->
+	<string name="set_as_live_wallpaper">Imposta come sfondo animato</string>
+	<string name="wallpaper_chooser_unavailable">Impossibile aprire la selezione sfondi</string>
+	<string name="content_description_settings">Impostazioni</string>
+	<string name="scene_preview">Anteprima scena</string>
+	<string name="debug_mode_live">Live</string>
+	<string name="debug_mode_debug">Debug</string>
+
+	<!-- Settings screen -->
+	<string name="settings_title">Impostazioni</string>
+	<string name="content_description_back">Indietro</string>
+	<string name="content_description_search">Cerca</string>
+	<string name="content_description_clear_city">Cancella città</string>
+	<string name="section_refresh_interval">Intervallo di aggiornamento meteo</string>
+	<string name="section_frame_rate">Frequenza fotogrammi animazione</string>
+	<string name="section_backdrop">Panorama di sfondo</string>
+	<string name="section_labels">Etichette</string>
+	<string name="section_location">Posizione</string>
+	<string name="section_current_city">Città attuale</string>
+	<string name="label_show_weather">Mostra meteo attuale</string>
+	<string name="subtitle_show_weather">es. \"Pioggia leggera · 23°\"</string>
+	<string name="label_show_location">Mostra nome della località</string>
+	<string name="subtitle_show_location">Il luogo a cui si riferisce il meteo</string>
+	<string name="label_use_device_location">Usa la posizione del dispositivo</string>
+	<string name="subtitle_use_device_location">Disattiva per scegliere manualmente una città</string>
+	<string name="label_city">Città</string>
+	<string name="placeholder_city">es. Tokyo</string>
+	<string name="city_search_empty">Nessuna città corrispondente trovata.</string>
+	<string name="city_search_failed">Ricerca non riuscita</string>
+	<string name="hint_frame_rate">Ridurre i fotogrammi diminuisce il carico grafico, utile sui telefoni più lenti. La scena si muove alla stessa velocità, ma in modo meno fluido.</string>
+	<string name="version_footer">weatherd %1$s</string>
+
+	<!-- Refresh interval formatting -->
+	<string name="interval_minutes">%1$d min</string>
+	<string name="interval_one_hour">1 ora</string>
+	<string name="interval_hours">%1$d ore</string>
+
+	<!-- Frame rate options -->
+	<string name="frame_rate_uncapped">Ogni fotogramma</string>
+	<string name="frame_rate_30">30 fps</string>
+	<string name="frame_rate_15">15 fps</string>
+	<string name="frame_rate_10">10 fps</string>
+
+	<!-- Backdrop options -->
+	<string name="backdrop_none">Nessuno</string>
+	<string name="backdrop_metropolis">Metropoli</string>
+	<string name="backdrop_beach">Spiaggia</string>
+	<string name="backdrop_mountains">Montagne</string>
+	<string name="backdrop_countryside">Campagna</string>
+
+	<!-- Temperature unit labels -->
+	<string name="unit_celsius">°C</string>
+	<string name="unit_fahrenheit">°F</string>
+
+	<!-- Weather condition labels (WMO codes) -->
+	<string name="weather_clear_sky">Cielo sereno</string>
+	<string name="weather_mainly_clear">Prevalentemente sereno</string>
+	<string name="weather_partly_cloudy">Parzialmente nuvoloso</string>
+	<string name="weather_overcast">Coperto</string>
+	<string name="weather_fog">Nebbia</string>
+	<string name="weather_icy_fog">Nebbia ghiacciata</string>
+	<string name="weather_light_drizzle">Pioviggine leggera</string>
+	<string name="weather_drizzle">Pioviggine</string>
+	<string name="weather_dense_drizzle">Pioviggine fitta</string>
+	<string name="weather_light_freezing_drizzle">Pioviggine gelata leggera</string>
+	<string name="weather_freezing_drizzle">Pioviggine gelata</string>
+	<string name="weather_light_rain">Pioggia leggera</string>
+	<string name="weather_rain">Pioggia</string>
+	<string name="weather_heavy_rain">Pioggia forte</string>
+	<string name="weather_light_freezing_rain">Pioggia gelata leggera</string>
+	<string name="weather_freezing_rain">Pioggia gelata</string>
+	<string name="weather_light_snow">Neve leggera</string>
+	<string name="weather_snow">Neve</string>
+	<string name="weather_heavy_snow">Neve forte</string>
+	<string name="weather_snow_grains">Granuli di neve</string>
+	<string name="weather_light_showers">Rovesci leggeri</string>
+	<string name="weather_showers">Rovesci</string>
+	<string name="weather_violent_showers">Rovesci violenti</string>
+	<string name="weather_snow_showers">Rovesci di neve</string>
+	<string name="weather_heavy_snow_showers">Forti rovesci di neve</string>
+	<string name="weather_thunderstorm">Temporale</string>
+	<string name="weather_thunderstorm_with_hail">Temporale con grandine</string>
 </resources>

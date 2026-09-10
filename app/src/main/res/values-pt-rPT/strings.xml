@@ -1,3 +1,86 @@
 <resources>
-	<!-- Translations are maintained separately; this file is the skeleton. -->
+	<string name="app_name">Weatherd</string>
+
+	<!-- Home screen -->
+	<string name="set_as_live_wallpaper">Definir como fundo animado</string>
+	<string name="wallpaper_chooser_unavailable">Não foi possível abrir o seletor de fundos</string>
+	<string name="content_description_settings">Definições</string>
+	<string name="scene_preview">Pré-visualização da cena</string>
+	<string name="debug_mode_live">Direto</string>
+	<string name="debug_mode_debug">Depuração</string>
+
+	<!-- Settings screen -->
+	<string name="settings_title">Definições</string>
+	<string name="content_description_back">Voltar</string>
+	<string name="content_description_search">Pesquisar</string>
+	<string name="content_description_clear_city">Limpar cidade</string>
+	<string name="section_refresh_interval">Intervalo de atualização meteorológica</string>
+	<string name="section_frame_rate">Taxa de fotogramas da animação</string>
+	<string name="section_backdrop">Cenário de fundo</string>
+	<string name="section_labels">Etiquetas</string>
+	<string name="section_location">Localização</string>
+	<string name="section_current_city">Cidade atual</string>
+	<string name="label_show_weather">Mostrar meteorologia atual</string>
+	<string name="subtitle_show_weather">ex.: \"Chuva fraca · 23°\"</string>
+	<string name="label_show_location">Mostrar nome da localização</string>
+	<string name="subtitle_show_location">O local a que a meteorologia diz respeito</string>
+	<string name="label_use_device_location">Utilizar localização do dispositivo</string>
+	<string name="subtitle_use_device_location">Desative para escolher uma cidade manualmente</string>
+	<string name="label_city">Cidade</string>
+	<string name="placeholder_city">ex.: Tóquio</string>
+	<string name="city_search_empty">Nenhuma cidade correspondente encontrada.</string>
+	<string name="city_search_failed">Falha na pesquisa</string>
+	<string name="hint_frame_rate">Menos fotogramas reduzem o processamento gráfico, o que ajuda em telemóveis mais lentos. A cena move-se à mesma velocidade, apenas com menor fluidez.</string>
+	<string name="version_footer">weatherd %1$s</string>
+
+	<!-- Refresh interval formatting -->
+	<string name="interval_minutes">%1$d min.</string>
+	<string name="interval_one_hour">1 hora</string>
+	<string name="interval_hours">%1$d horas</string>
+
+	<!-- Frame rate options -->
+	<string name="frame_rate_uncapped">Todos os fotogramas</string>
+	<string name="frame_rate_30">30 fps</string>
+	<string name="frame_rate_15">15 fps</string>
+	<string name="frame_rate_10">10 fps</string>
+
+	<!-- Backdrop options -->
+	<string name="backdrop_none">Nenhum</string>
+	<string name="backdrop_metropolis">Metrópole</string>
+	<string name="backdrop_beach">Praia</string>
+	<string name="backdrop_mountains">Montanhas</string>
+	<string name="backdrop_countryside">Campo</string>
+
+	<!-- Temperature unit labels -->
+	<string name="unit_celsius">°C</string>
+	<string name="unit_fahrenheit">°F</string>
+
+	<!-- Weather condition labels (WMO codes) -->
+	<string name="weather_clear_sky">Céu limpo</string>
+	<string name="weather_mainly_clear">Maioritariamente limpo</string>
+	<string name="weather_partly_cloudy">Parcialmente nublado</string>
+	<string name="weather_overcast">Encoberto</string>
+	<string name="weather_fog">Nevoeiro</string>
+	<string name="weather_icy_fog">Nevoeiro gelado</string>
+	<string name="weather_light_drizzle">Chuvisco fraco</string>
+	<string name="weather_drizzle">Chuvisco</string>
+	<string name="weather_dense_drizzle">Chuvisco denso</string>
+	<string name="weather_light_freezing_drizzle">Chuvisco gelado fraco</string>
+	<string name="weather_freezing_drizzle">Chuvisco gelado</string>
+	<string name="weather_light_rain">Chuva fraca</string>
+	<string name="weather_rain">Chuva</string>
+	<string name="weather_heavy_rain">Chuva forte</string>
+	<string name="weather_light_freezing_rain">Chuva gelada fraca</string>
+	<string name="weather_freezing_rain">Chuva gelada</string>
+	<string name="weather_light_snow">Neve fraca</string>
+	<string name="weather_snow">Neve</string>
+	<string name="weather_heavy_snow">Neve forte</string>
+	<string name="weather_snow_grains">Grãos de neve</string>
+	<string name="weather_light_showers">Aguaceiros fracos</string>
+	<string name="weather_showers">Aguaceiros</string>
+	<string name="weather_violent_showers">Aguaceiros violentos</string>
+	<string name="weather_snow_showers">Aguaceiros de neve</string>
+	<string name="weather_heavy_snow_showers">Aguaceiros de neve fortes</string>
+	<string name="weather_thunderstorm">Trovoada</string>
+	<string name="weather_thunderstorm_with_hail">Trovoada com granizo</string>
 </resources>

@@ -1,3 +1,86 @@
 <resources>
-	<!-- Translations are maintained separately; this file is the skeleton. -->
+	<string name="app_name">Weatherd</string>
+
+	<!-- Home screen -->
+	<string name="set_as_live_wallpaper">라이브 배경화면으로 설정</string>
+	<string name="wallpaper_chooser_unavailable">배경화면 선택기를 열 수 없습니다</string>
+	<string name="content_description_settings">설정</string>
+	<string name="scene_preview">장면 미리보기</string>
+	<string name="debug_mode_live">실시간</string>
+	<string name="debug_mode_debug">디버그</string>
+
+	<!-- Settings screen -->
+	<string name="settings_title">설정</string>
+	<string name="content_description_back">뒤로</string>
+	<string name="content_description_search">검색</string>
+	<string name="content_description_clear_city">도시 지우기</string>
+	<string name="section_refresh_interval">날씨 새로고침 주기</string>
+	<string name="section_frame_rate">애니메이션 프레임 레이트</string>
+	<string name="section_backdrop">배경 풍경</string>
+	<string name="section_labels">라벨</string>
+	<string name="section_location">위치</string>
+	<string name="section_current_city">현재 도시</string>
+	<string name="label_show_weather">현재 날씨 표시</string>
+	<string name="subtitle_show_weather">예: \"가벼운 비 · 23°\"</string>
+	<string name="label_show_location">위치 이름 표시</string>
+	<string name="subtitle_show_location">날씨가 표시되는 지역</string>
+	<string name="label_use_device_location">기기 위치 사용</string>
+	<string name="subtitle_use_device_location">끄면 도시를 직접 선택할 수 있습니다</string>
+	<string name="label_city">도시</string>
+	<string name="placeholder_city">예: 도쿄</string>
+	<string name="city_search_empty">일치하는 도시를 찾을 수 없습니다.</string>
+	<string name="city_search_failed">검색 실패</string>
+	<string name="hint_frame_rate">프레임 수를 줄이면 렌더링 작업이 줄어들어 사양이 낮은 기기에 도움이 됩니다. 장면은 동일한 속도로 움직이지만 덜 부드럽게 표시됩니다.</string>
+	<string name="version_footer">weatherd %1$s</string>
+
+	<!-- Refresh interval formatting -->
+	<string name="interval_minutes">%1$d분</string>
+	<string name="interval_one_hour">1시간</string>
+	<string name="interval_hours">%1$d시간</string>
+
+	<!-- Frame rate options -->
+	<string name="frame_rate_uncapped">제한 없음</string>
+	<string name="frame_rate_30">30 fps</string>
+	<string name="frame_rate_15">15 fps</string>
+	<string name="frame_rate_10">10 fps</string>
+
+	<!-- Backdrop options -->
+	<string name="backdrop_none">없음</string>
+	<string name="backdrop_metropolis">대도시</string>
+	<string name="backdrop_beach">해변</string>
+	<string name="backdrop_mountains">산</string>
+	<string name="backdrop_countryside">시골</string>
+
+	<!-- Temperature unit labels -->
+	<string name="unit_celsius">°C</string>
+	<string name="unit_fahrenheit">°F</string>
+
+	<!-- Weather condition labels (WMO codes) -->
+	<string name="weather_clear_sky">맑은 하늘</string>
+	<string name="weather_mainly_clear">대체로 맑음</string>
+	<string name="weather_partly_cloudy">구름 조금</string>
+	<string name="weather_overcast">흐림</string>
+	<string name="weather_fog">안개</string>
+	<string name="weather_icy_fog">결빙 안개</string>
+	<string name="weather_light_drizzle">약한 이슬비</string>
+	<string name="weather_drizzle">이슬비</string>
+	<string name="weather_dense_drizzle">짙은 이슬비</string>
+	<string name="weather_light_freezing_drizzle">약한 어는 이슬비</string>
+	<string name="weather_freezing_drizzle">어는 이슬비</string>
+	<string name="weather_light_rain">약한 비</string>
+	<string name="weather_rain">비</string>
+	<string name="weather_heavy_rain">강한 비</string>
+	<string name="weather_light_freezing_rain">약한 어는 비</string>
+	<string name="weather_freezing_rain">어는 비</string>
+	<string name="weather_light_snow">약한 눈</string>
+	<string name="weather_snow">눈</string>
+	<string name="weather_heavy_snow">강한 눈</string>
+	<string name="weather_snow_grains">싸락눈</string>
+	<string name="weather_light_showers">약한 소나기</string>
+	<string name="weather_showers">소나기</string>
+	<string name="weather_violent_showers">거센 소나기</string>
+	<string name="weather_snow_showers">눈 소나기</string>
+	<string name="weather_heavy_snow_showers">강한 눈 소나기</string>
+	<string name="weather_thunderstorm">뇌우</string>
+	<string name="weather_thunderstorm_with_hail">우박을 동반한 뇌우</string>
 </resources>
