@@ -967,7 +967,7 @@ class SceneRenderer {
 		val litScale = 0.35f + 0.65f * litFraction
 
 		// Two blits of one pre-rendered radial sprite deepen the bloom — building RadialGradients here churned two shader allocations every frame.
-		val halo = tile("celestialHalo", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildHaloSprite(it, core) }
+		val halo = tile("moonHalo", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildHaloSprite(it, core) }
 		blitSprite(canvas, halo, centerX, centerY, radius * (2.2f + 1.1f * pulse), ((80f + 130f * pulse) * litScale).roundToInt())
 
 		// Wide, faint outer bloom breathing in counter-phase, so something is always in motion.
@@ -990,7 +990,7 @@ class SceneRenderer {
 	private fun drawSun(canvas: Canvas, span: Float, width: Float, height: Float, centerX: Float, centerY: Float, params: SceneParams, pulse: Float) {
 		val radius = span * SUN_RADIUS_FRACTION
 		val core = sunColor(params.dayPhase)
-		val halo = tile("celestialHalo", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildHaloSprite(it, core) }
+		val halo = tile("sunHalo", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildHaloSprite(it, core) }
 
 		// The far bloom carries the atmosphere; the near one is the glare tight around the disc.
 		blitGlow(canvas, halo, centerX, centerY, radius * (SUN_BLOOM_FAR + 2f * pulse), ((SUN_BLOOM_FAR_ALPHA) * (0.75f + 0.25f * pulse)).roundToInt())
@@ -1003,7 +1003,8 @@ class SceneRenderer {
 		// Ghosts ride the line from the sun through the frame's center, the way a real lens folds a bright source back through its elements.
 		val axisX = width / 2f - centerX
 		val axisY = height / 2f - centerY
-		for ((index, ghost) in LENS_GHOSTS.withIndex()) {
+		for (index in LENS_GHOSTS.indices) {
+			val ghost = LENS_GHOSTS[index]
 			val tint = tile("sunGhost-$index", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildHaloSprite(it, ghost.tint) }
 			blitGlow(canvas, tint, centerX + axisX * ghost.distance, centerY + axisY * ghost.distance, radius * ghost.scale, (ghost.strength * 255f).roundToInt())
 		}
