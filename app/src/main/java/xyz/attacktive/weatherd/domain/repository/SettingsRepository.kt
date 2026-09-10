@@ -14,6 +14,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
+import xyz.attacktive.weatherd.domain.model.FrameRateCap
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 
 /** Persists [AppSettings] to a DataStore; absent keys fall back to the [AppSettings] defaults on read. */
@@ -29,6 +30,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		val SHOW_WEATHER_LABEL = booleanPreferencesKey("show_weather_label")
 		val SHOW_LOCATION_LABEL = booleanPreferencesKey("show_location_label")
 		val TEMPERATURE_UNIT = stringPreferencesKey("temperature_unit")
+		val FRAME_RATE_CAP = stringPreferencesKey("frame_rate_cap")
 	}
 
 	val settings: Flow<AppSettings> = dataStore.data.map { preferences ->
@@ -41,7 +43,8 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			backdropScene = BackdropScene.fromName(preferences[Keys.BACKDROP_SCENE]),
 			showWeatherLabel = preferences[Keys.SHOW_WEATHER_LABEL] ?: DEFAULTS.showWeatherLabel,
 			showLocationLabel = preferences[Keys.SHOW_LOCATION_LABEL] ?: DEFAULTS.showLocationLabel,
-			temperatureUnit = TemperatureUnit.fromName(preferences[Keys.TEMPERATURE_UNIT])
+			temperatureUnit = TemperatureUnit.fromName(preferences[Keys.TEMPERATURE_UNIT]),
+			frameRateCap = FrameRateCap.fromName(preferences[Keys.FRAME_RATE_CAP])
 		)
 	}
 
@@ -56,6 +59,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			preferences[Keys.SHOW_WEATHER_LABEL] = settings.showWeatherLabel
 			preferences[Keys.SHOW_LOCATION_LABEL] = settings.showLocationLabel
 			preferences[Keys.TEMPERATURE_UNIT] = settings.temperatureUnit.name
+			preferences[Keys.FRAME_RATE_CAP] = settings.frameRateCap.name
 		}
 	}
 

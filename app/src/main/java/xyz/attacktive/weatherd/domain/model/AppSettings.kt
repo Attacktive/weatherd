@@ -9,7 +9,8 @@ data class AppSettings(
 	val backdropScene: BackdropScene = BackdropScene.NONE,
 	val showWeatherLabel: Boolean = false,
 	val showLocationLabel: Boolean = false,
-	val temperatureUnit: TemperatureUnit = TemperatureUnit.CELSIUS
+	val temperatureUnit: TemperatureUnit = TemperatureUnit.CELSIUS,
+	val frameRateCap: FrameRateCap = FrameRateCap.UNCAPPED
 )
 
 /** Selectable weather-refresh intervals in minutes, offered in Settings. */

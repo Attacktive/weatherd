@@ -6,6 +6,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -17,16 +18,18 @@ import dagger.hilt.android.AndroidEntryPoint
 import xyz.attacktive.weatherd.domain.render.SceneParams
 import xyz.attacktive.weatherd.domain.render.SceneRenderer
 import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
+import xyz.attacktive.weatherd.domain.repository.SettingsRepository
 
 /**
  * Live wallpaper that animates the current weather.
  * The scene comes from [WeatherSceneProvider] (shared with the rest of the app): weather is fetched when the wallpaper becomes visible and cached, while the day phase is re-derived from the clock.
- * The static backdrop is cached and only rebuilt when the scene actually changes — a weather refresh or a dawn/day/dusk/night flip; the animated foreground is redrawn each vsync via Choreographer and gated on visibility, so it costs nothing while the screen is off or covered.
+ * The static backdrop is cached and only rebuilt when the scene actually changes — a weather refresh or a dawn/day/dusk/night flip; the animated foreground is redrawn on every vsync the user's frame-rate cap allows and gated on visibility, so it costs nothing while the screen is off or covered.
  * Scene flips crossfade briefly instead of swapping in one frame.
  */
 @AndroidEntryPoint
 class WeatherLiveWallpaperService: WallpaperService() {
 	@Inject lateinit var sceneProvider: WeatherSceneProvider
+	@Inject lateinit var settingsRepository: SettingsRepository
 
 	override fun onCreateEngine(): Engine = SceneEngine()
 
@@ -45,6 +48,14 @@ class WeatherLiveWallpaperService: WallpaperService() {
 		private var height = 0
 		private var visible = false
 		private var startNanos = 0L
+		private var lastDrawNanos = 0L
+		@Volatile private var frameIntervalNanos = 0L
+
+		init {
+			scope.launch {
+				settingsRepository.settings.collect { frameIntervalNanos = it.frameRateCap.intervalNanos }
+			}
+		}
 
 		override fun onVisibilityChanged(visible: Boolean) {
 			this.visible = visible
@@ -78,15 +89,23 @@ class WeatherLiveWallpaperService: WallpaperService() {
 				return
 			}
 
+			// Posted before the draw so a frame skipped by the cap still schedules the next vsync.
+			choreographer.postFrameCallback(this)
+
 			if (startNanos == 0L) {
 				startNanos = frameTimeNanos
 			}
+
+			if (!drawsFrame(frameTimeNanos, lastDrawNanos, frameIntervalNanos)) {
+				return
+			}
+
+			lastDrawNanos = frameTimeNanos
 
 			// The clock wraps periodically: past days of cumulative visible time, a Float second count's ulp approaches a frame step and the slow scene oscillators would visibly stutter.
 			val elapsedNanos = (frameTimeNanos - startNanos) % CLOCK_WRAP_NANOS
 
 			drawFrame(elapsedNanos / 1_000_000_000f)
-			choreographer.postFrameCallback(this)
 		}
 
 		private fun drawFrame(timeSeconds: Float) {
@@ -192,3 +211,6 @@ private const val CLOCK_WRAP_NANOS = 21_600L * 1_000_000_000L
 
 /** How long a scene flip takes to crossfade — long enough to read as weather moving in, short enough to never lag a glance at the screen. */
 private const val SCENE_FADE_SECONDS = 2.8f
+
+/** Whether this vsync earns a draw: an uncapped rate and the very first frame always do, otherwise the cap's interval must have elapsed since [lastDrawNanos]. */
+internal fun drawsFrame(frameTimeNanos: Long, lastDrawNanos: Long, intervalNanos: Long) = intervalNanos <= 0L || lastDrawNanos == 0L || frameTimeNanos - lastDrawNanos >= intervalNanos

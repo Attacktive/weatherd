@@ -17,6 +17,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
+import xyz.attacktive.weatherd.domain.model.FrameRateCap
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -56,7 +57,8 @@ class SettingsRepositoryTest {
 			backdropScene = BackdropScene.MOUNTAINS,
 			showWeatherLabel = false,
 			showLocationLabel = true,
-			temperatureUnit = TemperatureUnit.FAHRENHEIT
+			temperatureUnit = TemperatureUnit.FAHRENHEIT,
+			frameRateCap = FrameRateCap.FPS_30
 		)
 
 		repository.save(updated)
@@ -80,6 +82,15 @@ class SettingsRepositoryTest {
 		dataStore.edit { it[stringPreferencesKey("temperature_unit")] = "KELVIN" }
 
 		assertEquals(TemperatureUnit.CELSIUS, repository.settings.first().temperatureUnit)
+	}
+
+	@Test
+	fun `an unrecognized stored frame rate cap falls back to uncapped`() = runTest {
+		val dataStore = dataStore()
+		val repository = SettingsRepository(dataStore)
+		dataStore.edit { it[stringPreferencesKey("frame_rate_cap")] = "FPS_240" }
+
+		assertEquals(FrameRateCap.UNCAPPED, repository.settings.first().frameRateCap)
 	}
 
 	@Test

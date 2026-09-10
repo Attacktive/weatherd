@@ -52,6 +52,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import xyz.attacktive.weatherd.BuildConfig
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
+import xyz.attacktive.weatherd.domain.model.FrameRateCap
 import xyz.attacktive.weatherd.domain.model.GeoPlace
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.UPDATE_INTERVAL_OPTIONS
@@ -88,6 +89,10 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 					.padding(16.dp)
 			) {
 				RefreshIntervalSection(settings = settings, onSave = viewModel::save)
+
+				Spacer(modifier = Modifier.height(24.dp))
+
+				FrameRateSection(settings = settings, onSave = viewModel::save)
 
 				Spacer(modifier = Modifier.height(24.dp))
 
@@ -147,6 +152,43 @@ private fun RefreshIntervalSection(settings: AppSettings, onSave: (AppSettings) 
 			}
 		}
 	}
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FrameRateSection(settings: AppSettings, onSave: (AppSettings) -> Unit) {
+	var expanded by remember { mutableStateOf(false) }
+
+	SectionLabel("Animation frame rate")
+
+	ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+		OutlinedTextField(
+			value = formatFrameRate(settings.frameRateCap),
+			onValueChange = {},
+			readOnly = true,
+			trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+			modifier = Modifier
+				.fillMaxWidth()
+				.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+		)
+
+		ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+			FrameRateCap.entries.forEach { cap ->
+				DropdownMenuItem(
+					text = { Text(formatFrameRate(cap)) },
+					onClick = {
+						if (cap != settings.frameRateCap) {
+							onSave(settings.copy(frameRateCap = cap))
+						}
+
+						expanded = false
+					}
+				)
+			}
+		}
+	}
+
+	HintText("Drawing fewer frames costs less battery. The scene still moves at the same speed, just less smoothly.")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -381,6 +423,12 @@ private fun formatInterval(minutes: Int) = when {
 	minutes == 60 -> "1 hour"
 	minutes % 60 == 0 -> "${minutes / 60} hours"
 	else -> "$minutes min"
+}
+
+private fun formatFrameRate(cap: FrameRateCap) = when (cap) {
+	FrameRateCap.UNCAPPED -> "Every frame"
+	FrameRateCap.FPS_30 -> "30 fps"
+	FrameRateCap.FPS_15 -> "15 fps"
 }
 
 private fun formatBackdrop(scene: BackdropScene) = when (scene) {
