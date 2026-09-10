@@ -982,10 +982,10 @@ class SceneRenderer {
 	/**
 	 * The sun as a light source rather than a painted object.
 	 *
-	 * Three things do that work, and none of them is the disc's own shading.
-	 * It is small — a real sun is a hard little point, and an eye reads a wide disc as a ball no matter how well it is shaded.
+	 * Two things do that work, and neither is the disc's own shading.
 	 * Its glow composites with [PorterDuff.Mode.SCREEN], so the bloom lifts the sky it crosses instead of laying opaque paint over it.
 	 * A camera's own artifacts sell the brightness: an anamorphic streak through the disc, and ghosts marching along the axis from the sun through the middle of the frame.
+	 * Those carry it, which is why the disc can be generous without collapsing back into the flat ball it used to be.
 	 */
 	private fun drawSun(canvas: Canvas, span: Float, width: Float, height: Float, centerX: Float, centerY: Float, params: SceneParams, pulse: Float) {
 		val radius = span * SUN_RADIUS_FRACTION
@@ -2038,10 +2038,10 @@ class SceneRenderer {
 		private const val MOON_PHASE_STEPS = 64
 
 		/**
-		 * The sun's radius as a fraction of the screen's shorter side, less than half the moon's.
-		 * A sun is a hard little point, and an eye reads a wide disc as a ball however well it is shaded — the brightness has to come from the bloom, not the diameter.
+		 * The sun's radius as a fraction of the screen's shorter side, a shade under the moon's.
+		 * What sells the brightness is the bloom and the flare rather than the diameter, so the disc can stay this size without reading as a flat ball.
 		 */
-		private const val SUN_RADIUS_FRACTION = 0.045f
+		private const val SUN_RADIUS_FRACTION = 0.09f
 
 		/** Edge length of the pre-rendered sun disc sprite, matching the moon's so both discs upscale identically. */
 		private const val SUN_SPRITE_SIZE = 256
@@ -2064,9 +2064,12 @@ class SceneRenderer {
 		private const val SUN_STREAK_SPRITE_WIDTH = 512
 		private const val SUN_STREAK_SPRITE_HEIGHT = 32
 
-		/** Half-length of the streak as a multiple of the disc radius, and how tall it is relative to that half-length. */
-		private const val SUN_STREAK_REACH = 11f
-		private const val SUN_STREAK_ASPECT = 0.055f
+		/**
+		 * Half-length of the streak as a multiple of the disc radius, and how tall it is relative to that half-length.
+		 * The reach is deliberately not proportional to a larger disc: past roughly half the screen width the taper falls off the edge, and a flare that never ends reads as a band rather than glare.
+		 */
+		private const val SUN_STREAK_REACH = 5.5f
+		private const val SUN_STREAK_ASPECT = 0.11f
 
 		/** Peak alpha of the streak before the breathing scales it. */
 		private const val SUN_STREAK_ALPHA = 120f
