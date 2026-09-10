@@ -60,6 +60,11 @@ class SceneRenderer {
 	private val spritePaint = Paint(Paint.FILTER_BITMAP_FLAG)
 	private val spriteDest = RectF()
 
+	/** Additive-ish compositing for anything that is light rather than surface: the sun's bloom, its streak, and its lens ghosts. */
+	private val glowPaint = Paint(Paint.FILTER_BITMAP_FLAG).apply {
+		xfermode = PorterDuffXfermode(PorterDuff.Mode.SCREEN)
+	}
+
 	private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
 		textAlign = Paint.Align.CENTER
 		letterSpacing = 0.03f
@@ -932,48 +937,72 @@ class SceneRenderer {
 	private fun drawCelestialBody(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
 		val centerX = width * 0.72f
 		val centerY = height * celestialHeightFraction(params.dayPhase, params.celestialProgress)
-		val radius = width * 0.1f
-		val moon = params.dayPhase == DayPhase.NIGHT
-		val core = if (moon) {
-			Color.rgb(232, 238, 247)
-		} else {
-			sunColor(params.dayPhase)
-		}
-
-		// A crescent sheds far less light than a full disc, so the whole glow scales with the lit fraction.
-		val litFraction = if (moon) {
-			(1f - cos(params.moonPhase * TAU)) / 2f
-		} else {
-			1f
-		}
-
-		val litScale = 0.35f + 0.65f * litFraction
 
 		/*
-		 * Two-sine breathing halo: a slow deep swell with a faster shimmer on top, so the glow visibly blooms and recedes instead of subtly wobbling.
-		 * Two blits of one pre-rendered radial sprite deepen the bloom — building RadialGradients here churned two shader allocations every frame.
+		 * Two-sine breathing: a slow deep swell with a faster shimmer on top, so the glow visibly blooms and recedes instead of subtly wobbling.
+		 * Both bodies share it, so a scene never has two glows drifting out of step.
 		 */
-		val halo = tile("celestialHalo", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildHaloSprite(it, core) }
 		val pulse = 0.5f + 0.35f * sin(timeSeconds * 0.8f) + 0.15f * sin(timeSeconds * 2.1f)
-		val glowRadius = radius * (2.2f + 1.1f * pulse)
-		val glowAlpha = ((80f + 130f * pulse) * litScale).roundToInt().coerceIn(0, 255)
-		blitSprite(canvas, halo, centerX, centerY, glowRadius, glowAlpha)
+
+		if (params.dayPhase == DayPhase.NIGHT) {
+			drawMoon(canvas, width, centerX, centerY, params, pulse)
+		} else {
+			drawSun(canvas, width, height, centerX, centerY, params, pulse)
+		}
+	}
+
+	private fun drawMoon(canvas: Canvas, width: Float, centerX: Float, centerY: Float, params: SceneParams, pulse: Float) {
+		val radius = width * MOON_RADIUS_FRACTION
+		val core = Color.rgb(232, 238, 247)
+
+		// A crescent sheds far less light than a full disc, so the whole glow scales with the lit fraction.
+		val litFraction = (1f - cos(params.moonPhase * TAU)) / 2f
+		val litScale = 0.35f + 0.65f * litFraction
+
+		// Two blits of one pre-rendered radial sprite deepen the bloom — building RadialGradients here churned two shader allocations every frame.
+		val halo = tile("celestialHalo", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildHaloSprite(it, core) }
+		blitSprite(canvas, halo, centerX, centerY, radius * (2.2f + 1.1f * pulse), ((80f + 130f * pulse) * litScale).roundToInt())
 
 		// Wide, faint outer bloom breathing in counter-phase, so something is always in motion.
-		val outerRadius = radius * (3.6f + 0.9f * (1f - pulse))
-		val outerAlpha = ((26f + 34f * (1f - pulse)) * litScale).roundToInt()
-		blitSprite(canvas, halo, centerX, centerY, outerRadius, outerAlpha)
+		blitSprite(canvas, halo, centerX, centerY, radius * (3.6f + 0.9f * (1f - pulse)), ((26f + 34f * (1f - pulse)) * litScale).roundToInt())
 
-		if (moon) {
-			// The disc is a sprite shaped by the real synodic phase — tonight's sky and the wallpaper agree on the moon.
-			val phaseIndex = (params.moonPhase * MOON_PHASE_STEPS).roundToInt()
-			val moonSprite = tile("moon-$phaseIndex", MOON_SPRITE_SIZE, MOON_SPRITE_SIZE) { buildMoonSprite(it, core, params.moonPhase) }
-			blitSprite(canvas, moonSprite, centerX, centerY, radius / MOON_DISC_MARGIN, 255)
-		} else {
-			paint.style = Paint.Style.FILL
-			paint.color = core
-			canvas.drawCircle(centerX, centerY, radius, paint)
+		// The disc is a sprite shaped by the real synodic phase — tonight's sky and the wallpaper agree on the moon.
+		val phaseIndex = (params.moonPhase * MOON_PHASE_STEPS).roundToInt()
+		val moonSprite = tile("moon-$phaseIndex", MOON_SPRITE_SIZE, MOON_SPRITE_SIZE) { buildMoonSprite(it, core, params.moonPhase) }
+		blitSprite(canvas, moonSprite, centerX, centerY, radius / MOON_DISC_MARGIN, 255)
+	}
+
+	/**
+	 * The sun as a light source rather than a painted object.
+	 *
+	 * Three things do that work, and none of them is the disc's own shading.
+	 * It is small — a real sun is a hard little point, and an eye reads a wide disc as a ball no matter how well it is shaded.
+	 * Its glow composites with [PorterDuff.Mode.SCREEN], so the bloom lifts the sky it crosses instead of laying opaque paint over it.
+	 * A camera's own artifacts sell the brightness: an anamorphic streak through the disc, and ghosts marching along the axis from the sun through the middle of the frame.
+	 */
+	private fun drawSun(canvas: Canvas, width: Float, height: Float, centerX: Float, centerY: Float, params: SceneParams, pulse: Float) {
+		val radius = width * SUN_RADIUS_FRACTION
+		val core = sunColor(params.dayPhase)
+		val halo = tile("celestialHalo", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildHaloSprite(it, core) }
+
+		// The far bloom carries the atmosphere; the near one is the glare tight around the disc.
+		blitGlow(canvas, halo, centerX, centerY, radius * (SUN_BLOOM_FAR + 2f * pulse), ((SUN_BLOOM_FAR_ALPHA) * (0.75f + 0.25f * pulse)).roundToInt())
+		blitGlow(canvas, halo, centerX, centerY, radius * (SUN_BLOOM_NEAR + 0.8f * (1f - pulse)), ((SUN_BLOOM_NEAR_ALPHA) * (0.8f + 0.2f * pulse)).roundToInt())
+
+		val streak = tile("sunStreak", SUN_STREAK_SPRITE_WIDTH, SUN_STREAK_SPRITE_HEIGHT) { buildSunStreakSprite(it, core) }
+		val streakHalfWidth = radius * SUN_STREAK_REACH
+		blitGlowRect(canvas, streak, centerX, centerY, streakHalfWidth, streakHalfWidth * SUN_STREAK_ASPECT, (SUN_STREAK_ALPHA * (0.7f + 0.3f * pulse)).roundToInt())
+
+		// Ghosts ride the line from the sun through the frame's center, the way a real lens folds a bright source back through its elements.
+		val axisX = width / 2f - centerX
+		val axisY = height / 2f - centerY
+		for ((index, ghost) in LENS_GHOSTS.withIndex()) {
+			val tint = tile("sunGhost-$index", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildHaloSprite(it, ghost.tint) }
+			blitGlow(canvas, tint, centerX + axisX * ghost.distance, centerY + axisY * ghost.distance, radius * ghost.scale, (ghost.strength * 255f).roundToInt())
 		}
+
+		val disc = tile("sunDisc", SUN_SPRITE_SIZE, SUN_SPRITE_SIZE) { buildSunSprite(it, core) }
+		blitSprite(canvas, disc, centerX, centerY, radius / SUN_DISC_MARGIN, 255)
 	}
 
 	/**
@@ -1861,6 +1890,22 @@ class SceneRenderer {
 		spritePaint.alpha = 255
 	}
 
+	/** [blitSprite] through [glowPaint], so the sprite adds light to the sky underneath instead of painting over it. */
+	private fun blitGlow(canvas: Canvas, sprite: Bitmap, centerX: Float, centerY: Float, radius: Float, alpha: Int) {
+		glowPaint.alpha = alpha.coerceIn(0, 255)
+		spriteDest.set(centerX - radius, centerY - radius, centerX + radius, centerY + radius)
+		canvas.drawBitmap(sprite, null, spriteDest, glowPaint)
+		glowPaint.alpha = 255
+	}
+
+	/** [blitGlow] for sprites that are not square — the anamorphic streak is far wider than it is tall. */
+	private fun blitGlowRect(canvas: Canvas, sprite: Bitmap, centerX: Float, centerY: Float, halfWidth: Float, halfHeight: Float, alpha: Int) {
+		glowPaint.alpha = alpha.coerceIn(0, 255)
+		spriteDest.set(centerX - halfWidth, centerY - halfHeight, centerX + halfWidth, centerY + halfHeight)
+		canvas.drawBitmap(sprite, null, spriteDest, glowPaint)
+		glowPaint.alpha = 255
+	}
+
 	/** The sun/moon glow rasterized once per scene: a radial falloff from the full-alpha core color, blitted at the breathing size each frame. */
 	private fun buildHaloSprite(canvas: Canvas, core: Int) {
 		val center = HALO_SPRITE_SIZE / 2f
@@ -1868,6 +1913,41 @@ class SceneRenderer {
 		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
 		brush.shader = RadialGradient(center, center, center, intArrayOf(core, withAlpha(core, 0)), floatArrayOf(0.25f, 1f), Shader.TileMode.CLAMP)
 		canvas.drawCircle(center, center, center, brush)
+	}
+
+	/**
+	 * The sun disc rasterized once per scene, the moon's counterpart.
+	 * A blown-out highlight has no visible rim, so this is one gradient: white through the middle, the phase's own color only in the last of the radius, then a feathered fall to nothing.
+	 * Anything sharper reads as a drawn circle with an outline rather than something too bright to look at.
+	 */
+	private fun buildSunSprite(canvas: Canvas, core: Int) {
+		val center = SUN_SPRITE_SIZE / 2f
+		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
+		val stops = intArrayOf(Color.WHITE, Color.WHITE, lighten(core, SUN_CORE_LIFT), core, withAlpha(core, 0))
+		val positions = floatArrayOf(0f, 0.42f * SUN_DISC_MARGIN, 0.74f * SUN_DISC_MARGIN, SUN_DISC_MARGIN, 1f)
+
+		brush.shader = RadialGradient(center, center, center, stops, positions, Shader.TileMode.CLAMP)
+		canvas.drawCircle(center, center, center, brush)
+	}
+
+	/**
+	 * The anamorphic streak rasterized once per scene: a horizontal bar of light through the disc, brightest at its middle and gone by either end.
+	 * Cylindrical lens elements smear a point source sideways, and the eye has learned to read that smear as "too bright to look at".
+	 * Built as a vertical falloff masked by a horizontal one — a radial gradient cannot span a sprite this lopsided without clamping almost all of it away.
+	 */
+	private fun buildSunStreakSprite(canvas: Canvas, core: Int) {
+		val width = SUN_STREAK_SPRITE_WIDTH.toFloat()
+		val height = SUN_STREAK_SPRITE_HEIGHT.toFloat()
+		val bright = lighten(core, 0.6f)
+		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
+
+		brush.shader = LinearGradient(0f, 0f, 0f, height, intArrayOf(withAlpha(bright, 0), bright, withAlpha(bright, 0)), floatArrayOf(0f, 0.5f, 1f), Shader.TileMode.CLAMP)
+		canvas.drawRect(0f, 0f, width, height, brush)
+
+		// Taper the ends to nothing; without this the bar stops dead at the sprite edge and the seam is obvious against the sky.
+		brush.shader = LinearGradient(0f, 0f, width, 0f, intArrayOf(withAlpha(bright, 0), bright, withAlpha(bright, 0)), floatArrayOf(0f, 0.5f, 1f), Shader.TileMode.CLAMP)
+		brush.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
+		canvas.drawRect(0f, 0f, width, height, brush)
 	}
 
 	private fun rainBuffer(size: Int): FloatArray {
@@ -1941,11 +2021,48 @@ class SceneRenderer {
 		/** Edge length of the pre-rendered moon sprite. */
 		private const val MOON_SPRITE_SIZE = 256
 
+		/** The moon's radius as a fraction of screen width; it stays the generous disc it always was, because a moon genuinely does read large. */
+		private const val MOON_RADIUS_FRACTION = 0.1f
+
 		/** The moon disc fills this fraction of its sprite, leaving margin so the anti-aliased limb never clips at the bitmap edge. */
 		private const val MOON_DISC_MARGIN = 0.96f
 
 		/** Distinct phase sprites across the synodic month — the sprite cache key quantizes to these steps. */
 		private const val MOON_PHASE_STEPS = 64
+
+		/**
+		 * The sun's radius as a fraction of screen width, less than half the moon's.
+		 * A sun is a hard little point, and an eye reads a wide disc as a ball however well it is shaded — the brightness has to come from the bloom, not the diameter.
+		 */
+		private const val SUN_RADIUS_FRACTION = 0.045f
+
+		/** Edge length of the pre-rendered sun disc sprite, matching the moon's so both discs upscale identically. */
+		private const val SUN_SPRITE_SIZE = 256
+
+		/** The sun disc fills this fraction of its sprite radius; the remainder carries the feathered bleed outside the limb. */
+		private const val SUN_DISC_MARGIN = 0.8f
+
+		/** How far the disc's color is lifted toward white before the clipped center takes over. */
+		private const val SUN_CORE_LIFT = 0.82f
+
+		/** Bloom reach as a multiple of the disc radius: the far one is the atmosphere carrying the light, the near one the glare hugging the disc. */
+		private const val SUN_BLOOM_FAR = 9f
+		private const val SUN_BLOOM_NEAR = 3.2f
+
+		/** Peak alpha of each bloom pass before the breathing scales it. */
+		private const val SUN_BLOOM_FAR_ALPHA = 150f
+		private const val SUN_BLOOM_NEAR_ALPHA = 165f
+
+		/** The streak sprite is long and thin; only its width needs resolution, since the vertical falloff is a single soft gradient. */
+		private const val SUN_STREAK_SPRITE_WIDTH = 512
+		private const val SUN_STREAK_SPRITE_HEIGHT = 32
+
+		/** Half-length of the streak as a multiple of the disc radius, and how tall it is relative to that half-length. */
+		private const val SUN_STREAK_REACH = 11f
+		private const val SUN_STREAK_ASPECT = 0.055f
+
+		/** Peak alpha of the streak before the breathing scales it. */
+		private const val SUN_STREAK_ALPHA = 120f
 
 		/** Fraction of a soft-dot sprite's radius that is solid color before the fade to transparent begins. */
 		private const val DOT_CORE_STOP = 0.5f
@@ -2063,6 +2180,22 @@ private data class SceneryLayerPath(val path: Path, val material: SceneryMateria
 
 /** A helicopter mid-crossing: fuselage center, heading, and the fuselage length every other dimension derives from. */
 private data class HelicopterPass(val x: Float, val y: Float, val direction: Float, val bodyW: Float)
+
+/**
+ * One reflection in the lens flare.
+ * [distance] walks the axis from the sun toward the frame's center, [scale] multiplies the disc radius, [strength] is peak opacity, and [tint] is the color that element passes.
+ */
+private data class LensGhost(val distance: Float, val scale: Float, val strength: Float, val tint: Int)
+
+/**
+ * The ghosts, ordered along the axis outward from the sun.
+ * Real coatings tint each element differently, so a warm one, a cool one, and a faint magenta beat a row of identical blobs.
+ */
+private val LENS_GHOSTS = listOf(
+	LensGhost(0.55f, 0.70f, 0.20f, Color.rgb(255, 220, 170)),
+	LensGhost(1.15f, 1.25f, 0.13f, Color.rgb(170, 220, 255)),
+	LensGhost(1.75f, 0.50f, 0.15f, Color.rgb(255, 190, 200))
+)
 
 private fun darken(color: Int, factor: Float) =
 	Color.rgb((Color.red(color) * factor).roundToInt(), (Color.green(color) * factor).roundToInt(), (Color.blue(color) * factor).roundToInt())
