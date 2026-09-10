@@ -76,11 +76,11 @@
 	<string name="weather_snow">雪</string>
 	<string name="weather_heavy_snow">大雪</string>
 	<string name="weather_snow_grains">霧雪</string>
-	<string name="weather_light_showers">弱い にわか雨</string>
+	<string name="weather_light_showers">弱いにわか雨</string>
 	<string name="weather_showers">にわか雨</string>
-	<string name="weather_violent_showers">激しい にわか雨</string>
+	<string name="weather_violent_showers">激しいにわか雨</string>
 	<string name="weather_snow_showers">にわか雪</string>
-	<string name="weather_heavy_snow_showers">激しい にわか雪</string>
+	<string name="weather_heavy_snow_showers">激しいにわか雪</string>
 	<string name="weather_thunderstorm">雷雨</string>
 	<string name="weather_thunderstorm_with_hail">雹を伴う雷雨</string>
 </resources>

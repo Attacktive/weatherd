@@ -30,7 +30,7 @@
 	<string name="placeholder_city">ej. Tokio</string>
 	<string name="city_search_empty">No se encontró ninguna ciudad coincidente.</string>
 	<string name="city_search_failed">Error en la búsqueda</string>
-	<string name="hint_frame_rate">Menos fotogramas reduce la carga gráfica, lo que ayuda en teléfonos más lentos. La escena se moverá a la misma velocidad, pero con menor fluidez.</string>
+	<string name="hint_frame_rate">Menos fotogramas reducen la carga gráfica, lo que ayuda en teléfonos más lentos. La escena se moverá a la misma velocidad, pero con menor fluidez.</string>
 	<string name="version_footer">weatherd %1$s</string>
 
 	<!-- Refresh interval formatting -->

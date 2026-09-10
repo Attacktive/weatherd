@@ -75,7 +75,7 @@
 	<string name="weather_light_snow">Hafif kar</string>
 	<string name="weather_snow">Kar</string>
 	<string name="weather_heavy_snow">Yoğun kar</string>
-	<string name="weather_snow_grains">Kar taneleri</string>
+	<string name="weather_snow_grains">Kar greni</string>
 	<string name="weather_light_showers">Hafif sağanak</string>
 	<string name="weather_showers">Sağanak</string>
 	<string name="weather_violent_showers">Şiddetli sağanak</string>
