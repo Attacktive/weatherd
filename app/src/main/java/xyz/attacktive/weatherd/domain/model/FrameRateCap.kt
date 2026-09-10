@@ -1,20 +1,21 @@
 package xyz.attacktive.weatherd.domain.model
 
 /**
- * How often the live wallpaper is allowed to redraw.
- * The engine still wakes on every vsync — it just skips the draw until [intervalNanos] has elapsed since the last one, so a lower cap trades animation smoothness for battery.
+ * How often the wallpaper — and the in-app preview of it — is allowed to redraw.
+ * A cap is enforced by waiting [intervalMillis] between frames rather than by dropping frames on arrival: asking for the next frame later is what actually lets the CPU idle, whereas waking on every vsync only to skip the draw still pays for the wakeup.
  * Animation phase is derived from the frame clock rather than a frame count, so a capped scene runs at the same speed; it is only sampled more coarsely.
  */
 enum class FrameRateCap(val framesPerSecond: Int) {
 	UNCAPPED(0),
 	FPS_30(30),
-	FPS_15(15);
+	FPS_15(15),
+	FPS_10(10);
 
-	/** The smallest gap allowed between two drawn frames, or 0 when every vsync draws. */
-	val intervalNanos = if (framesPerSecond <= 0) {
+	/** How long to wait before asking for the next frame, or 0 to take every vsync. */
+	val intervalMillis = if (framesPerSecond <= 0) {
 		0L
 	} else {
-		NANOS_PER_SECOND / framesPerSecond
+		MILLIS_PER_SECOND / framesPerSecond
 	}
 
 	companion object {
@@ -23,4 +24,4 @@ enum class FrameRateCap(val framesPerSecond: Int) {
 	}
 }
 
-private const val NANOS_PER_SECOND = 1_000_000_000L
+private const val MILLIS_PER_SECOND = 1_000L

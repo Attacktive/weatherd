@@ -15,6 +15,7 @@ import android.view.Choreographer
 import android.view.SurfaceHolder
 import androidx.core.graphics.createBitmap
 import dagger.hilt.android.AndroidEntryPoint
+import xyz.attacktive.weatherd.domain.model.FrameRateCap
 import xyz.attacktive.weatherd.domain.render.SceneParams
 import xyz.attacktive.weatherd.domain.render.SceneRenderer
 import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
@@ -48,12 +49,11 @@ class WeatherLiveWallpaperService: WallpaperService() {
 		private var height = 0
 		private var visible = false
 		private var startNanos = 0L
-		private var lastDrawNanos = 0L
-		@Volatile private var frameIntervalNanos = 0L
+		@Volatile private var frameRateCap = FrameRateCap.UNCAPPED
 
 		init {
 			scope.launch {
-				settingsRepository.settings.collect { frameIntervalNanos = it.frameRateCap.intervalNanos }
+				settingsRepository.settings.collect { frameRateCap = it.frameRateCap }
 			}
 		}
 
@@ -89,23 +89,25 @@ class WeatherLiveWallpaperService: WallpaperService() {
 				return
 			}
 
-			// Posted before the draw so a frame skipped by the cap still schedules the next vsync.
-			choreographer.postFrameCallback(this)
-
 			if (startNanos == 0L) {
 				startNanos = frameTimeNanos
 			}
-
-			if (!drawsFrame(frameTimeNanos, lastDrawNanos, frameIntervalNanos)) {
-				return
-			}
-
-			lastDrawNanos = frameTimeNanos
 
 			// The clock wraps periodically: past days of cumulative visible time, a Float second count's ulp approaches a frame step and the slow scene oscillators would visibly stutter.
 			val elapsedNanos = (frameTimeNanos - startNanos) % CLOCK_WRAP_NANOS
 
 			drawFrame(elapsedNanos / 1_000_000_000f)
+			scheduleNextFrame()
+		}
+
+		/** Asks for the next frame straight away when uncapped, or after the cap's interval — the wait is what lets the CPU idle between draws. */
+		private fun scheduleNextFrame() {
+			val intervalMillis = frameRateCap.intervalMillis
+			if (intervalMillis > 0L) {
+				choreographer.postFrameCallbackDelayed(this, intervalMillis)
+			} else {
+				choreographer.postFrameCallback(this)
+			}
 		}
 
 		private fun drawFrame(timeSeconds: Float) {
@@ -211,6 +213,3 @@ private const val CLOCK_WRAP_NANOS = 21_600L * 1_000_000_000L
 
 /** How long a scene flip takes to crossfade — long enough to read as weather moving in, short enough to never lag a glance at the screen. */
 private const val SCENE_FADE_SECONDS = 2.8f
-
-/** Whether this vsync earns a draw: an uncapped rate and the very first frame always do, otherwise the cap's interval must have elapsed since [lastDrawNanos]. */
-internal fun drawsFrame(frameTimeNanos: Long, lastDrawNanos: Long, intervalNanos: Long) = intervalNanos <= 0L || lastDrawNanos == 0L || frameTimeNanos - lastDrawNanos >= intervalNanos

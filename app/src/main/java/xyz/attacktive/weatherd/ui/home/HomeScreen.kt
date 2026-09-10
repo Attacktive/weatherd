@@ -34,6 +34,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -48,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.createBitmap
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import xyz.attacktive.weatherd.debugToolsEnabled
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.render.SCENE_PRESETS
@@ -59,6 +61,7 @@ import android.graphics.Canvas as AndroidCanvas
 /**
  * A live preview of the current scene — the same renderer the wallpaper uses, fed the real weather via [HomeViewModel].
  * Refreshes on resume so returning from Settings (e.g. after changing the city) reflects the new scene, and re-reads the params once a second so the weather loading in and day-phase changes show.
+ * Honors the user's frame-rate cap, so the preview animates exactly as choppily as the wallpaper it is previewing.
  */
 @Composable
 fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hiltViewModel()) {
@@ -71,6 +74,10 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	var debugPhaseIndex by remember { mutableIntStateOf(DayPhase.DAY.ordinal) }
 	var controlsVisible by remember { mutableStateOf(true) }
 	val previewInteraction = remember { MutableInteractionSource() }
+	val frameRateCap by viewModel.frameRateCap.collectAsStateWithLifecycle()
+
+	// Read inside the frame loop, which is launched once and has to see a cap the user changes while it runs.
+	val currentCap = rememberUpdatedState(frameRateCap)
 
 	// The debug cycler overrides the weather but keeps the user's chosen backdrop, so scenery can be previewed under any condition.
 	val params = if (debugEnabled) {
@@ -91,6 +98,12 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 		while (true) {
 			withFrameNanos { frameNanos ->
 				timeSeconds = (frameNanos - startNanos) / 1_000_000_000f
+			}
+
+			// Waiting before asking for the next frame is what idles the frame clock; gating the draw alone would still wake the compositor every vsync.
+			val intervalMillis = currentCap.value.intervalMillis
+			if (intervalMillis > 0L) {
+				delay(intervalMillis.milliseconds)
 			}
 		}
 	}

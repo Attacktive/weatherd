@@ -429,6 +429,7 @@ private fun formatFrameRate(cap: FrameRateCap) = when (cap) {
 	FrameRateCap.UNCAPPED -> "Every frame"
 	FrameRateCap.FPS_30 -> "30 fps"
 	FrameRateCap.FPS_15 -> "15 fps"
+	FrameRateCap.FPS_10 -> "10 fps"
 }
 
 private fun formatBackdrop(scene: BackdropScene) = when (scene) {
