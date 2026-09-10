@@ -2,10 +2,10 @@ package xyz.attacktive.weatherd
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_DRIZZLE
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_HEAVY
@@ -77,22 +77,34 @@ class ConditionMappingTest {
 
 	@Test
 	fun `weather labels cover the wmo table`() {
-		val knownCodes = listOf(
-			0, 1, 2, 3,
-			45, 48,
-			51, 53, 55, 56, 57,
-			61, 63, 65, 66, 67,
-			71, 73, 75, 77,
-			80, 81, 82, 85, 86,
-			95, 96, 99
-		)
-
-		for (code in knownCodes) {
-			assertNotNull("WMO code $code should have a label resource", weatherLabelFor(code))
-		}
-
-		// 96 and 99 share the same label (thunderstorm with hail)
-		assertEquals(weatherLabelFor(96), weatherLabelFor(99))
+		assertEquals(R.string.weather_clear_sky, weatherLabelFor(0))
+		assertEquals(R.string.weather_mainly_clear, weatherLabelFor(1))
+		assertEquals(R.string.weather_partly_cloudy, weatherLabelFor(2))
+		assertEquals(R.string.weather_overcast, weatherLabelFor(3))
+		assertEquals(R.string.weather_fog, weatherLabelFor(45))
+		assertEquals(R.string.weather_icy_fog, weatherLabelFor(48))
+		assertEquals(R.string.weather_light_drizzle, weatherLabelFor(51))
+		assertEquals(R.string.weather_drizzle, weatherLabelFor(53))
+		assertEquals(R.string.weather_dense_drizzle, weatherLabelFor(55))
+		assertEquals(R.string.weather_light_freezing_drizzle, weatherLabelFor(56))
+		assertEquals(R.string.weather_freezing_drizzle, weatherLabelFor(57))
+		assertEquals(R.string.weather_light_rain, weatherLabelFor(61))
+		assertEquals(R.string.weather_rain, weatherLabelFor(63))
+		assertEquals(R.string.weather_heavy_rain, weatherLabelFor(65))
+		assertEquals(R.string.weather_light_freezing_rain, weatherLabelFor(66))
+		assertEquals(R.string.weather_freezing_rain, weatherLabelFor(67))
+		assertEquals(R.string.weather_light_snow, weatherLabelFor(71))
+		assertEquals(R.string.weather_snow, weatherLabelFor(73))
+		assertEquals(R.string.weather_heavy_snow, weatherLabelFor(75))
+		assertEquals(R.string.weather_snow_grains, weatherLabelFor(77))
+		assertEquals(R.string.weather_light_showers, weatherLabelFor(80))
+		assertEquals(R.string.weather_showers, weatherLabelFor(81))
+		assertEquals(R.string.weather_violent_showers, weatherLabelFor(82))
+		assertEquals(R.string.weather_snow_showers, weatherLabelFor(85))
+		assertEquals(R.string.weather_heavy_snow_showers, weatherLabelFor(86))
+		assertEquals(R.string.weather_thunderstorm, weatherLabelFor(95))
+		assertEquals(R.string.weather_thunderstorm_with_hail, weatherLabelFor(96))
+		assertEquals(R.string.weather_thunderstorm_with_hail, weatherLabelFor(99))
 	}
 
 	@Test
