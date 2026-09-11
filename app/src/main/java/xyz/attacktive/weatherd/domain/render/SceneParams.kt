@@ -1,5 +1,6 @@
 package xyz.attacktive.weatherd.domain.render
 
+import kotlin.math.pow
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
@@ -47,11 +48,10 @@ fun sceneParamsFor(snapshot: WeatherSnapshot, nowEpochSeconds: Long, backdropSce
 			0f
 		},
 		precipitation = condition.precipitationKind?.let {
-			Precipitation(kind = it, severity = condition.severity, observed = precipitationIntensity(observation.precipitationMillimeters))
+			Precipitation(kind = it, severity = condition.severity, observed = shapedIntensity(precipitationIntensity(observation.precipitationMillimeters)))
 		},
 		thunder = condition.thunder,
-		windFactor = (observation.windSpeedKilometersPerHour / MAX_WIND_KILOMETERS_PER_HOUR).toFloat()
-			.coerceIn(0f, 1f),
+		windFactor = shapedIntensity((observation.windSpeedKilometersPerHour / MAX_WIND_KILOMETERS_PER_HOUR).toFloat()),
 		moonPhase = moonPhaseFor(nowEpochSeconds),
 		celestialProgress = dayPhaseProgressFor(nowEpochSeconds, snapshot.sunriseEpochSeconds, snapshot.sunsetEpochSeconds, dayPhase),
 		backdropScene = backdropScene,
@@ -59,4 +59,14 @@ fun sceneParamsFor(snapshot: WeatherSnapshot, nowEpochSeconds: Long, backdropSce
 	)
 }
 
+/**
+ * Lifts a normalized weather reading off the floor before the renderer sees it.
+ * A plain `value / ceiling` leaves everyday weather — a 10 km/h breeze, 1 mm of rain — in the bottom quarter of a range built to reach a gale, so the scene reads the same on most days.
+ * The gamma expands that crowded low end and barely touches the top, where a storm should still look like a storm.
+ */
+private fun shapedIntensity(normalized: Float) = normalized.coerceIn(0f, 1f)
+	.pow(INTENSITY_GAMMA)
+	.coerceIn(0f, 1f)
+
+private const val INTENSITY_GAMMA = 0.6f
 private const val MAX_WIND_KILOMETERS_PER_HOUR = 40.0

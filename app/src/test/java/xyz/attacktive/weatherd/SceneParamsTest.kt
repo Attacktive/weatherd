@@ -27,11 +27,11 @@ class SceneParamsTest {
 		assertNotNull(precipitation)
 		assertEquals(PrecipitationKind.SNOW, precipitation!!.kind)
 		assertEquals(SEVERITY_STEADY, precipitation.severity, 0.0001f)
-		assertEquals(0.3f, precipitation.observed, 0.0001f)
+		assertEquals(0.4856f, precipitation.observed, 0.0001f)
 		assertEquals(1f, params.cloudiness, 0.0001f)
 		assertEquals(0f, params.fogDensity, 0.0001f)
 		assertFalse(params.thunder)
-		assertEquals(0.5f, params.windFactor, 0.0001f)
+		assertEquals(0.6598f, params.windFactor, 0.0001f)
 	}
 
 	@Test
@@ -56,11 +56,11 @@ class SceneParamsTest {
 		assertNotNull(precipitation)
 		assertEquals(PrecipitationKind.RAIN, precipitation!!.kind)
 		assertEquals(SEVERITY_STORM, precipitation.severity, 0.0001f)
-		assertEquals(0.8f, precipitation.observed, 0.0001f)
+		assertEquals(0.8747f, precipitation.observed, 0.0001f)
 		assertTrue(params.thunder)
 		assertEquals(0.9f, params.cloudiness, 0.0001f)
 		assertEquals(0f, params.fogDensity, 0.0001f)
-		assertEquals(0.9f, params.windFactor, 0.0001f)
+		assertEquals(0.9387f, params.windFactor, 0.0001f)
 	}
 
 	@Test
@@ -86,10 +86,48 @@ class SceneParamsTest {
 		assertNotNull(precipitation)
 		assertEquals(PrecipitationKind.RAIN, precipitation!!.kind)
 		assertEquals(SEVERITY_DRIZZLE, precipitation.severity, 0.0001f)
-		assertEquals(0.1f, precipitation.observed, 0.0001f)
+		assertEquals(0.2512f, precipitation.observed, 0.0001f)
 		assertEquals(0.35f, params.cloudiness, 0.0001f)
 		assertEquals(0f, params.fogDensity, 0.0001f)
 		assertFalse(params.thunder)
+	}
+
+	@Test
+	fun `a light breeze reaches well past the raw linear fraction`() {
+		// 10 km/h is a quarter of the 40 km/h ceiling, but a quarter-strength wind is invisible — the curve lifts it to nearly half.
+		val snapshot = snapshot(weatherCode = 2, precipitationMillimeters = 0.0, windSpeedKilometersPerHour = 10.0, cloudCoverPercent = 40)
+
+		val params = sceneParamsFor(snapshot, NOW)
+
+		assertEquals(0.4353f, params.windFactor, 0.0001f)
+	}
+
+	@Test
+	fun `a gale still reads as near maximum`() {
+		// The curve must not eat the top of the range: 36 of 40 km/h stays close to 1.
+		val snapshot = snapshot(weatherCode = 2, precipitationMillimeters = 0.0, windSpeedKilometersPerHour = 36.0, cloudCoverPercent = 40)
+
+		val params = sceneParamsFor(snapshot, NOW)
+
+		assertEquals(0.9387f, params.windFactor, 0.0001f)
+	}
+
+	@Test
+	fun `wind past the ceiling saturates instead of overflowing`() {
+		val snapshot = snapshot(weatherCode = 2, precipitationMillimeters = 0.0, windSpeedKilometersPerHour = 120.0, cloudCoverPercent = 40)
+
+		val params = sceneParamsFor(snapshot, NOW)
+
+		assertEquals(1f, params.windFactor, 0.0001f)
+	}
+
+	@Test
+	fun `dead calm stays at zero`() {
+		val snapshot = snapshot(weatherCode = 2, precipitationMillimeters = 0.0, windSpeedKilometersPerHour = 0.0, cloudCoverPercent = 40)
+
+		val params = sceneParamsFor(snapshot, NOW)
+
+		assertEquals(0f, params.windFactor, 0.0001f)
 	}
 
 	private fun snapshot(weatherCode: Int, precipitationMillimeters: Double, windSpeedKilometersPerHour: Double, cloudCoverPercent: Int) = WeatherSnapshot(
