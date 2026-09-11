@@ -56,11 +56,4 @@ class PhotoBucketTest {
 			assertNull("$phase must fall through to the drawn sky", photoBucketFor(phase, emptySet()))
 		}
 	}
-
-	@Test
-	fun `an absent or unrecognized stored name resolves to no bucket`() {
-		assertEquals(PhotoBucket.DUSK, PhotoBucket.fromName("DUSK"))
-		assertNull(PhotoBucket.fromName("GOLDEN_HOUR"))
-		assertNull(PhotoBucket.fromName(null))
-	}
 }

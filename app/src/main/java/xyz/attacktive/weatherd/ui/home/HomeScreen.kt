@@ -53,7 +53,6 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.debugToolsEnabled
-import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.render.SCENE_PRESETS
 import xyz.attacktive.weatherd.domain.render.SceneRenderer
@@ -139,19 +138,15 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 		 * The photo is decoded, lent to the renderer, rasterized into the backdrop and released inside this one block, all on the thread that composes and draws.
 		 * SceneRenderer.backgroundPhoto is an unsynchronized field the sky pass dereferences mid-blit, so a LaunchedEffect or an IO dispatcher here would race the draw and could recycle the bitmap under it.
 		 * Keying on the backdrop signature rather than recomposition also keeps that decode to once per backdrop change, which is exactly what the wallpaper pays.
+		 * backdropParams is the cache key and only that: what is handed to the renderer is the unflattened params, exactly as the wallpaper hands them over, so a backdrop element that comes to read celestialProgress or moonPhase later cannot render at zero here while the wallpaper draws it properly.
 		 */
 		val backdrop = remember(widthPx, heightPx, backdropParams) {
-			val photo = if (backdropParams.backdropScene == BackdropScene.PHOTO) {
-				viewModel.loadPhotoBackground(backdropParams.dayPhase)
-			} else {
-				null
-			}
-
+			val photo = viewModel.loadPhotoBackground(params.backdropScene, params.dayPhase)
 			renderer.backgroundPhoto = photo
 
 			try {
 				createBitmap(widthPx, heightPx)
-					.also { renderer.renderBackdrop(AndroidCanvas(it), widthPx, heightPx, backdropParams) }
+					.also { renderer.renderBackdrop(AndroidCanvas(it), widthPx, heightPx, params) }
 			} finally {
 				renderer.backgroundPhoto = null
 				photo?.recycle()

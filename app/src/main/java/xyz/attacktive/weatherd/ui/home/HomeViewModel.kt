@@ -5,13 +5,12 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import xyz.attacktive.weatherd.domain.model.AppSettings
+import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
-import xyz.attacktive.weatherd.domain.model.photoBucketFor
 import xyz.attacktive.weatherd.domain.render.SceneParams
 import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
@@ -49,15 +48,12 @@ class HomeViewModel @Inject constructor(
 	fun currentParams(): SceneParams = sceneProvider.paramsFor(nowEpochSeconds())
 
 	/**
-	 * The stored photo to preview as the sky during [dayPhase], or null when no filled bucket covers that phase or the stored file no longer decodes.
+	 * The stored photo to preview as the sky for [scene] during [dayPhase], or null when [scene] draws no photo, no filled bucket covers that phase, or the stored file no longer decodes.
 	 * Null is the ordinary case and not a failure: the caller then lets the renderer paint its procedural sky.
-	 * Decoded synchronously so the caller can borrow it for one `renderBackdrop` call on the thread it rasterizes on, which is what `SceneRenderer.backgroundPhoto`'s unsynchronized shape requires; the caller owns the bitmap and must recycle it.
+	 * Resolving and loading live in [PhotoBackgroundRepository.loadFor] rather than here, so the preview and the wallpaper read the fallback rule off the same line of code; this only hands the preview a way to reach it.
+	 * Synchronous on purpose, and the caller owns the bitmap: it borrows it for one `renderBackdrop` call on the thread it rasterizes on, which is what `SceneRenderer.backgroundPhoto`'s unsynchronized shape requires, and must recycle it afterward.
 	 */
-	fun loadPhotoBackground(dayPhase: DayPhase): Bitmap? {
-		val bucket = photoBucketFor(dayPhase, photoBackgroundRepository.availableNow()) ?: return null
-
-		return photoBackgroundRepository.load(bucket)
-	}
+	fun loadPhotoBackground(scene: BackdropScene, dayPhase: DayPhase) = photoBackgroundRepository.loadFor(scene, dayPhase)
 
 	private fun nowEpochSeconds() = System.currentTimeMillis() / 1000L
 }

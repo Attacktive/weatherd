@@ -23,7 +23,10 @@ import android.media.ExifInterface
 import android.net.Uri
 import android.os.Build
 import dagger.hilt.android.qualifiers.ApplicationContext
+import xyz.attacktive.weatherd.domain.model.BackdropScene
+import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.PhotoBucket
+import xyz.attacktive.weatherd.domain.model.photoBucketFor
 import xyz.attacktive.weatherd.util.AppLogger
 
 /**
@@ -107,6 +110,22 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 		}
 
 		return bitmap
+	}
+
+	/**
+	 * The stored photo to draw as the sky during [dayPhase], or null when [scene] is not [BackdropScene.PHOTO], no filled bucket covers that phase, or the stored file no longer decodes.
+	 * Null is the ordinary case and not a failure: the caller then lets the renderer paint its procedural sky exactly as it always has.
+	 * The whole fallback rule of the feature lives here and only here — the guard on [scene], the bucket resolution and the read — so the wallpaper and the in-app preview cannot drift into showing different photos for the same phase.
+	 * Synchronous and safe to call from the render thread for the same reason [load] is, and with the same ownership: the caller borrows the bitmap for one `renderBackdrop` call on the thread that rasterizes, and must recycle it afterward.
+	 */
+	fun loadFor(scene: BackdropScene, dayPhase: DayPhase): Bitmap? {
+		if (scene != BackdropScene.PHOTO) {
+			return null
+		}
+
+		val bucket = photoBucketFor(dayPhase, availableNow()) ?: return null
+
+		return load(bucket)
 	}
 
 	/**

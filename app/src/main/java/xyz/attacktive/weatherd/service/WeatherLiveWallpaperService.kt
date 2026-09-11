@@ -14,9 +14,7 @@ import android.view.Choreographer
 import android.view.SurfaceHolder
 import androidx.core.graphics.createBitmap
 import dagger.hilt.android.AndroidEntryPoint
-import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
-import xyz.attacktive.weatherd.domain.model.photoBucketFor
 import xyz.attacktive.weatherd.domain.render.SceneParams
 import xyz.attacktive.weatherd.domain.render.SceneRenderer
 import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
@@ -207,11 +205,12 @@ class WeatherLiveWallpaperService: WallpaperService() {
 
 		/**
 		 * Rasterizes the static backdrop into [target], lending the renderer the user's photo for exactly the length of that one call when the scene asks for one.
+		 * A null photo is the ordinary case and not a failure — the user has not chosen a photo backdrop, the phase resolves to no filled bucket, or the stored file no longer decodes — and the renderer then paints its procedural sky exactly as it always has.
 		 * The load, the assignment, the rasterize and the release all run here on the render thread, synchronously: [SceneRenderer.backgroundPhoto] is an unsynchronized field the sky pass dereferences mid-blit, so decoding on [Dispatchers.IO] and assigning from there would both race that read and risk recycling the bitmap under it.
-		 * The decode costs one file read per backdrop invalidation, and an invalidation is always a scene flip, which crossfades for [SCENE_FADE_SECONDS] over the outgoing backdrop anyway.
+		 * The decode costs one file read per backdrop invalidation, and the frame that pays it is already rebuilding the entire backdrop synchronously — sky gradients, overcast ceiling, fog base, haze, vignette — which dwarfs one file read of an already display-sized JPEG.
 		 */
 		private fun rasterizeBackdrop(target: Bitmap, params: SceneParams) {
-			val photo = photoFor(params)
+			val photo = photoBackgroundRepository.loadFor(params.backdropScene, params.dayPhase)
 			renderer.backgroundPhoto = photo
 
 			try {
@@ -221,20 +220,6 @@ class WeatherLiveWallpaperService: WallpaperService() {
 				renderer.backgroundPhoto = null
 				photo?.recycle()
 			}
-		}
-
-		/**
-		 * The photo to draw as this scene's sky, or null when the user has not chosen [BackdropScene.PHOTO], the phase resolves to no filled bucket, or the stored file no longer decodes.
-		 * Null is the ordinary case and not a failure: the renderer then paints its procedural sky exactly as it always has.
-		 */
-		private fun photoFor(params: SceneParams): Bitmap? {
-			if (params.backdropScene != BackdropScene.PHOTO) {
-				return null
-			}
-
-			val bucket = photoBucketFor(params.dayPhase, photoBackgroundRepository.availableNow()) ?: return null
-
-			return photoBackgroundRepository.load(bucket)
 		}
 
 		private fun nowEpochSeconds() = System.currentTimeMillis() / 1000L
