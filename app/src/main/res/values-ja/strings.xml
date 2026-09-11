@@ -31,6 +31,11 @@
 	<string name="city_search_empty">一致する都市が見つかりません。</string>
 	<string name="city_search_failed">検索に失敗しました</string>
 	<string name="hint_frame_rate">フレームレートを下げると描画負荷が軽減され、動作の遅い端末で効果的です。シーンの移動速度は変わりませんが、滑らかさが低下します。</string>
+	<string name="section_precipitation_intensity">降水の強さ</string>
+	<string name="section_wind_intensity">風の強さ</string>
+	<string name="intensity_subtle">控えめ</string>
+	<string name="intensity_intense">強め</string>
+	<string name="hint_intensity">観測された天気を基準に、降水の強さや風の勢いを調整します。</string>
 	<string name="version_footer">weatherd %1$s</string>
 
 	<!-- Refresh interval formatting -->

@@ -31,6 +31,11 @@
 	<string name="city_search_empty">Nessuna città corrispondente trovata.</string>
 	<string name="city_search_failed">Ricerca non riuscita</string>
 	<string name="hint_frame_rate">Ridurre i fotogrammi diminuisce il carico grafico, utile sui telefoni più lenti. La scena si muove alla stessa velocità, ma in modo meno fluido.</string>
+	<string name="section_precipitation_intensity">Intensità delle precipitazioni</string>
+	<string name="section_wind_intensity">Intensità del vento</string>
+	<string name="intensity_subtle">Lieve</string>
+	<string name="intensity_intense">Intenso</string>
+	<string name="hint_intensity">Regola l\'intensità delle precipitazioni e la forza del vento rispetto al meteo osservato.</string>
 	<string name="version_footer">weatherd %1$s</string>
 
 	<!-- Refresh interval formatting -->

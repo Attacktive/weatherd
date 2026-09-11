@@ -31,6 +31,11 @@
 	<string name="city_search_empty">No se encontró ninguna ciudad coincidente.</string>
 	<string name="city_search_failed">Error en la búsqueda</string>
 	<string name="hint_frame_rate">Menos fotogramas reducen la carga gráfica, lo que ayuda en teléfonos más lentos. La escena se moverá a la misma velocidad, pero con menor fluidez.</string>
+	<string name="section_precipitation_intensity">Intensidad de la precipitación</string>
+	<string name="section_wind_intensity">Intensidad del viento</string>
+	<string name="intensity_subtle">Sutil</string>
+	<string name="intensity_intense">Intenso</string>
+	<string name="hint_intensity">Escala la intensidad con la que cae la precipitación y la fuerza con la que sopla el viento, en relación con el tiempo observado.</string>
 	<string name="version_footer">weatherd %1$s</string>
 
 	<!-- Refresh interval formatting -->

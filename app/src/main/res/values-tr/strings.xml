@@ -31,6 +31,11 @@
 	<string name="city_search_empty">Eşleşen şehir bulunamadı.</string>
 	<string name="city_search_failed">Arama başarısız oldu</string>
 	<string name="hint_frame_rate">Kare hızını düşürmek çizim yükünü azaltır, bu da daha yavaş telefonlarda yardımcı olur. Sahne aynı hızda hareket eder, ancak daha az akıcı görünür.</string>
+	<string name="section_precipitation_intensity">Yağış şiddeti</string>
+	<string name="section_wind_intensity">Rüzgar şiddeti</string>
+	<string name="intensity_subtle">Hafif</string>
+	<string name="intensity_intense">Şiddetli</string>
+	<string name="hint_intensity">Gözlemlenen hava durumuna göre yağışın ne kadar kuvvetli düşeceğini ve rüzgarın ne kadar sert eseceğini ölçeklendirir.</string>
 	<string name="version_footer">weatherd %1$s</string>
 
 	<!-- Refresh interval formatting -->
