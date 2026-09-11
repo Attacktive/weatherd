@@ -190,7 +190,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			else -> DayPhase.NIGHT
 		}
 
-		return SceneParams(dayPhase = phase, cloudiness = 0.05f, fogDensity = 0f, precipitation = null, thunder = false, windFactor = 0.2f, moonPhase = moonPhaseFor(nowEpochSeconds), backdropScene = backdropScene)
+		return SceneParams(dayPhase = phase, cloudiness = 0.05f, fogDensity = 0f, precipitation = null, thunder = false, windFactor = 0.2f, moonPhase = moonPhaseFor(nowEpochSeconds), backdropScene = backdropScene, precipitationScale = precipitationIntensityScale, windScale = windIntensityScale)
 	}
 
 	companion object {

@@ -33,7 +33,7 @@
 	<string name="hint_frame_rate">Réduire le nombre d\'images diminue la charge graphique, utile pour les appareils moins puissants. La scène bouge à la même vitesse, mais de façon moins fluide.</string>
 	<string name="section_precipitation_intensity">Intensité des précipitations</string>
 	<string name="section_wind_intensity">Intensité du vent</string>
-	<string name="intensity_subtle">Subtil</string>
+	<string name="intensity_subtle">Subtile</string>
 	<string name="intensity_intense">Intense</string>
 	<string name="hint_intensity">Ajuste l\'intensité des précipitations et la force du vent par rapport à la météo observée.</string>
 	<string name="version_footer">weatherd %1$s</string>
