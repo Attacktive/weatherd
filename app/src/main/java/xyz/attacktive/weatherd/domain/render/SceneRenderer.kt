@@ -100,6 +100,7 @@ class SceneRenderer {
 	 * The decoded photo to draw as the sky while [SceneParams.backdropScene] is [BackdropScene.PHOTO].
 	 * The owner sets this for the duration of one [renderBackdrop] call and releases it afterward; the renderer only borrows the bitmap and never recycles it.
 	 * Null — or a bitmap the owner has already recycled — is not an error: the procedural sky draws instead.
+	 * The assignment, the [renderBackdrop] call, the clear and the recycle must all happen on the thread that rasterizes: this field is deliberately unsynchronized, and the sky pass reads it, checks it for recycling and then dereferences it through the blit.
 	 */
 	var backgroundPhoto: Bitmap? = null
 
@@ -2117,7 +2118,7 @@ class SceneRenderer {
  * The centered crop of a source photo whose aspect ratio matches the destination, so the photo fills the surface without stretching.
  * A source proportionally wider than the destination keeps its full height and is trimmed at the sides; a taller one keeps its full width and is trimmed at the top and bottom.
  * Cropping through a source rect beats scaling past the destination's edges: the blit then rasterizes only the pixels that land on screen.
- * A degenerate source or destination returns the whole source rather than an empty rect the blit would silently drop.
+ * A zero or negative source or destination dimension short-circuits to the source bounds instead of dividing by zero, which is an empty rect only when the source itself is empty.
  */
 internal fun photoSourceRect(sourceWidth: Int, sourceHeight: Int, destinationWidth: Float, destinationHeight: Float): Rect {
 	/*
