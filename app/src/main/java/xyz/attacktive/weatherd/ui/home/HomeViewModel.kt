@@ -5,17 +5,22 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import xyz.attacktive.weatherd.domain.model.AppSettings
+import xyz.attacktive.weatherd.domain.model.DayPhase
+import xyz.attacktive.weatherd.domain.model.photoBucketFor
 import xyz.attacktive.weatherd.domain.render.SceneParams
 import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
+import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
 	private val sceneProvider: WeatherSceneProvider,
+	private val photoBackgroundRepository: PhotoBackgroundRepository,
 	settingsRepository: SettingsRepository
 ): ViewModel() {
 	/** The user's redraw cap, so the preview animates at the same rate the wallpaper will. */
@@ -42,6 +47,16 @@ class HomeViewModel @Inject constructor(
 
 	/** The scene to preview right now — real weather once it has loaded, a clock-lit clear sky until then. */
 	fun currentParams(): SceneParams = sceneProvider.paramsFor(nowEpochSeconds())
+
+	/**
+	 * The stored photo to preview as the sky during [dayPhase], or null when no filled bucket covers that phase and the procedural sky should draw.
+	 * Decoded synchronously so the caller can borrow it for one `renderBackdrop` call on the thread it rasterizes on, which is what `SceneRenderer.backgroundPhoto`'s unsynchronized shape requires; the caller owns the bitmap and must recycle it.
+	 */
+	fun loadPhotoBackground(dayPhase: DayPhase): Bitmap? {
+		val bucket = photoBucketFor(dayPhase, photoBackgroundRepository.availableNow()) ?: return null
+
+		return photoBackgroundRepository.load(bucket)
+	}
 
 	private fun nowEpochSeconds() = System.currentTimeMillis() / 1000L
 }

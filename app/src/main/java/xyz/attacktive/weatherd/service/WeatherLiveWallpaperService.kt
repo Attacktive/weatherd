@@ -14,10 +14,13 @@ import android.view.Choreographer
 import android.view.SurfaceHolder
 import androidx.core.graphics.createBitmap
 import dagger.hilt.android.AndroidEntryPoint
+import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
+import xyz.attacktive.weatherd.domain.model.photoBucketFor
 import xyz.attacktive.weatherd.domain.render.SceneParams
 import xyz.attacktive.weatherd.domain.render.SceneRenderer
 import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
+import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
 
 /**
@@ -30,6 +33,7 @@ import xyz.attacktive.weatherd.domain.repository.SettingsRepository
 class WeatherLiveWallpaperService: WallpaperService() {
 	@Inject lateinit var sceneProvider: WeatherSceneProvider
 	@Inject lateinit var settingsRepository: SettingsRepository
+	@Inject lateinit var photoBackgroundRepository: PhotoBackgroundRepository
 
 	override fun onCreateEngine(): Engine = SceneEngine()
 
@@ -193,14 +197,49 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			}
 
 			val fresh = createBitmap(width, height)
-			renderer.renderBackdrop(Canvas(fresh), width, height, params)
+			rasterizeBackdrop(fresh, params)
 			backdrop = fresh
 			renderedParams = signature
 
 			return fresh
 		}
 
-		/** The backdrop never draws the moon or the sun's arc, so their slow foreground-only ticks must not force a re-rasterize. */
+		/**
+		 * Rasterizes the static backdrop into [target], lending the renderer the user's photo for exactly the length of that one call when the scene asks for one.
+		 * The load, the assignment, the rasterize and the release all run here on the render thread, synchronously: [SceneRenderer.backgroundPhoto] is an unsynchronized field the sky pass dereferences mid-blit, so decoding on [Dispatchers.IO] and assigning from there would both race that read and risk recycling the bitmap under it.
+		 * The decode costs one file read per backdrop invalidation, and an invalidation is always a scene flip, which crossfades for [SCENE_FADE_SECONDS] over the outgoing backdrop anyway.
+		 */
+		private fun rasterizeBackdrop(target: Bitmap, params: SceneParams) {
+			val photo = photoFor(params)
+			renderer.backgroundPhoto = photo
+
+			try {
+				renderer.renderBackdrop(Canvas(target), width, height, params)
+			} finally {
+				// Clearing before recycling, and in a finally, so a throwing rasterize can neither leak the bitmap nor leave the renderer holding a reference to freed pixels.
+				renderer.backgroundPhoto = null
+				photo?.recycle()
+			}
+		}
+
+		/**
+		 * The photo to draw as this scene's sky, or null when the user has not chosen [BackdropScene.PHOTO], the phase resolves to no filled bucket, or the stored file no longer decodes.
+		 * Null is the ordinary case and not a failure: the renderer then paints its procedural sky exactly as it always has.
+		 */
+		private fun photoFor(params: SceneParams): Bitmap? {
+			if (params.backdropScene != BackdropScene.PHOTO) {
+				return null
+			}
+
+			val bucket = photoBucketFor(params.dayPhase, photoBackgroundRepository.availableNow()) ?: return null
+
+			return photoBackgroundRepository.load(bucket)
+		}
+
+		/**
+		 * The backdrop never draws the moon or the sun's arc, so their slow foreground-only ticks must not force a re-rasterize.
+		 * Nothing identifying the photo belongs here either: which photo draws is a function of [SceneParams.dayPhase] and [SceneParams.backdropScene], both already part of the signature, so a phase flip or a switch away from [BackdropScene.PHOTO] re-rasterizes on its own.
+		 */
 		private fun backdropSignature(params: SceneParams) = params.copy(moonPhase = 0f, celestialProgress = 0f)
 
 		private fun nowEpochSeconds() = System.currentTimeMillis() / 1000L
