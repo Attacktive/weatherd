@@ -9,9 +9,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
+import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
+import xyz.attacktive.weatherd.domain.render.OverlayLabels
+import xyz.attacktive.weatherd.domain.render.SceneParams
+import xyz.attacktive.weatherd.domain.render.backdropSignature
 import xyz.attacktive.weatherd.domain.render.sceneParamsFor
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_DRIZZLE
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_STEADY
@@ -182,14 +186,79 @@ class SceneParamsTest {
 		val before = sceneParamsFor(snapshot, NOW, BackdropScene.PHOTO, photoRevision = 4)
 		val after = sceneParamsFor(snapshot, NOW, BackdropScene.PHOTO, photoRevision = 5)
 
-		// The wallpaper caches its backdrop against params.copy(moonPhase = 0f, celestialProgress = 0f) and the preview remembers against the params themselves, so both redraw on exactly this inequality and nothing else.
+		// The wallpaper caches its backdrop against backdropSignature and the preview remembers against it too, so both redraw on exactly this inequality and nothing else.
 		assertNotEquals(before, after)
-		assertNotEquals(before.copy(moonPhase = 0f, celestialProgress = 0f), after.copy(moonPhase = 0f, celestialProgress = 0f))
+		assertNotEquals(backdropSignature(before), backdropSignature(after))
 
 		// The same weather with no photo involved must stay at rest, which is what leaves every scene but PHOTO rasterizing exactly as often as it did before.
 		assertEquals(0, sceneParamsFor(snapshot, NOW).photoRevision)
 		assertEquals(sceneParamsFor(snapshot, NOW), sceneParamsFor(snapshot, NOW))
 	}
+
+	@Test
+	fun `the backdrop signature zeroes the moon and the celestial arc and nothing else`() {
+		val params = fullyPopulatedParams()
+
+		val signature = backdropSignature(params)
+
+		assertEquals(0f, signature.moonPhase, 0.0001f)
+		assertEquals(0f, signature.celestialProgress, 0.0001f)
+
+		// Putting just those two back has to reproduce the original, which is what proves nothing else was touched.
+		assertEquals(params, signature.copy(moonPhase = params.moonPhase, celestialProgress = params.celestialProgress))
+	}
+
+	@Test
+	fun `params differing only in the moon and the celestial arc share one signature`() {
+		val params = fullyPopulatedParams()
+
+		// A celestial tick a few minutes into dusk: the foreground moves, the backdrop cannot show any of it.
+		val ticked = params.copy(moonPhase = 0.93f, celestialProgress = 0.78f)
+
+		assertNotEquals(params, ticked)
+		assertEquals(backdropSignature(params), backdropSignature(ticked))
+	}
+
+	@Test
+	fun `every other field still separates two signatures`() {
+		val params = fullyPopulatedParams()
+
+		// Deliberately the whole rest of the type, not just what renderBackdrop reads today: a field added later invalidates the backdrop until someone lists it as foreground-only.
+		val changed = listOf(
+			"dayPhase" to params.copy(dayPhase = DayPhase.NIGHT),
+			"cloudiness" to params.copy(cloudiness = 0.95f),
+			"fogDensity" to params.copy(fogDensity = 0.95f),
+			"precipitation" to params.copy(precipitation = null),
+			"thunder" to params.copy(thunder = false),
+			"windFactor" to params.copy(windFactor = 0.95f),
+			"precipitationScale" to params.copy(precipitationScale = 2f),
+			"windScale" to params.copy(windScale = 2f),
+			"backdropScene" to params.copy(backdropScene = BackdropScene.NONE),
+			"photoRevision" to params.copy(photoRevision = params.photoRevision + 1),
+			"overlayLabels" to params.copy(overlayLabels = null)
+		)
+
+		for ((field, mutated) in changed) {
+			assertNotEquals("a changed $field must invalidate the backdrop", backdropSignature(params), backdropSignature(mutated))
+		}
+	}
+
+	/** A scene with every field at a distinctive value, so a signature that dropped one would show up as an equality that should not hold. */
+	private fun fullyPopulatedParams() = SceneParams(
+		dayPhase = DayPhase.DUSK,
+		cloudiness = 0.4f,
+		fogDensity = 0.2f,
+		precipitation = Precipitation(kind = PrecipitationKind.RAIN, severity = SEVERITY_STEADY, observed = 0.45f),
+		thunder = true,
+		windFactor = 0.3f,
+		precipitationScale = 1.5f,
+		windScale = 0.5f,
+		moonPhase = 0.17f,
+		celestialProgress = 0.62f,
+		backdropScene = BackdropScene.PHOTO,
+		photoRevision = 7,
+		overlayLabels = OverlayLabels(weather = "Rain · 10°", location = "Seoul")
+	)
 
 	private fun snapshot(weatherCode: Int, precipitationMillimeters: Double, windSpeedKilometersPerHour: Double, cloudCoverPercent: Int) = WeatherSnapshot(
 		observation = WeatherObservation(

@@ -20,6 +20,7 @@ import xyz.attacktive.weatherd.domain.model.photoBucketFor
 import xyz.attacktive.weatherd.domain.render.SceneParams
 import xyz.attacktive.weatherd.domain.render.SceneRenderer
 import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
+import xyz.attacktive.weatherd.domain.render.backdropSignature
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
 
@@ -235,12 +236,6 @@ class WeatherLiveWallpaperService: WallpaperService() {
 
 			return photoBackgroundRepository.load(bucket)
 		}
-
-		/**
-		 * The backdrop never draws the moon or the sun's arc, so their slow foreground-only ticks must not force a re-rasterize.
-		 * Which photo draws is a function of [SceneParams.dayPhase] and [SceneParams.backdropScene], so a phase flip or a switch away from [BackdropScene.PHOTO] re-rasterizes on its own; [SceneParams.photoRevision] covers the case those two miss, where the photo behind a fixed bucket is replaced or cleared.
-		 */
-		private fun backdropSignature(params: SceneParams) = params.copy(moonPhase = 0f, celestialProgress = 0f)
 
 		private fun nowEpochSeconds() = System.currentTimeMillis() / 1000L
 	}

@@ -49,7 +49,8 @@ class HomeViewModel @Inject constructor(
 	fun currentParams(): SceneParams = sceneProvider.paramsFor(nowEpochSeconds())
 
 	/**
-	 * The stored photo to preview as the sky during [dayPhase], or null when no filled bucket covers that phase and the procedural sky should draw.
+	 * The stored photo to preview as the sky during [dayPhase], or null when no filled bucket covers that phase or the stored file no longer decodes.
+	 * Null is the ordinary case and not a failure: the caller then lets the renderer paint its procedural sky.
 	 * Decoded synchronously so the caller can borrow it for one `renderBackdrop` call on the thread it rasterizes on, which is what `SceneRenderer.backgroundPhoto`'s unsynchronized shape requires; the caller owns the bitmap and must recycle it.
 	 */
 	fun loadPhotoBackground(dayPhase: DayPhase): Bitmap? {

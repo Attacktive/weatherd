@@ -57,6 +57,7 @@ import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.render.SCENE_PRESETS
 import xyz.attacktive.weatherd.domain.render.SceneRenderer
+import xyz.attacktive.weatherd.domain.render.backdropSignature
 import xyz.attacktive.weatherd.domain.render.debugSceneParams
 import xyz.attacktive.weatherd.service.WeatherLiveWallpaperService
 import android.graphics.Canvas as AndroidCanvas
@@ -131,14 +132,17 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 		val widthPx = with(density) { maxWidth.roundToPx() }
 		val heightPx = with(density) { maxHeight.roundToPx() }
 
+		// The backdrop cannot show the moon or the sun's arc, so keying on the whole params would re-decode the photo every time the once-a-second tick nudged the celestial fields along.
+		val backdropParams = backdropSignature(params)
+
 		/*
 		 * The photo is decoded, lent to the renderer, rasterized into the backdrop and released inside this one block, all on the thread that composes and draws.
 		 * SceneRenderer.backgroundPhoto is an unsynchronized field the sky pass dereferences mid-blit, so a LaunchedEffect or an IO dispatcher here would race the draw and could recycle the bitmap under it.
-		 * Keying on the params rather than recomposition also keeps that decode to once per scene change, which is what the wallpaper pays too.
+		 * Keying on the backdrop signature rather than recomposition also keeps that decode to once per backdrop change, which is exactly what the wallpaper pays.
 		 */
-		val backdrop = remember(widthPx, heightPx, params) {
-			val photo = if (params.backdropScene == BackdropScene.PHOTO) {
-				viewModel.loadPhotoBackground(params.dayPhase)
+		val backdrop = remember(widthPx, heightPx, backdropParams) {
+			val photo = if (backdropParams.backdropScene == BackdropScene.PHOTO) {
+				viewModel.loadPhotoBackground(backdropParams.dayPhase)
 			} else {
 				null
 			}
@@ -147,7 +151,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 
 			try {
 				createBitmap(widthPx, heightPx)
-					.also { renderer.renderBackdrop(AndroidCanvas(it), widthPx, heightPx, params) }
+					.also { renderer.renderBackdrop(AndroidCanvas(it), widthPx, heightPx, backdropParams) }
 			} finally {
 				renderer.backgroundPhoto = null
 				photo?.recycle()
