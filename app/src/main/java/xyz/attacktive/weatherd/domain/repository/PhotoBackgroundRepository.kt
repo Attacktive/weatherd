@@ -45,6 +45,7 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 
 	// The bucket set alone cannot say that a bucket's photo was replaced — the bucket was filled before and is filled after — so a counter tracks the bytes as well as the names.
 	// Every mutation below already runs under the mutex, so the increment needs no atomic of its own; only the render thread's read has to see it, which is what the volatile buys.
+	// Both mutation paths bump before publishing availableBuckets: that assignment resumes collectors on other coroutines, and one of them reading revisionNow() must never pair the new bucket set with a revision that predates it.
 	@Volatile private var revision = 0
 
 	/** The buckets that currently hold a photo, for a UI that has to reflect an import or a clear as it happens. */
@@ -68,8 +69,8 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 		mutation.withLock {
 			try {
 				importInto(bucket, source)
-				availableBuckets.value = scanAvailableBuckets()
 				revision++
+				availableBuckets.value = scanAvailableBuckets()
 
 				Result.success(Unit)
 			} catch (exception: IOException) {

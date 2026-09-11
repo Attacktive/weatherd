@@ -86,7 +86,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	val currentCap = rememberUpdatedState(frameRateCap)
 
 	// The debug cycler overrides the weather but keeps the user's chosen backdrop and intensity scales, so scenery can be previewed under any condition.
-	// The photo revision comes across with the backdrop: the preset carries no photo of its own, and without it a photo swapped while debug mode is on would not redraw.
+	// The photo revision comes across with it because the preset carries no revision of its own, which keeps the preview's backdrop key identical in shape to the wallpaper's signature.
 	val params = if (debugEnabled) {
 		debugSceneParams(
 			SCENE_PRESETS[debugSceneIndex],

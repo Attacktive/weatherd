@@ -59,8 +59,15 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 
 		// Render settings are captured before the throttle: they're display choices, not weather, so even a throttled refresh must adopt them.
 		// The photo revision rides along for the same reason — it is what tells the wallpaper's backdrop cache and the preview that the stored photos moved, and neither redraws until it does.
+		// Only PHOTO draws them, though, so every other scene holds it at zero: the backdrop signature carries the revision, and adopting a live one there would discard a cached backdrop to rasterize the same procedural sky again and crossfade between two identical images.
+		// Switching into PHOTO moves backdropScene itself, so the first frame that actually wants a photo still re-rasterizes.
 		backdropScene = settings.backdropScene
-		photoRevision = photoBackgroundRepository.revisionNow()
+		photoRevision = if (settings.backdropScene == BackdropScene.PHOTO) {
+			photoBackgroundRepository.revisionNow()
+		} else {
+			0
+		}
+
 		showWeatherLabel = settings.showWeatherLabel
 		showLocationLabel = settings.showLocationLabel
 		temperatureUnit = settings.temperatureUnit

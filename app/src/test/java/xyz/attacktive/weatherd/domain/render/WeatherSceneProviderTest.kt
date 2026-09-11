@@ -121,6 +121,25 @@ class WeatherSceneProviderTest {
 	}
 
 	@Test
+	fun `the photo revision stays out of the params while another scene draws`() = runTest {
+		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = true, backdropScene = BackdropScene.MOUNTAINS))
+		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
+		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 3))
+		every { photoBackgroundRepository.revisionNow() } returns 9
+
+		provider.refresh(1_000_000L)
+
+		// Filling a bucket while the mountains draw must leave the backdrop signature alone, or the wallpaper would throw its cache away to rasterize the same mountains again and crossfade between two identical images.
+		assertEquals(0, provider.paramsFor(1_000_030L).photoRevision)
+
+		// Switching into PHOTO is what adopts it, and backdropScene has moved by then, so that frame re-rasterizes either way.
+		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = true, backdropScene = BackdropScene.PHOTO))
+		provider.refresh(1_000_060L)
+
+		assertEquals(9, provider.paramsFor(1_000_090L).photoRevision)
+	}
+
+	@Test
 	fun `the weather label with temperature reaches the scene params`() = runTest {
 		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = true, showWeatherLabel = true))
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)

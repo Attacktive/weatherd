@@ -189,10 +189,6 @@ class SceneParamsTest {
 		// The wallpaper caches its backdrop against backdropSignature and the preview remembers against it too, so both redraw on exactly this inequality and nothing else.
 		assertNotEquals(before, after)
 		assertNotEquals(backdropSignature(before), backdropSignature(after))
-
-		// The same weather with no photo involved must stay at rest, which is what leaves every scene but PHOTO rasterizing exactly as often as it did before.
-		assertEquals(0, sceneParamsFor(snapshot, NOW).photoRevision)
-		assertEquals(sceneParamsFor(snapshot, NOW), sceneParamsFor(snapshot, NOW))
 	}
 
 	@Test
