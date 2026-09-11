@@ -11,11 +11,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
+import android.graphics.Matrix
+import android.media.ExifInterface
 import android.net.Uri
+import android.os.Build
 import dagger.hilt.android.qualifiers.ApplicationContext
 import xyz.attacktive.weatherd.domain.model.PhotoBucket
 import xyz.attacktive.weatherd.util.AppLogger
@@ -23,11 +29,16 @@ import xyz.attacktive.weatherd.util.AppLogger
 /**
  * Owns the user's own photos, one file per [PhotoBucket], under `filesDir/backgrounds`.
  * The bytes are copied at pick time rather than the picker's [Uri] being remembered: `content://media/picker/...` grants do not survive a reboot and cannot be persisted, and a live wallpaper that stopped drawing every morning would be worthless.
- * Each copy is downsampled to the display's long edge and re-encoded as JPEG, which bounds four buckets to roughly 12MB and leaves [load] nothing to do at draw time but read.
+ * Each copy is turned upright, downsampled to the display's long edge and re-encoded as JPEG, which bounds four buckets to roughly 12MB and leaves [load] nothing to do at draw time but read.
+ * Upright has to happen here: the re-encode writes no EXIF of its own, so whatever rotation [import] fails to bake into the pixels is lost to every later read.
  */
 @Singleton
 class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private val context: Context, private val logger: AppLogger) {
 	private val directory = File(context.filesDir, DIRECTORY_NAME)
+
+	// Every import of a bucket encodes through that bucket's one scratch file, so two of them at once would truncate each other's half-written photo straight into the live file.
+	// A temp name per call would avoid the collision but leave a stray behind on a process kill, which nothing later sweeps; serializing costs a wait on a path the user already knows is slow.
+	private val mutation = Mutex()
 
 	// Four stat calls on the injecting thread, once per process, is a price worth paying for a bucket set that is correct from the very first read.
 	private val availableBuckets = MutableStateFlow(scanAvailableBuckets())
@@ -39,28 +50,31 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 	fun availableNow() = availableBuckets.value
 
 	/**
-	 * Copies the photo at [source] into [bucket], downsampled and re-encoded, replacing whatever that bucket held.
+	 * Copies the photo at [source] into [bucket], turned upright, downsampled and re-encoded, replacing whatever that bucket held.
 	 * Fails rather than throws: a pick can be revoked, corrupt or simply enormous, and all three are the user's problem to see rather than the process's to die of.
+	 * Serialized against every other import and [clear], so Replace tapped twice during a multi-megapixel decode queues instead of racing.
 	 */
 	suspend fun import(bucket: PhotoBucket, source: Uri): Result<Unit> = withContext(Dispatchers.IO) {
-		try {
-			importInto(bucket, source)
-			availableBuckets.value = scanAvailableBuckets()
+		mutation.withLock {
+			try {
+				importInto(bucket, source)
+				availableBuckets.value = scanAvailableBuckets()
 
-			Result.success(Unit)
-		} catch (exception: IOException) {
-			importFailure(bucket, exception)
-		} catch (exception: SecurityException) {
-			importFailure(bucket, exception)
-		} catch (exception: OutOfMemoryError) {
-			// A 108MP pick can exhaust the heap even downsampled; refusing that import beats taking the wallpaper's process down with it.
-			importFailure(bucket, exception)
+				Result.success(Unit)
+			} catch (exception: IOException) {
+				importFailure(bucket, exception)
+			} catch (exception: SecurityException) {
+				importFailure(bucket, exception)
+			} catch (exception: OutOfMemoryError) {
+				// A 108MP pick can exhaust the heap even downsampled; refusing that import beats taking the wallpaper's process down with it.
+				importFailure(bucket, exception)
+			}
 		}
 	}
 
 	/**
 	 * The stored photo for [bucket], or null when the bucket is empty or its file no longer decodes.
-	 * Synchronous and called from the render thread on purpose: the file is already scaled to the display, so this is a straight read with no resampling, and the backdrop cannot be rasterized until the bitmap is in hand.
+	 * Synchronous and called from the render thread on purpose: the file is already scaled to the display and already upright, so this is a straight read with no resampling and no rotation, and the backdrop cannot be rasterized until the bitmap is in hand.
 	 * The caller owns the result and must recycle it.
 	 */
 	fun load(bucket: PhotoBucket): Bitmap? {
@@ -83,15 +97,20 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 		return bitmap
 	}
 
-	/** Drops the photo stored for [bucket], after which that phase falls back to its parent bucket or to the painted sky. */
+	/**
+	 * Drops the photo stored for [bucket], after which that phase falls back to its parent bucket or to the painted sky.
+	 * Serialized against [import], so clearing a bucket mid-import takes effect before or after that import rather than during it.
+	 */
 	suspend fun clear(bucket: PhotoBucket) {
 		withContext(Dispatchers.IO) {
-			val file = fileFor(bucket)
-			if (file.exists() && !file.delete()) {
-				logger.error(TAG, "could not delete the stored photo for $bucket")
-			}
+			mutation.withLock {
+				val file = fileFor(bucket)
+				if (file.exists() && !file.delete()) {
+					logger.error(TAG, "could not delete the stored photo for $bucket")
+				}
 
-			availableBuckets.value = scanAvailableBuckets()
+				availableBuckets.value = scanAvailableBuckets()
+			}
 		}
 	}
 
@@ -102,18 +121,111 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 	}
 
 	private fun importInto(bucket: PhotoBucket, source: Uri) {
-		val targetLongEdge = targetLongEdge()
-		val bounds = decodeBounds(source)
-
-		// The bounds pass reports -1 for anything BitmapFactory cannot make sense of, which photoSampleSize treats as "do not downsample" and the full decode below then rejects outright.
-		var bitmap = decodeSampled(source, photoSampleSize(bounds.outWidth, bounds.outHeight, targetLongEdge)) ?: throw IOException("$source did not decode to a bitmap")
+		val bitmap = decodeUpright(source, targetLongEdge()) ?: throw IOException("$source did not decode to a bitmap")
 
 		try {
-			bitmap = scaledToLongEdge(bitmap, targetLongEdge)
 			writeAtomically(bucket, bitmap)
 		} finally {
 			bitmap.recycle()
 		}
+	}
+
+	/**
+	 * Decodes [source] with its stored rotation already applied and its long edge at [targetLongEdge] or below, or null when there is no image there to decode.
+	 * The caller owns the result and must recycle it.
+	 */
+	private fun decodeUpright(source: Uri, targetLongEdge: Int): Bitmap? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+		// ImageDecoder applies the encoded origin itself, for every format the platform can decode rather than only the ones a metadata parser understands, and it samples at any integer rather than only powers of two, so this route is both upright and never the more expensive decode of the two.
+		ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, source)) { decoder, info, _ ->
+			// The default allocator returns a hardware bitmap, whose pixels live in graphics memory where the JPEG encoder cannot reach them.
+			decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+
+			// The reported size is already the upright one, and so is the target: ImageDecoder swaps both for a quarter-turn origin, so neither has to be second-guessed here.
+			val size = info.size
+			val longEdge = max(size.width, size.height)
+			if (longEdge > targetLongEdge) {
+				val scale = targetLongEdge.toFloat() / longEdge.toFloat()
+				decoder.setTargetSize(max(1, (size.width * scale).roundToInt()), max(1, (size.height * scale).roundToInt()))
+			}
+		}
+	} else {
+		decodeUprightWithBitmapFactory(source, targetLongEdge)
+	}
+
+	/**
+	 * The route for 26 and 27, which predate [ImageDecoder]: [BitmapFactory] reads no orientation of its own, so the tag is read separately and turned in afterwards.
+	 * Scaling before rotating is deliberate — a quarter turn leaves the long edge where it was, so the rotation's copy costs one target-sized bitmap instead of one intermediate-sized one.
+	 */
+	private fun decodeUprightWithBitmapFactory(source: Uri, targetLongEdge: Int): Bitmap? {
+		val bounds = decodeBounds(source)
+
+		// The bounds pass reports -1 for anything BitmapFactory cannot make sense of, which photoSampleSize treats as "do not downsample" and the full decode below then rejects outright.
+		// scaledToLongEdge and uprighted each consume what they are handed, so this one name follows whichever copy is currently live.
+		var bitmap = decodeSampled(source, photoSampleSize(bounds.outWidth, bounds.outHeight, targetLongEdge)) ?: return null
+
+		// The flag is what tells a finished chain from one that threw partway and left a bitmap for this function to release.
+		var complete = false
+		try {
+			bitmap = scaledToLongEdge(bitmap, targetLongEdge)
+			bitmap = uprighted(bitmap, exifOrientation(source))
+			complete = true
+		} finally {
+			if (!complete) {
+				bitmap.recycle()
+			}
+		}
+
+		return bitmap
+	}
+
+	/**
+	 * The orientation [source] declares, or [ExifInterface.ORIENTATION_NORMAL] when it declares none or cannot be read for one.
+	 * A camera writes the sensor's pixels plus a rotation tag rather than rotated pixels, so an ordinary phone photo is stored on its side without this.
+	 * An unreadable tag is not worth failing an import over: a photo that is upright for the overwhelming majority of picks beats no photo at all.
+	 */
+	private fun exifOrientation(source: Uri): Int {
+		return try {
+			openStream(source).use {
+				ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+			}
+		} catch (exception: IOException) {
+			logger.debug(TAG, "could not read the orientation of $source: ${exception.message}")
+
+			ExifInterface.ORIENTATION_NORMAL
+		}
+	}
+
+	/**
+	 * Returns [source] with the EXIF [orientation] baked into its pixels, or [source] itself when the pixels are already upright.
+	 * All eight values are handled rather than the three plain rotations, so a mirrored pick comes out the same way here as it does through [ImageDecoder] instead of differing by API level.
+	 * Consumes [source]: the caller must treat only the returned bitmap as live.
+	 */
+	private fun uprighted(source: Bitmap, orientation: Int): Bitmap {
+		val matrix = Matrix()
+		when (orientation) {
+			ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.setScale(-1f, 1f)
+			ExifInterface.ORIENTATION_ROTATE_180 -> matrix.setRotate(180f)
+			ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.setScale(1f, -1f)
+			ExifInterface.ORIENTATION_TRANSPOSE -> {
+				matrix.setRotate(90f)
+				matrix.postScale(-1f, 1f)
+			}
+			ExifInterface.ORIENTATION_ROTATE_90 -> matrix.setRotate(90f)
+			ExifInterface.ORIENTATION_TRANSVERSE -> {
+				matrix.setRotate(270f)
+				matrix.postScale(-1f, 1f)
+			}
+			ExifInterface.ORIENTATION_ROTATE_270 -> matrix.setRotate(270f)
+			// ORIENTATION_NORMAL, ORIENTATION_UNDEFINED and whatever a corrupt tag invents all mean the same thing: leave the pixels alone.
+			else -> return source
+		}
+
+		val upright = Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
+		if (upright !== source) {
+			source.recycle()
+		}
+
+		return upright
 	}
 
 	private fun decodeBounds(source: Uri): BitmapFactory.Options {
@@ -163,6 +275,7 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 		}
 
 		// Encoding straight onto the bucket's own file would leave a half-written photo behind on any failure; the rename is atomic within a directory, so the bucket flips from old to new in one step or not at all.
+		// One scratch name per bucket is safe only because `mutation` keeps two imports of that bucket from holding it at once.
 		val temporary = File(directory, "${fileNameFor(bucket)}.tmp")
 		try {
 			FileOutputStream(temporary).use { stream ->
@@ -183,14 +296,14 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 	}
 
 	/**
-	 * The pixel length every stored photo is scaled to, taken as the longer display edge so one file serves both orientations.
+	 * The pixel length every stored photo is scaled to, read from the display this process is running on.
 	 * The wallpaper surface is not strictly the display — a launcher that forces a scrollable wallpaper can hand us something wider — but this service never asks for one, and the worst case is a modest upscale rather than a failure.
 	 * Reach for `WallpaperManager.getDesiredMinimumWidth`/`getDesiredMinimumHeight` if a device ever looks soft; that is the canonical wallpaper size, not the display metrics.
 	 */
 	private fun targetLongEdge(): Int {
 		val metrics = context.resources.displayMetrics
 
-		return max(metrics.widthPixels, metrics.heightPixels).coerceAtLeast(MINIMUM_LONG_EDGE)
+		return photoTargetLongEdge(metrics.widthPixels, metrics.heightPixels)
 	}
 
 	// The return type is spelled out so neither the state flow nor availableNow hands a caller a mutable handle on the live set.
@@ -205,8 +318,24 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 		private const val TAG = "PhotoBackgroundRepository"
 		private const val DIRECTORY_NAME = "backgrounds"
 		private const val JPEG_QUALITY = 90
-		private const val MINIMUM_LONG_EDGE = 1280
 	}
+}
+
+/** The long edge a stored photo is scaled to when the display metrics cannot be read at all, which is the size of a small phone from the era minSdk 26 dates to. */
+private const val FALLBACK_LONG_EDGE = 1280
+
+/**
+ * The long edge to store a photo at for a display of [widthPixels] by [heightPixels], which is simply the longer of the two.
+ * No floor: a 540x960 or 480x854 phone is a real minSdk 26 device rather than a bad read, and storing more pixels than it can show would have the render thread decode close to twice the bitmap it needs on exactly the devices with the least heap to spare.
+ * [FALLBACK_LONG_EDGE] stands in only for a non-positive read, which is not a small display but an absent one, and scaling a photo to that would store nothing at all.
+ */
+internal fun photoTargetLongEdge(widthPixels: Int, heightPixels: Int): Int {
+	val longEdge = max(widthPixels, heightPixels)
+	if (longEdge <= 0) {
+		return FALLBACK_LONG_EDGE
+	}
+
+	return longEdge
 }
 
 /**
@@ -214,6 +343,7 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
  * Always a power of two, because BitmapFactory rounds anything else up to one anyway.
  * Rounds the ratio down rather than up: a sample size that undershot the target would decode fewer pixels than the display has, and the import scales down only, so that softness would be baked into the stored file forever.
  * Returns 1 for a degenerate or undecodable size instead of dividing by zero.
+ * Only the pre-P import route needs this; [ImageDecoder] is told the target size and picks its own sample size from it.
  */
 internal fun photoSampleSize(sourceWidth: Int, sourceHeight: Int, targetLongEdge: Int): Int {
 	// Either dimension being non-positive means there is no real image here, whatever the other one claims, so hand the full decode an untouched stream and let it fail there with a reason.
