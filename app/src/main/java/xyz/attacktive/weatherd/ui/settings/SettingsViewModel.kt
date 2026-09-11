@@ -1,6 +1,7 @@
 package xyz.attacktive.weatherd.ui.settings
 
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,6 +14,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import xyz.attacktive.weatherd.R
+import xyz.attacktive.weatherd.di.ApplicationScope
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.GeoPlace
 import xyz.attacktive.weatherd.domain.model.PhotoBucket
@@ -34,7 +36,8 @@ class SettingsViewModel @Inject constructor(
 	application: Application,
 	private val settingsRepository: SettingsRepository,
 	private val geocodingRepository: GeocodingRepository,
-	private val photoBackgroundRepository: PhotoBackgroundRepository
+	private val photoBackgroundRepository: PhotoBackgroundRepository,
+	@ApplicationScope private val applicationScope: CoroutineScope
 ): AndroidViewModel(application) {
 	val settings = settingsRepository.settings
 		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings())
@@ -105,22 +108,30 @@ class SettingsViewModel @Inject constructor(
 	}
 
 	/**
-	 * Copies the photo the user just picked into [bucket], and raises [photoImportFailed] when it does not land.
-	 * The import owns its own thread hop, so this only has to keep it off the composition; the pick itself is a revocable grant on someone else's file and can fail for reasons no amount of retrying here would fix.
+	 * Copies the photo the user just picked into [bucket], reporting through [photoImportFailed] whether it landed.
+	 * The copy runs on [applicationScope] rather than on [viewModelScope] because it is a write the user has already asked for: a full-resolution decode takes seconds, and pressing Back in the middle of one used to cancel it silently, leaving the row still saying no photo was selected.
+	 * Only the flag it reports through belongs to the screen, and writing to it after the screen is gone is a write nobody is collecting rather than a leak: the view model outlives its own scope until the copy returns, holding nothing but the application and singletons.
 	 * A failed import writes nothing, which is why [photoBuckets] stays the only thing the rows read: the row cannot end up advertising a photo that was never stored.
 	 */
 	fun importPhoto(bucket: PhotoBucket, source: Uri) {
-		viewModelScope.launch {
-			_photoImportFailed.value = false
+		_photoImportFailed.value = false
 
-			photoBackgroundRepository.import(bucket, source)
-				.onFailure { _photoImportFailed.value = true }
+		applicationScope.launch {
+			_photoImportFailed.value = photoBackgroundRepository.import(bucket, source).isFailure
 		}
 	}
 
-	/** Drops the photo stored for [bucket], after which that phase falls back to its parent bucket or to the painted sky. */
+	/** Lowers [photoImportFailed], so that a failure the user has already been shown does not come back with the section the next time it is opened. */
+	fun dismissImportFailure() {
+		_photoImportFailed.value = false
+	}
+
+	/**
+	 * Drops the photo stored for [bucket], after which that phase falls back to its parent bucket or to the painted sky.
+	 * Application-scoped for the same reason the import is: a clear queued behind an import waits on the repository's mutex, and a clear dropped on the way out of the screen would leave a photo the user told us to remove.
+	 */
 	fun clearPhoto(bucket: PhotoBucket) {
-		viewModelScope.launch {
+		applicationScope.launch {
 			photoBackgroundRepository.clear(bucket)
 		}
 	}

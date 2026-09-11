@@ -44,6 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -124,7 +125,8 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 							buckets = photoBuckets,
 							importFailed = photoImportFailed,
 							onChoose = viewModel::importPhoto,
-							onClear = viewModel::clearPhoto
+							onClear = viewModel::clearPhoto,
+							onDismissFailure = viewModel::dismissImportFailure
 						)
 					}
 				}
@@ -303,7 +305,18 @@ private fun BackdropSection(settings: AppSettings, onSave: (AppSettings) -> Unit
  * No thumbnail here on purpose: decoding a stored bitmap into Compose is its own decision, and saying whether a slot is filled is what the user needs to act.
  */
 @Composable
-private fun PhotoBackgroundSection(buckets: Set<PhotoBucket>, importFailed: Boolean, onChoose: (PhotoBucket, Uri) -> Unit, onClear: (PhotoBucket) -> Unit) {
+private fun PhotoBackgroundSection(
+	buckets: Set<PhotoBucket>,
+	importFailed: Boolean,
+	onChoose: (PhotoBucket, Uri) -> Unit,
+	onClear: (PhotoBucket) -> Unit,
+	onDismissFailure: () -> Unit
+) {
+	// The failure belongs to the pick that caused it, so it dies with the section: switching the backdrop away and back must not bring back an error with nothing the user just did behind it.
+	DisposableEffect(Unit) {
+		onDispose(onDismissFailure)
+	}
+
 	SectionLabel(stringResource(R.string.section_photo_backgrounds))
 
 	PhotoBucket.entries.forEach { bucket ->
@@ -333,7 +346,9 @@ private fun PhotoBackgroundSection(buckets: Set<PhotoBucket>, importFailed: Bool
  */
 @Composable
 private fun PhotoBucketRow(bucket: PhotoBucket, isSet: Boolean, onChoose: (Uri) -> Unit, onClear: () -> Unit) {
-	val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { picked ->
+	// Registration keys on the contract instance and PickVisualMedia does not implement equals, so a contract built inline would tear the registration down and rebuild it on every recomposition.
+	val contract = remember { ActivityResultContracts.PickVisualMedia() }
+	val picker = rememberLauncherForActivityResult(contract) { picked ->
 		// Null is the user backing out of the picker, which is not a failure and must not be reported as one.
 		if (picked != null) {
 			onChoose(picked)
@@ -361,8 +376,11 @@ private fun PhotoBucketRow(bucket: PhotoBucket, isSet: Boolean, onChoose: (Uri) 
 		}
 
 		if (isSet) {
+			// Four rows carry the same icon, so the description names the bucket it clears; a "Day, Clear" enumeration rather than a sentence, which keeps it out of the way of word order in the ten locales the strings are translated into.
+			val clearDescription = "${formatPhotoBucket(bucket)}, ${stringResource(R.string.photo_clear)}"
+
 			IconButton(onClick = onClear) {
-				Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.photo_clear))
+				Icon(Icons.Filled.Clear, contentDescription = clearDescription)
 			}
 		}
 	}
