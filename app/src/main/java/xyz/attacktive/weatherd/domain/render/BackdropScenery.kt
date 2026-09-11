@@ -91,7 +91,7 @@ data class SceneryOutlines(
 )
 
 /**
- * The silhouette geometry for [scene], or null for the bare sky.
+ * The silhouette geometry for [scene], or null when the scene raises no horizon of its own — the bare sky and the user's photos.
  * Pure and deterministic: each plane draws from a fixed seed, so every device shows the same skyline and tests can pin its shape.
  * [aspectRatio] (width over height) only scales how many features fit, so buildings and trees keep their proportions instead of stretching on wide screens.
  */
@@ -101,6 +101,7 @@ fun sceneryOutlinesFor(scene: BackdropScene, aspectRatio: Float): SceneryOutline
 	BackdropScene.BEACH -> beach(aspectRatio)
 	BackdropScene.MOUNTAINS -> mountains(aspectRatio)
 	BackdropScene.COUNTRYSIDE -> countryside(aspectRatio)
+	BackdropScene.PHOTO -> null
 }
 
 /** Hazy steel towers behind warm masonry blocks with real street gaps, fronted by a city park with a few tree crowns. */

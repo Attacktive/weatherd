@@ -6,6 +6,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import xyz.attacktive.weatherd.domain.model.BackdropScene
+import xyz.attacktive.weatherd.domain.model.drawsScenery
 
 class BackdropSceneryTest {
 	@Test
@@ -281,7 +282,7 @@ class BackdropSceneryTest {
 
 	companion object {
 		private const val PORTRAIT = 0.46f
-		private val SCENERY_SCENES = BackdropScene.entries.filter { it != BackdropScene.NONE }
+		private val SCENERY_SCENES = BackdropScene.entries.filter { it.drawsScenery }
 	}
 }
 

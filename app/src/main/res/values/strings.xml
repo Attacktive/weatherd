@@ -55,6 +55,7 @@
 	<string name="backdrop_beach">Beach</string>
 	<string name="backdrop_mountains">Mountains</string>
 	<string name="backdrop_countryside">Countryside</string>
+	<string name="backdrop_photo">Your photos</string>
 
 	<!-- Temperature unit labels -->
 	<string name="unit_celsius">°C</string>

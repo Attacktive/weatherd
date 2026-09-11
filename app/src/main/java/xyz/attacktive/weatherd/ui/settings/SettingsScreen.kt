@@ -490,6 +490,7 @@ private fun formatBackdrop(scene: BackdropScene) = when (scene) {
 	BackdropScene.BEACH -> stringResource(R.string.backdrop_beach)
 	BackdropScene.MOUNTAINS -> stringResource(R.string.backdrop_mountains)
 	BackdropScene.COUNTRYSIDE -> stringResource(R.string.backdrop_countryside)
+	BackdropScene.PHOTO -> stringResource(R.string.backdrop_photo)
 }
 
 @Composable
