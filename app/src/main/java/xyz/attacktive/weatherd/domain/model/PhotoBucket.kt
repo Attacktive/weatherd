@@ -23,7 +23,10 @@ enum class PhotoBucket {
 		}
 
 	companion object {
-		/** The bucket stored under [name], or null when the value is absent or unrecognized (e.g. written by a newer build before a downgrade). */
+		/**
+		 * The bucket stored under [name], matched against the entry's own uppercase spelling ("DAY", "NIGHT", "DAWN", "DUSK") exactly.
+		 * Null means the value was absent or unrecognized — a lowercase or otherwise differently spelled name yields null rather than a match, and callers must not read that null as "use the default bucket".
+		 */
 		fun fromName(name: String?) = entries.firstOrNull { it.name == name }
 	}
 }

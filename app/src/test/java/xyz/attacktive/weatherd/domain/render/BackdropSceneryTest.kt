@@ -15,6 +15,16 @@ class BackdropSceneryTest {
 	}
 
 	@Test
+	fun `a photo backdrop keeps the horizon silhouettes off the user's picture`() {
+		assertNull(sceneryOutlinesFor(BackdropScene.PHOTO, PORTRAIT))
+	}
+
+	@Test
+	fun `every scenery scene stays in the loop-driven coverage`() {
+		assertEquals(4, SCENERY_SCENES.size)
+	}
+
+	@Test
 	fun `every scene is deterministic`() {
 		for (scene in SCENERY_SCENES) {
 			assertEquals(sceneryOutlinesFor(scene, PORTRAIT), sceneryOutlinesFor(scene, PORTRAIT))
