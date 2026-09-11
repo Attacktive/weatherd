@@ -34,6 +34,8 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	@Volatile private var showWeatherLabel = false
 	@Volatile private var showLocationLabel = false
 	@Volatile private var temperatureUnit = TemperatureUnit.CELSIUS
+	@Volatile private var precipitationIntensityScale = 1f
+	@Volatile private var windIntensityScale = 1f
 	@Volatile private var locationLabel: String? = null
 	@Volatile private var lastFix: GeoLocation? = null
 	@Volatile private var geocodedKey: String? = null
@@ -42,7 +44,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	fun paramsFor(nowEpochSeconds: Long): SceneParams {
 		val snapshot = this.snapshot ?: return fallbackParams(nowEpochSeconds)
 
-		return sceneParamsFor(snapshot, nowEpochSeconds, backdropScene, overlayLabels(snapshot))
+		return sceneParamsFor(snapshot, nowEpochSeconds, backdropScene, overlayLabels(snapshot), precipitationIntensityScale, windIntensityScale)
 	}
 
 	/**
@@ -58,6 +60,8 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		showWeatherLabel = settings.showWeatherLabel
 		showLocationLabel = settings.showLocationLabel
 		temperatureUnit = settings.temperatureUnit
+		precipitationIntensityScale = settings.precipitationIntensityScale
+		windIntensityScale = settings.windIntensityScale
 		refreshLocationLabel(settings)
 
 		val locationKey = locationKey(settings)

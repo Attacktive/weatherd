@@ -3,6 +3,7 @@ package xyz.attacktive.weatherd.domain.render
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.min
+import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.random.Random
@@ -163,7 +164,7 @@ class SceneRenderer {
 		}
 
 		if (params.precipitation != null) {
-			drawPrecipitation(canvas, w, h, params.precipitation, params.windFactor, timeSeconds, flashWash)
+			drawPrecipitation(canvas, w, h, params.precipitation, params.precipitationScale, params.windFactor, timeSeconds, flashWash)
 		}
 
 		if (params.thunder) {
@@ -1342,9 +1343,8 @@ class SceneRenderer {
 	/** Precipitation density breathes ±15% over half-minute swells, so the fall reads as squalls instead of a constant static. */
 	private fun squallFactor(timeSeconds: Float) = 0.85f + 0.15f * (0.6f * sin(timeSeconds * 0.21f) + 0.4f * sin(timeSeconds * 0.53f))
 
-	private fun drawPrecipitation(canvas: Canvas, width: Float, height: Float, precipitation: Precipitation, windFactor: Float, timeSeconds: Float, flash: Float) {
-		val observedFactor = 0.4f + 0.6f * precipitation.observed
-		val count = (precipitationBaseCount(precipitation, width, height) * observedFactor).roundToInt()
+	private fun drawPrecipitation(canvas: Canvas, width: Float, height: Float, precipitation: Precipitation, scale: Float, windFactor: Float, timeSeconds: Float, flash: Float) {
+		val count = precipitationDropCount(precipitation, scale, width, height)
 
 		// Only the dim far layers breathe with the squall factor: a particle popping into existence mid-fall is a teleport, imperceptible at the far layers' alphas but exactly what the bright near layers must never show — so those hold the steady count.
 		val squallCount = (count * squallFactor(timeSeconds)).roundToInt()
@@ -2121,11 +2121,29 @@ private fun birdColor(dayPhase: DayPhase) = when (dayPhase) {
 
 private fun showsHaze(params: SceneParams) = params.precipitation != null || params.fogDensity > 0f || params.cloudiness > 0.75f
 
+private const val PRECIPITATION_SCALE_EXPONENT = 0.5f
+
+/**
+ * How many particles to draw for this precipitation, after the user's intensity preference.
+ * The 0.4 floor keeps any reported precipitation visible at all — a trace of rain should not render as a clear sky — but it is a default, not a law, so the user's scale multiplies the whole factor rather than only the 0.6 the observation controls.
+ * Scaling the observation instead would leave 40% of the drops beyond the slider's reach and turn a 20x control into a 1.7x one.
+ * The scale is shaped with [PRECIPITATION_SCALE_EXPONENT] because the slider is shared with wind, but drop count is perceived ratiometrically rather than linearly, so an unshaped multiplier makes the bottom of the travel swing several-fold while the top barely moves.
+ * Any exponent leaves 1f exactly 1f, so the default is untouched.
+ */
+internal fun precipitationDropCount(precipitation: Precipitation, scale: Float, width: Float, height: Float): Int {
+	val shapedScale = scale.coerceAtLeast(0f).pow(PRECIPITATION_SCALE_EXPONENT)
+	val observedFactor = (0.4f + 0.6f * precipitation.observed) * shapedScale
+
+	return (precipitationBaseCount(precipitation, width, height) * observedFactor)
+		.roundToInt()
+		.coerceAtLeast(0)
+}
+
 /**
  * Base particle count before the observed-intensity modulation.
  * Screen area over a divisor that shrinks (more particles) as severity climbs; the anchor points reproduce the hand-tuned densities for drizzle, steady rain, storm rain, downpours, steady snow, and blizzards.
  */
-private fun precipitationBaseCount(precipitation: Precipitation, width: Float, height: Float): Int {
+internal fun precipitationBaseCount(precipitation: Precipitation, width: Float, height: Float): Int {
 	val severity = precipitation.severity
 	val divisor = when (precipitation.kind) {
 		PrecipitationKind.RAIN -> when {

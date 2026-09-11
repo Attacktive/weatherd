@@ -16,6 +16,8 @@ import xyz.attacktive.weatherd.domain.weather.precipitationIntensity
  * [celestialProgress] eases the sun/moon along its arc through the current phase; the midpoint default reproduces the old fixed heights.
  * [backdropScene] is the user's horizon scenery choice — a setting, not weather, so it defaults to the bare sky.
  * [overlayLabels] is the optional text overlay, already formatted for drawing; null keeps the wallpaper text-free.
+ * [precipitationScale] is the user's preference rather than an observation, so it rides alongside [precipitation] instead of being folded into it: the renderer applies it past its own visibility floor, where it is the drop count the user actually sees.
+ * Wind needs no such field — its scale folds straight into [windFactor], whose downstream floors are deliberate baselines.
  */
 data class SceneParams(
 	val dayPhase: DayPhase,
@@ -24,6 +26,7 @@ data class SceneParams(
 	val precipitation: Precipitation?,
 	val thunder: Boolean,
 	val windFactor: Float,
+	val precipitationScale: Float = 1f,
 	val moonPhase: Float = 0.5f,
 	val celestialProgress: Float = 0.5f,
 	val backdropScene: BackdropScene = BackdropScene.NONE,
@@ -34,7 +37,14 @@ data class SceneParams(
 data class OverlayLabels(val weather: String?, val location: String?)
 
 /** Derives render parameters from a weather snapshot for the given moment. */
-fun sceneParamsFor(snapshot: WeatherSnapshot, nowEpochSeconds: Long, backdropScene: BackdropScene = BackdropScene.NONE, overlayLabels: OverlayLabels? = null): SceneParams {
+fun sceneParamsFor(
+	snapshot: WeatherSnapshot,
+	nowEpochSeconds: Long,
+	backdropScene: BackdropScene = BackdropScene.NONE,
+	overlayLabels: OverlayLabels? = null,
+	precipitationScale: Float = 1f,
+	windScale: Float = 1f
+): SceneParams {
 	val observation = snapshot.observation
 	val condition = conditionFor(observation.weatherCode)
 	val dayPhase = dayPhaseFor(nowEpochSeconds, snapshot.sunriseEpochSeconds, snapshot.sunsetEpochSeconds, observation.isDay)
@@ -51,7 +61,8 @@ fun sceneParamsFor(snapshot: WeatherSnapshot, nowEpochSeconds: Long, backdropSce
 			Precipitation(kind = it, severity = condition.severity, observed = shapedIntensity(precipitationIntensity(observation.precipitationMillimeters)))
 		},
 		thunder = condition.thunder,
-		windFactor = shapedIntensity((observation.windSpeedKilometersPerHour / MAX_WIND_KILOMETERS_PER_HOUR).toFloat()),
+		windFactor = (shapedIntensity((observation.windSpeedKilometersPerHour / MAX_WIND_KILOMETERS_PER_HOUR).toFloat()) * windScale).coerceIn(0f, 1f),
+		precipitationScale = precipitationScale,
 		moonPhase = moonPhaseFor(nowEpochSeconds),
 		celestialProgress = dayPhaseProgressFor(nowEpochSeconds, snapshot.sunriseEpochSeconds, snapshot.sunsetEpochSeconds, dayPhase),
 		backdropScene = backdropScene,
