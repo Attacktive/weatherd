@@ -34,11 +34,21 @@ val SCENE_PRESETS = listOf(
 	ScenePreset("THUNDERSTORM", cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.RAIN, SEVERITY_STORM, observed = 0.9f), thunder = true, windFactor = 0.85f)
 )
 
-fun debugSceneParams(preset: ScenePreset, dayPhase: DayPhase) = SceneParams(
+/**
+ * Combines a preset with a day phase and user scales into render parameters.
+ * Debug mode is a weather simulator, so it pins the weather while honoring the user's display preferences.
+ */
+fun debugSceneParams(
+	preset: ScenePreset,
+	dayPhase: DayPhase,
+	precipitationScale: Float = 1f,
+	windScale: Float = 1f
+) = SceneParams(
 	dayPhase = dayPhase,
 	cloudiness = preset.cloudiness,
 	fogDensity = preset.fogDensity,
 	precipitation = preset.precipitation,
 	thunder = preset.thunder,
-	windFactor = preset.windFactor
+	windFactor = (preset.windFactor * windScale).coerceIn(0f, 1f),
+	precipitationScale = precipitationScale
 )

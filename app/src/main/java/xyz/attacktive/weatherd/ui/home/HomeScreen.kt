@@ -77,13 +77,20 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	var controlsVisible by remember { mutableStateOf(true) }
 	val previewInteraction = remember { MutableInteractionSource() }
 	val frameRateCap by viewModel.frameRateCap.collectAsStateWithLifecycle()
+	val precipitationIntensityScale by viewModel.precipitationIntensityScale.collectAsStateWithLifecycle()
+	val windIntensityScale by viewModel.windIntensityScale.collectAsStateWithLifecycle()
 
 	// Read inside the frame loop, which is launched once and has to see a cap the user changes while it runs.
 	val currentCap = rememberUpdatedState(frameRateCap)
 
-	// The debug cycler overrides the weather but keeps the user's chosen backdrop, so scenery can be previewed under any condition.
+	// The debug cycler overrides the weather but keeps the user's chosen backdrop and intensity scales, so scenery can be previewed under any condition.
 	val params = if (debugEnabled) {
-		debugSceneParams(SCENE_PRESETS[debugSceneIndex], DayPhase.entries[debugPhaseIndex])
+		debugSceneParams(
+			SCENE_PRESETS[debugSceneIndex],
+			DayPhase.entries[debugPhaseIndex],
+			precipitationIntensityScale,
+			windIntensityScale
+		)
 			.copy(backdropScene = liveParams.backdropScene)
 	} else {
 		liveParams

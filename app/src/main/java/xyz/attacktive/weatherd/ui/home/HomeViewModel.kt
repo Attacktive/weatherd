@@ -23,6 +23,16 @@ class HomeViewModel @Inject constructor(
 		.map { it.frameRateCap }
 		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().frameRateCap)
 
+	/** The user's precipitation intensity scale, so the debug cycler simulates the chosen particle density. */
+	val precipitationIntensityScale = settingsRepository.settings
+		.map { it.precipitationIntensityScale }
+		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().precipitationIntensityScale)
+
+	/** The user's wind intensity scale, so the debug cycler simulates the chosen wind strength. */
+	val windIntensityScale = settingsRepository.settings
+		.map { it.windIntensityScale }
+		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().windIntensityScale)
+
 	/** Kicks a weather fetch (rate-limited by the provider) so the preview tracks the latest conditions and any settings change. */
 	fun refresh() {
 		viewModelScope.launch {
