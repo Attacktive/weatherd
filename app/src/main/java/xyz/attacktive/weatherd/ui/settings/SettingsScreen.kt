@@ -1,5 +1,9 @@
 package xyz.attacktive.weatherd.ui.settings
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -10,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -36,6 +41,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -59,6 +65,7 @@ import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
 import xyz.attacktive.weatherd.domain.model.GeoPlace
 import xyz.attacktive.weatherd.domain.model.INTENSITY_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.PhotoBucket
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.UPDATE_INTERVAL_OPTIONS
 
@@ -67,6 +74,8 @@ import xyz.attacktive.weatherd.domain.model.UPDATE_INTERVAL_OPTIONS
 fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
 	val settings by viewModel.settings.collectAsStateWithLifecycle()
 	val citySearch by viewModel.citySearch.collectAsStateWithLifecycle()
+	val photoBuckets by viewModel.photoBuckets.collectAsStateWithLifecycle()
+	val photoImportFailed by viewModel.photoImportFailed.collectAsStateWithLifecycle()
 	val scrollState = rememberScrollState()
 
 	Scaffold(
@@ -106,6 +115,19 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 				Spacer(modifier = Modifier.height(24.dp))
 
 				BackdropSection(settings = settings, onSave = viewModel::save)
+
+				AnimatedVisibility(visible = settings.backdropScene == BackdropScene.PHOTO) {
+					Column {
+						Spacer(modifier = Modifier.height(24.dp))
+
+						PhotoBackgroundSection(
+							buckets = photoBuckets,
+							importFailed = photoImportFailed,
+							onChoose = viewModel::importPhoto,
+							onClear = viewModel::clearPhoto
+						)
+					}
+				}
 
 				Spacer(modifier = Modifier.height(24.dp))
 
@@ -270,6 +292,77 @@ private fun BackdropSection(settings: AppSettings, onSave: (AppSettings) -> Unit
 						expanded = false
 					}
 				)
+			}
+		}
+	}
+}
+
+/**
+ * The four photo slots, shown only while [BackdropScene.PHOTO] is the chosen backdrop.
+ * [buckets] comes straight from the repository rather than from anything this screen remembers, so a row can only claim a photo the store actually holds.
+ * No thumbnail here on purpose: decoding a stored bitmap into Compose is its own decision, and saying whether a slot is filled is what the user needs to act.
+ */
+@Composable
+private fun PhotoBackgroundSection(buckets: Set<PhotoBucket>, importFailed: Boolean, onChoose: (PhotoBucket, Uri) -> Unit, onClear: (PhotoBucket) -> Unit) {
+	SectionLabel(stringResource(R.string.section_photo_backgrounds))
+
+	PhotoBucket.entries.forEach { bucket ->
+		PhotoBucketRow(
+			bucket = bucket,
+			isSet = bucket in buckets,
+			onChoose = { onChoose(bucket, it) },
+			onClear = { onClear(bucket) }
+		)
+	}
+
+	if (importFailed) {
+		ErrorText(stringResource(R.string.photo_import_failed))
+	}
+
+	HintText(stringResource(R.string.hint_photo_backgrounds))
+
+	// Dawn and dusk only ever borrow from day and night, so a set holding neither is one where the painted sky still covers every hour the user is awake for.
+	if (PhotoBucket.DAY !in buckets && PhotoBucket.NIGHT !in buckets) {
+		HintText(stringResource(R.string.hint_photo_incomplete))
+	}
+}
+
+/**
+ * One photo slot: what it covers, whether it holds a photo, and the picker and the clear button for it.
+ * The launcher belongs to the row rather than to the section so the picked [Uri] arrives already knowing which bucket asked for it, with no pending-bucket state to lose to a process death mid-pick.
+ */
+@Composable
+private fun PhotoBucketRow(bucket: PhotoBucket, isSet: Boolean, onChoose: (Uri) -> Unit, onClear: () -> Unit) {
+	val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { picked ->
+		// Null is the user backing out of the picker, which is not a failure and must not be reported as one.
+		if (picked != null) {
+			onChoose(picked)
+		}
+	}
+
+	Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+		Column(modifier = Modifier.weight(1f)) {
+			Row(verticalAlignment = Alignment.CenterVertically) {
+				Text(formatPhotoBucket(bucket))
+
+				// A bucket with a parent has somewhere to fall back to, which is exactly what makes it optional.
+				if (bucket.parent != null) {
+					Spacer(modifier = Modifier.width(8.dp))
+
+					Text(stringResource(R.string.photo_optional), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+				}
+			}
+
+			Text(formatPhotoState(isSet), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+		}
+
+		TextButton(onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
+			Text(formatPhotoAction(isSet))
+		}
+
+		if (isSet) {
+			IconButton(onClick = onClear) {
+				Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.photo_clear))
 			}
 		}
 	}
@@ -467,6 +560,17 @@ private fun HintText(text: String) {
 	)
 }
 
+/** A [HintText] that went wrong: same weight and rhythm, in the error color, so a failed import reads as a problem rather than as one more note. */
+@Composable
+private fun ErrorText(text: String) {
+	Text(
+		text = text,
+		style = MaterialTheme.typography.bodySmall,
+		color = MaterialTheme.colorScheme.error,
+		modifier = Modifier.padding(vertical = 12.dp)
+	)
+}
+
 @Composable
 private fun formatInterval(minutes: Int) = when {
 	minutes < 60 -> stringResource(R.string.interval_minutes, minutes)
@@ -491,6 +595,28 @@ private fun formatBackdrop(scene: BackdropScene) = when (scene) {
 	BackdropScene.MOUNTAINS -> stringResource(R.string.backdrop_mountains)
 	BackdropScene.COUNTRYSIDE -> stringResource(R.string.backdrop_countryside)
 	BackdropScene.PHOTO -> stringResource(R.string.backdrop_photo)
+}
+
+@Composable
+private fun formatPhotoBucket(bucket: PhotoBucket) = when (bucket) {
+	PhotoBucket.DAY -> stringResource(R.string.photo_bucket_day)
+	PhotoBucket.NIGHT -> stringResource(R.string.photo_bucket_night)
+	PhotoBucket.DAWN -> stringResource(R.string.photo_bucket_dawn)
+	PhotoBucket.DUSK -> stringResource(R.string.photo_bucket_dusk)
+}
+
+@Composable
+private fun formatPhotoState(isSet: Boolean) = if (isSet) {
+	stringResource(R.string.photo_set)
+} else {
+	stringResource(R.string.photo_unset)
+}
+
+@Composable
+private fun formatPhotoAction(isSet: Boolean) = if (isSet) {
+	stringResource(R.string.photo_replace)
+} else {
+	stringResource(R.string.photo_choose)
 }
 
 @Composable

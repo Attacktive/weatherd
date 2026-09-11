@@ -57,6 +57,22 @@
 	<string name="backdrop_countryside">Countryside</string>
 	<string name="backdrop_photo">Your photos</string>
 
+	<!-- Photo backgrounds -->
+	<string name="section_photo_backgrounds">Photo backgrounds</string>
+	<string name="photo_bucket_day">Day</string>
+	<string name="photo_bucket_night">Night</string>
+	<string name="photo_bucket_dawn">Dawn</string>
+	<string name="photo_bucket_dusk">Dusk</string>
+	<string name="photo_optional">Optional</string>
+	<string name="photo_choose">Choose</string>
+	<string name="photo_replace">Replace</string>
+	<string name="photo_clear">Clear</string>
+	<string name="photo_set">Photo selected</string>
+	<string name="photo_unset">No photo selected</string>
+	<string name="photo_import_failed">That photo could not be imported. Pick a different one.</string>
+	<string name="hint_photo_backgrounds">Pick one of your own photos for each part of the day. Dawn and dusk are optional: dawn falls back to your day photo and dusk to your night photo. Day and night never stand in for each other, so a photo taken at noon will not appear at midnight. Anything you leave empty is drawn as the usual painted sky.</string>
+	<string name="hint_photo_incomplete">No day or night photo yet, so the painted sky is what you will see for most of the day.</string>
+
 	<!-- Temperature unit labels -->
 	<string name="unit_celsius">°C</string>
 	<string name="unit_fahrenheit">°F</string>
