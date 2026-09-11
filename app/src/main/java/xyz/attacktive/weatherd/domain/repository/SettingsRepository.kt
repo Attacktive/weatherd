@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import xyz.attacktive.weatherd.domain.model.AppSettings
@@ -31,6 +32,8 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		val SHOW_LOCATION_LABEL = booleanPreferencesKey("show_location_label")
 		val TEMPERATURE_UNIT = stringPreferencesKey("temperature_unit")
 		val FRAME_RATE_CAP = stringPreferencesKey("frame_rate_cap")
+		val PRECIPITATION_INTENSITY_SCALE = floatPreferencesKey("precipitation_intensity_scale")
+		val WIND_INTENSITY_SCALE = floatPreferencesKey("wind_intensity_scale")
 	}
 
 	val settings: Flow<AppSettings> = dataStore.data.map { preferences ->
@@ -44,7 +47,9 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			showWeatherLabel = preferences[Keys.SHOW_WEATHER_LABEL] ?: DEFAULTS.showWeatherLabel,
 			showLocationLabel = preferences[Keys.SHOW_LOCATION_LABEL] ?: DEFAULTS.showLocationLabel,
 			temperatureUnit = TemperatureUnit.fromName(preferences[Keys.TEMPERATURE_UNIT]),
-			frameRateCap = FrameRateCap.fromName(preferences[Keys.FRAME_RATE_CAP])
+			frameRateCap = FrameRateCap.fromName(preferences[Keys.FRAME_RATE_CAP]),
+			precipitationIntensityScale = preferences[Keys.PRECIPITATION_INTENSITY_SCALE] ?: DEFAULTS.precipitationIntensityScale,
+			windIntensityScale = preferences[Keys.WIND_INTENSITY_SCALE] ?: DEFAULTS.windIntensityScale
 		)
 	}
 
@@ -60,6 +65,8 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			preferences[Keys.SHOW_LOCATION_LABEL] = settings.showLocationLabel
 			preferences[Keys.TEMPERATURE_UNIT] = settings.temperatureUnit.name
 			preferences[Keys.FRAME_RATE_CAP] = settings.frameRateCap.name
+			preferences[Keys.PRECIPITATION_INTENSITY_SCALE] = settings.precipitationIntensityScale
+			preferences[Keys.WIND_INTENSITY_SCALE] = settings.windIntensityScale
 		}
 	}
 

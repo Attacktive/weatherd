@@ -105,4 +105,25 @@ class SettingsRepositoryTest {
 		assertNull(settings.manualLongitude)
 		assertNull(settings.manualLocationLabel)
 	}
+
+	@Test
+	fun `round-trips the intensity scales`() = runTest {
+		val repository = SettingsRepository(dataStore())
+
+		repository.save(AppSettings(precipitationIntensityScale = 0.4f, windIntensityScale = 1.8f))
+
+		val settings = repository.settings.first()
+		assertEquals(0.4f, settings.precipitationIntensityScale, 0.0001f)
+		assertEquals(1.8f, settings.windIntensityScale, 0.0001f)
+	}
+
+	@Test
+	fun `absent intensity scales read as unscaled`() = runTest {
+		val repository = SettingsRepository(dataStore())
+
+		val settings = repository.settings.first()
+
+		assertEquals(1f, settings.precipitationIntensityScale, 0.0001f)
+		assertEquals(1f, settings.windIntensityScale, 0.0001f)
+	}
 }
