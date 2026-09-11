@@ -17,6 +17,7 @@ import android.graphics.Path
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.RadialGradient
+import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
 import androidx.core.graphics.createBitmap
@@ -25,6 +26,7 @@ import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
+import xyz.attacktive.weatherd.domain.model.drawsScenery
 import xyz.attacktive.weatherd.domain.render.SceneRenderer.Companion.DOT_CORE_STOP
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_DRIZZLE
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_STEADY
@@ -62,6 +64,13 @@ class SceneRenderer {
 	private val spritePaint = Paint(Paint.FILTER_BITMAP_FLAG)
 	private val spriteDest = RectF()
 
+	/**
+	 * The photo backdrop is blitted through its own paint rather than the shared [paint] or [blitPaint].
+	 * It needs the bilinear filtering [paint] does not carry, and it must not inherit the opacity [blitPaint] is left holding after a soft-tile blit.
+	 */
+	private val photoPaint = Paint(Paint.FILTER_BITMAP_FLAG)
+	private val photoDest = RectF()
+
 	/** Additive-ish compositing for anything that is light rather than surface: the sun's bloom, its streak, and its lens ghosts. */
 	private val glowPaint = Paint(Paint.FILTER_BITMAP_FLAG).apply {
 		xfermode = PorterDuffXfermode(PorterDuff.Mode.SCREEN)
@@ -86,6 +95,13 @@ class SceneRenderer {
 	private val farFlakeSprite = softDotSprite(Color.rgb(235, 240, 248), 140)
 	private val nearFlakeSprite = softDotSprite(Color.rgb(252, 253, 255), 235)
 	private val pelletSprite = softDotSprite(Color.rgb(236, 244, 252), 230)
+
+	/**
+	 * The decoded photo to draw as the sky while [SceneParams.backdropScene] is [BackdropScene.PHOTO].
+	 * The owner sets this for the duration of one [renderBackdrop] call and releases it afterward; the renderer only borrows the bitmap and never recycles it.
+	 * Null — or a bitmap the owner has already recycled — is not an error: the procedural sky draws instead.
+	 */
+	var backgroundPhoto: Bitmap? = null
 
 	fun render(canvas: Canvas, width: Int, height: Int, params: SceneParams, timeSeconds: Float) {
 		renderBackdrop(canvas, width, height, params)
@@ -148,7 +164,7 @@ class SceneRenderer {
 		}
 
 		// The scenery draws after the celestial body and clouds (they belong to the sky behind it) but before fog, rain, and lightning (weather happens in front of the horizon).
-		if (params.backdropScene != BackdropScene.NONE) {
+		if (params.backdropScene.drawsScenery) {
 			drawScenery(canvas, w, h, params, timeSeconds)
 		}
 
@@ -201,6 +217,14 @@ class SceneRenderer {
 	}
 
 	private fun drawSky(canvas: Canvas, width: Float, height: Float, params: SceneParams) {
+		val photo = backgroundPhoto
+		if (params.backdropScene == BackdropScene.PHOTO && photo != null && !photo.isRecycled) {
+			// The photo supplies the whole sky, so everything renderBackdrop draws after this — overcast ceiling, fog base, haze, vignette — composites onto it with no tinting pass of its own.
+			photoDest.set(0f, 0f, width, height)
+			canvas.drawBitmap(photo, photoSourceRect(photo.width, photo.height, width, height), photoDest, photoPaint)
+			return
+		}
+
 		val gradient = skyGradientFor(params)
 		paint.style = Paint.Style.FILL
 		paint.shader = LinearGradient(0f, 0f, 0f, height, gradient.topColor, gradient.bottomColor, Shader.TileMode.CLAMP)
@@ -2087,6 +2111,42 @@ class SceneRenderer {
 		/** Shifts close-drop indices into their own hash namespace so they never mirror a far or near streak's lane. */
 		private const val CLOSE_DROP_LANE_OFFSET = 100_000
 	}
+}
+
+/**
+ * The centered crop of a source photo whose aspect ratio matches the destination, so the photo fills the surface without stretching.
+ * A source proportionally wider than the destination keeps its full height and is trimmed at the sides; a taller one keeps its full width and is trimmed at the top and bottom.
+ * Cropping through a source rect beats scaling past the destination's edges: the blit then rasterizes only the pixels that land on screen.
+ * A degenerate source or destination returns the whole source rather than an empty rect the blit would silently drop.
+ */
+internal fun photoSourceRect(sourceWidth: Int, sourceHeight: Int, destinationWidth: Float, destinationHeight: Float): Rect {
+	/*
+	 * The fields are assigned directly because the mockable android.jar that JVM unit tests run against stubs out Rect's constructors and its `set`, which would hand every test a 0x0 rect.
+	 * On a device this is precisely what `Rect(left, top, right, bottom)` does, so the arithmetic stays testable without dragging in Robolectric.
+	 */
+	val crop = Rect()
+	crop.right = sourceWidth
+	crop.bottom = sourceHeight
+
+	if (sourceWidth <= 0 || sourceHeight <= 0 || destinationWidth <= 0f || destinationHeight <= 0f) {
+		return crop
+	}
+
+	val sourceAspect = sourceWidth.toFloat() / sourceHeight.toFloat()
+	val destinationAspect = destinationWidth / destinationHeight
+
+	if (sourceAspect > destinationAspect) {
+		val width = (sourceHeight * destinationAspect).roundToInt().coerceIn(1, sourceWidth)
+		// Integer division leaves the odd leftover pixel on the right, which is half a pixel of off-center at worst.
+		crop.left = (sourceWidth - width) / 2
+		crop.right = crop.left + width
+	} else if (sourceAspect < destinationAspect) {
+		val height = (sourceWidth / destinationAspect).roundToInt().coerceIn(1, sourceHeight)
+		crop.top = (sourceHeight - height) / 2
+		crop.bottom = crop.top + height
+	}
+
+	return crop
 }
 
 /** Invokes [draw] at [cx] and again wrapped to the opposite edge when within [reach], so a tile scrolls seamlessly. */
