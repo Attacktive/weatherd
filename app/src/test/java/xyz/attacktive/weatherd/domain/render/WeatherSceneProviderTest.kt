@@ -201,6 +201,30 @@ class WeatherSceneProviderTest {
 		coVerify(exactly = 1) { weatherRepository.current(37.57, 126.98) }
 	}
 
+	@Test
+	fun `intensity scale settings reach the scene params even when the refresh is throttled`() = runTest {
+		val device = AppSettings(useDeviceLocation = true, precipitationIntensityScale = 1.5f, windIntensityScale = 0.5f)
+		every { settingsRepository.settings } returns flowOf(device)
+		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
+		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 63))
+
+		provider.refresh(1_000_000L)
+
+		// A wind of 5.0 km/h against the 40.0 km/h ceiling shapes to 0.2872, which 0.5x scaling halves to 0.1436.
+		val initialParams = provider.paramsFor(1_000_030L)
+		assertEquals(1.5f, initialParams.precipitationScale, 0.0001f)
+		assertEquals(0.1436f, initialParams.windFactor, 0.0001f)
+
+		// The user adjusts the sliders; the next refresh is inside the throttle window but must still pick the new scales up.
+		every { settingsRepository.settings } returns flowOf(device.copy(precipitationIntensityScale = 0.25f, windIntensityScale = 2f))
+		provider.refresh(1_000_060L)
+
+		// Doubling the wind scale lifts the shaped 0.2872 factor to 0.5743.
+		val throttledParams = provider.paramsFor(1_000_090L)
+		assertEquals(0.25f, throttledParams.precipitationScale, 0.0001f)
+		assertEquals(0.5743f, throttledParams.windFactor, 0.0001f)
+	}
+
 	private fun snapshotWith(weatherCode: Int) = WeatherSnapshot(
 		observation = WeatherObservation(
 			weatherCode = weatherCode,
