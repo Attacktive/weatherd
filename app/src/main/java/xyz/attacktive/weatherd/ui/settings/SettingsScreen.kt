@@ -33,11 +33,13 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -56,6 +58,7 @@ import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
 import xyz.attacktive.weatherd.domain.model.GeoPlace
+import xyz.attacktive.weatherd.domain.model.INTENSITY_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.UPDATE_INTERVAL_OPTIONS
 
@@ -95,6 +98,10 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 				Spacer(modifier = Modifier.height(24.dp))
 
 				FrameRateSection(settings = settings, onSave = viewModel::save)
+
+				Spacer(modifier = Modifier.height(24.dp))
+
+				IntensitySection(settings = settings, onSave = viewModel::save)
 
 				Spacer(modifier = Modifier.height(24.dp))
 
@@ -191,6 +198,46 @@ private fun FrameRateSection(settings: AppSettings, onSave: (AppSettings) -> Uni
 	}
 
 	HintText(stringResource(R.string.hint_frame_rate))
+}
+
+@Composable
+private fun IntensitySection(settings: AppSettings, onSave: (AppSettings) -> Unit) {
+	IntensitySlider(
+		label = stringResource(R.string.section_precipitation_intensity),
+		value = settings.precipitationIntensityScale,
+		onCommit = { onSave(settings.copy(precipitationIntensityScale = it)) }
+	)
+
+	IntensitySlider(
+		label = stringResource(R.string.section_wind_intensity),
+		value = settings.windIntensityScale,
+		onCommit = { onSave(settings.copy(windIntensityScale = it)) }
+	)
+
+	HintText(stringResource(R.string.hint_intensity))
+}
+
+/**
+ * A labeled multiplier slider that shows words rather than numbers.
+ * The drag position is local state and only commits on release: a DataStore write per pixel would hammer the settings file and restart the scene mid-gesture.
+ */
+@Composable
+private fun IntensitySlider(label: String, value: Float, onCommit: (Float) -> Unit) {
+	var position by remember(value) { mutableFloatStateOf(value) }
+
+	SectionLabel(label)
+
+	Slider(
+		value = position,
+		onValueChange = { position = it },
+		onValueChangeFinished = { onCommit(position) },
+		valueRange = INTENSITY_SCALE_RANGE
+	)
+
+	Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+		HintText(stringResource(R.string.intensity_subtle))
+		HintText(stringResource(R.string.intensity_intense))
+	}
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

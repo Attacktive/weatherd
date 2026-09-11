@@ -31,6 +31,11 @@
 	<string name="city_search_empty">No matching city found.</string>
 	<string name="city_search_failed">Search failed</string>
 	<string name="hint_frame_rate">Fewer frames means less drawing work, which helps on slower phones. The scene still moves at the same speed, just less smoothly.</string>
+	<string name="section_precipitation_intensity">Precipitation intensity</string>
+	<string name="section_wind_intensity">Wind intensity</string>
+	<string name="intensity_subtle">Subtle</string>
+	<string name="intensity_intense">Intense</string>
+	<string name="hint_intensity">Scales how heavily precipitation falls and how hard the wind drives, relative to the observed weather.</string>
 	<string name="version_footer">weatherd %1$s</string>
 
 	<!-- Refresh interval formatting -->
