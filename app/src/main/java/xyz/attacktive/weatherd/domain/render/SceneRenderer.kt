@@ -1346,16 +1346,15 @@ class SceneRenderer {
 
 	private fun drawPrecipitation(canvas: Canvas, width: Float, height: Float, params: SceneParams, precipitation: Precipitation, timeSeconds: Float, flash: Float) {
 		val count = precipitationDropCount(precipitation, params.precipitationScale, width, height)
-
-		// Only the dim far layers breathe with the squall factor: a particle popping into existence mid-fall is a teleport, imperceptible at the far layers' alphas but exactly what the bright near layers must never show — so those hold the steady count.
 		val squallCount = (count * squallFactor(timeSeconds)).roundToInt()
+		val counts = ParticleCounts(count, squallCount)
 		val heavy = precipitation.severity >= HEAVY_SEVERITY
 		val gust = gustFactor(timeSeconds, params.windFactor)
 
 		when (precipitation.kind) {
 			PrecipitationKind.SNOW -> {
 				val slant = snowSlant(gust, params.windScale)
-				drawSnow(canvas, width, height, count, squallCount, slant, timeSeconds, heavy)
+				drawSnow(canvas, width, height, counts, slant, timeSeconds, heavy)
 			}
 			PrecipitationKind.SLEET -> {
 				val streakSlant = ((0.1f + gust * 0.43f) * params.windScale).coerceAtMost(MAX_WIND_SLANT)
@@ -1364,13 +1363,13 @@ class SceneRenderer {
 			}
 			PrecipitationKind.RAIN -> {
 				val slant = rainSlant(gust, params.windScale, heavy)
-				drawRain(canvas, width, height, count, squallCount, slant, timeSeconds, heavy, flash)
+				drawRain(canvas, width, height, counts, slant, timeSeconds, heavy, flash)
 			}
 		}
 	}
 
 	/** [heavy] turns the shower into a downpour: faster, longer, thicker, more slanted streaks on top of the higher particle count. */
-	private fun drawRain(canvas: Canvas, width: Float, height: Float, count: Int, squallCount: Int, slant: Float, timeSeconds: Float, heavy: Boolean, flash: Float) {
+	private fun drawRain(canvas: Canvas, width: Float, height: Float, counts: ParticleCounts, slant: Float, timeSeconds: Float, heavy: Boolean, flash: Float) {
 		paint.style = Paint.Style.STROKE
 		paint.strokeCap = Paint.Cap.ROUND
 
@@ -1387,9 +1386,9 @@ class SceneRenderer {
 		}
 
 		val span = height + RAIN_WRAP_PAD * 2f
-		val nearCount = count / 2
+		val nearCount = counts.steadyCount / 2
 
-		drawFarRain(canvas, width, height, squallCount, span, slant, stretch, speed, timeSeconds, flash)
+		drawFarRain(canvas, width, height, counts.squallCount, span, slant, stretch, speed, timeSeconds, flash)
 		drawNearRain(canvas, width, height, nearCount, span, slant, stretch, speed, timeSeconds, heavy, flash)
 		drawCloseDrops(canvas, width, height, nearCount, span, slant, stretch, speed, timeSeconds, heavy, flash)
 
@@ -1530,7 +1529,7 @@ class SceneRenderer {
 	 * [heavy] means a blizzard: bigger, faster flakes leaning hard on the wind.
 	 * Flakes are blits of the pre-blurred soft-dot sprites, so they stay smooth in motion instead of shimmering as hard-edged discs.
 	 */
-	private fun drawSnow(canvas: Canvas, width: Float, height: Float, count: Int, squallCount: Int, slant: Float, timeSeconds: Float, heavy: Boolean) {
+	private fun drawSnow(canvas: Canvas, width: Float, height: Float, counts: ParticleCounts, slant: Float, timeSeconds: Float, heavy: Boolean) {
 		val speed = if (heavy) {
 			1.5f
 		} else {
@@ -1550,7 +1549,7 @@ class SceneRenderer {
 		val span = height + FLAKE_WRAP_PAD * 2f
 		val farRandom = Random(PRECIP_SEED)
 
-		repeat(squallCount / 2) { i ->
+		repeat(counts.squallCount / 2) { i ->
 			val travel = farRandom.nextFloat(height) + timeSeconds * 70f * speed
 			val cycle = (travel / span).toInt()
 			val fall = travel % span
@@ -1565,7 +1564,7 @@ class SceneRenderer {
 
 		val nearRandom = Random(PRECIP_SEED + 1L)
 
-		repeat(count - count / 2) { i ->
+		repeat(counts.steadyCount - counts.steadyCount / 2) { i ->
 			val travel = nearRandom.nextFloat(height) + timeSeconds * 165f * speed
 			val cycle = (travel / span).toInt()
 			val fall = travel % span
@@ -2246,6 +2245,12 @@ private fun hazeColorFor(dayPhase: DayPhase) = when (dayPhase) {
 	DayPhase.DUSK -> Color.rgb(150, 130, 140)
 	DayPhase.NIGHT -> Color.rgb(30, 36, 48)
 }
+
+/**
+ * Particle counts for precipitation layers: the steady count alongside the squall count.
+ * The squall count is deliberately applied only to the far layers, because a particle popping into existence mid-fall is imperceptible at their alpha but a visible teleport in the bright near layers.
+ */
+private data class ParticleCounts(val steadyCount: Int, val squallCount: Int)
 
 /** A cached scenery layer path with the material and plane needed to color it each frame. */
 private data class SceneryLayerPath(val path: Path, val material: SceneryMaterial, val plane: SceneryPlane)
