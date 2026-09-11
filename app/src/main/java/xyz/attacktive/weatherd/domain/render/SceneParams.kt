@@ -15,6 +15,8 @@ import xyz.attacktive.weatherd.domain.weather.precipitationIntensity
  * Everything the renderer needs, as orthogonal features rather than a scene taxonomy: lighting phase, continuous cloud cover, fog, what precipitates (if anything), lightning, wind, and the day-quantized synodic moon phase (0 = new, 0.5 = full — the default keeps previews and fallbacks on a full moon).
  * [celestialProgress] eases the sun/moon along its arc through the current phase; the midpoint default reproduces the old fixed heights.
  * [backdropScene] is the user's horizon scenery choice — a setting, not weather, so it defaults to the bare sky.
+ * [photoRevision] counts changes to the user's stored photos, which are otherwise invisible to these params: picking a new photo for a bucket that already had one leaves every other field identical, and the wallpaper's backdrop cache would go on drawing the old one until the next phase flip.
+ * It is an opaque number and never a file name or a bitmap — the params stay JVM-pure, and the renderer resolves the photo itself.
  * [overlayLabels] is the optional text overlay, already formatted for drawing; null keeps the wallpaper text-free.
  * [precipitationScale] is the user's preference rather than an observation, so it rides alongside [precipitation] instead of being folded into it: the renderer applies it past its own visibility floor, where it is the drop count the user actually sees.
  * [windScale] is the user's preference rather than an observation, so it rides alongside [windFactor] instead of being folded into it: the renderer applies it past its own floors, where it actually moves visible wind effects.
@@ -31,6 +33,7 @@ data class SceneParams(
 	val moonPhase: Float = 0.5f,
 	val celestialProgress: Float = 0.5f,
 	val backdropScene: BackdropScene = BackdropScene.NONE,
+	val photoRevision: Int = 0,
 	val overlayLabels: OverlayLabels? = null
 )
 
@@ -42,6 +45,7 @@ fun sceneParamsFor(
 	snapshot: WeatherSnapshot,
 	nowEpochSeconds: Long,
 	backdropScene: BackdropScene = BackdropScene.NONE,
+	photoRevision: Int = 0,
 	overlayLabels: OverlayLabels? = null,
 	precipitationScale: Float = 1f,
 	windScale: Float = 1f
@@ -69,6 +73,7 @@ fun sceneParamsFor(
 		moonPhase = moonPhaseFor(nowEpochSeconds),
 		celestialProgress = dayPhaseProgressFor(nowEpochSeconds, snapshot.sunriseEpochSeconds, snapshot.sunsetEpochSeconds, dayPhase),
 		backdropScene = backdropScene,
+		photoRevision = photoRevision,
 		overlayLabels = overlayLabels
 	)
 }

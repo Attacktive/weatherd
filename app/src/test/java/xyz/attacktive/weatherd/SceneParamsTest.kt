@@ -2,10 +2,12 @@ package xyz.attacktive.weatherd
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
@@ -171,6 +173,22 @@ class SceneParamsTest {
 		assertEquals(0f, params.windFactor, 0.0001f)
 		assertEquals(2f, params.precipitationScale, 0.0001f)
 		assertEquals(2f, params.windScale, 0.0001f)
+	}
+
+	@Test
+	fun `a changed photo revision makes otherwise identical params unequal`() {
+		val snapshot = snapshot(weatherCode = 2, precipitationMillimeters = 0.0, windSpeedKilometersPerHour = 10.0, cloudCoverPercent = 40)
+
+		val before = sceneParamsFor(snapshot, NOW, BackdropScene.PHOTO, photoRevision = 4)
+		val after = sceneParamsFor(snapshot, NOW, BackdropScene.PHOTO, photoRevision = 5)
+
+		// The wallpaper caches its backdrop against params.copy(moonPhase = 0f, celestialProgress = 0f) and the preview remembers against the params themselves, so both redraw on exactly this inequality and nothing else.
+		assertNotEquals(before, after)
+		assertNotEquals(before.copy(moonPhase = 0f, celestialProgress = 0f), after.copy(moonPhase = 0f, celestialProgress = 0f))
+
+		// The same weather with no photo involved must stay at rest, which is what leaves every scene but PHOTO rasterizing exactly as often as it did before.
+		assertEquals(0, sceneParamsFor(snapshot, NOW).photoRevision)
+		assertEquals(sceneParamsFor(snapshot, NOW), sceneParamsFor(snapshot, NOW))
 	}
 
 	private fun snapshot(weatherCode: Int, precipitationMillimeters: Double, windSpeedKilometersPerHour: Double, cloudCoverPercent: Int) = WeatherSnapshot(

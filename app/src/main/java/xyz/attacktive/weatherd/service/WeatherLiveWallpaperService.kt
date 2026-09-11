@@ -238,7 +238,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 
 		/**
 		 * The backdrop never draws the moon or the sun's arc, so their slow foreground-only ticks must not force a re-rasterize.
-		 * Nothing identifying the photo belongs here either: which photo draws is a function of [SceneParams.dayPhase] and [SceneParams.backdropScene], both already part of the signature, so a phase flip or a switch away from [BackdropScene.PHOTO] re-rasterizes on its own.
+		 * Which photo draws is a function of [SceneParams.dayPhase] and [SceneParams.backdropScene], so a phase flip or a switch away from [BackdropScene.PHOTO] re-rasterizes on its own; [SceneParams.photoRevision] covers the case those two miss, where the photo behind a fixed bucket is replaced or cleared.
 		 */
 		private fun backdropSignature(params: SceneParams) = params.copy(moonPhase = 0f, celestialProgress = 0f)
 

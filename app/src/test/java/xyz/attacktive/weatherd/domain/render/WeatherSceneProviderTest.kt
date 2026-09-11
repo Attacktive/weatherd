@@ -8,6 +8,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 import xyz.attacktive.weatherd.R
@@ -18,6 +19,7 @@ import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
 import xyz.attacktive.weatherd.domain.repository.LocationRepository
+import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.ReverseGeocodingRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
 import xyz.attacktive.weatherd.domain.repository.WeatherRepository
@@ -32,9 +34,12 @@ class WeatherSceneProviderTest {
 	private val weatherRepository = mockk<WeatherRepository>()
 	private val reverseGeocodingRepository = mockk<ReverseGeocodingRepository>()
 	private val settingsRepository = mockk<SettingsRepository>()
+	private val photoBackgroundRepository = mockk<PhotoBackgroundRepository> {
+		every { revisionNow() } returns 0
+	}
 	private val logger = mockk<AppLogger>(relaxed = true)
 
-	private val provider = WeatherSceneProvider(context, locationRepository, weatherRepository, reverseGeocodingRepository, settingsRepository, logger)
+	private val provider = WeatherSceneProvider(context, locationRepository, weatherRepository, reverseGeocodingRepository, settingsRepository, photoBackgroundRepository, logger)
 
 	@Test
 	fun `changing location settings refetches within the throttle window`() = runTest {
@@ -82,6 +87,37 @@ class WeatherSceneProviderTest {
 		provider.refresh(1_000_060L)
 
 		assertEquals(BackdropScene.BEACH, provider.paramsFor(1_000_090L).backdropScene)
+	}
+
+	@Test
+	fun `a photo import reaches the scene params even when the refresh is throttled`() = runTest {
+		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = true, backdropScene = BackdropScene.PHOTO))
+		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
+		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 3))
+
+		provider.refresh(1_000_000L)
+		val initialParams = provider.paramsFor(1_000_030L)
+
+		// The user replaces the photo behind the same bucket: nothing the settings know about changes, so the revision is the only thing that can tell the backdrop cache to redraw.
+		every { photoBackgroundRepository.revisionNow() } returns 1
+		provider.refresh(1_000_060L)
+
+		val throttledParams = provider.paramsFor(1_000_090L)
+		assertEquals(0, initialParams.photoRevision)
+		assertEquals(1, throttledParams.photoRevision)
+		assertNotEquals(initialParams, throttledParams)
+	}
+
+	@Test
+	fun `the photo revision reaches the fallback scene before any weather loads`() = runTest {
+		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = true, backdropScene = BackdropScene.PHOTO))
+		coEvery { locationRepository.currentLocation() } returns null
+		every { photoBackgroundRepository.revisionNow() } returns 7
+
+		provider.refresh(1_000_000L)
+
+		// No fix, so no snapshot; the clock-lit fallback still has to carry the revision or the very first photo import would never draw.
+		assertEquals(7, provider.paramsFor(1_000_030L).photoRevision)
 	}
 
 	@Test

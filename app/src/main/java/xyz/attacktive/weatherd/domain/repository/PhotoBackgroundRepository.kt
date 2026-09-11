@@ -43,11 +43,21 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 	// Four stat calls on the injecting thread, once per process, is a price worth paying for a bucket set that is correct from the very first read.
 	private val availableBuckets = MutableStateFlow(scanAvailableBuckets())
 
+	// The bucket set alone cannot say that a bucket's photo was replaced — the bucket was filled before and is filled after — so a counter tracks the bytes as well as the names.
+	// Every mutation below already runs under the mutex, so the increment needs no atomic of its own; only the render thread's read has to see it, which is what the volatile buys.
+	@Volatile private var revision = 0
+
 	/** The buckets that currently hold a photo, for a UI that has to reflect an import or a clear as it happens. */
 	val available: StateFlow<Set<PhotoBucket>> = availableBuckets.asStateFlow()
 
 	/** The buckets that currently hold a photo, for the render thread, which resolves a bucket mid-frame and cannot collect a flow to do it. */
 	fun availableNow() = availableBuckets.value
+
+	/**
+	 * A number that changes whenever the stored photos change, for a caller that caches something rasterized from them and needs to know the pixels moved under it.
+	 * Opaque and process-local: only differences matter, and a fresh process starts over alongside every cache that could have compared against the old value.
+	 */
+	fun revisionNow() = revision
 
 	/**
 	 * Copies the photo at [source] into [bucket], turned upright, downsampled and re-encoded, replacing whatever that bucket held.
@@ -59,6 +69,7 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 			try {
 				importInto(bucket, source)
 				availableBuckets.value = scanAvailableBuckets()
+				revision++
 
 				Result.success(Unit)
 			} catch (exception: IOException) {
@@ -105,8 +116,12 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 		withContext(Dispatchers.IO) {
 			mutation.withLock {
 				val file = fileFor(bucket)
-				if (file.exists() && !file.delete()) {
-					logger.error(TAG, "could not delete the stored photo for $bucket")
+				if (file.exists()) {
+					if (file.delete()) {
+						revision++
+					} else {
+						logger.error(TAG, "could not delete the stored photo for $bucket")
+					}
 				}
 
 				availableBuckets.value = scanAvailableBuckets()

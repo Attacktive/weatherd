@@ -14,6 +14,7 @@ import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
 import xyz.attacktive.weatherd.domain.repository.LocationRepository
+import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.ReverseGeocodingRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
 import xyz.attacktive.weatherd.domain.repository.WeatherRepository
@@ -26,11 +27,12 @@ import xyz.attacktive.weatherd.util.AppLogger
  * Thread-safe: [refresh] runs off the render thread and publishes the snapshot through a volatile that [paramsFor] reads.
  */
 @Singleton
-class WeatherSceneProvider @Inject constructor(@ApplicationContext private val context: Context, private val locationRepository: LocationRepository, private val weatherRepository: WeatherRepository, private val reverseGeocodingRepository: ReverseGeocodingRepository, private val settingsRepository: SettingsRepository, private val logger: AppLogger) {
+class WeatherSceneProvider @Inject constructor(@ApplicationContext private val context: Context, private val locationRepository: LocationRepository, private val weatherRepository: WeatherRepository, private val reverseGeocodingRepository: ReverseGeocodingRepository, private val settingsRepository: SettingsRepository, private val photoBackgroundRepository: PhotoBackgroundRepository, private val logger: AppLogger) {
 	@Volatile private var snapshot: WeatherSnapshot? = null
 	@Volatile private var lastRefreshEpochSeconds = 0L
 	@Volatile private var lastLocationKey: String? = null
 	@Volatile private var backdropScene = BackdropScene.NONE
+	@Volatile private var photoRevision = 0
 	@Volatile private var showWeatherLabel = false
 	@Volatile private var showLocationLabel = false
 	@Volatile private var temperatureUnit = TemperatureUnit.CELSIUS
@@ -44,7 +46,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	fun paramsFor(nowEpochSeconds: Long): SceneParams {
 		val snapshot = this.snapshot ?: return fallbackParams(nowEpochSeconds)
 
-		return sceneParamsFor(snapshot, nowEpochSeconds, backdropScene, overlayLabels(snapshot), precipitationIntensityScale, windIntensityScale)
+		return sceneParamsFor(snapshot, nowEpochSeconds, backdropScene, photoRevision, overlayLabels(snapshot), precipitationIntensityScale, windIntensityScale)
 	}
 
 	/**
@@ -56,7 +58,9 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		val settings = settingsRepository.settings.first()
 
 		// Render settings are captured before the throttle: they're display choices, not weather, so even a throttled refresh must adopt them.
+		// The photo revision rides along for the same reason — it is what tells the wallpaper's backdrop cache and the preview that the stored photos moved, and neither redraws until it does.
 		backdropScene = settings.backdropScene
+		photoRevision = photoBackgroundRepository.revisionNow()
 		showWeatherLabel = settings.showWeatherLabel
 		showLocationLabel = settings.showLocationLabel
 		temperatureUnit = settings.temperatureUnit
@@ -190,7 +194,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			else -> DayPhase.NIGHT
 		}
 
-		return SceneParams(dayPhase = phase, cloudiness = 0.05f, fogDensity = 0f, precipitation = null, thunder = false, windFactor = 0.2f, moonPhase = moonPhaseFor(nowEpochSeconds), backdropScene = backdropScene, precipitationScale = precipitationIntensityScale, windScale = windIntensityScale)
+		return SceneParams(dayPhase = phase, cloudiness = 0.05f, fogDensity = 0f, precipitation = null, thunder = false, windFactor = 0.2f, moonPhase = moonPhaseFor(nowEpochSeconds), backdropScene = backdropScene, photoRevision = photoRevision, precipitationScale = precipitationIntensityScale, windScale = windIntensityScale)
 	}
 
 	companion object {
