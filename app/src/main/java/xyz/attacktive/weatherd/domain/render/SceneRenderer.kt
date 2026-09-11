@@ -164,7 +164,8 @@ class SceneRenderer {
 		}
 
 		if (params.precipitation != null) {
-			drawPrecipitation(canvas, w, h, params.precipitation, params.precipitationScale, params.windFactor, params.windScale, timeSeconds, flashWash)
+			// Passing both params and the smart-cast non-null precipitation preserves narrowing without re-checking.
+			drawPrecipitation(canvas, w, h, params, params.precipitation, timeSeconds, flashWash)
 		}
 
 		if (params.thunder) {
@@ -1343,22 +1344,33 @@ class SceneRenderer {
 	/** Precipitation density breathes ±15% over half-minute swells, so the fall reads as squalls instead of a constant static. */
 	private fun squallFactor(timeSeconds: Float) = 0.85f + 0.15f * (0.6f * sin(timeSeconds * 0.21f) + 0.4f * sin(timeSeconds * 0.53f))
 
-	private fun drawPrecipitation(canvas: Canvas, width: Float, height: Float, precipitation: Precipitation, scale: Float, windFactor: Float, windScale: Float, timeSeconds: Float, flash: Float) {
-		val count = precipitationDropCount(precipitation, scale, width, height)
+	private fun drawPrecipitation(canvas: Canvas, width: Float, height: Float, params: SceneParams, precipitation: Precipitation, timeSeconds: Float, flash: Float) {
+		val count = precipitationDropCount(precipitation, params.precipitationScale, width, height)
 
 		// Only the dim far layers breathe with the squall factor: a particle popping into existence mid-fall is a teleport, imperceptible at the far layers' alphas but exactly what the bright near layers must never show — so those hold the steady count.
 		val squallCount = (count * squallFactor(timeSeconds)).roundToInt()
 		val heavy = precipitation.severity >= HEAVY_SEVERITY
+		val gust = gustFactor(timeSeconds, params.windFactor)
 
 		when (precipitation.kind) {
-			PrecipitationKind.SNOW -> drawSnow(canvas, width, height, count, squallCount, windFactor, windScale, timeSeconds, heavy)
-			PrecipitationKind.SLEET -> drawSleet(canvas, width, height, count, windFactor, windScale, timeSeconds, flash)
-			PrecipitationKind.RAIN -> drawRain(canvas, width, height, count, squallCount, windFactor, windScale, timeSeconds, heavy, flash)
+			PrecipitationKind.SNOW -> {
+				val slant = snowSlant(gust, params.windScale)
+				drawSnow(canvas, width, height, count, squallCount, slant, timeSeconds, heavy)
+			}
+			PrecipitationKind.SLEET -> {
+				val streakSlant = ((0.1f + gust * 0.43f) * params.windScale).coerceAtMost(MAX_WIND_SLANT)
+				val pelletSlant = snowSlant(gust, params.windScale)
+				drawSleet(canvas, width, height, count, streakSlant, pelletSlant, timeSeconds, flash)
+			}
+			PrecipitationKind.RAIN -> {
+				val slant = rainSlant(gust, params.windScale, heavy)
+				drawRain(canvas, width, height, count, squallCount, slant, timeSeconds, heavy, flash)
+			}
 		}
 	}
 
 	/** [heavy] turns the shower into a downpour: faster, longer, thicker, more slanted streaks on top of the higher particle count. */
-	private fun drawRain(canvas: Canvas, width: Float, height: Float, count: Int, squallCount: Int, windFactor: Float, windScale: Float, timeSeconds: Float, heavy: Boolean, flash: Float) {
+	private fun drawRain(canvas: Canvas, width: Float, height: Float, count: Int, squallCount: Int, slant: Float, timeSeconds: Float, heavy: Boolean, flash: Float) {
 		paint.style = Paint.Style.STROKE
 		paint.strokeCap = Paint.Cap.ROUND
 
@@ -1374,8 +1386,6 @@ class SceneRenderer {
 			1f
 		}
 
-		val gust = gustFactor(timeSeconds, windFactor)
-		val slant = rainSlant(gust, windScale, heavy)
 		val span = height + RAIN_WRAP_PAD * 2f
 		val nearCount = count / 2
 
@@ -1520,7 +1530,7 @@ class SceneRenderer {
 	 * [heavy] means a blizzard: bigger, faster flakes leaning hard on the wind.
 	 * Flakes are blits of the pre-blurred soft-dot sprites, so they stay smooth in motion instead of shimmering as hard-edged discs.
 	 */
-	private fun drawSnow(canvas: Canvas, width: Float, height: Float, count: Int, squallCount: Int, windFactor: Float, windScale: Float, timeSeconds: Float, heavy: Boolean) {
+	private fun drawSnow(canvas: Canvas, width: Float, height: Float, count: Int, squallCount: Int, slant: Float, timeSeconds: Float, heavy: Boolean) {
 		val speed = if (heavy) {
 			1.5f
 		} else {
@@ -1532,9 +1542,6 @@ class SceneRenderer {
 		} else {
 			1f
 		}
-
-		val gust = gustFactor(timeSeconds, windFactor)
-		val slant = snowSlant(gust, windScale)
 
 		/*
 		 * Lane and sway phase re-hash every wrap, and the wrap spans a pad past both edges so soft dots never pop at the border.
@@ -1573,7 +1580,7 @@ class SceneRenderer {
 	}
 
 	/** Sleet: a wintry rain/snow mix — short, sharp icy streaks interleaved with small tumbling pellets. */
-	private fun drawSleet(canvas: Canvas, width: Float, height: Float, count: Int, windFactor: Float, windScale: Float, timeSeconds: Float, flash: Float) {
+	private fun drawSleet(canvas: Canvas, width: Float, height: Float, count: Int, streakSlant: Float, pelletSlant: Float, timeSeconds: Float, flash: Float) {
 		/*
 		 * Streaks: shorter and more vertical than rain, tinted cold, falling slower than a downpour.
 		 * Sleet skips squall breathing entirely; both its layers are bright enough that a mid-fall pop would show.
@@ -1581,8 +1588,6 @@ class SceneRenderer {
 		paint.style = Paint.Style.STROKE
 		paint.strokeCap = Paint.Cap.ROUND
 
-		val gust = gustFactor(timeSeconds, windFactor)
-		val slant = ((0.1f + gust * 0.43f) * windScale).coerceAtMost(MAX_WIND_SLANT)
 		val streakCount = count * 2 / 3
 		val streakRandom = Random(PRECIP_SEED)
 		val points = rainBuffer(streakCount * 4)
@@ -1594,11 +1599,11 @@ class SceneRenderer {
 			val travel = streakRandom.nextFloat(height) + timeSeconds * 820f
 			val cycle = (travel / span).toInt()
 			val fall = travel % span
-			val x = precipitationHorizontalPosition(laneFraction(i * 2, cycle), fall, slant, width)
+			val x = precipitationHorizontalPosition(laneFraction(i * 2, cycle), fall, streakSlant, width)
 			val y = fall - 60f
 			points[i * 4] = x
 			points[i * 4 + 1] = y
-			points[i * 4 + 2] = x + length * slant
+			points[i * 4 + 2] = x + length * streakSlant
 			points[i * 4 + 3] = y + length
 		}
 
@@ -1617,7 +1622,6 @@ class SceneRenderer {
 		val pelletCount = count / 2
 		val pelletRandom = Random(PRECIP_SEED + 1L)
 		val pelletSpan = height + FLAKE_WRAP_PAD * 2f
-		val pelletSlant = snowSlant(gust, windScale)
 
 		repeat(pelletCount) { i ->
 			val travel = pelletRandom.nextFloat(height) + timeSeconds * 240f
