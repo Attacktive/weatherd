@@ -55,6 +55,23 @@
 	<string name="backdrop_beach">Plage</string>
 	<string name="backdrop_mountains">Montagnes</string>
 	<string name="backdrop_countryside">Campagne</string>
+	<string name="backdrop_photo">Vos photos</string>
+
+	<!-- Photo backgrounds -->
+	<string name="section_photo_backgrounds">Photos en arrière-plan</string>
+	<string name="photo_bucket_day">Jour</string>
+	<string name="photo_bucket_night">Nuit</string>
+	<string name="photo_bucket_dawn">Aube</string>
+	<string name="photo_bucket_dusk">Crépuscule</string>
+	<string name="photo_optional">Facultatif</string>
+	<string name="photo_choose">Choisir</string>
+	<string name="photo_replace">Remplacer</string>
+	<string name="photo_clear">Retirer</string>
+	<string name="photo_set">Photo sélectionnée</string>
+	<string name="photo_unset">Aucune photo sélectionnée</string>
+	<string name="photo_import_failed">Cette photo n\'a pas pu être importée. Choisissez-en une autre.</string>
+	<string name="hint_photo_backgrounds">Choisissez une de vos photos pour chaque partie de la journée. L\'aube et le crépuscule sont facultatifs : l\'aube reprend votre photo de jour et le crépuscule votre photo de nuit. Le jour et la nuit ne se remplacent jamais l\'un l\'autre, une photo prise à midi n\'apparaîtra donc pas à minuit. Tout ce que vous laissez vide est dessiné comme le ciel peint habituel.</string>
+	<string name="hint_photo_incomplete">Aucune photo de jour ni de nuit pour l\'instant, le ciel peint restera donc visible la majeure partie de la journée.</string>
 
 	<!-- Temperature unit labels -->
 	<string name="unit_celsius">°C</string>

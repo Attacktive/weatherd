@@ -55,6 +55,23 @@
 	<string name="backdrop_beach">Playa</string>
 	<string name="backdrop_mountains">Montañas</string>
 	<string name="backdrop_countryside">Campo</string>
+	<string name="backdrop_photo">Tus fotos</string>
+
+	<!-- Photo backgrounds -->
+	<string name="section_photo_backgrounds">Fotos de fondo</string>
+	<string name="photo_bucket_day">Día</string>
+	<string name="photo_bucket_night">Noche</string>
+	<string name="photo_bucket_dawn">Amanecer</string>
+	<string name="photo_bucket_dusk">Atardecer</string>
+	<string name="photo_optional">Opcional</string>
+	<string name="photo_choose">Elegir</string>
+	<string name="photo_replace">Cambiar</string>
+	<string name="photo_clear">Quitar</string>
+	<string name="photo_set">Foto seleccionada</string>
+	<string name="photo_unset">Ninguna foto seleccionada</string>
+	<string name="photo_import_failed">No se pudo importar esa foto. Elige otra.</string>
+	<string name="hint_photo_backgrounds">Elige una de tus propias fotos para cada parte del día. El amanecer y el atardecer son opcionales: el amanecer recurre a tu foto de día y el atardecer a tu foto de noche. El día y la noche nunca se sustituyen entre sí, así que una foto tomada al mediodía no aparecerá a medianoche. Todo lo que dejes vacío se dibuja como el cielo pintado de siempre.</string>
+	<string name="hint_photo_incomplete">Todavía no hay foto de día ni de noche, así que verás el cielo pintado durante la mayor parte del día.</string>
 
 	<!-- Temperature unit labels -->
 	<string name="unit_celsius">°C</string>

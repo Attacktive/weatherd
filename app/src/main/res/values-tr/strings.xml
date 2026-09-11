@@ -55,6 +55,23 @@
 	<string name="backdrop_beach">Plaj</string>
 	<string name="backdrop_mountains">Dağlar</string>
 	<string name="backdrop_countryside">Kırsal</string>
+	<string name="backdrop_photo">Fotoğraflarınız</string>
+
+	<!-- Photo backgrounds -->
+	<string name="section_photo_backgrounds">Arka plan fotoğrafları</string>
+	<string name="photo_bucket_day">Gündüz</string>
+	<string name="photo_bucket_night">Gece</string>
+	<string name="photo_bucket_dawn">Gün doğumu</string>
+	<string name="photo_bucket_dusk">Gün batımı</string>
+	<string name="photo_optional">İsteğe bağlı</string>
+	<string name="photo_choose">Seç</string>
+	<string name="photo_replace">Değiştir</string>
+	<string name="photo_clear">Kaldır</string>
+	<string name="photo_set">Fotoğraf seçildi</string>
+	<string name="photo_unset">Fotoğraf seçilmedi</string>
+	<string name="photo_import_failed">Bu fotoğraf içe aktarılamadı. Farklı bir fotoğraf seçin.</string>
+	<string name="hint_photo_backgrounds">Günün her bölümü için kendi fotoğraflarınızdan birini seçin. Gün doğumu ve gün batımı isteğe bağlıdır: gün doğumunda gündüz fotoğrafınız, gün batımında ise gece fotoğrafınız kullanılır. Gündüz ve gece asla birbirinin yerine geçmez, bu nedenle öğlen çekilmiş bir fotoğraf gece yarısı görünmez. Boş bıraktığınız her bölüm, her zamanki çizilmiş gökyüzü olarak gösterilir.</string>
+	<string name="hint_photo_incomplete">Henüz gündüz veya gece fotoğrafı yok, bu yüzden günün büyük bölümünde çizilmiş gökyüzünü göreceksiniz.</string>
 
 	<!-- Temperature unit labels -->
 	<string name="unit_celsius">°C</string>

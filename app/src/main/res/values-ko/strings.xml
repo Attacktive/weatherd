@@ -55,6 +55,23 @@
 	<string name="backdrop_beach">해변</string>
 	<string name="backdrop_mountains">산</string>
 	<string name="backdrop_countryside">시골</string>
+	<string name="backdrop_photo">내 사진</string>
+
+	<!-- Photo backgrounds -->
+	<string name="section_photo_backgrounds">배경 사진</string>
+	<string name="photo_bucket_day">낮</string>
+	<string name="photo_bucket_night">밤</string>
+	<string name="photo_bucket_dawn">새벽</string>
+	<string name="photo_bucket_dusk">해 질 녘</string>
+	<string name="photo_optional">선택 사항</string>
+	<string name="photo_choose">선택</string>
+	<string name="photo_replace">변경</string>
+	<string name="photo_clear">해제</string>
+	<string name="photo_set">사진 선택됨</string>
+	<string name="photo_unset">선택된 사진 없음</string>
+	<string name="photo_import_failed">이 사진을 가져올 수 없습니다. 다른 사진을 선택하세요.</string>
+	<string name="hint_photo_backgrounds">하루의 각 시간대마다 원하는 사진을 선택하세요. 새벽과 해 질 녘은 선택 사항으로, 새벽은 낮 사진을, 해 질 녘은 밤 사진을 대신 사용합니다. 낮과 밤은 서로를 대신하지 않으므로 정오에 찍은 사진이 자정에 표시되지는 않습니다. 비워 둔 시간대는 평소처럼 그려진 하늘로 표시됩니다.</string>
+	<string name="hint_photo_incomplete">아직 낮과 밤 사진이 없어 하루 대부분은 그려진 하늘이 표시됩니다.</string>
 
 	<!-- Temperature unit labels -->
 	<string name="unit_celsius">°C</string>

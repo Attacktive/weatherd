@@ -55,6 +55,23 @@
 	<string name="backdrop_beach">Strand</string>
 	<string name="backdrop_mountains">Berge</string>
 	<string name="backdrop_countryside">Landschaft</string>
+	<string name="backdrop_photo">Eigene Fotos</string>
+
+	<!-- Photo backgrounds -->
+	<string name="section_photo_backgrounds">Fotohintergründe</string>
+	<string name="photo_bucket_day">Tag</string>
+	<string name="photo_bucket_night">Nacht</string>
+	<string name="photo_bucket_dawn">Morgendämmerung</string>
+	<string name="photo_bucket_dusk">Abenddämmerung</string>
+	<string name="photo_optional">Optional</string>
+	<string name="photo_choose">Auswählen</string>
+	<string name="photo_replace">Ersetzen</string>
+	<string name="photo_clear">Entfernen</string>
+	<string name="photo_set">Foto ausgewählt</string>
+	<string name="photo_unset">Kein Foto ausgewählt</string>
+	<string name="photo_import_failed">Dieses Foto konnte nicht importiert werden. Bitte ein anderes auswählen.</string>
+	<string name="hint_photo_backgrounds">Für jeden Tagesabschnitt ein eigenes Foto auswählen. Morgen- und Abenddämmerung sind optional: Für die Morgendämmerung wird ersatzweise das Tagfoto verwendet, für die Abenddämmerung das Nachtfoto. Tag und Nacht vertreten einander nie, ein mittags aufgenommenes Foto erscheint also nicht um Mitternacht. Alles, was leer bleibt, wird wie gewohnt als gemalter Himmel gezeichnet.</string>
+	<string name="hint_photo_incomplete">Noch kein Tag- oder Nachtfoto ausgewählt, daher ist den größten Teil des Tages der gemalte Himmel zu sehen.</string>
 
 	<!-- Temperature unit labels -->
 	<string name="unit_celsius">°C</string>

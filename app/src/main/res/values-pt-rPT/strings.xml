@@ -55,6 +55,23 @@
 	<string name="backdrop_beach">Praia</string>
 	<string name="backdrop_mountains">Montanhas</string>
 	<string name="backdrop_countryside">Campo</string>
+	<string name="backdrop_photo">As suas fotografias</string>
+
+	<!-- Photo backgrounds -->
+	<string name="section_photo_backgrounds">Fotografias de fundo</string>
+	<string name="photo_bucket_day">Dia</string>
+	<string name="photo_bucket_night">Noite</string>
+	<string name="photo_bucket_dawn">Amanhecer</string>
+	<string name="photo_bucket_dusk">Anoitecer</string>
+	<string name="photo_optional">Opcional</string>
+	<string name="photo_choose">Escolher</string>
+	<string name="photo_replace">Substituir</string>
+	<string name="photo_clear">Remover</string>
+	<string name="photo_set">Fotografia selecionada</string>
+	<string name="photo_unset">Nenhuma fotografia selecionada</string>
+	<string name="photo_import_failed">Não foi possível importar esta fotografia. Escolha outra.</string>
+	<string name="hint_photo_backgrounds">Escolha uma fotografia sua para cada parte do dia. O amanhecer e o anoitecer são opcionais: o amanhecer recorre à fotografia de dia e o anoitecer à fotografia de noite. O dia e a noite nunca se substituem um ao outro, pelo que uma fotografia tirada ao meio-dia não aparece à meia-noite. Tudo o que deixar vazio é desenhado como o habitual céu pintado.</string>
+	<string name="hint_photo_incomplete">Ainda não existe fotografia de dia nem de noite, pelo que verá o céu pintado durante a maior parte do dia.</string>
 
 	<!-- Temperature unit labels -->
 	<string name="unit_celsius">°C</string>

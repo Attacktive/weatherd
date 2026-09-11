@@ -55,6 +55,23 @@
 	<string name="backdrop_beach">ビーチ</string>
 	<string name="backdrop_mountains">山</string>
 	<string name="backdrop_countryside">田園</string>
+	<string name="backdrop_photo">自分の写真</string>
+
+	<!-- Photo backgrounds -->
+	<string name="section_photo_backgrounds">背景写真</string>
+	<string name="photo_bucket_day">昼</string>
+	<string name="photo_bucket_night">夜</string>
+	<string name="photo_bucket_dawn">明け方</string>
+	<string name="photo_bucket_dusk">夕暮れ</string>
+	<string name="photo_optional">任意</string>
+	<string name="photo_choose">選択</string>
+	<string name="photo_replace">変更</string>
+	<string name="photo_clear">解除</string>
+	<string name="photo_set">写真を選択済み</string>
+	<string name="photo_unset">写真が未選択</string>
+	<string name="photo_import_failed">この写真を読み込めませんでした。別の写真を選択してください。</string>
+	<string name="hint_photo_backgrounds">1日のそれぞれの時間帯に自分の写真を設定できます。明け方と夕暮れは任意で、明け方は昼の写真、夕暮れは夜の写真が代わりに使われます。昼と夜が互いの代わりになることはないため、正午に撮った写真が深夜に表示されることはありません。設定しなかった時間帯は、これまでどおり描画された空が表示されます。</string>
+	<string name="hint_photo_incomplete">昼と夜の写真がまだ設定されていないため、1日の大半は描画された空が表示されます。</string>
 
 	<!-- Temperature unit labels -->
 	<string name="unit_celsius">°C</string>

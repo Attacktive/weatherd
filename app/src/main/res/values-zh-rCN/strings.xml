@@ -55,6 +55,23 @@
 	<string name="backdrop_beach">海滩</string>
 	<string name="backdrop_mountains">山峦</string>
 	<string name="backdrop_countryside">乡村</string>
+	<string name="backdrop_photo">我的照片</string>
+
+	<!-- Photo backgrounds -->
+	<string name="section_photo_backgrounds">照片背景</string>
+	<string name="photo_bucket_day">白天</string>
+	<string name="photo_bucket_night">夜晚</string>
+	<string name="photo_bucket_dawn">黎明</string>
+	<string name="photo_bucket_dusk">黄昏</string>
+	<string name="photo_optional">可选</string>
+	<string name="photo_choose">选择</string>
+	<string name="photo_replace">更换</string>
+	<string name="photo_clear">移除</string>
+	<string name="photo_set">已选择照片</string>
+	<string name="photo_unset">未选择照片</string>
+	<string name="photo_import_failed">无法导入该照片。请换一张照片。</string>
+	<string name="hint_photo_backgrounds">为一天中的每个时段选择一张自己的照片。黎明和黄昏是可选的：黎明会改用白天的照片，黄昏会改用夜晚的照片。白天和夜晚绝不会互相代替，因此正午拍摄的照片不会在午夜出现。留空的时段仍会绘制成平时的手绘天空。</string>
+	<string name="hint_photo_incomplete">尚未选择白天或夜晚的照片，因此一天中的大部分时间看到的仍是手绘天空。</string>
 
 	<!-- Temperature unit labels -->
 	<string name="unit_celsius">°C</string>

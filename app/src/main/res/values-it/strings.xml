@@ -55,6 +55,23 @@
 	<string name="backdrop_beach">Spiaggia</string>
 	<string name="backdrop_mountains">Montagne</string>
 	<string name="backdrop_countryside">Campagna</string>
+	<string name="backdrop_photo">Le tue foto</string>
+
+	<!-- Photo backgrounds -->
+	<string name="section_photo_backgrounds">Foto di sfondo</string>
+	<string name="photo_bucket_day">Giorno</string>
+	<string name="photo_bucket_night">Notte</string>
+	<string name="photo_bucket_dawn">Alba</string>
+	<string name="photo_bucket_dusk">Tramonto</string>
+	<string name="photo_optional">Opzionale</string>
+	<string name="photo_choose">Scegli</string>
+	<string name="photo_replace">Sostituisci</string>
+	<string name="photo_clear">Rimuovi</string>
+	<string name="photo_set">Foto selezionata</string>
+	<string name="photo_unset">Nessuna foto selezionata</string>
+	<string name="photo_import_failed">Impossibile importare questa foto. Scegline un\'altra.</string>
+	<string name="hint_photo_backgrounds">Scegli una delle tue foto per ogni parte della giornata. Alba e tramonto sono opzionali: all\'alba viene usata la foto del giorno e al tramonto quella della notte. Giorno e notte non si sostituiscono mai a vicenda, quindi una foto scattata a mezzogiorno non comparirà a mezzanotte. Tutto ciò che lasci vuoto viene disegnato come il solito cielo dipinto.</string>
+	<string name="hint_photo_incomplete">Non c\'è ancora una foto del giorno né della notte, quindi per gran parte della giornata vedrai il cielo dipinto.</string>
 
 	<!-- Temperature unit labels -->
 	<string name="unit_celsius">°C</string>
