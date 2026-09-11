@@ -1399,8 +1399,9 @@ class SceneRenderer {
 			val length = farRandom.nextFloat(10f, 20f) * stretch
 			val travel = farRandom.nextFloat(height) + timeSeconds * 650f * speed
 			val cycle = (travel / span).toInt()
-			val x = laneFraction(i * 2, cycle) * (width + 200f) - 100f
-			val y = travel % span - RAIN_WRAP_PAD
+			val fall = travel % span
+			val x = precipitationHorizontalPosition(laneFraction(i * 2, cycle), fall, slant, width)
+			val y = fall - RAIN_WRAP_PAD
 			points[i * 4] = x
 			points[i * 4 + 1] = y
 			points[i * 4 + 2] = x + length * slant
@@ -1429,8 +1430,9 @@ class SceneRenderer {
 			val length = nearRandom.nextFloat(30f, 52f) * stretch
 			val travel = nearRandom.nextFloat(height) + timeSeconds * 1150f * speed
 			val cycle = (travel / span).toInt()
-			val x = laneFraction(i * 2 + 1, cycle) * (width + 200f) - 100f
-			val y = travel % span - RAIN_WRAP_PAD
+			val fall = travel % span
+			val x = precipitationHorizontalPosition(laneFraction(i * 2 + 1, cycle), fall, slant, width)
+			val y = fall - RAIN_WRAP_PAD
 
 			points[i * 4] = x
 			points[i * 4 + 1] = y
@@ -1483,8 +1485,9 @@ class SceneRenderer {
 			val length = random.nextFloat(46f, 72f) * stretch
 			val travel = random.nextFloat(height) + timeSeconds * 1450f * speed
 			val cycle = (travel / span).toInt()
-			val x = laneFraction(i + CLOSE_DROP_LANE_OFFSET, cycle) * (width + 200f) - 100f
-			val y = travel % span - RAIN_WRAP_PAD
+			val fall = travel % span
+			val x = precipitationHorizontalPosition(laneFraction(i + CLOSE_DROP_LANE_OFFSET, cycle), fall, slant, width)
+			val y = fall - RAIN_WRAP_PAD
 			points[i * 4] = x
 			points[i * 4 + 1] = y
 			points[i * 4 + 2] = x + length * slant
@@ -1531,6 +1534,7 @@ class SceneRenderer {
 		}
 
 		val gust = gustFactor(timeSeconds, windFactor)
+		val slant = snowSlant(gust, windScale)
 
 		/*
 		 * Lane and sway phase re-hash every wrap, and the wrap spans a pad past both edges so soft dots never pop at the border.
@@ -1538,41 +1542,33 @@ class SceneRenderer {
 		 */
 		val span = height + FLAKE_WRAP_PAD * 2f
 		val farRandom = Random(PRECIP_SEED)
-		val farLean = if (heavy) {
-			43f
-		} else {
-			20f
-		}
 
 		repeat(squallCount / 2) { i ->
 			val travel = farRandom.nextFloat(height) + timeSeconds * 70f * speed
 			val cycle = (travel / span).toInt()
-			val baseX = laneFraction(i * 2, cycle) * width
+			val fall = travel % span
+			val x = precipitationHorizontalPosition(laneFraction(i * 2, cycle), fall, slant, width)
 			val phase = laneFraction(i * 2, cycle + SWAY_PHASE_SALT) * TAU
-			val y = travel % span - FLAKE_WRAP_PAD
-			val sway = sin(timeSeconds * 0.7f + phase) * (width * 0.02f) + gust * farLean * windScale
+			val y = fall - FLAKE_WRAP_PAD
+			val sway = sin(timeSeconds * 0.7f + phase) * (width * 0.02f)
 			val radius = farRandom.nextFloat(1.2f, 2.6f) * size
 
-			drawSoftDot(canvas, farFlakeSprite, baseX + sway, y, radius)
+			drawSoftDot(canvas, farFlakeSprite, x + sway, y, radius)
 		}
 
 		val nearRandom = Random(PRECIP_SEED + 1L)
-		val nearLean = if (heavy) {
-			79f
-		} else {
-			40f
-		}
 
 		repeat(count - count / 2) { i ->
 			val travel = nearRandom.nextFloat(height) + timeSeconds * 165f * speed
 			val cycle = (travel / span).toInt()
-			val baseX = laneFraction(i * 2 + 1, cycle) * width
+			val fall = travel % span
+			val x = precipitationHorizontalPosition(laneFraction(i * 2 + 1, cycle), fall, slant, width)
 			val phase = laneFraction(i * 2 + 1, cycle + SWAY_PHASE_SALT) * TAU
-			val y = travel % span - FLAKE_WRAP_PAD
-			val sway = sin(timeSeconds * 1.1f + phase) * (width * 0.045f) + gust * nearLean * windScale
+			val y = fall - FLAKE_WRAP_PAD
+			val sway = sin(timeSeconds * 1.1f + phase) * (width * 0.045f)
 			val radius = nearRandom.nextFloat(2.6f, 5.8f) * size
 
-			drawSoftDot(canvas, nearFlakeSprite, baseX + sway, y, radius)
+			drawSoftDot(canvas, nearFlakeSprite, x + sway, y, radius)
 		}
 	}
 
@@ -1597,8 +1593,9 @@ class SceneRenderer {
 			val length = streakRandom.nextFloat(14f, 26f)
 			val travel = streakRandom.nextFloat(height) + timeSeconds * 820f
 			val cycle = (travel / span).toInt()
-			val x = laneFraction(i * 2, cycle) * (width + 200f) - 100f
-			val y = travel % span - 60f
+			val fall = travel % span
+			val x = precipitationHorizontalPosition(laneFraction(i * 2, cycle), fall, slant, width)
+			val y = fall - 60f
 			points[i * 4] = x
 			points[i * 4 + 1] = y
 			points[i * 4 + 2] = x + length * slant
@@ -1620,17 +1617,19 @@ class SceneRenderer {
 		val pelletCount = count / 2
 		val pelletRandom = Random(PRECIP_SEED + 1L)
 		val pelletSpan = height + FLAKE_WRAP_PAD * 2f
+		val pelletSlant = snowSlant(gust, windScale)
 
 		repeat(pelletCount) { i ->
 			val travel = pelletRandom.nextFloat(height) + timeSeconds * 240f
 			val cycle = (travel / pelletSpan).toInt()
-			val baseX = laneFraction(i * 2 + 1, cycle) * width
+			val fall = travel % pelletSpan
+			val x = precipitationHorizontalPosition(laneFraction(i * 2 + 1, cycle), fall, pelletSlant, width)
 			val phase = laneFraction(i * 2 + 1, cycle + SWAY_PHASE_SALT) * TAU
-			val y = travel % pelletSpan - FLAKE_WRAP_PAD
-			val sway = sin(timeSeconds * 1.6f + phase) * (width * 0.012f) + gust * 23f
+			val y = fall - FLAKE_WRAP_PAD
+			val sway = sin(timeSeconds * 1.6f + phase) * (width * 0.012f)
 			val radius = pelletRandom.nextFloat(1.2f, 2.8f)
 
-			drawSoftDot(canvas, pelletSprite, baseX + sway, y, radius)
+			drawSoftDot(canvas, pelletSprite, x + sway, y, radius)
 		}
 	}
 
@@ -2118,7 +2117,9 @@ private fun showsHaze(params: SceneParams) = params.precipitation != null || par
 
 private const val PRECIPITATION_SCALE_EXPONENT = 0.5f
 
-private const val MAX_WIND_SLANT = 1.4f
+internal const val MAX_WIND_SLANT = 1.4f
+
+internal const val PRECIPITATION_HORIZONTAL_PAD = 100f
 
 /**
  * Slant of falling rain streaks, derived from the gust factor and scaled by the user's intensity preference.
@@ -2133,6 +2134,32 @@ internal fun rainSlant(gust: Float, scale: Float, heavy: Boolean = false): Float
 	}
 
 	return ((slantBase + gust * 0.71f) * scale).coerceAtMost(MAX_WIND_SLANT)
+}
+
+/**
+ * Slant of falling snow and sleet pellets, derived from the gust factor and scaled by the user's intensity preference.
+ * Snow catches wind more readily than rain but barely leans in dead calm.
+ * Clamped to [MAX_WIND_SLANT] so blizzards in gales do not exceed the same physical ceiling as rain.
+ */
+internal fun snowSlant(gust: Float, scale: Float): Float {
+	return ((0.06f + gust * 0.9f) * scale).coerceAtMost(MAX_WIND_SLANT)
+}
+
+/**
+ * Calculates the horizontal position of a falling precipitation particle.
+ * Density is preserved under wind by wrapping within the spawn band ([width] + 200f) offset by -100f.
+ * As a particle descends, horizontal displacement advances with distance fallen ([fall]) at the [slant] ratio, keeping motion parallel to streak angle without thinning the field or exposing edges.
+ */
+internal fun precipitationHorizontalPosition(laneFraction: Float, fall: Float, slant: Float, width: Float): Float {
+	val band = width + PRECIPITATION_HORIZONTAL_PAD * 2f
+	val raw = (laneFraction * band + fall * slant) % band
+	val wrapped = if (raw < 0f) {
+		raw + band
+	} else {
+		raw
+	}
+
+	return wrapped - PRECIPITATION_HORIZONTAL_PAD
 }
 
 /**
