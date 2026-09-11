@@ -6,13 +6,16 @@
 
 Settings are stored **locally on your device only** and are never transmitted to any server operated by this app.
 
-| Data                                      | Purpose                                   | Where stored               |
-|-------------------------------------------|-------------------------------------------|----------------------------|
-| Refresh interval                          | How often weather is re-fetched           | Device storage (DataStore) |
-| Location mode (device vs manual)          | Choose approximate GPS or a searched city | Device storage (DataStore) |
-| Manual place (label, latitude, longitude) | Remember a city you picked                | Device storage (DataStore) |
+| Data                                      | Purpose                                   | Where stored                       |
+|-------------------------------------------|-------------------------------------------|------------------------------------|
+| Refresh interval                          | How often weather is re-fetched           | Device storage (DataStore)         |
+| Location mode (device vs manual)          | Choose approximate GPS or a searched city | Device storage (DataStore)         |
+| Manual place (label, latitude, longitude) | Remember a city you picked                | Device storage (DataStore)         |
+| Photos you choose as backgrounds          | Draw them as the wallpaper's sky          | Device storage (app-private files) |
 
 Approximate device location (when enabled and permitted) and manual coordinates are used only to request weather for that place. They are not stored on any server operated by this app.
+
+A photo you pick for a part of the day is copied into the app's own private storage and kept there until you replace it. The copies never leave your device and are not transmitted anywhere; each one is deleted when you clear that part of the day or uninstall the app.
 
 ## Third-party services
 
