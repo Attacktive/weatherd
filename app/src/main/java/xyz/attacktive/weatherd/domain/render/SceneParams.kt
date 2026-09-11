@@ -17,7 +17,7 @@ import xyz.attacktive.weatherd.domain.weather.precipitationIntensity
  * [backdropScene] is the user's horizon scenery choice — a setting, not weather, so it defaults to the bare sky.
  * [overlayLabels] is the optional text overlay, already formatted for drawing; null keeps the wallpaper text-free.
  * [precipitationScale] is the user's preference rather than an observation, so it rides alongside [precipitation] instead of being folded into it: the renderer applies it past its own visibility floor, where it is the drop count the user actually sees.
- * Wind needs no such field — its scale folds straight into [windFactor], whose downstream floors are deliberate baselines.
+ * [windScale] is the user's preference rather than an observation, so it rides alongside [windFactor] instead of being folded into it: the renderer applies it past its own floors, where it actually moves visible wind effects.
  */
 data class SceneParams(
 	val dayPhase: DayPhase,
@@ -27,6 +27,7 @@ data class SceneParams(
 	val thunder: Boolean,
 	val windFactor: Float,
 	val precipitationScale: Float = 1f,
+	val windScale: Float = 1f,
 	val moonPhase: Float = 0.5f,
 	val celestialProgress: Float = 0.5f,
 	val backdropScene: BackdropScene = BackdropScene.NONE,
@@ -61,10 +62,10 @@ fun sceneParamsFor(
 			Precipitation(kind = it, severity = condition.severity, observed = shapedIntensity(precipitationIntensity(observation.precipitationMillimeters)))
 		},
 		thunder = condition.thunder,
-		// Wind scale folds into windFactor here because windFactor measures wind drive, whose downstream floors (rain slant, cloud drift) are physical baselines rather than clamping.
-		// Precipitation scale is deliberately left unapplied here, as the renderer applies it past its 0.4f visibility floor to avoid compressing a 20x control into 1.7x on screen.
-		windFactor = (shapedIntensity((observation.windSpeedKilometersPerHour / MAX_WIND_KILOMETERS_PER_HOUR).toFloat()) * windScale).coerceIn(0f, 1f),
+		// Both scales are carried preferences that the renderer applies past its own floors, which is what makes the sliders span their advertised range.
+		windFactor = shapedIntensity((observation.windSpeedKilometersPerHour / MAX_WIND_KILOMETERS_PER_HOUR).toFloat()),
 		precipitationScale = precipitationScale,
+		windScale = windScale,
 		moonPhase = moonPhaseFor(nowEpochSeconds),
 		celestialProgress = dayPhaseProgressFor(nowEpochSeconds, snapshot.sunriseEpochSeconds, snapshot.sunsetEpochSeconds, dayPhase),
 		backdropScene = backdropScene,

@@ -131,21 +131,23 @@ class SceneParamsTest {
 	}
 
 	@Test
-	fun `the wind scale multiplies the shaped factor`() {
+	fun `the wind scale rides through without touching the observation`() {
 		val snapshot = snapshot(weatherCode = 2, precipitationMillimeters = 0.0, windSpeedKilometersPerHour = 12.0, cloudCoverPercent = 40)
 
 		val params = sceneParamsFor(snapshot, NOW, windScale = 0.5f)
 
-		assertEquals(0.2428f, params.windFactor, 0.0001f)
+		assertEquals(0.4856f, params.windFactor, 0.0001f)
+		assertEquals(0.5f, params.windScale, 0.0001f)
 	}
 
 	@Test
-	fun `scaling the wind up cannot break the renderer's upper bound`() {
+	fun `scaling the wind up does not clamp windFactor`() {
 		val snapshot = snapshot(weatherCode = 95, precipitationMillimeters = 8.0, windSpeedKilometersPerHour = 36.0, cloudCoverPercent = 90)
 
 		val params = sceneParamsFor(snapshot, NOW, windScale = 2f)
 
-		assertEquals(1f, params.windFactor, 0.0001f)
+		assertEquals(0.9387f, params.windFactor, 0.0001f)
+		assertEquals(2f, params.windScale, 0.0001f)
 	}
 
 	@Test
@@ -167,6 +169,8 @@ class SceneParamsTest {
 
 		assertNull(params.precipitation)
 		assertEquals(0f, params.windFactor, 0.0001f)
+		assertEquals(2f, params.precipitationScale, 0.0001f)
+		assertEquals(2f, params.windScale, 0.0001f)
 	}
 
 	private fun snapshot(weatherCode: Int, precipitationMillimeters: Double, windSpeedKilometersPerHour: Double, cloudCoverPercent: Int) = WeatherSnapshot(

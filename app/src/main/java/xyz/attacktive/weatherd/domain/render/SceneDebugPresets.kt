@@ -36,7 +36,7 @@ val SCENE_PRESETS = listOf(
 
 /**
  * Combines a preset with a day phase and user scales into render parameters.
- * Debug mode is a weather simulator, so it pins the weather while honoring the user's display preferences.
+ * Debug mode is a weather simulator, so it pins the weather while carrying the user's display preferences for the renderer to apply.
  */
 fun debugSceneParams(
 	preset: ScenePreset,
@@ -49,6 +49,7 @@ fun debugSceneParams(
 	fogDensity = preset.fogDensity,
 	precipitation = preset.precipitation,
 	thunder = preset.thunder,
-	windFactor = (preset.windFactor * windScale).coerceIn(0f, 1f),
-	precipitationScale = precipitationScale
+	windFactor = preset.windFactor,
+	precipitationScale = precipitationScale,
+	windScale = windScale
 )

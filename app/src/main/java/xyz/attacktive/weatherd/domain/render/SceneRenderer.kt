@@ -164,7 +164,7 @@ class SceneRenderer {
 		}
 
 		if (params.precipitation != null) {
-			drawPrecipitation(canvas, w, h, params.precipitation, params.precipitationScale, params.windFactor, timeSeconds, flashWash)
+			drawPrecipitation(canvas, w, h, params.precipitation, params.precipitationScale, params.windFactor, params.windScale, timeSeconds, flashWash)
 		}
 
 		if (params.thunder) {
@@ -1119,10 +1119,10 @@ class SceneRenderer {
 		val bobAmplitude = height * 0.022f
 		val bob = bobAmplitude * (0.65f * sin(timeSeconds * 0.4f) + 0.35f * sin(timeSeconds * 1.07f))
 		val frontAlpha = (200f + 55f * (0.7f * sin(timeSeconds * 0.55f) + 0.3f * sin(timeSeconds * 1.31f))).roundToInt()
-		val surge = width * 0.012f * params.windFactor
+		val surge = width * 0.012f * params.windFactor * params.windScale
 		val drift = surge * (0.6f * sin(timeSeconds * 0.19f) + 0.4f * sin(timeSeconds * 0.47f))
-		val backOffset = wrapOffset(timeSeconds * (14f + params.windFactor * 18f) + drift, width)
-		val frontOffset = wrapOffset(timeSeconds * (38f + params.windFactor * 48f) + drift * 1.8f, width)
+		val backOffset = wrapOffset(timeSeconds * (14f + params.windFactor * 18f) * params.windScale + drift, width)
+		val frontOffset = wrapOffset(timeSeconds * (38f + params.windFactor * 48f) * params.windScale + drift * 1.8f, width)
 		blitScrolled(canvas, back, backOffset, width, destHeight + bobAmplitude, 255, bob - bobAmplitude)
 		blitScrolled(canvas, front, frontOffset, width, destHeight + bobAmplitude * 1.5f, frontAlpha, -bob * 1.5f - bobAmplitude * 1.5f)
 	}
@@ -1205,10 +1205,10 @@ class SceneRenderer {
 		}
 
 		// The same bounded gust surge as the deck, so fair-weather puffs answer to the one wind too.
-		val surge = width * 0.01f * params.windFactor
+		val surge = width * 0.01f * params.windFactor * params.windScale
 		val drift = surge * (0.6f * sin(timeSeconds * 0.19f) + 0.4f * sin(timeSeconds * 0.47f))
-		val farOffset = wrapOffset(timeSeconds * (11f + params.windFactor * 18f) + drift * 0.6f, width)
-		val nearOffset = wrapOffset(timeSeconds * (20f + params.windFactor * 34f) + drift, width)
+		val farOffset = wrapOffset(timeSeconds * (11f + params.windFactor * 18f) * params.windScale + drift * 0.6f, width)
+		val nearOffset = wrapOffset(timeSeconds * (20f + params.windFactor * 34f) * params.windScale + drift, width)
 		blitScrolled(canvas, far, farOffset, width, destHeight, 255)
 		blitScrolled(canvas, near, nearOffset, width, destHeight, 255)
 	}
@@ -1343,7 +1343,7 @@ class SceneRenderer {
 	/** Precipitation density breathes ±15% over half-minute swells, so the fall reads as squalls instead of a constant static. */
 	private fun squallFactor(timeSeconds: Float) = 0.85f + 0.15f * (0.6f * sin(timeSeconds * 0.21f) + 0.4f * sin(timeSeconds * 0.53f))
 
-	private fun drawPrecipitation(canvas: Canvas, width: Float, height: Float, precipitation: Precipitation, scale: Float, windFactor: Float, timeSeconds: Float, flash: Float) {
+	private fun drawPrecipitation(canvas: Canvas, width: Float, height: Float, precipitation: Precipitation, scale: Float, windFactor: Float, windScale: Float, timeSeconds: Float, flash: Float) {
 		val count = precipitationDropCount(precipitation, scale, width, height)
 
 		// Only the dim far layers breathe with the squall factor: a particle popping into existence mid-fall is a teleport, imperceptible at the far layers' alphas but exactly what the bright near layers must never show — so those hold the steady count.
@@ -1351,14 +1351,14 @@ class SceneRenderer {
 		val heavy = precipitation.severity >= HEAVY_SEVERITY
 
 		when (precipitation.kind) {
-			PrecipitationKind.SNOW -> drawSnow(canvas, width, height, count, squallCount, windFactor, timeSeconds, heavy)
-			PrecipitationKind.SLEET -> drawSleet(canvas, width, height, count, windFactor, timeSeconds, flash)
-			PrecipitationKind.RAIN -> drawRain(canvas, width, height, count, squallCount, windFactor, timeSeconds, heavy, flash)
+			PrecipitationKind.SNOW -> drawSnow(canvas, width, height, count, squallCount, windFactor, windScale, timeSeconds, heavy)
+			PrecipitationKind.SLEET -> drawSleet(canvas, width, height, count, windFactor, windScale, timeSeconds, flash)
+			PrecipitationKind.RAIN -> drawRain(canvas, width, height, count, squallCount, windFactor, windScale, timeSeconds, heavy, flash)
 		}
 	}
 
 	/** [heavy] turns the shower into a downpour: faster, longer, thicker, more slanted streaks on top of the higher particle count. */
-	private fun drawRain(canvas: Canvas, width: Float, height: Float, count: Int, squallCount: Int, windFactor: Float, timeSeconds: Float, heavy: Boolean, flash: Float) {
+	private fun drawRain(canvas: Canvas, width: Float, height: Float, count: Int, squallCount: Int, windFactor: Float, windScale: Float, timeSeconds: Float, heavy: Boolean, flash: Float) {
 		paint.style = Paint.Style.STROKE
 		paint.strokeCap = Paint.Cap.ROUND
 
@@ -1374,13 +1374,8 @@ class SceneRenderer {
 			1f
 		}
 
-		val slantBase = if (heavy) {
-			0.26f
-		} else {
-			0.16f
-		}
-
-		val slant = slantBase + gustFactor(timeSeconds, windFactor) * 0.71f
+		val gust = gustFactor(timeSeconds, windFactor)
+		val slant = rainSlant(gust, windScale, heavy)
 		val span = height + RAIN_WRAP_PAD * 2f
 		val nearCount = count / 2
 
@@ -1522,7 +1517,7 @@ class SceneRenderer {
 	 * [heavy] means a blizzard: bigger, faster flakes leaning hard on the wind.
 	 * Flakes are blits of the pre-blurred soft-dot sprites, so they stay smooth in motion instead of shimmering as hard-edged discs.
 	 */
-	private fun drawSnow(canvas: Canvas, width: Float, height: Float, count: Int, squallCount: Int, windFactor: Float, timeSeconds: Float, heavy: Boolean) {
+	private fun drawSnow(canvas: Canvas, width: Float, height: Float, count: Int, squallCount: Int, windFactor: Float, windScale: Float, timeSeconds: Float, heavy: Boolean) {
 		val speed = if (heavy) {
 			1.5f
 		} else {
@@ -1555,7 +1550,7 @@ class SceneRenderer {
 			val baseX = laneFraction(i * 2, cycle) * width
 			val phase = laneFraction(i * 2, cycle + SWAY_PHASE_SALT) * TAU
 			val y = travel % span - FLAKE_WRAP_PAD
-			val sway = sin(timeSeconds * 0.7f + phase) * (width * 0.02f) + gust * farLean
+			val sway = sin(timeSeconds * 0.7f + phase) * (width * 0.02f) + gust * farLean * windScale
 			val radius = farRandom.nextFloat(1.2f, 2.6f) * size
 
 			drawSoftDot(canvas, farFlakeSprite, baseX + sway, y, radius)
@@ -1574,7 +1569,7 @@ class SceneRenderer {
 			val baseX = laneFraction(i * 2 + 1, cycle) * width
 			val phase = laneFraction(i * 2 + 1, cycle + SWAY_PHASE_SALT) * TAU
 			val y = travel % span - FLAKE_WRAP_PAD
-			val sway = sin(timeSeconds * 1.1f + phase) * (width * 0.045f) + gust * nearLean
+			val sway = sin(timeSeconds * 1.1f + phase) * (width * 0.045f) + gust * nearLean * windScale
 			val radius = nearRandom.nextFloat(2.6f, 5.8f) * size
 
 			drawSoftDot(canvas, nearFlakeSprite, baseX + sway, y, radius)
@@ -1582,7 +1577,7 @@ class SceneRenderer {
 	}
 
 	/** Sleet: a wintry rain/snow mix — short, sharp icy streaks interleaved with small tumbling pellets. */
-	private fun drawSleet(canvas: Canvas, width: Float, height: Float, count: Int, windFactor: Float, timeSeconds: Float, flash: Float) {
+	private fun drawSleet(canvas: Canvas, width: Float, height: Float, count: Int, windFactor: Float, windScale: Float, timeSeconds: Float, flash: Float) {
 		/*
 		 * Streaks: shorter and more vertical than rain, tinted cold, falling slower than a downpour.
 		 * Sleet skips squall breathing entirely; both its layers are bright enough that a mid-fall pop would show.
@@ -1591,7 +1586,7 @@ class SceneRenderer {
 		paint.strokeCap = Paint.Cap.ROUND
 
 		val gust = gustFactor(timeSeconds, windFactor)
-		val slant = 0.1f + gust * 0.43f
+		val slant = ((0.1f + gust * 0.43f) * windScale).coerceAtMost(MAX_WIND_SLANT)
 		val streakCount = count * 2 / 3
 		val streakRandom = Random(PRECIP_SEED)
 		val points = rainBuffer(streakCount * 4)
@@ -2122,6 +2117,23 @@ private fun birdColor(dayPhase: DayPhase) = when (dayPhase) {
 private fun showsHaze(params: SceneParams) = params.precipitation != null || params.fogDensity > 0f || params.cloudiness > 0.75f
 
 private const val PRECIPITATION_SCALE_EXPONENT = 0.5f
+
+private const val MAX_WIND_SLANT = 1.4f
+
+/**
+ * Slant of falling rain streaks, derived from the gust factor and scaled by the user's intensity preference.
+ * The scale multiplies the whole expression including its constant floor, so the slider spans its full range rather than being diluted by a fixed base.
+ * Clamped to [MAX_WIND_SLANT] so downpours in gales cannot lean past roughly 54 degrees off vertical, where rain reads as broken.
+ */
+internal fun rainSlant(gust: Float, scale: Float, heavy: Boolean = false): Float {
+	val slantBase = if (heavy) {
+		0.26f
+	} else {
+		0.16f
+	}
+
+	return ((slantBase + gust * 0.71f) * scale).coerceAtMost(MAX_WIND_SLANT)
+}
 
 /**
  * How many particles to draw for this precipitation, after the user's intensity preference.
