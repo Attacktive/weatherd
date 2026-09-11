@@ -61,6 +61,8 @@ fun sceneParamsFor(
 			Precipitation(kind = it, severity = condition.severity, observed = shapedIntensity(precipitationIntensity(observation.precipitationMillimeters)))
 		},
 		thunder = condition.thunder,
+		// Wind scale folds into windFactor here because windFactor measures wind drive, whose downstream floors (rain slant, cloud drift) are physical baselines rather than clamping.
+		// Precipitation scale is deliberately left unapplied here, as the renderer applies it past its 0.4f visibility floor to avoid compressing a 20x control into 1.7x on screen.
 		windFactor = (shapedIntensity((observation.windSpeedKilometersPerHour / MAX_WIND_KILOMETERS_PER_HOUR).toFloat()) * windScale).coerceIn(0f, 1f),
 		precipitationScale = precipitationScale,
 		moonPhase = moonPhaseFor(nowEpochSeconds),
