@@ -76,13 +76,11 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 				availableBuckets.value = scanAvailableBuckets()
 
 				Result.success(Unit)
-			} catch (exception: IOException) {
+			} catch (exception: Exception) {
 				importFailure(bucket, exception)
-			} catch (exception: SecurityException) {
-				importFailure(bucket, exception)
-			} catch (exception: OutOfMemoryError) {
+			} catch (error: OutOfMemoryError) {
 				// A 108MP pick can exhaust the heap even downsampled; refusing that import beats taking the wallpaper's process down with it.
-				importFailure(bucket, exception)
+				importFailure(bucket, error)
 			}
 		}
 	}
@@ -236,23 +234,11 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 	 * Consumes [source]: the caller must treat only the returned bitmap as live.
 	 */
 	private fun uprighted(source: Bitmap, orientation: Int): Bitmap {
-		val matrix = Matrix()
-		when (orientation) {
-			ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.setScale(-1f, 1f)
-			ExifInterface.ORIENTATION_ROTATE_180 -> matrix.setRotate(180f)
-			ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.setScale(1f, -1f)
-			ExifInterface.ORIENTATION_TRANSPOSE -> {
-				matrix.setRotate(90f)
-				matrix.postScale(-1f, 1f)
-			}
-			ExifInterface.ORIENTATION_ROTATE_90 -> matrix.setRotate(90f)
-			ExifInterface.ORIENTATION_TRANSVERSE -> {
-				matrix.setRotate(270f)
-				matrix.postScale(-1f, 1f)
-			}
-			ExifInterface.ORIENTATION_ROTATE_270 -> matrix.setRotate(270f)
-			// ORIENTATION_NORMAL, ORIENTATION_UNDEFINED and whatever a corrupt tag invents all mean the same thing: leave the pixels alone.
-			else -> return source
+		val transform = EXIF_TRANSFORMS.getOrNull(orientation) ?: return source
+
+		val matrix = Matrix().apply {
+			setRotate(transform.rotation)
+			postScale(transform.scaleX, transform.scaleY)
 		}
 
 		val upright = Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
@@ -355,6 +341,21 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 		private const val JPEG_QUALITY = 90
 	}
 }
+
+private data class ExifTransform(val rotation: Float, val scaleX: Float, val scaleY: Float)
+
+/** Transform entries use the EXIF orientation value as their index; normal and undefined values are null. */
+private val EXIF_TRANSFORMS = arrayOf(
+	null,
+	null,
+	ExifTransform(rotation = 0f, scaleX = -1f, scaleY = 1f),
+	ExifTransform(rotation = 180f, scaleX = 1f, scaleY = 1f),
+	ExifTransform(rotation = 0f, scaleX = 1f, scaleY = -1f),
+	ExifTransform(rotation = 90f, scaleX = -1f, scaleY = 1f),
+	ExifTransform(rotation = 90f, scaleX = 1f, scaleY = 1f),
+	ExifTransform(rotation = 270f, scaleX = -1f, scaleY = 1f),
+	ExifTransform(rotation = 270f, scaleX = 1f, scaleY = 1f)
+)
 
 /** The long edge a stored photo is scaled to when the display metrics cannot be read at all, which is the size of a small phone from the era minSdk 26 dates to. */
 private const val FALLBACK_LONG_EDGE = 1280

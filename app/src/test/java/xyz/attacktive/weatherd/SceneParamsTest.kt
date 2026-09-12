@@ -192,16 +192,33 @@ class SceneParamsTest {
 	}
 
 	@Test
-	fun `the backdrop signature zeroes the moon and the celestial arc and nothing else`() {
+	fun `the backdrop signature excludes foreground-only fields`() {
 		val params = fullyPopulatedParams()
 
 		val signature = backdropSignature(params)
 
 		assertEquals(0f, signature.moonPhase, 0.0001f)
 		assertEquals(0f, signature.celestialProgress, 0.0001f)
+		assertNull(signature.overlayLabels)
 
-		// Putting just those two back has to reproduce the original, which is what proves nothing else was touched.
-		assertEquals(params, signature.copy(moonPhase = params.moonPhase, celestialProgress = params.celestialProgress))
+		// Putting the foreground-only fields back has to reproduce the original, which proves nothing else was touched.
+		assertEquals(
+			params,
+			signature.copy(
+				moonPhase = params.moonPhase,
+				celestialProgress = params.celestialProgress,
+				overlayLabels = params.overlayLabels
+			)
+		)
+	}
+
+	@Test
+	fun `overlay label changes do not invalidate the backdrop signature`() {
+		val params = fullyPopulatedParams()
+		val relabeled = params.copy(overlayLabels = null)
+
+		assertNotEquals(params, relabeled)
+		assertEquals(backdropSignature(params), backdropSignature(relabeled))
 	}
 
 	@Test
@@ -231,7 +248,6 @@ class SceneParamsTest {
 			"windScale" to params.copy(windScale = 2f),
 			"backdropScene" to params.copy(backdropScene = BackdropScene.NONE),
 			"photoRevision" to params.copy(photoRevision = params.photoRevision + 1),
-			"overlayLabels" to params.copy(overlayLabels = null)
 		)
 
 		for ((field, mutated) in changed) {

@@ -47,7 +47,7 @@ data class OverlayLabels(val weather: String?, val location: String?)
  * Every other field is carried through untouched, so a field added later stays backdrop-relevant until someone lists it here.
  * Both the wallpaper's backdrop cache and the in-app preview's remembered backdrop key on this, which is what keeps them redrawing on exactly the same changes.
  */
-fun backdropSignature(params: SceneParams) = params.copy(moonPhase = 0f, celestialProgress = 0f)
+fun backdropSignature(params: SceneParams) = params.copy(moonPhase = 0f, celestialProgress = 0f, overlayLabels = null)
 
 /** Derives render parameters from a weather snapshot for the given moment. */
 fun sceneParamsFor(
