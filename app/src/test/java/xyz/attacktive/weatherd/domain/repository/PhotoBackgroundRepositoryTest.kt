@@ -9,6 +9,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.After
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import xyz.attacktive.weatherd.domain.model.PhotoBucket
@@ -43,5 +44,12 @@ class PhotoBackgroundRepositoryTest {
 		assertTrue(outcome.isSuccess)
 		assertTrue(outcome.getOrThrow().isFailure)
 		assertTrue(outcome.getOrThrow().exceptionOrNull() is IllegalArgumentException)
+	}
+
+	@Test
+	fun `loading a thumbnail for an unset bucket returns null`() = runTest {
+		val repository = PhotoBackgroundRepository(context, logger)
+
+		assertNull(repository.loadThumbnail(PhotoBucket.DAY))
 	}
 }

@@ -2,13 +2,18 @@ package xyz.attacktive.weatherd.ui.settings
 
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import android.app.Application
+import android.graphics.Bitmap
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -47,6 +52,26 @@ class SettingsViewModel @Inject constructor(
 	 * The repository is the only truth about which files exist, which is what keeps a failed import from leaving a row claiming a photo it never wrote.
 	 */
 	val photoBuckets = photoBackgroundRepository.available
+
+	/**
+	 * Downsampled thumbnails for the user's photos, keyed by bucket.
+	 * Decoded off the main thread and republished whenever a photo is added, replaced, or cleared.
+	 */
+	@OptIn(ExperimentalCoroutinesApi::class)
+	val photoThumbnails = photoBackgroundRepository.revision
+		.mapLatest {
+			PhotoBucket.entries.mapNotNull { bucket ->
+				val thumbnail = photoBackgroundRepository.loadThumbnail(bucket)
+				if (thumbnail != null) {
+					bucket to thumbnail
+				} else {
+					null
+				}
+			}
+			.toMap()
+		}
+		.flowOn(Dispatchers.IO)
+		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
 	private val _photoImportFailed = MutableStateFlow(false)
 	val photoImportFailed = _photoImportFailed.asStateFlow()

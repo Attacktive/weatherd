@@ -19,9 +19,9 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
 import android.graphics.Matrix
-import android.media.ExifInterface
 import android.net.Uri
 import android.os.Build
+import androidx.exifinterface.media.ExifInterface
 import dagger.hilt.android.qualifiers.ApplicationContext
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
@@ -39,20 +39,25 @@ import xyz.attacktive.weatherd.util.AppLogger
 class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private val context: Context, private val logger: AppLogger) {
 	private val directory = File(context.filesDir, DIRECTORY_NAME)
 
-	// Every import of a bucket encodes through that bucket's one scratch file, so two of them at once would truncate each other's half-written photo straight into the live file.
-	// A temp name per call would avoid the collision but leave a stray behind on a process kill, which nothing later sweeps; serializing costs a wait on a path the user already knows is slow.
+	/*
+	 * Every import of a bucket encodes through that bucket's one scratch file, so two of them at once would truncate each other's half-written photo straight into the live file.
+	 * A temp name per call would avoid the collision but leave a stray behind on a process kill, which nothing later sweeps; serializing costs a wait on a path the user already knows is slow.
+	 */
 	private val mutation = Mutex()
 
-	// Four stat calls on the injecting thread, once per process, is a price worth paying for a bucket set that is correct from the very first read.
 	private val availableBuckets = MutableStateFlow(scanAvailableBuckets())
 
-	// The bucket set alone cannot say that a bucket's photo was replaced — the bucket was filled before and is filled after — so a counter tracks the bytes as well as the names.
-	// Every mutation below already runs under the mutex, so the increment needs no atomic of its own; only the render thread's read has to see it, which is what the volatile buys.
-	// Both mutation paths bump before publishing availableBuckets: that assignment resumes collectors on other coroutines, and one of them reading revisionNow() must never pair the new bucket set with a revision that predates it.
-	@Volatile private var revision = 0
+	/*
+	 * The bucket set alone cannot say that a bucket's photo was replaced — the bucket was filled before and is filled after — so a counter tracks the bytes as well as the names.
+	 * Both mutation paths bump before publishing availableBuckets: that assignment resumes collectors on other coroutines, and one of them reading revisionNow() must never pair the new bucket set with a revision that predates it.
+	 */
+	private val _revision = MutableStateFlow(0)
 
 	/** The buckets that currently hold a photo, for a UI that has to reflect an import or a clear as it happens. */
 	val available: StateFlow<Set<PhotoBucket>> = availableBuckets.asStateFlow()
+
+	/** Emits whenever stored photos are added, replaced, or cleared. */
+	val revision: StateFlow<Int> = _revision.asStateFlow()
 
 	/** The buckets that currently hold a photo, for the render thread, which resolves a bucket mid-frame and cannot collect a flow to do it. */
 	fun availableNow() = availableBuckets.value
@@ -61,7 +66,7 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 	 * A number that changes whenever the stored photos change, for a caller that caches something rasterized from them and needs to know the pixels moved under it.
 	 * Opaque and process-local: only differences matter, and a fresh process starts over alongside every cache that could have compared against the old value.
 	 */
-	fun revisionNow() = revision
+	fun revisionNow() = _revision.value
 
 	/**
 	 * Copies the photo at [source] into [bucket], turned upright, downsampled and re-encoded, replacing whatever that bucket held.
@@ -72,7 +77,7 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 		mutation.withLock {
 			try {
 				importInto(bucket, source)
-				revision++
+				_revision.value++
 				availableBuckets.value = scanAvailableBuckets()
 
 				Result.success(Unit)
@@ -111,6 +116,35 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 	}
 
 	/**
+	 * Loads a downsampled thumbnail of the photo stored for [bucket], scaled so its long edge is near [targetLongEdge].
+	 * Safe to call from UI or coroutines; performs file I/O and decoding on [Dispatchers.IO].
+	 */
+	suspend fun loadThumbnail(bucket: PhotoBucket, targetLongEdge: Int = THUMBNAIL_TARGET_LONG_EDGE): Bitmap? = withContext(Dispatchers.IO) {
+		val file = fileFor(bucket)
+		if (!file.exists()) {
+			return@withContext null
+		}
+
+		val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+		BitmapFactory.decodeFile(file.path, bounds)
+		val sampleSize = photoSampleSize(bounds.outWidth, bounds.outHeight, targetLongEdge)
+		val options = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+
+		val bitmap = try {
+			BitmapFactory.decodeFile(file.path, options)
+		} catch (exception: OutOfMemoryError) {
+			logger.error(TAG, "decoding thumbnail for $bucket ran out of memory", exception)
+			null
+		}
+
+		if (bitmap == null) {
+			logger.debug(TAG, "the stored photo thumbnail for $bucket did not decode")
+		}
+
+		bitmap
+	}
+
+	/**
 	 * The stored photo to draw as the sky during [dayPhase], or null when [scene] is not [BackdropScene.PHOTO], no filled bucket covers that phase, or the stored file no longer decodes.
 	 * Null is the ordinary case and not a failure: the caller then lets the renderer paint its procedural sky exactly as it always has.
 	 * The whole fallback rule of the feature lives here and only here — the guard on [scene], the bucket resolution and the read — so the wallpaper and the in-app preview cannot drift into showing different photos for the same phase.
@@ -136,7 +170,7 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 				val file = fileFor(bucket)
 				if (file.exists()) {
 					if (file.delete()) {
-						revision++
+						_revision.value++
 					} else {
 						logger.error(TAG, "could not delete the stored photo for $bucket")
 					}
@@ -359,6 +393,9 @@ private val EXIF_TRANSFORMS = arrayOf(
 
 /** The long edge a stored photo is scaled to when the display metrics cannot be read at all, which is the size of a small phone from the era minSdk 26 dates to. */
 private const val FALLBACK_LONG_EDGE = 1280
+
+/** The target long edge to downsample a photo to when loading a row thumbnail for the settings screen. */
+private const val THUMBNAIL_TARGET_LONG_EDGE = 144
 
 /**
  * The long edge to store a photo at for a display of [widthPixels] by [heightPixels], which is simply the longer of the two.

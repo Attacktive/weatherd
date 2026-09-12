@@ -43,6 +43,8 @@ class SettingsViewModelTest {
 	fun stubRepositories() {
 		every { settingsRepository.settings } returns flowOf(AppSettings())
 		every { photoBackgroundRepository.available } returns MutableStateFlow(emptySet())
+		every { photoBackgroundRepository.revision } returns MutableStateFlow(0)
+		coEvery { photoBackgroundRepository.loadThumbnail(any()) } returns null
 	}
 
 	@After

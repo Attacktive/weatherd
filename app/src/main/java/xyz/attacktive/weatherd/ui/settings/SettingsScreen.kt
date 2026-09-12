@@ -1,12 +1,18 @@
 package xyz.attacktive.weatherd.ui.settings
 
+import android.app.Activity
+import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.contract.ActivityResultContract
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
@@ -23,6 +30,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -53,6 +61,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -76,6 +87,7 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 	val settings by viewModel.settings.collectAsStateWithLifecycle()
 	val citySearch by viewModel.citySearch.collectAsStateWithLifecycle()
 	val photoBuckets by viewModel.photoBuckets.collectAsStateWithLifecycle()
+	val photoThumbnails by viewModel.photoThumbnails.collectAsStateWithLifecycle()
 	val photoImportFailed by viewModel.photoImportFailed.collectAsStateWithLifecycle()
 	val scrollState = rememberScrollState()
 
@@ -123,6 +135,7 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 
 						PhotoBackgroundSection(
 							buckets = photoBuckets,
+							thumbnails = photoThumbnails,
 							importFailed = photoImportFailed,
 							onChoose = viewModel::importPhoto,
 							onClear = viewModel::clearPhoto,
@@ -302,11 +315,12 @@ private fun BackdropSection(settings: AppSettings, onSave: (AppSettings) -> Unit
 /**
  * The four photo slots, shown only while [BackdropScene.PHOTO] is the chosen backdrop.
  * [buckets] comes straight from the repository rather than from anything this screen remembers, so a row can only claim a photo the store actually holds.
- * No thumbnail here on purpose: decoding a stored bitmap into Compose is its own decision, and saying whether a slot is filled is what the user needs to act.
+ * [thumbnails] carries downsampled preview bitmaps for each filled slot, decoded off the main thread.
  */
 @Composable
 private fun PhotoBackgroundSection(
 	buckets: Set<PhotoBucket>,
+	thumbnails: Map<PhotoBucket, Bitmap>,
 	importFailed: Boolean,
 	onChoose: (PhotoBucket, Uri) -> Unit,
 	onClear: (PhotoBucket) -> Unit,
@@ -323,6 +337,7 @@ private fun PhotoBackgroundSection(
 		PhotoBucketRow(
 			bucket = bucket,
 			isSet = bucket in buckets,
+			thumbnail = thumbnails[bucket],
 			onChoose = { onChoose(bucket, it) },
 			onClear = { onClear(bucket) }
 		)
@@ -341,13 +356,19 @@ private fun PhotoBackgroundSection(
 }
 
 /**
- * One photo slot: what it covers, whether it holds a photo, and the picker and the clear button for it.
+ * One photo slot: what it covers, whether it holds a photo, its thumbnail preview, and the picker and clear buttons for it.
  * The launcher belongs to the row rather than to the section so the picked [Uri] arrives already knowing which bucket asked for it, with no pending-bucket state to lose to a process death mid-pick.
  */
 @Composable
-private fun PhotoBucketRow(bucket: PhotoBucket, isSet: Boolean, onChoose: (Uri) -> Unit, onClear: () -> Unit) {
-	// Registration keys on the contract instance and PickVisualMedia does not implement equals, so a contract built inline would tear the registration down and rebuild it on every recomposition.
-	val contract = remember { ActivityResultContracts.PickVisualMedia() }
+private fun PhotoBucketRow(
+	bucket: PhotoBucket,
+	isSet: Boolean,
+	thumbnail: Bitmap?,
+	onChoose: (Uri) -> Unit,
+	onClear: () -> Unit
+) {
+	// The chooser contract is what forces the system to show every registered handler — including Wallhavend — instead of routing ACTION_GET_CONTENT straight to the default photo app.
+	val contract = remember { ChoosableGetContent() }
 	val picker = rememberLauncherForActivityResult(contract) { picked ->
 		// Null is the user backing out of the picker, which is not a failure and must not be reported as one.
 		if (picked != null) {
@@ -356,6 +377,36 @@ private fun PhotoBucketRow(bucket: PhotoBucket, isSet: Boolean, onChoose: (Uri) 
 	}
 
 	Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+		if (thumbnail != null) {
+			Image(
+				bitmap = thumbnail.asImageBitmap(),
+				contentDescription = null,
+				contentScale = ContentScale.Crop,
+				modifier = Modifier
+					.size(48.dp)
+					.clip(MaterialTheme.shapes.small)
+					.clickable { picker.launch("image/*") }
+			)
+		} else {
+			Box(
+				modifier = Modifier
+					.size(48.dp)
+					.clip(MaterialTheme.shapes.small)
+					.background(MaterialTheme.colorScheme.surfaceVariant)
+					.clickable { picker.launch("image/*") },
+				contentAlignment = Alignment.Center
+			) {
+				Icon(
+					imageVector = Icons.Outlined.Image,
+					contentDescription = null,
+					tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+					modifier = Modifier.size(24.dp)
+				)
+			}
+		}
+
+		Spacer(modifier = Modifier.width(16.dp))
+
 		Column(modifier = Modifier.weight(1f)) {
 			Row(verticalAlignment = Alignment.CenterVertically) {
 				Text(formatPhotoBucket(bucket))
@@ -371,7 +422,7 @@ private fun PhotoBucketRow(bucket: PhotoBucket, isSet: Boolean, onChoose: (Uri) 
 			Text(formatPhotoState(isSet), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 		}
 
-		TextButton(onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
+		TextButton(onClick = { picker.launch("image/*") }) {
 			Text(formatPhotoAction(isSet))
 		}
 
@@ -641,4 +692,27 @@ private fun formatPhotoAction(isSet: Boolean) = if (isSet) {
 private fun formatUnit(unit: TemperatureUnit) = when (unit) {
 	TemperatureUnit.CELSIUS -> stringResource(R.string.unit_celsius)
 	TemperatureUnit.FAHRENHEIT -> stringResource(R.string.unit_fahrenheit)
+}
+
+/**
+ * [ActivityResultContract] that fires [Intent.ACTION_GET_CONTENT] for the given MIME type and wraps it in [Intent.createChooser], so the system presents every registered handler — including apps like Wallhavend — rather than routing straight to the default photo app.
+ * The stock [androidx.activity.result.contract.ActivityResultContracts.GetContent] skips the chooser, which on many devices sends image MIME types directly to Google Photos.
+ */
+private class ChoosableGetContent: ActivityResultContract<String, Uri?>() {
+	override fun createIntent(context: Context, input: String): Intent {
+		val content = Intent(Intent.ACTION_GET_CONTENT).apply {
+			type = input
+			addCategory(Intent.CATEGORY_OPENABLE)
+		}
+
+		return Intent.createChooser(content, null)
+	}
+
+	override fun parseResult(resultCode: Int, intent: Intent?): Uri? {
+		if (resultCode != Activity.RESULT_OK) {
+			return null
+		}
+
+		return intent?.data ?: intent?.clipData?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.uri
+	}
 }
