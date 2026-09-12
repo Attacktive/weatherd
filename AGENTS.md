@@ -2,29 +2,61 @@
 
 Instructions and architectural invariants for agents working in the Weatherd codebase.
 
+- Version: 1.0.0 (2026-09-12)
+- Persona: Coding assistant pair-programming with the user on Weatherd.
+
+## Tools and Environment
+
+Agents use standard file inspection, editing tools, and Gradle tasks (`./gradlew check`).
+
 ## Architectural Invariants
 
 ### Debug Preview is Meant to Be WYSIWYG
 
 The in-app preview on `HomeScreen` has two modes:
+
 1. **Live mode (`debugEnabled = false`)**: Renders real-time conditions derived from `WeatherSceneProvider` using current weather data and clock-derived day phase.
 2. **Debug mode (`debugEnabled = true`)**: A weather simulator cycling through fixed presets (`SCENE_PRESETS`).
 
 **The debug preview is strictly meant to be WYSIWYG with the live wallpaper.**
 It pins meteorological conditions (cloud cover, precipitation kind/severity, fog, thunder, wind) while preserving all user-configured display settings:
+
 - Intensity sliders (precipitation, wind, cloud intensity)
 - Scenery / backdrop selections (none, metropolis, beach, mountains, countryside, photos)
 - Frame rate caps
 - Photo background assignments and revisions
 
-**Never let the debug preview drift.**
-Whenever any new render parameter, intensity multiplier, scene setting, or display behavior is introduced:
+To prevent the debug preview from drifting, whenever any new render parameter, intensity multiplier, scene setting, or display behavior is introduced:
+
 1. Add it to `SceneParams` and `sceneParamsFor`.
 2. Wire it into `WeatherSceneProvider` (for the live wallpaper and live preview).
-3. **Always** wire it into `debugSceneParams` in `SceneDebugPresets.kt`.
+3. Wire it into `debugSceneParams` in `SceneDebugPresets.kt` (unless deliberately intended as debug-only).
 4. Expose it in `HomeViewModel` from `SettingsRepository`.
 5. Pass it into `debugSceneParams` in `HomeScreen.kt`.
 6. Add unit tests in `SceneDebugPresetsTest` asserting that the setting reaches the generated `SceneParams`.
+
+#### Example
+
+```kotlin
+// In SceneDebugPresets.kt
+fun debugSceneParams(
+	preset: ScenePreset,
+	dayPhase: DayPhase,
+	precipitationScale: Float = 1f,
+	windScale: Float = 1f,
+	cloudScale: Float = 1f
+) = SceneParams(
+	dayPhase = dayPhase,
+	cloudiness = preset.cloudiness,
+	fogDensity = preset.fogDensity,
+	precipitation = preset.precipitation,
+	thunder = preset.thunder,
+	windFactor = preset.windFactor,
+	precipitationScale = precipitationScale,
+	windScale = windScale,
+	cloudScale = cloudScale
+)
+```
 
 ### Two-Phase Rendering Pipeline (`SceneRenderer`)
 
@@ -38,6 +70,6 @@ Whenever any new render parameter, intensity multiplier, scene setting, or displ
 - No ternary operators (`? :`); prefer `if`/`switch` expressions.
 - Braces on all control flow statements (`if`, `for`, `while`).
 - One sentence per physical line in comments.
-- Multiline comments that are not KDoc must use `/* */` blocks.
+- Multiline comments that are not KDoc should use `/* */` blocks.
 - Empty line after multiline expressions and closing braces before other statements.
 - No empty line after opening braces.
