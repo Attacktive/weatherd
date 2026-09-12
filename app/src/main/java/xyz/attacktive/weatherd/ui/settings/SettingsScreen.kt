@@ -1,6 +1,7 @@
 package xyz.attacktive.weatherd.ui.settings
 
 import android.app.Activity
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -360,13 +361,7 @@ private fun PhotoBackgroundSection(
  * The launcher belongs to the row rather than to the section so the picked [Uri] arrives already knowing which bucket asked for it, with no pending-bucket state to lose to a process death mid-pick.
  */
 @Composable
-private fun PhotoBucketRow(
-	bucket: PhotoBucket,
-	isSet: Boolean,
-	thumbnail: Bitmap?,
-	onChoose: (Uri) -> Unit,
-	onClear: () -> Unit
-) {
+private fun PhotoBucketRow(bucket: PhotoBucket, isSet: Boolean, thumbnail: Bitmap?, onChoose: (Uri) -> Unit, onClear: () -> Unit) {
 	// The chooser contract is what forces the system to show every registered handler — including Wallhavend — instead of routing ACTION_GET_CONTENT straight to the default photo app.
 	val contract = remember { ChoosableGetContent() }
 	val picker = rememberLauncherForActivityResult(contract) { picked ->
@@ -713,10 +708,16 @@ private class ChoosableGetContent: ActivityResultContract<String, Uri?>() {
 	}
 
 	override fun parseResult(resultCode: Int, intent: Intent?): Uri? {
-		if (resultCode != Activity.RESULT_OK) {
+		if (resultCode != Activity.RESULT_OK || intent == null) {
 			return null
 		}
 
-		return intent?.data ?: intent?.clipData?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.uri
+		return intent.data ?: intent.clipData?.firstUriOrNull()
 	}
+}
+
+private fun ClipData.firstUriOrNull(): Uri? = if (itemCount > 0) {
+	getItemAt(0).uri
+} else {
+	null
 }

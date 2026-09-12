@@ -116,9 +116,7 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 	}
 
 	/** Loads the stored photo as a thumbnail sized for the current display density. */
-	suspend fun loadThumbnail(bucket: PhotoBucket): Bitmap? {
-		return loadThumbnail(bucket, photoThumbnailTargetLongEdge(context.resources.displayMetrics.density))
-	}
+	suspend fun loadThumbnail(bucket: PhotoBucket) = loadThumbnail(bucket, photoThumbnailTargetLongEdge(context.resources.displayMetrics.density))
 
 	/**
 	 * Loads a downsampled thumbnail of the photo stored for [bucket], scaled so its long edge is near [targetLongEdge].
@@ -132,6 +130,7 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 
 		val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
 		BitmapFactory.decodeFile(file.path, bounds)
+
 		val sampleSize = photoSampleSize(bounds.outWidth, bounds.outHeight, targetLongEdge)
 		val options = BitmapFactory.Options().apply { inSampleSize = sampleSize }
 
@@ -403,9 +402,7 @@ private const val FALLBACK_LONG_EDGE = 1280
 private const val THUMBNAIL_TARGET_DP = 48f
 
 /** The physical-pixel long edge for a 48dp settings thumbnail at [density]. */
-internal fun photoThumbnailTargetLongEdge(density: Float): Int {
-	return max(1, (THUMBNAIL_TARGET_DP * density).roundToInt())
-}
+internal fun photoThumbnailTargetLongEdge(density: Float) = max(1, (THUMBNAIL_TARGET_DP * density).roundToInt())
 
 /**
  * The long edge to store a photo at for a display of [widthPixels] by [heightPixels], which is simply the longer of the two.
