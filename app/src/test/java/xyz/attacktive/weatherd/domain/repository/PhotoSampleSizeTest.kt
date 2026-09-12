@@ -63,4 +63,11 @@ class PhotoSampleSizeTest {
 		assertEquals(1, photoSampleSize(2160, 4800, 0))
 		assertEquals(1, photoSampleSize(2160, 4800, -2400))
 	}
+
+	@Test
+	fun `thumbnail target follows display density`() {
+		assertEquals(48, photoThumbnailTargetLongEdge(1f))
+		assertEquals(144, photoThumbnailTargetLongEdge(3f))
+		assertEquals(192, photoThumbnailTargetLongEdge(4f))
+	}
 }

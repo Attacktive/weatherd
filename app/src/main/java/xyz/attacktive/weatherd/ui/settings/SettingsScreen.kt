@@ -377,33 +377,7 @@ private fun PhotoBucketRow(
 	}
 
 	Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-		if (thumbnail != null) {
-			Image(
-				bitmap = thumbnail.asImageBitmap(),
-				contentDescription = null,
-				contentScale = ContentScale.Crop,
-				modifier = Modifier
-					.size(48.dp)
-					.clip(MaterialTheme.shapes.small)
-					.clickable { picker.launch("image/*") }
-			)
-		} else {
-			Box(
-				modifier = Modifier
-					.size(48.dp)
-					.clip(MaterialTheme.shapes.small)
-					.background(MaterialTheme.colorScheme.surfaceVariant)
-					.clickable { picker.launch("image/*") },
-				contentAlignment = Alignment.Center
-			) {
-				Icon(
-					imageVector = Icons.Outlined.Image,
-					contentDescription = null,
-					tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
-					modifier = Modifier.size(24.dp)
-				)
-			}
-		}
+		PhotoBucketPreview(thumbnail)
 
 		Spacer(modifier = Modifier.width(16.dp))
 
@@ -433,6 +407,36 @@ private fun PhotoBucketRow(
 			IconButton(onClick = onClear) {
 				Icon(Icons.Filled.Clear, contentDescription = clearDescription)
 			}
+		}
+	}
+}
+
+/** The decorative preview for one photo slot; the labeled Choose or Replace button owns picker access. */
+@Composable
+private fun PhotoBucketPreview(thumbnail: Bitmap?) {
+	if (thumbnail != null) {
+		Image(
+			bitmap = thumbnail.asImageBitmap(),
+			contentDescription = null,
+			contentScale = ContentScale.Crop,
+			modifier = Modifier
+				.size(48.dp)
+				.clip(MaterialTheme.shapes.small)
+		)
+	} else {
+		Box(
+			modifier = Modifier
+				.size(48.dp)
+				.clip(MaterialTheme.shapes.small)
+				.background(MaterialTheme.colorScheme.surfaceVariant),
+			contentAlignment = Alignment.Center
+		) {
+			Icon(
+				imageVector = Icons.Outlined.Image,
+				contentDescription = null,
+				tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+				modifier = Modifier.size(24.dp)
+			)
 		}
 	}
 }

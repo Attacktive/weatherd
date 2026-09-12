@@ -119,7 +119,7 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 	 * Loads a downsampled thumbnail of the photo stored for [bucket], scaled so its long edge is near [targetLongEdge].
 	 * Safe to call from UI or coroutines; performs file I/O and decoding on [Dispatchers.IO].
 	 */
-	suspend fun loadThumbnail(bucket: PhotoBucket, targetLongEdge: Int = THUMBNAIL_TARGET_LONG_EDGE): Bitmap? = withContext(Dispatchers.IO) {
+	suspend fun loadThumbnail(bucket: PhotoBucket, targetLongEdge: Int = photoThumbnailTargetLongEdge(context.resources.displayMetrics.density)): Bitmap? = withContext(Dispatchers.IO) {
 		val file = fileFor(bucket)
 		if (!file.exists()) {
 			return@withContext null
@@ -394,8 +394,13 @@ private val EXIF_TRANSFORMS = arrayOf(
 /** The long edge a stored photo is scaled to when the display metrics cannot be read at all, which is the size of a small phone from the era minSdk 26 dates to. */
 private const val FALLBACK_LONG_EDGE = 1280
 
-/** The target long edge to downsample a photo to when loading a row thumbnail for the settings screen. */
-private const val THUMBNAIL_TARGET_LONG_EDGE = 144
+/** The target long edge in density-adjusted pixels when loading a 48dp row thumbnail for the settings screen. */
+private const val THUMBNAIL_TARGET_DP = 48f
+
+/** The physical-pixel long edge for a 48dp settings thumbnail at [density]. */
+internal fun photoThumbnailTargetLongEdge(density: Float): Int {
+	return max(1, (THUMBNAIL_TARGET_DP * density).roundToInt())
+}
 
 /**
  * The long edge to store a photo at for a display of [widthPixels] by [heightPixels], which is simply the longer of the two.
