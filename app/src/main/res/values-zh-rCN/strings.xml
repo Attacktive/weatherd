@@ -33,9 +33,10 @@
 	<string name="hint_frame_rate">降低帧率可以减轻渲染负载，有助于在性能较低的手机上保持流畅。场景移动速度保持不变，但画面流畅度会有所降低。</string>
 	<string name="section_precipitation_intensity">降水强度</string>
 	<string name="section_wind_intensity">风力强度</string>
+	<string name="section_cloud_intensity">云层浓度</string>
 	<string name="intensity_subtle">微弱</string>
 	<string name="intensity_intense">强烈</string>
-	<string name="hint_intensity">根据观测到的天气，按比例调节降水强度与风力大小。</string>
+	<string name="hint_intensity">根据实际天气调整降水强度、风力大小和云层浓度。</string>
 	<string name="version_footer">weatherd %1$s</string>
 
 	<!-- Refresh interval formatting -->

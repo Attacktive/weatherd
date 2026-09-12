@@ -258,7 +258,7 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `intensity scale settings reach the scene params even when the refresh is throttled`() = runTest {
-		val device = AppSettings(useDeviceLocation = true, precipitationIntensityScale = 1.5f, windIntensityScale = 0.5f)
+		val device = AppSettings(useDeviceLocation = true, precipitationIntensityScale = 1.5f, windIntensityScale = 0.5f, cloudIntensityScale = 0.8f)
 		every { settingsRepository.settings } returns flowOf(device)
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 63))
@@ -269,16 +269,18 @@ class WeatherSceneProviderTest {
 		val initialParams = provider.paramsFor(1_000_030L)
 		assertEquals(1.5f, initialParams.precipitationScale, 0.0001f)
 		assertEquals(0.5f, initialParams.windScale, 0.0001f)
+		assertEquals(0.8f, initialParams.cloudScale, 0.0001f)
 		assertEquals(0.2872f, initialParams.windFactor, 0.0001f)
 
 		// The user adjusts the sliders; the next refresh is inside the throttle window but must still pick the new scales up.
-		every { settingsRepository.settings } returns flowOf(device.copy(precipitationIntensityScale = 0.25f, windIntensityScale = 2f))
+		every { settingsRepository.settings } returns flowOf(device.copy(precipitationIntensityScale = 0.25f, windIntensityScale = 2f, cloudIntensityScale = 1.5f))
 		provider.refresh(1_000_060L)
 
 		// The new wind scale reaches scene params while windFactor stays an honest observation reading.
 		val throttledParams = provider.paramsFor(1_000_090L)
 		assertEquals(0.25f, throttledParams.precipitationScale, 0.0001f)
 		assertEquals(2f, throttledParams.windScale, 0.0001f)
+		assertEquals(1.5f, throttledParams.cloudScale, 0.0001f)
 		assertEquals(0.2872f, throttledParams.windFactor, 0.0001f)
 	}
 

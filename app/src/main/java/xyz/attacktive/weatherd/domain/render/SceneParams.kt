@@ -20,6 +20,7 @@ import xyz.attacktive.weatherd.domain.weather.precipitationIntensity
  * [overlayLabels] is the optional text overlay, already formatted for drawing; null keeps the wallpaper text-free.
  * [precipitationScale] is the user's preference rather than an observation, so it rides alongside [precipitation] instead of being folded into it: the renderer applies it past its own visibility floor, where it is the drop count the user actually sees.
  * [windScale] is the user's preference rather than an observation, so it rides alongside [windFactor] instead of being folded into it: the renderer applies it past its own floors, where it actually moves visible wind effects.
+ * [cloudScale] is the user's preference rather than an observation, so it rides alongside [cloudiness] instead of being folded into it: the renderer applies it past its own floors, where it scales cloud opacity.
  */
 data class SceneParams(
 	val dayPhase: DayPhase,
@@ -30,6 +31,7 @@ data class SceneParams(
 	val windFactor: Float,
 	val precipitationScale: Float = 1f,
 	val windScale: Float = 1f,
+	val cloudScale: Float = 1f,
 	val moonPhase: Float = 0.5f,
 	val celestialProgress: Float = 0.5f,
 	val backdropScene: BackdropScene = BackdropScene.NONE,
@@ -57,7 +59,8 @@ fun sceneParamsFor(
 	photoRevision: Int = 0,
 	overlayLabels: OverlayLabels? = null,
 	precipitationScale: Float = 1f,
-	windScale: Float = 1f
+	windScale: Float = 1f,
+	cloudScale: Float = 1f
 ): SceneParams {
 	val observation = snapshot.observation
 	val condition = conditionFor(observation.weatherCode)
@@ -79,6 +82,7 @@ fun sceneParamsFor(
 		windFactor = shapedIntensity((observation.windSpeedKilometersPerHour / MAX_WIND_KILOMETERS_PER_HOUR).toFloat()),
 		precipitationScale = precipitationScale,
 		windScale = windScale,
+		cloudScale = cloudScale,
 		moonPhase = moonPhaseFor(nowEpochSeconds),
 		celestialProgress = dayPhaseProgressFor(nowEpochSeconds, snapshot.sunriseEpochSeconds, snapshot.sunsetEpochSeconds, dayPhase),
 		backdropScene = backdropScene,

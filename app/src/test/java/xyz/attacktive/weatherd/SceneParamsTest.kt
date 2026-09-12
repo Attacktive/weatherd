@@ -168,6 +168,16 @@ class SceneParamsTest {
 	}
 
 	@Test
+	fun `the cloud scale rides through without touching the observation`() {
+		val snapshot = snapshot(weatherCode = 2, precipitationMillimeters = 0.0, windSpeedKilometersPerHour = 12.0, cloudCoverPercent = 40)
+
+		val params = sceneParamsFor(snapshot, NOW, cloudScale = 0.5f)
+
+		assertEquals(0.4f, params.cloudiness, 0.0001f)
+		assertEquals(0.5f, params.cloudScale, 0.0001f)
+	}
+
+	@Test
 	fun `the scales leave a dry calm snapshot alone`() {
 		val snapshot = snapshot(weatherCode = 2, precipitationMillimeters = 0.0, windSpeedKilometersPerHour = 0.0, cloudCoverPercent = 40)
 
@@ -246,6 +256,7 @@ class SceneParamsTest {
 			"windFactor" to params.copy(windFactor = 0.95f),
 			"precipitationScale" to params.copy(precipitationScale = 2f),
 			"windScale" to params.copy(windScale = 2f),
+			"cloudScale" to params.copy(cloudScale = 2f),
 			"backdropScene" to params.copy(backdropScene = BackdropScene.NONE),
 			"photoRevision" to params.copy(photoRevision = params.photoRevision + 1),
 		)
@@ -265,6 +276,7 @@ class SceneParamsTest {
 		windFactor = 0.3f,
 		precipitationScale = 1.5f,
 		windScale = 0.5f,
+		cloudScale = 0.7f,
 		moonPhase = 0.17f,
 		celestialProgress = 0.62f,
 		backdropScene = BackdropScene.PHOTO,

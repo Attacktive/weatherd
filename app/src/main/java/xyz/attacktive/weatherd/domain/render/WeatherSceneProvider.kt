@@ -38,6 +38,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	@Volatile private var temperatureUnit = TemperatureUnit.CELSIUS
 	@Volatile private var precipitationIntensityScale = 1f
 	@Volatile private var windIntensityScale = 1f
+	@Volatile private var cloudIntensityScale = 1f
 	@Volatile private var locationLabel: String? = null
 	@Volatile private var lastFix: GeoLocation? = null
 	@Volatile private var geocodedKey: String? = null
@@ -46,7 +47,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	fun paramsFor(nowEpochSeconds: Long): SceneParams {
 		val snapshot = this.snapshot ?: return fallbackParams(nowEpochSeconds)
 
-		return sceneParamsFor(snapshot, nowEpochSeconds, backdropScene, photoRevision, overlayLabels(snapshot), precipitationIntensityScale, windIntensityScale)
+		return sceneParamsFor(snapshot, nowEpochSeconds, backdropScene, photoRevision, overlayLabels(snapshot), precipitationIntensityScale, windIntensityScale, cloudIntensityScale)
 	}
 
 	/**
@@ -73,6 +74,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		temperatureUnit = settings.temperatureUnit
 		precipitationIntensityScale = settings.precipitationIntensityScale
 		windIntensityScale = settings.windIntensityScale
+		cloudIntensityScale = settings.cloudIntensityScale
 		refreshLocationLabel(settings)
 
 		val locationKey = locationKey(settings)
@@ -201,7 +203,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			else -> DayPhase.NIGHT
 		}
 
-		return SceneParams(dayPhase = phase, cloudiness = 0.05f, fogDensity = 0f, precipitation = null, thunder = false, windFactor = 0.2f, moonPhase = moonPhaseFor(nowEpochSeconds), backdropScene = backdropScene, photoRevision = photoRevision, precipitationScale = precipitationIntensityScale, windScale = windIntensityScale)
+		return SceneParams(dayPhase = phase, cloudiness = 0.05f, fogDensity = 0f, precipitation = null, thunder = false, windFactor = 0.2f, moonPhase = moonPhaseFor(nowEpochSeconds), backdropScene = backdropScene, photoRevision = photoRevision, precipitationScale = precipitationIntensityScale, windScale = windIntensityScale, cloudScale = cloudIntensityScale)
 	}
 
 	companion object {

@@ -252,6 +252,12 @@ private fun IntensitySection(settings: AppSettings, onSave: (AppSettings) -> Uni
 		onCommit = { onSave(settings.copy(windIntensityScale = it)) }
 	)
 
+	IntensitySlider(
+		label = stringResource(R.string.section_cloud_intensity),
+		value = settings.cloudIntensityScale,
+		onCommit = { onSave(settings.copy(cloudIntensityScale = it)) }
+	)
+
 	HintText(stringResource(R.string.hint_intensity))
 }
 

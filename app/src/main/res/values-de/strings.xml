@@ -33,9 +33,10 @@
 	<string name="hint_frame_rate">Weniger Bilder reduzieren den Renderaufwand, was auf langsameren Geräten hilft. Die Szene bewegt sich im gleichen Tempo, nur weniger flüssig.</string>
 	<string name="section_precipitation_intensity">Niederschlagsintensität</string>
 	<string name="section_wind_intensity">Windintensität</string>
+	<string name="section_cloud_intensity">Wolkenintensität</string>
 	<string name="intensity_subtle">Dezent</string>
 	<string name="intensity_intense">Intensiv</string>
-	<string name="hint_intensity">Skaliert, wie stark der Niederschlag fällt und wie kräftig der Wind weht, relativ zum beobachteten Wetter.</string>
+	<string name="hint_intensity">Stellt ein, wie stark es regnet, wie kräftig der Wind weht und wie dicht die Wolken sind – relativ zum beobachteten Wetter.</string>
 	<string name="version_footer">weatherd %1$s</string>
 
 	<!-- Refresh interval formatting -->

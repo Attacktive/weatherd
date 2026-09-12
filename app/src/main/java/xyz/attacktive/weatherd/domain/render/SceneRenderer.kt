@@ -38,8 +38,8 @@ import xyz.attacktive.weatherd.domain.weather.SEVERITY_STORM
  * Soft drifting layers (clouds, overcast, fog) are pre-rendered once into scrolling tiles, so the per-frame cost is a handful of cheap blits rather than a fresh CPU-side blur every frame.
  */
 class SceneRenderer {
-	private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-	private val blitPaint = Paint(Paint.FILTER_BITMAP_FLAG)
+	private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG)
+	private val blitPaint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
 	private val blitDest = RectF()
 	private val boltPath = Path()
 	private val forkPath = Path()
@@ -68,7 +68,7 @@ class SceneRenderer {
 	 * The photo backdrop is blitted through its own paint rather than the shared [paint] or [blitPaint].
 	 * It needs the bilinear filtering [paint] does not carry, and it must not inherit the opacity [blitPaint] is left holding after a soft-tile blit.
 	 */
-	private val photoPaint = Paint(Paint.FILTER_BITMAP_FLAG)
+	private val photoPaint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
 	private val photoDest = RectF()
 
 	/** Additive-ish compositing for anything that is light rather than surface: the sun's bloom, its streak, and its lens ghosts. */
@@ -137,7 +137,7 @@ class SceneRenderer {
 		val h = height.toFloat()
 		val precipKey = params.precipitation?.let { "${it.kind}-${(it.severity * 100f).toInt()}" } ?: "dry"
 		// Wind is deliberately absent from the key: it only shifts blit-time offsets, so a wind jitter in a refresh must not throw away every soft tile.
-		val key = "${width}x$height-${params.dayPhase}-$precipKey-f${(params.fogDensity * 100f).toInt()}-t${params.thunder}-${(params.cloudiness * 100f).toInt()}"
+		val key = "${width}x$height-${params.dayPhase}-$precipKey-f${(params.fogDensity * 100f).toInt()}-t${params.thunder}-${(params.cloudiness * 100f).toInt()}-cs${(params.cloudScale * 100f).toInt()}"
 		if (key != tilesKey) {
 			tiles.clear()
 			tilesKey = key
@@ -1093,7 +1093,8 @@ class SceneRenderer {
 	private fun drawOvercastCeiling(canvas: Canvas, width: Float, height: Float, params: SceneParams) {
 		val ceiling = overcastCeiling(params.dayPhase)
 		paint.style = Paint.Style.FILL
-		paint.shader = LinearGradient(0f, 0f, 0f, height * 0.6f, withAlpha(ceiling, 225), withAlpha(ceiling, 0), Shader.TileMode.CLAMP)
+		val ceilingAlpha = (190f * params.cloudScale).roundToInt().coerceIn(0, 255)
+		paint.shader = LinearGradient(0f, 0f, 0f, height * 0.6f, withAlpha(ceiling, ceilingAlpha), withAlpha(ceiling, 0), Shader.TileMode.CLAMP)
 		canvas.drawRect(0f, 0f, width, height * 0.6f, paint)
 
 		paint.shader = null
@@ -1128,12 +1129,12 @@ class SceneRenderer {
 		}
 
 		val back = tile("ovcBack", tileWidth, tileHeight) {
-			buildMassTile(it, tileWidth.toFloat(), tileHeight.toFloat(), darken(ceiling, backFactor), 165, tileWidth * 0.14f, 6, 22L)
+			buildMassTile(it, tileWidth.toFloat(), tileHeight.toFloat(), darken(ceiling, backFactor), (140f * params.cloudScale).roundToInt().coerceIn(1, 255), tileWidth * 0.14f, 6, 22L)
 			fadeTileBottom(it)
 		}
 
 		val front = tile("ovcFront", tileWidth, tileHeight) {
-			buildMassTile(it, tileWidth.toFloat(), tileHeight.toFloat(), lighten(ceiling, 0.5f), 120, tileWidth * 0.09f, 7, 23L)
+			buildMassTile(it, tileWidth.toFloat(), tileHeight.toFloat(), lighten(ceiling, 0.5f), (100f * params.cloudScale).roundToInt().coerceIn(1, 255), tileWidth * 0.09f, 7, 23L)
 			fadeTileBottom(it)
 		}
 
@@ -1144,7 +1145,7 @@ class SceneRenderer {
 		 */
 		val bobAmplitude = height * 0.022f
 		val bob = bobAmplitude * (0.65f * sin(timeSeconds * 0.4f) + 0.35f * sin(timeSeconds * 1.07f))
-		val frontAlpha = (200f + 55f * (0.7f * sin(timeSeconds * 0.55f) + 0.3f * sin(timeSeconds * 1.31f))).roundToInt()
+		val frontAlpha = (params.cloudScale * (170f + 50f * (0.7f * sin(timeSeconds * 0.55f) + 0.3f * sin(timeSeconds * 1.31f)))).roundToInt().coerceIn(0, 255)
 		val surge = width * 0.012f * params.windFactor * params.windScale
 		val drift = surge * (0.6f * sin(timeSeconds * 0.19f) + 0.4f * sin(timeSeconds * 0.47f))
 		val backOffset = wrapOffset(timeSeconds * (14f + params.windFactor * 18f) * params.windScale + drift, width)
@@ -1218,7 +1219,7 @@ class SceneRenderer {
 		val destHeight = height * 0.6f
 		val tileWidth = (width / 2f).toInt()
 		val tileHeight = (destHeight / 2f).toInt()
-		val cloudColor = withAlpha(cloudTint(params.dayPhase), (150f + params.cloudiness * 80f).roundToInt().coerceAtMost(235))
+		val cloudColor = withAlpha(cloudTint(params.dayPhase), (params.cloudScale * (150f + params.cloudiness * 80f)).roundToInt().coerceIn(1, 255))
 
 		// Two depth layers: sparse, small, dim puffs creeping high in the back, the full billows in front — fair-weather skies get the parallax the overcast deck already has, instead of one flat sheet.
 		val farColor = withAlpha(cloudTint(params.dayPhase), (Color.alpha(cloudColor) * 0.6f).roundToInt())
@@ -1843,7 +1844,22 @@ class SceneRenderer {
 	private fun drawVignette(canvas: Canvas, width: Float, height: Float) {
 		val radius = maxOf(width, height) * 0.72f
 		paint.style = Paint.Style.FILL
-		paint.shader = RadialGradient(width * 0.5f, height * 0.42f, radius, intArrayOf(Color.argb(0, 0, 0, 0), Color.argb(90, 0, 0, 0)), floatArrayOf(0.5f, 1f), Shader.TileMode.CLAMP)
+		paint.shader = RadialGradient(
+			width * 0.5f,
+			height * 0.42f,
+			radius,
+			intArrayOf(
+				Color.argb(0, 0, 0, 0),
+				Color.argb(0, 0, 0, 0),
+				Color.argb(8, 0, 0, 0),
+				Color.argb(22, 0, 0, 0),
+				Color.argb(42, 0, 0, 0),
+				Color.argb(60, 0, 0, 0)
+			),
+			floatArrayOf(0f, 0.4f, 0.55f, 0.7f, 0.85f, 1f),
+			Shader.TileMode.CLAMP
+		)
+
 		canvas.drawRect(0f, 0f, width, height, paint)
 		paint.shader = null
 	}

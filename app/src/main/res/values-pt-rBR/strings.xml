@@ -33,9 +33,10 @@
 	<string name="hint_frame_rate">Menos quadros reduzem o processamento gráfico, o que ajuda em celulares mais lentos. A cena continua na mesma velocidade, apenas menos fluida.</string>
 	<string name="section_precipitation_intensity">Intensidade da precipitação</string>
 	<string name="section_wind_intensity">Intensidade do vento</string>
+	<string name="section_cloud_intensity">Intensidade das nuvens</string>
 	<string name="intensity_subtle">Sutil</string>
 	<string name="intensity_intense">Intenso</string>
-	<string name="hint_intensity">Ajusta a intensidade da precipitação e a força do vento em relação ao clima observado.</string>
+	<string name="hint_intensity">Ajusta a intensidade da precipitação, a força do vento e a densidade das nuvens em relação ao clima observado.</string>
 	<string name="version_footer">weatherd %1$s</string>
 
 	<!-- Refresh interval formatting -->

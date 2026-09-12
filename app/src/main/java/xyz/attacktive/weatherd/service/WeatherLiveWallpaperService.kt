@@ -2,13 +2,18 @@ package xyz.attacktive.weatherd.service
 
 import javax.inject.Inject
 import kotlin.math.roundToInt
+import kotlin.random.Random
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import android.graphics.Bitmap
+import android.graphics.BitmapShader
 import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Shader
 import android.service.wallpaper.WallpaperService
 import android.view.Choreographer
 import android.view.SurfaceHolder
@@ -214,12 +219,39 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			renderer.backgroundPhoto = photo
 
 			try {
-				renderer.renderBackdrop(Canvas(target), width, height, params)
+				val canvas = Canvas(target)
+				renderer.renderBackdrop(canvas, width, height, params)
+				applyDither(canvas, width, height)
 			} finally {
 				// Clearing before recycling, and in a finally, so a throwing rasterize can neither leak the bitmap nor leave the renderer holding a reference to freed pixels.
 				renderer.backgroundPhoto = null
 				photo?.recycle()
 			}
+		}
+
+		/**
+		 * Scatters a faint per-pixel noise over smooth gradients so the eye reads continuous tone instead of discrete steps.
+		 * The noise is invisible on content-rich areas and imperceptible on gradients — just enough to push neighboring 8-bit values apart below the banding threshold.
+		 */
+		private fun applyDither(canvas: Canvas, width: Int, height: Int) {
+			val tileSize = 256
+			val noise = Bitmap.createBitmap(tileSize, tileSize, Bitmap.Config.ARGB_8888)
+			val random = Random(0)
+			val pixels = IntArray(tileSize * tileSize)
+			for (i in pixels.indices) {
+				val v = random.nextInt(5)
+				pixels[i] = Color.argb(v, 128, 128, 128)
+			}
+
+			noise.setPixels(pixels, 0, tileSize, 0, 0, tileSize, tileSize)
+
+			val noisePaint = Paint().apply {
+				shader = BitmapShader(noise, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
+				alpha = 20
+			}
+
+			canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), noisePaint)
+			noise.recycle()
 		}
 
 		private fun nowEpochSeconds() = System.currentTimeMillis() / 1000L
