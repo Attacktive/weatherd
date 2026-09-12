@@ -37,6 +37,11 @@ class HomeViewModel @Inject constructor(
 		.map { it.windIntensityScale }
 		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().windIntensityScale)
 
+	/** The user's cloud intensity scale, so the debug cycler simulates the chosen cloud opacity. */
+	val cloudIntensityScale = settingsRepository.settings
+		.map { it.cloudIntensityScale }
+		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().cloudIntensityScale)
+
 	/** Kicks a weather fetch (rate-limited by the provider) so the preview tracks the latest conditions and any settings change. */
 	fun refresh() {
 		viewModelScope.launch {

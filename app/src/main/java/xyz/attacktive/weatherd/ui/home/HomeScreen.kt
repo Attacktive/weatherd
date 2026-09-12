@@ -80,6 +80,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	val frameRateCap by viewModel.frameRateCap.collectAsStateWithLifecycle()
 	val precipitationIntensityScale by viewModel.precipitationIntensityScale.collectAsStateWithLifecycle()
 	val windIntensityScale by viewModel.windIntensityScale.collectAsStateWithLifecycle()
+	val cloudIntensityScale by viewModel.cloudIntensityScale.collectAsStateWithLifecycle()
 
 	// Read inside the frame loop, which is launched once and has to see a cap the user changes while it runs.
 	val currentCap = rememberUpdatedState(frameRateCap)
@@ -91,7 +92,8 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 			SCENE_PRESETS[debugSceneIndex],
 			DayPhase.entries[debugPhaseIndex],
 			precipitationIntensityScale,
-			windIntensityScale
+			windIntensityScale,
+			cloudIntensityScale
 		)
 			.copy(backdropScene = liveParams.backdropScene, photoRevision = liveParams.photoRevision)
 	} else {
