@@ -59,6 +59,7 @@ class SceneRenderer {
 	private var sceneryGlyphPaths: List<SceneryLayerPath> = emptyList()
 	private var sceneryWindmill: SceneryWindmill? = null
 	private val tiles = HashMap<String, Bitmap>()
+	private val cloudSprites = CloudSpriteAtlas()
 	private var tilesKey: String? = null
 	private var rainPoints = FloatArray(0)
 	private val spritePaint = Paint(Paint.FILTER_BITMAP_FLAG)
@@ -1115,11 +1116,10 @@ class SceneRenderer {
 		val destHeight = height * 0.72f
 		val tileWidth = (width / TILE_DOWNSCALE).toInt()
 		/*
-		 * BlurMaskFilter draws past the tile edge and gets hard-clipped — on landscape tablets that reads as a dark horizontal band across the rain/overcast deck.
-		 * Extra bottom pad + a soft alpha fade hide the clip.
+		 * The sprite atlas has soft alpha edges rather than a blur filter, but the extra pad still lets the bottom fade dissolve the stretched tile cleanly.
 		 */
-		val blurPad = (tileWidth * 0.16f).roundToInt()
-		val tileHeight = (destHeight / TILE_DOWNSCALE).toInt() + blurPad
+		val cloudPad = (tileWidth * 0.12f).roundToInt()
+		val tileHeight = (destHeight / TILE_DOWNSCALE).toInt() + cloudPad
 
 		// Snow clouds stay milky rather than smoky, so the back layer keeps most of its brightness.
 		val backFactor = if (snowy) {
@@ -1129,12 +1129,12 @@ class SceneRenderer {
 		}
 
 		val back = tile("ovcBack", tileWidth, tileHeight) {
-			buildMassTile(it, tileWidth.toFloat(), tileHeight.toFloat(), darken(ceiling, backFactor), (140f * params.cloudScale).roundToInt().coerceIn(1, 255), tileWidth * 0.14f, 6, 22L)
+			buildCloudMassTile(it, tileWidth.toFloat(), tileHeight.toFloat(), darken(ceiling, backFactor), (140f * params.cloudScale).roundToInt().coerceIn(1, 255), 6, 22L)
 			fadeTileBottom(it)
 		}
 
 		val front = tile("ovcFront", tileWidth, tileHeight) {
-			buildMassTile(it, tileWidth.toFloat(), tileHeight.toFloat(), lighten(ceiling, 0.5f), (100f * params.cloudScale).roundToInt().coerceIn(1, 255), tileWidth * 0.09f, 7, 23L)
+			buildCloudMassTile(it, tileWidth.toFloat(), tileHeight.toFloat(), lighten(ceiling, 0.5f), (100f * params.cloudScale).roundToInt().coerceIn(1, 255), 7, 23L)
 			fadeTileBottom(it)
 		}
 
@@ -1241,50 +1241,47 @@ class SceneRenderer {
 	}
 
 	private fun buildScatteredTile(canvas: Canvas, width: Float, height: Float, params: SceneParams, color: Int, puffScale: Float, countFactor: Float, baselineLift: Float, seed: Long) {
-		val body = Paint(Paint.ANTI_ALIAS_FLAG)
-		body.style = Paint.Style.FILL
-		body.color = color
-		body.maskFilter = BlurMaskFilter(width * 0.02f, BlurMaskFilter.Blur.NORMAL)
-
-		// A lighter copy peeking over the top edge reads as sun/moonlight catching the cloud tops.
-		val highlight = Paint(Paint.ANTI_ALIAS_FLAG)
-		highlight.style = Paint.Style.FILL
-		highlight.color = withAlpha(lighten(cloudTint(params.dayPhase), 0.55f), (Color.alpha(color) * 0.9f).roundToInt())
-		highlight.maskFilter = BlurMaskFilter(width * 0.018f, BlurMaskFilter.Blur.NORMAL)
-
-		val random = Random(seed)
 		val count = ((2 + params.cloudiness * 5f) * countFactor).roundToInt().coerceAtLeast(1)
+		val placements = cloudSpritePlacements(
+			seed = seed,
+			width = width,
+			height = height,
+			count = count,
+			minWidthFraction = 0.18f,
+			maxWidthFraction = 0.34f,
+			minBaselineFraction = 0.35f - baselineLift,
+			maxBaselineFraction = 0.8f - baselineLift
+		)
+		val highlight = lighten(cloudTint(params.dayPhase), 0.55f)
+		val bodyAlpha = Color.alpha(color)
+		val crestAlpha = (bodyAlpha * 0.42f).roundToInt()
 
-		repeat(count) {
-			val cx = random.nextFloat(width)
-			val baseline = height * random.nextFloat(0.35f - baselineLift, 0.8f - baselineLift)
-			val scale = width * random.nextFloat(0.07f, 0.12f) * puffScale
-
-			wrapX(width, cx, scale * 3f) { x ->
-				drawPuff(canvas, x, baseline - scale * 0.12f, scale, highlight)
-				drawPuff(canvas, x, baseline, scale * 0.97f, body)
+		for (placement in placements) {
+			val billowWidth = placement.width * puffScale
+			val reach = billowWidth * 0.5f
+			wrapX(width, placement.centerX, reach) { x ->
+				cloudSprites.draw(canvas, placement, color, bodyAlpha, centerX = x, width = billowWidth)
+				cloudSprites.draw(canvas, placement, highlight, crestAlpha, centerX = x, baseline = placement.baseline - billowWidth * CLOUD_SPRITE_ASPECT * 0.08f, width = billowWidth, crest = true)
 			}
 		}
 	}
 
-	/** A single cloud: a row of circles sharing a flat baseline, with a couple of bumps on top. */
-	private fun drawPuff(canvas: Canvas, cx: Float, baseline: Float, scale: Float, brush: Paint) {
-		val r1 = scale * 0.72f
-		canvas.drawCircle(cx - scale * 1.3f, baseline - r1, r1, brush)
+	/** A cached billow sprite with a shaded body and a clipped sunlit crest. */
+	private fun buildCloudMassTile(canvas: Canvas, width: Float, height: Float, color: Int, alpha: Int, count: Int, seed: Long) {
+		val placements = cloudSpritePlacements(seed, width, height, count)
+		val crest = lighten(color, 0.42f)
+		val crestAlpha = (alpha * 0.45f).roundToInt()
 
-		val r2 = scale
-		canvas.drawCircle(cx - scale * 0.42f, baseline - r2, r2, brush)
-
-		val r3 = scale * 0.95f
-		canvas.drawCircle(cx + scale * 0.55f, baseline - r3, r3, brush)
-
-		val r4 = scale * 0.68f
-		canvas.drawCircle(cx + scale * 1.35f, baseline - r4, r4, brush)
-		canvas.drawCircle(cx - scale * 0.25f, baseline - scale * 1.35f, scale * 0.72f, brush)
-		canvas.drawCircle(cx + scale * 0.5f, baseline - scale * 1.25f, scale * 0.62f, brush)
+		for (placement in placements) {
+			val reach = placement.width * 0.5f
+			wrapX(width, placement.centerX, reach) { x ->
+				cloudSprites.draw(canvas, placement, color, alpha, centerX = x)
+				cloudSprites.draw(canvas, placement, crest, crestAlpha, centerX = x, baseline = placement.baseline - placement.width * CLOUD_SPRITE_ASPECT * 0.08f, crest = true)
+			}
+		}
 	}
 
-	/** Soft blurred blobs scattered across a tile — used for both overcast masses and rolling fog. */
+	/** Soft blurred blobs scattered across a tile — used for rolling fog. */
 	private fun buildMassTile(canvas: Canvas, width: Float, height: Float, color: Int, alpha: Int, blur: Float, count: Int, seed: Long) {
 		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
 		brush.style = Paint.Style.FILL
@@ -1865,7 +1862,7 @@ class SceneRenderer {
 	}
 
 	/**
-	 * Dissolves the bottom [fadeFraction] of a soft-mass tile so the BlurMaskFilter clip doesn't end in a hard band.
+	 * Dissolves the bottom [fadeFraction] of a soft tile so its stretched blit does not end in a hard band.
 	 * The DST_IN rect must cover the whole tile: a rect starting at the fade line gets an anti-aliased top edge, and under DST_IN that partial coverage carves a one-pixel alpha dip — which the blit stretch then widens into a visible seam across the deck.
 	 * The ramp eases through smoothstep samples instead of falling linearly, because a linear ramp kinks at the fade line and the eye picks the kink up as a Mach band.
 	 */
@@ -2048,7 +2045,7 @@ class SceneRenderer {
 
 		/**
 		 * Soft cloud/fog tiles are built at a quarter of the surface resolution and stretched at blit time.
-		 * They're heavily blurred anyway, and building them full-size stalls the first frames of a scene (BlurMaskFilter rasterisation scales with area, 16x cheaper here).
+		 * Fog tiles use blur filters while cloud tiles use cached sprites, so this bounds first-frame rasterization without blurring the cloud silhouettes.
 		 */
 		private const val TILE_DOWNSCALE = 4f
 
