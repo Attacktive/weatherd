@@ -115,11 +115,16 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 		return bitmap
 	}
 
+	/** Loads the stored photo as a thumbnail sized for the current display density. */
+	suspend fun loadThumbnail(bucket: PhotoBucket): Bitmap? {
+		return loadThumbnail(bucket, photoThumbnailTargetLongEdge(context.resources.displayMetrics.density))
+	}
+
 	/**
 	 * Loads a downsampled thumbnail of the photo stored for [bucket], scaled so its long edge is near [targetLongEdge].
 	 * Safe to call from UI or coroutines; performs file I/O and decoding on [Dispatchers.IO].
 	 */
-	suspend fun loadThumbnail(bucket: PhotoBucket, targetLongEdge: Int = photoThumbnailTargetLongEdge(context.resources.displayMetrics.density)): Bitmap? = withContext(Dispatchers.IO) {
+	suspend fun loadThumbnail(bucket: PhotoBucket, targetLongEdge: Int): Bitmap? = withContext(Dispatchers.IO) {
 		val file = fileFor(bucket)
 		if (!file.exists()) {
 			return@withContext null
