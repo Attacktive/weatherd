@@ -22,12 +22,12 @@ internal class RainbowLayer(resources: Resources, @DrawableRes texture: Int) {
 			return
 		}
 
-		// Scales the circular rainbow arc so its apex arches gracefully across the upper sky and its bases descend toward the horizon silhouettes.
+		// Keeps the bow's apex in the lower middle of every aspect ratio instead of pinning a portrait texture to the top edge.
 		val scale = maxOf(width / bitmap.width, (height * 0.72f) / bitmap.height)
 		val drawWidth = bitmap.width * scale
 		val drawHeight = bitmap.height * scale
 		val left = (width - drawWidth) / 2f
-		val top = (height * 0.65f - drawHeight).coerceAtLeast(0f)
+		val top = height * RAINBOW_APEX_HEIGHT - drawHeight * RAINBOW_TEXTURE_APEX_HEIGHT
 
 		transform.setScale(scale, scale)
 		transform.postTranslate(left, top)
@@ -47,6 +47,9 @@ internal class RainbowLayer(resources: Resources, @DrawableRes texture: Int) {
 	}
 
 	companion object {
+		private const val RAINBOW_APEX_HEIGHT = 0.55f
+		private const val RAINBOW_TEXTURE_APEX_HEIGHT = 0.35f
+
 		/** Gentle atmospheric tinting during dawn and dusk to harmonize the rainbow with warm lighting. */
 		internal fun rainbowTint(dayPhase: DayPhase) = when (dayPhase) {
 			DayPhase.DAWN -> 0xFFFCECD8.toInt()
