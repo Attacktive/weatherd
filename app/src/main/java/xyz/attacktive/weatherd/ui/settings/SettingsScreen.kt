@@ -253,7 +253,7 @@ private fun IntensitySection(settings: AppSettings, onSave: (AppSettings) -> Uni
 	)
 
 	IntensitySlider(
-		label = stringResource(R.string.section_cloud_intensity),
+		label = stringResource(R.string.section_cloud_opacity),
 		value = settings.cloudIntensityScale,
 		onCommit = { onSave(settings.copy(cloudIntensityScale = it)) }
 	)
