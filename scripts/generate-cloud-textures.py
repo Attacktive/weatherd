@@ -2,7 +2,8 @@
 # requires-python = ">=3.12"
 # dependencies = ["numpy==2.5.3", "pillow==12.3.0", "scipy==1.18.1"]
 # ///
-"""Generate original cloud sheets with `uv run scripts/generate-cloud-textures.py`.
+"""
+Generate original cloud sheets with `uv run scripts/generate-cloud-textures.py`.
 
 Textures contain four viewport widths of periodic wind-stretched density.
 Only this offline generator needs NumPy, Pillow, and SciPy; Android decodes the PNGs once.
