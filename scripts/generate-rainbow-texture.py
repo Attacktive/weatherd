@@ -16,11 +16,13 @@ TEXTURE_WIDTH = 2160
 TEXTURE_HEIGHT = 1440
 OUTPUT = Path(__file__).resolve().parents[1] / 'app/src/main/res/drawable-nodpi'
 
-PRIMARY_RADIUS = 965.0
+PRIMARY_RADIUS = 2200.0
 PRIMARY_BAND_WIDTH = 64.0
 PRIMARY_PEAK_ALPHA = 0.22
+PRIMARY_APEX_Y = 475.0
+RAINBOW_CENTER_Y = PRIMARY_RADIUS + PRIMARY_APEX_Y
 
-SECONDARY_RADIUS = 1150.0
+SECONDARY_RADIUS = 2400.0
 SECONDARY_BAND_WIDTH = 92.0
 SECONDARY_PEAK_ALPHA = 0.035
 
@@ -69,7 +71,7 @@ def rainbow_texture():
 	y = np.arange(TEXTURE_HEIGHT, dtype=np.float32)
 	xx, yy = np.meshgrid(x, y)
 	xc = TEXTURE_WIDTH / 2.0
-	yc = float(TEXTURE_HEIGHT)
+	yc = RAINBOW_CENTER_Y
 	r = np.sqrt((xx - xc) ** 2 + (yy - yc) ** 2)
 	theta = np.arctan2(yy - yc, xx - xc)
 	veil = atmospheric_veil(theta)

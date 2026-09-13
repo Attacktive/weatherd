@@ -22,7 +22,7 @@ internal class RainbowLayer(resources: Resources, @DrawableRes texture: Int) {
 			return
 		}
 
-		// Keeps the bow's apex in the lower middle of every aspect ratio instead of pinning a portrait texture to the top edge.
+		// Keeps the bow's apex high in every aspect ratio instead of pinning a portrait texture to the top edge.
 		val scale = maxOf(width / bitmap.width, (height * 0.72f) / bitmap.height)
 		val drawWidth = bitmap.width * scale
 		val drawHeight = bitmap.height * scale
@@ -47,8 +47,8 @@ internal class RainbowLayer(resources: Resources, @DrawableRes texture: Int) {
 	}
 
 	companion object {
-		private const val RAINBOW_APEX_HEIGHT = 0.55f
-		private const val RAINBOW_TEXTURE_APEX_HEIGHT = 0.35f
+		private const val RAINBOW_APEX_HEIGHT = 0.46f
+		private const val RAINBOW_TEXTURE_APEX_HEIGHT = 0.33f
 
 		/** Gentle atmospheric tinting during dawn and dusk to harmonize the rainbow with warm lighting. */
 		internal fun rainbowTint(dayPhase: DayPhase) = when (dayPhase) {

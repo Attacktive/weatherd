@@ -19,11 +19,21 @@ class RainbowLayerTest {
 	private val cloudySky = Color.rgb(160, 174, 184)
 
 	@Test
-	fun rainbowApexSitsInTheLowerMiddleOfAPortraitSky() {
+	fun rainbowApexSitsInTheUpperMiddleOfAPortraitSky() {
 		val bitmap = renderTransparent()
 		val apex = rowWithHighestAlpha(bitmap)
 
-		assertTrue("The rainbow apex should sit in the lower middle of the sky, but was row $apex", apex in 350..470)
+		assertTrue("The rainbow apex should sit in the upper middle of the sky, but was row $apex", apex in 300..390)
+		bitmap.recycle()
+	}
+
+	@Test
+	fun rainbowArcStaysShallowAcrossAPortraitSky() {
+		val bitmap = renderTransparent()
+		val center = rowWithHighestAlphaAt(bitmap, bitmap.width / 2)
+		val edge = rowWithHighestAlphaAt(bitmap, 0)
+
+		assertTrue("The rainbow should remain shallow, but falls ${abs(edge - center)} pixels from its apex", abs(edge - center) <= 22)
 		bitmap.recycle()
 	}
 
@@ -84,6 +94,22 @@ class RainbowLayerTest {
 					alpha = candidate
 					row = y
 				}
+			}
+		}
+
+		return row
+	}
+
+	private fun rowWithHighestAlphaAt(bitmap: Bitmap, x: Int): Int {
+		val pixels = pixels(bitmap)
+		var row = 0
+		var alpha = -1
+
+		for (y in 0 until bitmap.height) {
+			val candidate = Color.alpha(pixels[y * bitmap.width + x])
+			if (candidate > alpha) {
+				alpha = candidate
+				row = y
 			}
 		}
 
