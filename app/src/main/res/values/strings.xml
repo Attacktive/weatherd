@@ -24,6 +24,8 @@
 	<string name="subtitle_show_weather">e.g. \"Light rain · 23°\"</string>
 	<string name="label_show_location">Show location name</string>
 	<string name="subtitle_show_location">The place the weather is for</string>
+	<string name="label_show_rainbow">Show rainbow</string>
+	<string name="subtitle_show_rainbow">Display a rainbow during the day</string>
 	<string name="label_use_device_location">Use device location</string>
 	<string name="subtitle_use_device_location">Turn off to pick a city manually</string>
 	<string name="label_city">City</string>

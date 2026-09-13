@@ -24,6 +24,8 @@
 	<string name="subtitle_show_weather">örn. \"Hafif yağmur · 23°\"</string>
 	<string name="label_show_location">Konum adını göster</string>
 	<string name="subtitle_show_location">Hava durumunun ait olduğu yer</string>
+	<string name="label_show_rainbow">Gökkuşağını göster</string>
+	<string name="subtitle_show_rainbow">Gündüz gökkuşağı göster</string>
 	<string name="label_use_device_location">Cihaz konumunu kullan</string>
 	<string name="subtitle_use_device_location">Manuel olarak bir şehir seçmek için kapatın</string>
 	<string name="label_city">Şehir</string>

@@ -43,7 +43,8 @@ fun debugSceneParams(
 	dayPhase: DayPhase,
 	precipitationScale: Float = 1f,
 	windScale: Float = 1f,
-	cloudScale: Float = 1f
+	cloudScale: Float = 1f,
+	showRainbow: Boolean = false
 ) = SceneParams(
 	dayPhase = dayPhase,
 	cloudiness = preset.cloudiness,
@@ -53,5 +54,6 @@ fun debugSceneParams(
 	windFactor = preset.windFactor,
 	precipitationScale = precipitationScale,
 	windScale = windScale,
-	cloudScale = cloudScale
+	cloudScale = cloudScale,
+	showRainbow = showRainbow
 )

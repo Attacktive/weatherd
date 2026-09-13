@@ -128,6 +128,15 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 
 				Spacer(modifier = Modifier.height(24.dp))
 
+				ToggleSetting(
+					label = stringResource(R.string.label_show_rainbow),
+					subtitle = stringResource(R.string.subtitle_show_rainbow),
+					checked = settings.showRainbow,
+					onToggle = { viewModel.save(settings.copy(showRainbow = it)) }
+				)
+
+				Spacer(modifier = Modifier.height(24.dp))
+
 				BackdropSection(settings = settings, onSave = viewModel::save)
 
 				AnimatedVisibility(visible = settings.backdropScene == BackdropScene.PHOTO) {

@@ -24,6 +24,8 @@
 	<string name="subtitle_show_weather">例: \"小雨 · 23°\"</string>
 	<string name="label_show_location">地名を表示</string>
 	<string name="subtitle_show_location">天気の対象地域</string>
+	<string name="label_show_rainbow">虹を表示</string>
+	<string name="subtitle_show_rainbow">昼間に虹を表示します</string>
 	<string name="label_use_device_location">端末の位置情報を使用</string>
 	<string name="subtitle_use_device_location">オフにすると手動で都市を選択できます</string>
 	<string name="label_city">都市</string>

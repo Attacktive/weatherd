@@ -8,8 +8,10 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.AppSettings
@@ -282,6 +284,33 @@ class WeatherSceneProviderTest {
 		assertEquals(2f, throttledParams.windScale, 0.0001f)
 		assertEquals(1.5f, throttledParams.cloudScale, 0.0001f)
 		assertEquals(0.2872f, throttledParams.windFactor, 0.0001f)
+	}
+
+	@Test
+	fun `rainbow setting reaches the scene params even when the refresh is throttled`() = runTest {
+		val device = AppSettings(useDeviceLocation = true, showRainbow = false)
+		every { settingsRepository.settings } returns flowOf(device)
+		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
+		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 3))
+
+		provider.refresh(1_000_000L)
+		assertFalse(provider.paramsFor(1_000_030L).showRainbow)
+
+		// The user enables the rainbow toggle; the next refresh is inside the throttle window but must still pick the new setting up.
+		every { settingsRepository.settings } returns flowOf(device.copy(showRainbow = true))
+		provider.refresh(1_000_060L)
+
+		assertTrue(provider.paramsFor(1_000_090L).showRainbow)
+	}
+
+	@Test
+	fun `the rainbow setting reaches the fallback scene before any weather loads`() = runTest {
+		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = true, showRainbow = true))
+		coEvery { locationRepository.currentLocation() } returns null
+
+		provider.refresh(1_000_000L)
+
+		assertTrue(provider.paramsFor(1_000_030L).showRainbow)
 	}
 
 	private fun snapshotWith(weatherCode: Int) = WeatherSnapshot(

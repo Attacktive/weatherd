@@ -24,6 +24,8 @@
 	<string name="subtitle_show_weather">예: \"가벼운 비 · 23°\"</string>
 	<string name="label_show_location">위치 이름 표시</string>
 	<string name="subtitle_show_location">날씨가 표시되는 지역</string>
+	<string name="label_show_rainbow">무지개 표시</string>
+	<string name="subtitle_show_rainbow">낮 동안 무지개를 표시합니다</string>
 	<string name="label_use_device_location">기기 위치 사용</string>
 	<string name="subtitle_use_device_location">끄면 도시를 직접 선택할 수 있습니다</string>
 	<string name="label_city">도시</string>

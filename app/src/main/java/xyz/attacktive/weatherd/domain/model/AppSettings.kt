@@ -13,7 +13,8 @@ data class AppSettings(
 	val frameRateCap: FrameRateCap = FrameRateCap.UNCAPPED,
 	val precipitationIntensityScale: Float = 1f,
 	val windIntensityScale: Float = 1f,
-	val cloudIntensityScale: Float = 1f
+	val cloudIntensityScale: Float = 1f,
+	val showRainbow: Boolean = false
 )
 
 /** Selectable weather-refresh intervals in minutes, offered in Settings. */

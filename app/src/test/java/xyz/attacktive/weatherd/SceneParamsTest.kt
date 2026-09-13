@@ -210,6 +210,7 @@ class SceneParamsTest {
 		assertEquals(0f, signature.moonPhase, 0.0001f)
 		assertEquals(0f, signature.celestialProgress, 0.0001f)
 		assertNull(signature.overlayLabels)
+		assertFalse(signature.showRainbow)
 
 		// Putting the foreground-only fields back has to reproduce the original, which proves nothing else was touched.
 		assertEquals(
@@ -217,7 +218,8 @@ class SceneParamsTest {
 			signature.copy(
 				moonPhase = params.moonPhase,
 				celestialProgress = params.celestialProgress,
-				overlayLabels = params.overlayLabels
+				overlayLabels = params.overlayLabels,
+				showRainbow = params.showRainbow
 			)
 		)
 	}
@@ -229,6 +231,15 @@ class SceneParamsTest {
 
 		assertNotEquals(params, relabeled)
 		assertEquals(backdropSignature(params), backdropSignature(relabeled))
+	}
+
+	@Test
+	fun `rainbow toggle changes do not invalidate the backdrop signature`() {
+		val params = fullyPopulatedParams()
+		val toggled = params.copy(showRainbow = !params.showRainbow)
+
+		assertNotEquals(params, toggled)
+		assertEquals(backdropSignature(params), backdropSignature(toggled))
 	}
 
 	@Test
@@ -277,6 +288,7 @@ class SceneParamsTest {
 		precipitationScale = 1.5f,
 		windScale = 0.5f,
 		cloudScale = 0.7f,
+		showRainbow = true,
 		moonPhase = 0.17f,
 		celestialProgress = 0.62f,
 		backdropScene = BackdropScene.PHOTO,

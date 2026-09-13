@@ -24,6 +24,8 @@
 	<string name="subtitle_show_weather">z. B. „Leichter Regen · 23°“</string>
 	<string name="label_show_location">Standortname anzeigen</string>
 	<string name="subtitle_show_location">Der Ort, für den das Wetter gilt</string>
+	<string name="label_show_rainbow">Regenbogen anzeigen</string>
+	<string name="subtitle_show_rainbow">Tagsüber einen Regenbogen anzeigen</string>
 	<string name="label_use_device_location">Gerätestandort verwenden</string>
 	<string name="subtitle_use_device_location">Deaktivieren, um eine Stadt manuell auszuwählen</string>
 	<string name="label_city">Stadt</string>

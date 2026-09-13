@@ -63,6 +63,7 @@ class SceneRenderer(resources: Resources) {
 	private val tiles = HashMap<String, Bitmap>()
 	private val farClouds by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_sheet_far) }
 	private val nearClouds by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_sheet_near) }
+	private val rainbow by lazy(LazyThreadSafetyMode.NONE) { RainbowLayer(resources, R.drawable.rainbow) }
 	private var tilesKey: String? = null
 	private var rainPoints = FloatArray(0)
 	private val spritePaint = Paint(Paint.FILTER_BITMAP_FLAG)
@@ -158,6 +159,10 @@ class SceneRenderer(resources: Resources) {
 
 		if (showsBirds(params)) {
 			drawBirds(canvas, w, h, timeSeconds, params.dayPhase)
+		}
+
+		if (showsRainbow(params)) {
+			rainbow.draw(canvas, w, h, params.dayPhase)
 		}
 
 		if (params.precipitation == null && params.cloudiness > 0.1f && params.cloudiness <= 0.55f) {
@@ -2080,6 +2085,9 @@ private fun showsCelestialBody(params: SceneParams) = params.precipitation == nu
 
 /** Birds fly only through fair daylight skies: no precipitation, no fog, cover below the deck threshold, and never at night. */
 private fun showsBirds(params: SceneParams) = params.precipitation == null && params.fogDensity <= 0f && params.cloudiness < 0.55f && params.dayPhase != DayPhase.NIGHT
+
+/** Rainbows show only when enabled by the user and never at night. */
+internal fun showsRainbow(params: SceneParams) = params.showRainbow && params.dayPhase != DayPhase.NIGHT
 
 /** Helicopters fly in weather birds won't — night included, that's when the blinking light pays off — but storms, fog, and a heavy deck still ground them. */
 private fun showsHelicopter(params: SceneParams) = params.precipitation == null && params.fogDensity <= 0f && params.cloudiness < 0.55f && !params.thunder

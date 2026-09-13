@@ -24,6 +24,8 @@
 	<string name="subtitle_show_weather">ex. \"Pluie légère · 23°\"</string>
 	<string name="label_show_location">Afficher le nom du lieu</string>
 	<string name="subtitle_show_location">Le lieu correspondant aux prévisions</string>
+	<string name="label_show_rainbow">Afficher l\'arc-en-ciel</string>
+	<string name="subtitle_show_rainbow">Afficher un arc-en-ciel pendant la journée</string>
 	<string name="label_use_device_location">Utiliser la position de l\'appareil</string>
 	<string name="subtitle_use_device_location">Désactiver pour choisir manuellement une ville</string>
 	<string name="label_city">Ville</string>
