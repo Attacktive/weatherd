@@ -98,8 +98,13 @@ internal class CloudSpriteAtlas {
 		val width = CLOUD_SPRITE_WIDTH.toFloat()
 		val height = CLOUD_SPRITE_HEIGHT.toFloat()
 
-		val billows = 14 + variant
-		repeat(billows) {
+		drawBillows(canvas, random, width, height, 14 + variant)
+		drawUnderbodyShadows(canvas, random, width, height)
+		applyEdgeMask(canvas, width, height)
+	}
+
+	private fun drawBillows(canvas: Canvas, random: Random, width: Float, height: Float, count: Int) {
+		repeat(count) {
 			val centerX = width * random.nextFloat(0.15f, 0.85f)
 			val centerY = height * random.nextFloat(0.34f, 0.58f)
 			val radiusX = width * random.nextFloat(0.16f, 0.27f)
@@ -123,6 +128,9 @@ internal class CloudSpriteAtlas {
 				billowPaint
 			)
 		}
+	}
+
+	private fun drawUnderbodyShadows(canvas: Canvas, random: Random, width: Float, height: Float) {
 		val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 		repeat(4) {
 			val centerX = width * random.nextFloat(0.2f, 0.8f)
@@ -142,7 +150,9 @@ internal class CloudSpriteAtlas {
 				shadowPaint
 			)
 		}
+	}
 
+	private fun applyEdgeMask(canvas: Canvas, width: Float, height: Float) {
 		val edgePaint = Paint(Paint.ANTI_ALIAS_FLAG)
 		edgePaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
 		edgePaint.shader = LinearGradient(
@@ -167,7 +177,6 @@ internal class CloudSpriteAtlas {
 		canvas.drawRect(0f, 0f, width, height, edgePaint)
 		edgePaint.xfermode = null
 		edgePaint.shader = null
-
 	}
 
 	private companion object {
