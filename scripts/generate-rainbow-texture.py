@@ -27,7 +27,7 @@ SECONDARY_BAND_WIDTH = 92.0
 SECONDARY_PEAK_ALPHA = 0.045
 
 ATMOSPHERE_RGB = np.array([193, 207, 218], dtype=np.float32)
-SPECTRAL_WEIGHT = 0.70
+SPECTRAL_WEIGHT = 0.67
 STOPS_U = np.array([0.0, 0.16, 0.33, 0.50, 0.68, 0.85, 1.0], dtype=np.float32)
 STOPS_RGB = np.array([
 	[150, 60, 230],
