@@ -61,7 +61,7 @@ class RainbowLayerTest {
 		val bitmap = renderOnCloudySky()
 		val contrast = highestSkyDisplacement(bitmap)
 
-		assertTrue("A daytime rainbow should remain visible through cloudy haze, but only changed a channel by $contrast", contrast >= 16)
+		assertTrue("A daytime rainbow should remain visible through cloudy haze, but only changed a channel by $contrast", contrast >= 19)
 		bitmap.recycle()
 	}
 
