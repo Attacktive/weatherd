@@ -69,7 +69,7 @@ import android.graphics.Canvas as AndroidCanvas
 @Composable
 fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hiltViewModel()) {
 	val context = LocalContext.current
-	val renderer = remember { SceneRenderer() }
+	val renderer = remember { SceneRenderer(context.resources) }
 	var timeSeconds by remember { mutableFloatStateOf(0f) }
 	var liveParams by remember { mutableStateOf(viewModel.currentParams()) }
 	var debugEnabled by remember { mutableStateOf(false) }

@@ -62,7 +62,9 @@ fun debugSceneParams(
 
 - `renderBackdrop(canvas, width, height, params)`: Static layers (sky gradient, overcast ceiling, fog base, haze, vignette). Cached into a `Bitmap` by `WeatherLiveWallpaperService` and `HomeScreen`; re-rasterized only when `backdropSignature(params)` changes.
 - `renderForeground(canvas, width, height, params, timeSeconds)`: Dynamic animated layers (stars, celestial body, birds, clouds, scenery, fog drift, precipitation, lightning, overlay text). Redrawn every frame.
-- Soft drifting layers (clouds, fog) use downscaled scrolling tiles pre-rendered into the `tiles` map, blitted with alpha and motion.
+- Cloud sheets use `CloudLayer` with two original, lazily decoded `drawable-nodpi` textures and repeating bitmap shaders; their transforms, opacity, and day-phase tints change without rerasterizing the textures.
+- Each cloud texture spans four viewport widths before repeating; `scripts/generate-cloud-textures.py` reproducibly regenerates the assets with `uv run scripts/generate-cloud-textures.py` and samples no third-party artwork.
+- Fog retains downscaled scrolling tiles pre-rendered into the `tiles` map and blitted with alpha and motion.
 
 ## Code Conventions
 

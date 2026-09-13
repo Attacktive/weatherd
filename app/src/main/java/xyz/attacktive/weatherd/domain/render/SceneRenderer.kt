@@ -7,6 +7,7 @@ import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.random.Random
+import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
@@ -22,6 +23,7 @@ import android.graphics.RectF
 import android.graphics.Shader
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.withClip
+import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
@@ -33,11 +35,11 @@ import xyz.attacktive.weatherd.domain.weather.SEVERITY_STEADY
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_STORM
 
 /**
- * Draws a procedural weather scene onto a Canvas.
+ * Draws a weather scene onto a Canvas using procedural scenery and original cloud textures.
  * Split into a static [renderBackdrop] (sky, overcast ceiling, fog base, haze, vignette — cache it) and an animated [renderForeground] (twinkling stars, a glowing sun/moon, the horizon scenery, drifting clouds/overcast/mist, precipitation, lightning) advanced by `timeSeconds`.
- * Soft drifting layers (clouds, overcast, fog) are pre-rendered once into scrolling tiles, so the per-frame cost is a handful of cheap blits rather than a fresh CPU-side blur every frame.
+ * Cloud sheets are decoded once and sampled through repeating bitmap shaders; fog uses cached scrolling tiles, so neither regenerates textures per frame.
  */
-class SceneRenderer {
+class SceneRenderer(resources: Resources) {
 	private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG)
 	private val blitPaint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
 	private val blitDest = RectF()
@@ -59,7 +61,8 @@ class SceneRenderer {
 	private var sceneryGlyphPaths: List<SceneryLayerPath> = emptyList()
 	private var sceneryWindmill: SceneryWindmill? = null
 	private val tiles = HashMap<String, Bitmap>()
-	private val cloudSprites = CloudSpriteAtlas()
+	private val farClouds by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_sheet_far) }
+	private val nearClouds by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_sheet_near) }
 	private var tilesKey: String? = null
 	private var rainPoints = FloatArray(0)
 	private val spritePaint = Paint(Paint.FILTER_BITMAP_FLAG)
@@ -137,7 +140,7 @@ class SceneRenderer {
 		val w = width.toFloat()
 		val h = height.toFloat()
 		val precipKey = params.precipitation?.let { "${it.kind}-${(it.severity * 100f).toInt()}" } ?: "dry"
-		// Wind is deliberately absent from the key: it only shifts blit-time offsets, so a wind jitter in a refresh must not throw away every soft tile.
+		// Wind is deliberately absent from the key: it changes animation, not cached fog pixels, so a weather refresh must not discard tiles for wind alone.
 		val key = "${width}x$height-${params.dayPhase}-$precipKey-f${(params.fogDensity * 100f).toInt()}-t${params.thunder}-${(params.cloudiness * 100f).toInt()}-cs${(params.cloudScale * 100f).toInt()}"
 		if (key != tilesKey) {
 			tiles.clear()
@@ -1102,62 +1105,35 @@ class SceneRenderer {
 	}
 
 	/**
-	 * Two parallax layers of soft cloud masses drifting over the overcast/precipitation ceiling, so the sky churns rather than sits flat.
-	 * Storm decks are darkened and snow decks lightened to match their skies.
+	 * Two textured cloud sheets drift over the overcast ceiling with subtle depth and opacity variation.
+	 * Storm decks stay darker and snow decks lighter, while the day-phase tint keeps night clouds dim.
 	 */
 	private fun drawCloudDrift(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
-		val base = overcastCeiling(params.dayPhase)
-		val snowy = params.precipitation?.kind == PrecipitationKind.SNOW
-		val ceiling = when {
+		val base = lerpColor(overcastCeiling(params.dayPhase), cloudTint(params.dayPhase), 0.7f)
+		val color = when {
 			params.thunder -> darken(base, 0.72f)
-			snowy -> lighten(base, 0.4f)
+			params.precipitation?.kind == PrecipitationKind.SNOW -> lighten(base, 0.12f)
 			else -> base
 		}
-		val destHeight = height * 0.72f
-		val tileWidth = (width / TILE_DOWNSCALE).toInt()
-		/*
-		 * The sprite atlas has soft alpha edges rather than a blur filter, but the extra pad still lets the bottom fade dissolve the stretched tile cleanly.
-		 */
-		val cloudPad = (tileWidth * 0.12f).roundToInt()
-		val tileHeight = (destHeight / TILE_DOWNSCALE).toInt() + cloudPad
 
-		// Snow clouds stay milky rather than smoky, so the back layer keeps most of its brightness.
-		val backFactor = if (snowy) {
-			0.82f
-		} else {
-			0.45f
-		}
-
-		val back = tile("ovcBack", tileWidth, tileHeight) {
-			buildCloudMassTile(it, tileWidth.toFloat(), tileHeight.toFloat(), darken(ceiling, backFactor), (140f * params.cloudScale).roundToInt().coerceIn(1, 255), 6, 22L)
-			fadeTileBottom(it)
-		}
-
-		val front = tile("ovcFront", tileWidth, tileHeight) {
-			buildCloudMassTile(it, tileWidth.toFloat(), tileHeight.toFloat(), lighten(ceiling, 0.5f), (100f * params.cloudScale).roundToInt().coerceIn(1, 255), 7, 23L)
-			fadeTileBottom(it)
-		}
-
-		/*
-		 * Layers scroll at clearly different speeds, bob vertically in counter-phase, and the front layer's opacity swells and fades — together the deck visibly churns rather than sliding as one sheet.
-		 * Bob and swell each sum two incommensurate sines so the churn never repeats on a visible period, and gusts surge the whole deck forward and back as a bounded displacement on the constant scroll.
-		 * Each layer's top is overscanned past the screen edge by its own bob amplitude, so the bob never wobbles the tile's hard-clipped top edge into view.
-		 */
-		val bobAmplitude = height * 0.022f
-		val bob = bobAmplitude * (0.65f * sin(timeSeconds * 0.4f) + 0.35f * sin(timeSeconds * 1.07f))
-		val frontAlpha = (params.cloudScale * (170f + 50f * (0.7f * sin(timeSeconds * 0.55f) + 0.3f * sin(timeSeconds * 1.31f)))).roundToInt().coerceIn(0, 255)
-		val surge = width * 0.012f * params.windFactor * params.windScale
+		val period = width * CLOUD_TEXTURE_VIEWPORTS
+		val surge = width * 0.006f * params.windFactor * params.windScale
 		val drift = surge * (0.6f * sin(timeSeconds * 0.19f) + 0.4f * sin(timeSeconds * 0.47f))
-		val backOffset = wrapOffset(timeSeconds * (14f + params.windFactor * 18f) * params.windScale + drift, width)
-		val frontOffset = wrapOffset(timeSeconds * (38f + params.windFactor * 48f) * params.windScale + drift * 1.8f, width)
-		blitScrolled(canvas, back, backOffset, width, destHeight + bobAmplitude, 255, bob - bobAmplitude)
-		blitScrolled(canvas, front, frontOffset, width, destHeight + bobAmplitude * 1.5f, frontAlpha, -bob * 1.5f - bobAmplitude * 1.5f)
+		val backOffset = wrapOffset(timeSeconds * width * (0.006f + params.windFactor * 0.012f) * params.windScale + drift - width * 0.43f, period)
+		val frontOffset = wrapOffset(timeSeconds * width * (0.012f + params.windFactor * 0.025f) * params.windScale + drift * 1.8f - width * 1.3f, period)
+		val bobAmplitude = height * 0.006f * params.windScale
+		val bob = bobAmplitude * (0.65f * sin(timeSeconds * 0.4f) + 0.35f * sin(timeSeconds * 1.07f))
+		val swell = 0.9f + 0.1f * (0.7f * sin(timeSeconds * 0.55f) + 0.3f * sin(timeSeconds * 1.31f))
+		val backAlpha = (255f * 0.34f * params.cloudScale).roundToInt()
+		val frontAlpha = (255f * 0.46f * params.cloudScale * swell).roundToInt()
+		farClouds.draw(canvas, width, height * 0.42f + bobAmplitude, backOffset, darken(color, 0.94f), backAlpha, bob - bobAmplitude)
+		nearClouds.draw(canvas, width, height * 0.33f + bobAmplitude * 1.5f, frontOffset, color, frontAlpha, -bob * 1.5f - bobAmplitude * 1.5f)
 	}
 
 	/**
 	 * A small flock crossing every few minutes on fair days: staggered wing glyphs with phase-offset wingbeats and a light vertical bob.
 	 * Slot-scheduled like meteors and lightning, so most of the time the sky is empty and a crossing stays a treat.
-	 * Drawn behind the scattered puffs for depth.
+	 * Drawn behind the cloud sheets for depth.
 	 */
 	private fun drawBirds(canvas: Canvas, width: Float, height: Float, timeSeconds: Float, dayPhase: DayPhase) {
 		val slot = (timeSeconds / BIRD_SLOT_SECONDS).toInt()
@@ -1215,71 +1191,19 @@ class SceneRenderer {
 	}
 
 	private fun drawScatteredClouds(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
-		// Gentler downscale than the mass tiles: puffs have visible edges and a highlight rim to preserve.
-		val destHeight = height * 0.6f
-		val tileWidth = (width / 2f).toInt()
-		val tileHeight = (destHeight / 2f).toInt()
-		val cloudColor = withAlpha(cloudTint(params.dayPhase), (params.cloudScale * (150f + params.cloudiness * 80f)).roundToInt().coerceIn(1, 255))
-
-		// Two depth layers: sparse, small, dim puffs creeping high in the back, the full billows in front — fair-weather skies get the parallax the overcast deck already has, instead of one flat sheet.
-		val farColor = withAlpha(cloudTint(params.dayPhase), (Color.alpha(cloudColor) * 0.6f).roundToInt())
-		val far = tile("scatteredFar", tileWidth, tileHeight) {
-			buildScatteredTile(it, tileWidth.toFloat(), tileHeight.toFloat(), params, farColor, puffScale = 0.55f, countFactor = 0.6f, baselineLift = 0.16f, seed = CLOUD_SEED + 1L)
-		}
-
-		val near = tile("scattered", tileWidth, tileHeight) {
-			buildScatteredTile(it, tileWidth.toFloat(), tileHeight.toFloat(), params, cloudColor, puffScale = 1f, countFactor = 1f, baselineLift = 0f, seed = CLOUD_SEED)
-		}
-
-		// The same bounded gust surge as the deck, so fair-weather puffs answer to the one wind too.
-		val surge = width * 0.01f * params.windFactor * params.windScale
+		val coverage = params.cloudiness / 0.4f
+		val color = cloudTint(params.dayPhase)
+		val period = width * CLOUD_TEXTURE_VIEWPORTS
+		val farAlpha = (255f * 0.23f * coverage * params.cloudScale).roundToInt()
+		val nearAlpha = (255f * 0.48f * coverage * params.cloudScale).roundToInt()
+		val surge = width * 0.005f * params.windFactor * params.windScale
 		val drift = surge * (0.6f * sin(timeSeconds * 0.19f) + 0.4f * sin(timeSeconds * 0.47f))
-		val farOffset = wrapOffset(timeSeconds * (11f + params.windFactor * 18f) * params.windScale + drift * 0.6f, width)
-		val nearOffset = wrapOffset(timeSeconds * (20f + params.windFactor * 34f) * params.windScale + drift, width)
-		blitScrolled(canvas, far, farOffset, width, destHeight, 255)
-		blitScrolled(canvas, near, nearOffset, width, destHeight, 255)
+		val farOffset = wrapOffset(timeSeconds * width * (0.003f + params.windFactor * 0.01f) * params.windScale + drift * 0.6f - width * 0.43f, period)
+		val nearOffset = wrapOffset(timeSeconds * width * (0.008f + params.windFactor * 0.02f) * params.windScale + drift - width * 1.3f, period)
+		farClouds.draw(canvas, width, height * 0.42f, farOffset, color, farAlpha)
+		nearClouds.draw(canvas, width, height * 0.33f, nearOffset, color, nearAlpha)
 	}
 
-	private fun buildScatteredTile(canvas: Canvas, width: Float, height: Float, params: SceneParams, color: Int, puffScale: Float, countFactor: Float, baselineLift: Float, seed: Long) {
-		val count = ((2 + params.cloudiness * 5f) * countFactor).roundToInt().coerceAtLeast(1)
-		val placements = cloudSpritePlacements(
-			seed = seed,
-			width = width,
-			height = height,
-			count = count,
-			minWidthFraction = 0.18f,
-			maxWidthFraction = 0.34f,
-			minBaselineFraction = 0.35f - baselineLift,
-			maxBaselineFraction = 0.8f - baselineLift
-		)
-		val highlight = lighten(cloudTint(params.dayPhase), 0.55f)
-		val bodyAlpha = Color.alpha(color)
-		val crestAlpha = (bodyAlpha * 0.42f).roundToInt()
-
-		for (placement in placements) {
-			val billowWidth = placement.width * puffScale
-			val reach = billowWidth * 0.5f
-			wrapX(width, placement.centerX, reach) { x ->
-				cloudSprites.draw(canvas, placement, color, bodyAlpha, centerX = x, width = billowWidth)
-				cloudSprites.draw(canvas, placement, highlight, crestAlpha, centerX = x, baseline = placement.baseline - billowWidth * CLOUD_SPRITE_ASPECT * 0.08f, width = billowWidth, crest = true)
-			}
-		}
-	}
-
-	/** A cached billow sprite with a shaded body and a clipped sunlit crest. */
-	private fun buildCloudMassTile(canvas: Canvas, width: Float, height: Float, color: Int, alpha: Int, count: Int, seed: Long) {
-		val placements = cloudSpritePlacements(seed, width, height, count)
-		val crest = lighten(color, 0.42f)
-		val crestAlpha = (alpha * 0.45f).roundToInt()
-
-		for (placement in placements) {
-			val reach = placement.width * 0.5f
-			wrapX(width, placement.centerX, reach) { x ->
-				cloudSprites.draw(canvas, placement, color, alpha, centerX = x)
-				cloudSprites.draw(canvas, placement, crest, crestAlpha, centerX = x, baseline = placement.baseline - placement.width * CLOUD_SPRITE_ASPECT * 0.08f, crest = true)
-			}
-		}
-	}
 
 	/** Soft blurred blobs scattered across a tile — used for rolling fog. */
 	private fun buildMassTile(canvas: Canvas, width: Float, height: Float, color: Int, alpha: Int, blur: Float, count: Int, seed: Long) {
@@ -1861,28 +1785,6 @@ class SceneRenderer {
 		paint.shader = null
 	}
 
-	/**
-	 * Dissolves the bottom [fadeFraction] of a soft tile so its stretched blit does not end in a hard band.
-	 * The DST_IN rect must cover the whole tile: a rect starting at the fade line gets an anti-aliased top edge, and under DST_IN that partial coverage carves a one-pixel alpha dip — which the blit stretch then widens into a visible seam across the deck.
-	 * The ramp eases through smoothstep samples instead of falling linearly, because a linear ramp kinks at the fade line and the eye picks the kink up as a Mach band.
-	 */
-	private fun fadeTileBottom(canvas: Canvas, fadeFraction: Float = 0.4f) {
-		val bounds = canvas.clipBounds
-		val w = bounds.width().toFloat()
-		val h = bounds.height().toFloat()
-		val fadeStart = 1f - fadeFraction
-
-		val alphas = intArrayOf(255, 255, 244, 215, 128, 40, 0)
-		val colors = IntArray(alphas.size) { withAlpha(Color.BLACK, alphas[it]) }
-		val stops = floatArrayOf(0f, fadeStart, fadeStart + fadeFraction * 0.125f, fadeStart + fadeFraction * 0.25f, fadeStart + fadeFraction * 0.5f, fadeStart + fadeFraction * 0.75f, 1f)
-
-		paint.style = Paint.Style.FILL
-		paint.shader = LinearGradient(0f, 0f, 0f, h, colors, stops, Shader.TileMode.CLAMP)
-		paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
-		canvas.drawRect(0f, 0f, w, h, paint)
-		paint.xfermode = null
-		paint.shader = null
-	}
 
 	/** Draws a (usually downscaled) tile stretched to [destWidth] x [destHeight], twice, so it wraps seamlessly while scrolling. */
 	private fun blitScrolled(canvas: Canvas, bitmap: Bitmap, offset: Float, destWidth: Float, destHeight: Float, alpha: Int, yOffset: Float = 0f) {
@@ -2003,7 +1905,6 @@ class SceneRenderer {
 
 	companion object {
 		private const val STAR_SEED = 1L
-		private const val CLOUD_SEED = 2L
 		private const val PRECIP_SEED = 3L
 		private const val BOLT_SEED = 5L
 		private const val METEOR_SEED = 7L
@@ -2044,8 +1945,8 @@ class SceneRenderer {
 		private const val HELICOPTER_CROSSING_SECONDS = 26f
 
 		/**
-		 * Soft cloud/fog tiles are built at a quarter of the surface resolution and stretched at blit time.
-		 * Fog tiles use blur filters while cloud tiles use cached sprites, so this bounds first-frame rasterization without blurring the cloud silhouettes.
+		 * Fog tiles are built at a quarter of the surface resolution and stretched at blit time to bound CPU-side blur work.
+		 * Cloud sheets use their original textures directly and do not share this downscale.
 		 */
 		private const val TILE_DOWNSCALE = 4f
 

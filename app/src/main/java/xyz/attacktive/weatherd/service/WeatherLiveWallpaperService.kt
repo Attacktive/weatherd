@@ -42,7 +42,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 	override fun onCreateEngine(): Engine = SceneEngine()
 
 	private inner class SceneEngine: Engine(), Choreographer.FrameCallback {
-		private val renderer = SceneRenderer()
+		private val renderer = SceneRenderer(resources)
 		private val choreographer = Choreographer.getInstance()
 		private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 

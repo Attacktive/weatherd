@@ -117,4 +117,5 @@ dependencies {
 	testImplementation(libs.okhttp.mockwebserver)
 	testImplementation(libs.androidx.datastore.preferences.core)
 	androidTestImplementation(libs.androidx.junit)
+	androidTestImplementation(libs.androidx.test.runner)
 }
