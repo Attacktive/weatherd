@@ -1204,7 +1204,6 @@ class SceneRenderer(resources: Resources) {
 		nearClouds.draw(canvas, width, height * 0.33f, nearOffset, color, nearAlpha)
 	}
 
-
 	/** Soft blurred blobs scattered across a tile — used for rolling fog. */
 	private fun buildMassTile(canvas: Canvas, width: Float, height: Float, color: Int, alpha: Int, blur: Float, count: Int, seed: Long) {
 		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -1784,7 +1783,6 @@ class SceneRenderer(resources: Resources) {
 		canvas.drawRect(0f, 0f, width, height, paint)
 		paint.shader = null
 	}
-
 
 	/** Draws a (usually downscaled) tile stretched to [destWidth] x [destHeight], twice, so it wraps seamlessly while scrolling. */
 	private fun blitScrolled(canvas: Canvas, bitmap: Bitmap, offset: Float, destWidth: Float, destHeight: Float, alpha: Int, yOffset: Float = 0f) {

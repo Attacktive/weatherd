@@ -39,6 +39,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 			} else {
 				LightingColorFilter(tint, Color.BLACK)
 			}
+
 			previousTint = tint
 		}
 
