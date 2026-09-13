@@ -140,8 +140,8 @@ class SceneRenderer(resources: Resources) {
 		val w = width.toFloat()
 		val h = height.toFloat()
 		val precipKey = params.precipitation?.let { "${it.kind}-${(it.severity * 100f).toInt()}" } ?: "dry"
-		// Wind is deliberately absent from the key: it changes animation, not cached fog pixels, so a weather refresh must not discard tiles for wind alone.
-		val key = "${width}x$height-${params.dayPhase}-$precipKey-f${(params.fogDensity * 100f).toInt()}-t${params.thunder}-${(params.cloudiness * 100f).toInt()}-cs${(params.cloudScale * 100f).toInt()}"
+		// Wind and cloud rendering are foreground concerns: they do not change cached tile pixels, so a refresh must not discard them.
+		val key = "${width}x$height-${params.dayPhase}-$precipKey-f${(params.fogDensity * 100f).toInt()}-t${params.thunder}"
 		if (key != tilesKey) {
 			tiles.clear()
 			tilesKey = key
@@ -160,7 +160,7 @@ class SceneRenderer(resources: Resources) {
 			drawBirds(canvas, w, h, timeSeconds, params.dayPhase)
 		}
 
-		if (params.cloudiness > 0.1f && params.cloudiness <= 0.55f) {
+		if (params.precipitation == null && params.cloudiness > 0.1f && params.cloudiness <= 0.55f) {
 			drawScatteredClouds(canvas, w, h, params, timeSeconds)
 		}
 

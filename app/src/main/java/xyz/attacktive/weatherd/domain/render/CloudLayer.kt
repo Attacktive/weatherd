@@ -34,7 +34,11 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		transform.postTranslate(offset, top)
 		cloudShader.setLocalMatrix(transform)
 		if (tint != previousTint) {
-			paint.colorFilter = LightingColorFilter(tint, Color.BLACK)
+			paint.colorFilter = if (tint == Color.WHITE) {
+				null
+			} else {
+				LightingColorFilter(tint, Color.BLACK)
+			}
 			previousTint = tint
 		}
 
