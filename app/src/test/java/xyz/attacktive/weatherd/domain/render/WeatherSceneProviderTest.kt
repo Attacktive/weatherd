@@ -286,7 +286,6 @@ class WeatherSceneProviderTest {
 		assertEquals(0.2872f, throttledParams.windFactor, 0.0001f)
 	}
 
-
 	private fun snapshotWith(weatherCode: Int) = WeatherSnapshot(
 		observation = WeatherObservation(
 			weatherCode = weatherCode,

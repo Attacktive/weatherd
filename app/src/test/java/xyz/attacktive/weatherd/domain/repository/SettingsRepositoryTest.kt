@@ -45,7 +45,6 @@ class SettingsRepositoryTest {
 		assertFalse(settings.showLocationLabel)
 	}
 
-
 	@Test
 	fun `saved settings round-trip`() = runTest {
 		val repository = SettingsRepository(dataStore())

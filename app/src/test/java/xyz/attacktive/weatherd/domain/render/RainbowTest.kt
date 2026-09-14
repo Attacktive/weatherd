@@ -6,7 +6,6 @@ import org.junit.Test
 import xyz.attacktive.weatherd.domain.model.DayPhase
 
 class RainbowTest {
-
 	@Test
 	fun `rainbow tints warmly at dawn and dusk, stays neutral in daytime, and turns dark at night`() {
 		assertEquals(0xFFFCECD8.toInt(), RainbowLayer.rainbowTint(DayPhase.DAWN))
