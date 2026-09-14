@@ -24,8 +24,6 @@
 	<string name="subtitle_show_weather">例如：\"小雨 · 23°\"</string>
 	<string name="label_show_location">显示位置名称</string>
 	<string name="subtitle_show_location">天气所属的地点</string>
-	<string name="label_show_rainbow">显示彩虹</string>
-	<string name="subtitle_show_rainbow">白天显示彩虹</string>
 	<string name="label_use_device_location">使用设备位置</string>
 	<string name="subtitle_use_device_location">关闭以手动选择城市</string>
 	<string name="label_city">城市</string>

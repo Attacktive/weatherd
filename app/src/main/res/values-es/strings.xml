@@ -24,8 +24,6 @@
 	<string name="subtitle_show_weather">ej. \"Lluvia débil · 23°\"</string>
 	<string name="label_show_location">Mostrar nombre de ubicación</string>
 	<string name="subtitle_show_location">El lugar para el que es el tiempo</string>
-	<string name="label_show_rainbow">Mostrar arcoíris</string>
-	<string name="subtitle_show_rainbow">Mostrar un arcoíris durante el día</string>
 	<string name="label_use_device_location">Usar ubicación del dispositivo</string>
 	<string name="subtitle_use_device_location">Desactivar para elegir una ciudad manualmente</string>
 	<string name="label_city">Ciudad</string>

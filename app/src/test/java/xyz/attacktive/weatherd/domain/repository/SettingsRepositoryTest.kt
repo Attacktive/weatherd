@@ -45,13 +45,6 @@ class SettingsRepositoryTest {
 		assertFalse(settings.showLocationLabel)
 	}
 
-	@Test
-	fun `rainbow toggle stays disabled until the user asks for it`() = runTest {
-		val repository = SettingsRepository(dataStore())
-
-		val settings = repository.settings.first()
-		assertFalse(settings.showRainbow)
-	}
 
 	@Test
 	fun `saved settings round-trip`() = runTest {
@@ -65,7 +58,6 @@ class SettingsRepositoryTest {
 			backdropScene = BackdropScene.MOUNTAINS,
 			showWeatherLabel = false,
 			showLocationLabel = true,
-			showRainbow = true,
 			temperatureUnit = TemperatureUnit.FAHRENHEIT,
 			frameRateCap = FrameRateCap.FPS_30
 		)

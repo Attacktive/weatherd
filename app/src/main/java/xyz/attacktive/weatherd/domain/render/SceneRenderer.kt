@@ -1015,27 +1015,43 @@ class SceneRenderer(resources: Resources) {
 	}
 
 	/**
-	 * The sun as a light source rather than a painted object.
+	 * The sun as a soft atmospheric light source rather than a painted object.
 	 *
-	 * Two things do that work, and neither is the disc's own shading.
-	 * Its glow composites with [PorterDuff.Mode.SCREEN], so the bloom lifts the sky it crosses instead of laying opaque paint over it.
-	 * A camera's own artifacts sell the brightness: an anamorphic streak through the disc, and ghosts marching along the axis from the sun through the middle of the frame.
-	 * Those carry it, which is why the disc can be generous without collapsing back into the flat ball it used to be.
+	 * A warm-white cached disc supplies the natural limb, while restrained screen-composited bloom, streak, and ghosts imply brightness without overpowering the weather.
+	 * Clouds and precipitation draw afterward, so every part of the light remains occluded with the celestial body.
 	 */
 	private fun drawSun(canvas: Canvas, span: Float, width: Float, height: Float, centerX: Float, centerY: Float, params: SceneParams, pulse: Float) {
 		val radius = span * SUN_RADIUS_FRACTION
 		val core = sunColor(params.dayPhase)
 		val halo = tile("sunHalo", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildHaloSprite(it, core) }
+		val atmosphere = tile("sunAtmosphere", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildSunAtmosphereSprite(it, core) }
+		if (params.fogDensity > 0f || params.cloudiness > DIRECT_SUN_MAX_CLOUDINESS) {
+			val cloudStrength = if (params.cloudiness > DIRECT_SUN_MAX_CLOUDINESS) {
+				lerp(SUN_VEILED_MAX_STRENGTH, SUN_VEILED_MIN_STRENGTH, unlerp(DIRECT_SUN_MAX_CLOUDINESS, 1f, params.cloudiness))
+			} else {
+				1f
+			}
 
-		// The far bloom carries the atmosphere; the near one is the glare tight around the disc.
-		blitGlow(canvas, halo, centerX, centerY, radius * (SUN_BLOOM_FAR + 2f * pulse), ((SUN_BLOOM_FAR_ALPHA) * (0.75f + 0.25f * pulse)).roundToInt())
-		blitGlow(canvas, halo, centerX, centerY, radius * (SUN_BLOOM_NEAR + 0.8f * (1f - pulse)), ((SUN_BLOOM_NEAR_ALPHA) * (0.8f + 0.2f * pulse)).roundToInt())
+			val fogStrength = if (params.fogDensity > 0f) {
+				lerp(SUN_VEILED_MAX_STRENGTH, SUN_VEILED_MIN_STRENGTH, params.fogDensity.coerceIn(0f, 1f))
+			} else {
+				1f
+			}
+
+			val strength = min(cloudStrength, fogStrength)
+			blitGlow(canvas, atmosphere, centerX, centerY, radius * (SUN_VEILED_BLOOM_REACH + 0.25f * pulse), (SUN_VEILED_BLOOM_ALPHA * strength).roundToInt())
+			return
+		}
+
+		// The irregular far bloom carries the atmosphere while the radial near pass only softens the defined limb.
+		blitGlow(canvas, atmosphere, centerX, centerY, radius * (SUN_BLOOM_FAR + 0.5f * pulse), (SUN_BLOOM_FAR_ALPHA * (0.94f + 0.06f * pulse)).roundToInt())
+		blitGlow(canvas, halo, centerX, centerY, radius * (SUN_BLOOM_NEAR + 0.25f * (1f - pulse)), (SUN_BLOOM_NEAR_ALPHA * (0.94f + 0.06f * pulse)).roundToInt())
 
 		val streak = tile("sunStreak", SUN_STREAK_SPRITE_WIDTH, SUN_STREAK_SPRITE_HEIGHT) { buildSunStreakSprite(it, core) }
 		val streakHalfWidth = radius * SUN_STREAK_REACH
-		blitGlowRect(canvas, streak, centerX, centerY, streakHalfWidth, streakHalfWidth * SUN_STREAK_ASPECT, (SUN_STREAK_ALPHA * (0.7f + 0.3f * pulse)).roundToInt())
+		blitGlowRect(canvas, streak, centerX, centerY, streakHalfWidth, streakHalfWidth * SUN_STREAK_ASPECT, (SUN_STREAK_ALPHA * (0.9f + 0.1f * pulse)).roundToInt())
 
-		// Ghosts ride the line from the sun through the frame's center, the way a real lens folds a bright source back through its elements.
+		// Subtle ghosts retain the secondary references' lens character without competing with the ColorOS-style disc.
 		val axisX = width / 2f - centerX
 		val axisY = height / 2f - centerY
 		for (index in LENS_GHOSTS.indices) {
@@ -1863,15 +1879,46 @@ class SceneRenderer(resources: Resources) {
 	}
 
 	/**
+	 * Cached atmospheric sunlight built from offset soft lobes rather than one radial disc.
+	 * Their overlap keeps the source warm and recognizable while giving the outer falloff no stable circular limb.
+	 */
+	private fun buildSunAtmosphereSprite(canvas: Canvas, core: Int) {
+		val size = HALO_SPRITE_SIZE.toFloat()
+		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
+		val warm = lighten(core, SUN_ATMOSPHERE_LIFT)
+
+		drawAtmosphereLobe(canvas, brush, warm, size * 0.48f, size * 0.46f, size * 0.47f, 205)
+		drawAtmosphereLobe(canvas, brush, warm, size * 0.30f, size * 0.54f, size * 0.34f, 95)
+		drawAtmosphereLobe(canvas, brush, warm, size * 0.69f, size * 0.38f, size * 0.30f, 80)
+		drawAtmosphereLobe(canvas, brush, warm, size * 0.56f, size * 0.70f, size * 0.27f, 58)
+		drawAtmosphereLobe(canvas, brush, warm, size * 0.40f, size * 0.22f, size * 0.23f, 45)
+	}
+
+	private fun drawAtmosphereLobe(canvas: Canvas, brush: Paint, color: Int, centerX: Float, centerY: Float, radius: Float, peakAlpha: Int) {
+		val middleAlpha = (peakAlpha * SUN_ATMOSPHERE_MIDDLE_ALPHA).roundToInt()
+
+		brush.shader = RadialGradient(
+			centerX,
+			centerY,
+			radius,
+			intArrayOf(withAlpha(color, peakAlpha), withAlpha(color, middleAlpha), withAlpha(color, 0)),
+			floatArrayOf(0f, SUN_ATMOSPHERE_MIDDLE_STOP, 1f),
+			Shader.TileMode.CLAMP
+		)
+
+		canvas.drawCircle(centerX, centerY, radius, brush)
+	}
+
+	/**
 	 * The sun disc rasterized once per scene, the moon's counterpart.
-	 * A blown-out highlight has no visible rim, so this is one gradient: white through the middle, the phase's own color only in the last of the radius, then a feathered fall to nothing.
-	 * Anything sharper reads as a drawn circle with an outline rather than something too bright to look at.
+	 * Its white center eases through a pale cream shoulder before the alpha feather, so translucent clouds reveal softened light instead of a saturated yellow ring.
 	 */
 	private fun buildSunSprite(canvas: Canvas, core: Int) {
 		val center = SUN_SPRITE_SIZE / 2f
 		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
-		val stops = intArrayOf(Color.WHITE, Color.WHITE, lighten(core, SUN_CORE_LIFT), core, withAlpha(core, 0))
-		val positions = floatArrayOf(0f, 0.42f * SUN_DISC_MARGIN, 0.74f * SUN_DISC_MARGIN, SUN_DISC_MARGIN, 1f)
+		val softEdge = lighten(core, SUN_EDGE_LIFT)
+		val stops = intArrayOf(Color.WHITE, Color.WHITE, lighten(core, SUN_CORE_LIFT), softEdge, withAlpha(softEdge, SUN_EDGE_ALPHA), withAlpha(core, 0))
+		val positions = floatArrayOf(0f, 0.38f * SUN_DISC_MARGIN, 0.67f * SUN_DISC_MARGIN, 0.88f * SUN_DISC_MARGIN, SUN_DISC_MARGIN, 1f)
 
 		brush.shader = RadialGradient(center, center, center, stops, positions, Shader.TileMode.CLAMP)
 		canvas.drawCircle(center, center, center, brush)
@@ -1885,7 +1932,7 @@ class SceneRenderer(resources: Resources) {
 	private fun buildSunStreakSprite(canvas: Canvas, core: Int) {
 		val width = SUN_STREAK_SPRITE_WIDTH.toFloat()
 		val height = SUN_STREAK_SPRITE_HEIGHT.toFloat()
-		val bright = lighten(core, 0.6f)
+		val bright = lighten(core, 0.82f)
 		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
 
 		brush.shader = LinearGradient(0f, 0f, 0f, height, intArrayOf(withAlpha(bright, 0), bright, withAlpha(bright, 0)), floatArrayOf(0f, 0.5f, 1f), Shader.TileMode.CLAMP)
@@ -1979,41 +2026,55 @@ class SceneRenderer(resources: Resources) {
 		private const val MOON_PHASE_STEPS = 64
 
 		/**
-		 * The sun's radius as a fraction of the screen's shorter side, a shade under the moon's.
-		 * What sells the brightness is the bloom and the flare rather than the diameter, so the disc can stay this size without reading as a flat ball.
+		 * The sun's radius as a fraction of the shorter side, matching the restrained disc in the primary ColorOS reference.
+		 * Bloom carries the remaining apparent size without turning the body into a flat ball.
 		 */
-		private const val SUN_RADIUS_FRACTION = 0.09f
+		private const val SUN_RADIUS_FRACTION = 0.072f
 
 		/** Edge length of the pre-rendered sun disc sprite, matching the moon's so both discs upscale identically. */
 		private const val SUN_SPRITE_SIZE = 256
 
-		/** The sun disc fills this fraction of its sprite radius; the remainder carries the feathered bleed outside the limb. */
-		private const val SUN_DISC_MARGIN = 0.8f
+		/** The sun disc fills this fraction of its sprite radius; the remainder carries the feathered atmospheric edge. */
+		private const val SUN_DISC_MARGIN = 0.84f
 
-		/** How far the disc's color is lifted toward white before the clipped center takes over. */
-		private const val SUN_CORE_LIFT = 0.82f
+		/** How far the inner shoulder is lifted toward white before easing into the cream-colored limb. */
+		private const val SUN_CORE_LIFT = 0.86f
 
-		/** Bloom reach as a multiple of the disc radius: the far one is the atmosphere carrying the light, the near one the glare hugging the disc. */
-		private const val SUN_BLOOM_FAR = 9f
-		private const val SUN_BLOOM_NEAR = 3.2f
+		/** How far the limb is lifted toward white to prevent a saturated yellow outline behind translucent clouds. */
+		private const val SUN_EDGE_LIFT = 0.58f
 
-		/** Peak alpha of each bloom pass before the breathing scales it. */
-		private const val SUN_BLOOM_FAR_ALPHA = 150f
-		private const val SUN_BLOOM_NEAR_ALPHA = 165f
+		/** Alpha at the nominal limb before the final transparent feather. */
+		private const val SUN_EDGE_ALPHA = 205
+
+		/** Bloom reach as a multiple of the disc radius: an irregular atmospheric far pass and a radial near pass hugging the limb. */
+		private const val SUN_BLOOM_FAR = 5.2f
+		private const val SUN_BLOOM_NEAR = 2.35f
+
+		/** Peak alpha of each bloom pass before the restrained breathing scales it. */
+		private const val SUN_BLOOM_FAR_ALPHA = 64f
+		private const val SUN_BLOOM_NEAR_ALPHA = 118f
+
+		/** Broad irregular bloom used when cloud or fog transmits the sun without revealing its defined disc. */
+		private const val SUN_VEILED_BLOOM_REACH = 5.8f
+		private const val SUN_VEILED_BLOOM_ALPHA = 138f
+		private const val SUN_VEILED_MAX_STRENGTH = 0.68f
+		private const val SUN_VEILED_MIN_STRENGTH = 0.42f
+
+		/** The atmospheric sprite uses a pale source color and a long falloff inside each overlapping lobe. */
+		private const val SUN_ATMOSPHERE_LIFT = 0.72f
+		private const val SUN_ATMOSPHERE_MIDDLE_STOP = 0.44f
+		private const val SUN_ATMOSPHERE_MIDDLE_ALPHA = 0.32f
 
 		/** The streak sprite is long and thin; only its width needs resolution, since the vertical falloff is a single soft gradient. */
 		private const val SUN_STREAK_SPRITE_WIDTH = 512
 		private const val SUN_STREAK_SPRITE_HEIGHT = 32
 
-		/**
-		 * Half-length of the streak as a multiple of the disc radius, and how tall it is relative to that half-length.
-		 * The reach is deliberately not proportional to a larger disc: past roughly half the screen width the taper falls off the edge, and a flare that never ends reads as a band rather than glare.
-		 */
-		private const val SUN_STREAK_REACH = 5.5f
-		private const val SUN_STREAK_ASPECT = 0.11f
+		/** Half-length of the streak as a multiple of the disc radius and its height relative to that half-length. */
+		private const val SUN_STREAK_REACH = 3.4f
+		private const val SUN_STREAK_ASPECT = 0.075f
 
-		/** Peak alpha of the streak before the breathing scales it. */
-		private const val SUN_STREAK_ALPHA = 120f
+		/** Peak alpha of the streak before the restrained breathing scales it. */
+		private const val SUN_STREAK_ALPHA = 42f
 
 		/** Fraction of a soft-dot sprite's radius that is solid color before the fade to transparent begins. */
 		private const val DOT_CORE_STOP = 0.5f
@@ -2081,14 +2142,18 @@ private inline fun wrapX(width: Float, cx: Float, reach: Float, draw: (Float) ->
 	}
 }
 
-/** The sun/moon shows only through a dry, fog-free sky that isn't a solid cloud deck. */
-private fun showsCelestialBody(params: SceneParams) = params.precipitation == null && params.fogDensity <= 0f && params.cloudiness <= 0.75f
+/** Dry daylight keeps either a full or veiled sun, while the moon remains limited to a clear, fog-free sky. */
+private fun showsCelestialBody(params: SceneParams) = when {
+	params.precipitation != null -> false
+	params.dayPhase != DayPhase.NIGHT -> true
+	else -> params.fogDensity <= 0f && params.cloudiness <= 0.75f
+}
 
 /** Birds fly only through fair daylight skies: no precipitation, no fog, cover below the deck threshold, and never at night. */
 private fun showsBirds(params: SceneParams) = params.precipitation == null && params.fogDensity <= 0f && params.cloudiness < 0.55f && params.dayPhase != DayPhase.NIGHT
 
-/** Rainbows show only when enabled by the user and never at night. */
-internal fun showsRainbow(params: SceneParams) = params.showRainbow && params.dayPhase != DayPhase.NIGHT
+/** The chromatic halo follows direct daylight visibility instead of a user preference. */
+internal fun showsRainbow(params: SceneParams) = params.dayPhase != DayPhase.NIGHT && params.precipitation == null && params.fogDensity <= 0f && params.cloudiness <= DIRECT_SUN_MAX_CLOUDINESS
 
 /** Helicopters fly in weather birds won't — night included, that's when the blinking light pays off — but storms, fog, and a heavy deck still ground them. */
 private fun showsHelicopter(params: SceneParams) = params.precipitation == null && params.fogDensity <= 0f && params.cloudiness < 0.55f && !params.thunder
@@ -2101,6 +2166,8 @@ private fun birdColor(dayPhase: DayPhase) = when (dayPhase) {
 private fun showsHaze(params: SceneParams) = params.precipitation != null || params.fogDensity > 0f || params.cloudiness > 0.75f
 
 private const val PRECIPITATION_SCALE_EXPONENT = 0.5f
+
+private const val DIRECT_SUN_MAX_CLOUDINESS = 0.55f
 
 internal const val MAX_WIND_SLANT = 1.4f
 
@@ -2202,9 +2269,9 @@ private fun celestialHeightFraction(dayPhase: DayPhase, progress: Float) = when 
 }
 
 private fun sunColor(dayPhase: DayPhase) = when (dayPhase) {
-	DayPhase.DAWN -> Color.rgb(255, 198, 140)
-	DayPhase.DUSK -> Color.rgb(255, 170, 120)
-	else -> Color.rgb(255, 243, 176)
+	DayPhase.DAWN -> Color.rgb(255, 224, 190)
+	DayPhase.DUSK -> Color.rgb(255, 208, 178)
+	else -> Color.rgb(255, 248, 218)
 }
 
 private fun cloudTint(dayPhase: DayPhase) = when (dayPhase) {
@@ -2248,12 +2315,12 @@ private data class LensGhost(val distance: Float, val scale: Float, val strength
 
 /**
  * The ghosts, ordered along the axis outward from the sun.
- * Real coatings tint each element differently, so a warm one, a cool one, and a faint magenta beat a row of identical blobs.
+ * Their low strength borrows the secondary references' lens character without adding visible ornaments to an ordinary clear sky.
  */
 private val LENS_GHOSTS = listOf(
-	LensGhost(0.55f, 0.70f, 0.20f, Color.rgb(255, 220, 170)),
-	LensGhost(1.15f, 1.25f, 0.13f, Color.rgb(170, 220, 255)),
-	LensGhost(1.75f, 0.50f, 0.15f, Color.rgb(255, 190, 200))
+	LensGhost(0.55f, 0.55f, 0.07f, Color.rgb(255, 232, 202)),
+	LensGhost(1.15f, 0.95f, 0.045f, Color.rgb(196, 228, 248)),
+	LensGhost(1.75f, 0.40f, 0.04f, Color.rgb(246, 216, 222))
 )
 
 private fun darken(color: Int, factor: Float) =

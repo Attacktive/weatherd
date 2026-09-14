@@ -42,11 +42,6 @@ class HomeViewModel @Inject constructor(
 		.map { it.cloudIntensityScale }
 		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().cloudIntensityScale)
 
-	/** The user's rainbow visibility setting, so the debug cycler simulates whether the rainbow should appear. */
-	val showRainbow = settingsRepository.settings
-		.map { it.showRainbow }
-		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().showRainbow)
-
 	/** Kicks a weather fetch (rate-limited by the provider) so the preview tracks the latest conditions and any settings change. */
 	fun refresh() {
 		viewModelScope.launch {

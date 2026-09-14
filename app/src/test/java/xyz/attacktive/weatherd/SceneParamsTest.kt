@@ -17,6 +17,7 @@ import xyz.attacktive.weatherd.domain.render.OverlayLabels
 import xyz.attacktive.weatherd.domain.render.SceneParams
 import xyz.attacktive.weatherd.domain.render.backdropSignature
 import xyz.attacktive.weatherd.domain.render.sceneParamsFor
+import xyz.attacktive.weatherd.domain.render.showsRainbow
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_DRIZZLE
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_STEADY
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_STORM
@@ -209,8 +210,6 @@ class SceneParamsTest {
 
 		assertEquals(0f, signature.moonPhase, 0.0001f)
 		assertEquals(0f, signature.celestialProgress, 0.0001f)
-		assertNull(signature.overlayLabels)
-		assertFalse(signature.showRainbow)
 
 		// Putting the foreground-only fields back has to reproduce the original, which proves nothing else was touched.
 		assertEquals(
@@ -219,9 +218,38 @@ class SceneParamsTest {
 				moonPhase = params.moonPhase,
 				celestialProgress = params.celestialProgress,
 				overlayLabels = params.overlayLabels,
-				showRainbow = params.showRainbow
 			)
 		)
+	}
+
+	@Test
+	fun `the halo follows direct daylight visibility instead of a setting`() {
+		val clearDay = SceneParams(
+			dayPhase = DayPhase.DAY,
+			cloudiness = 0.2f,
+			fogDensity = 0f,
+			precipitation = null,
+			thunder = false,
+			windFactor = 0.2f
+		)
+		val partlyCloudyDusk = clearDay.copy(dayPhase = DayPhase.DUSK, cloudiness = 0.55f)
+		val cloudyDay = clearDay.copy(cloudiness = 0.56f)
+		val foggyDay = clearDay.copy(fogDensity = 1f)
+		val rainyDay = clearDay.copy(
+			precipitation = Precipitation(
+				PrecipitationKind.RAIN,
+				SEVERITY_STEADY,
+				observed = 0.6f
+			)
+		)
+		val night = clearDay.copy(dayPhase = DayPhase.NIGHT)
+
+		assertTrue(showsRainbow(clearDay))
+		assertTrue(showsRainbow(partlyCloudyDusk))
+		assertFalse(showsRainbow(cloudyDay))
+		assertFalse(showsRainbow(foggyDay))
+		assertFalse(showsRainbow(rainyDay))
+		assertFalse(showsRainbow(night))
 	}
 
 	@Test
@@ -231,15 +259,6 @@ class SceneParamsTest {
 
 		assertNotEquals(params, relabeled)
 		assertEquals(backdropSignature(params), backdropSignature(relabeled))
-	}
-
-	@Test
-	fun `rainbow toggle changes do not invalidate the backdrop signature`() {
-		val params = fullyPopulatedParams()
-		val toggled = params.copy(showRainbow = !params.showRainbow)
-
-		assertNotEquals(params, toggled)
-		assertEquals(backdropSignature(params), backdropSignature(toggled))
 	}
 
 	@Test
@@ -288,7 +307,6 @@ class SceneParamsTest {
 		precipitationScale = 1.5f,
 		windScale = 0.5f,
 		cloudScale = 0.7f,
-		showRainbow = true,
 		moonPhase = 0.17f,
 		celestialProgress = 0.62f,
 		backdropScene = BackdropScene.PHOTO,

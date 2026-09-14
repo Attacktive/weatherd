@@ -32,7 +32,6 @@ data class SceneParams(
 	val precipitationScale: Float = 1f,
 	val windScale: Float = 1f,
 	val cloudScale: Float = 1f,
-	val showRainbow: Boolean = false,
 	val moonPhase: Float = 0.5f,
 	val celestialProgress: Float = 0.5f,
 	val backdropScene: BackdropScene = BackdropScene.NONE,
@@ -50,7 +49,7 @@ data class OverlayLabels(val weather: String?, val location: String?)
  * Every other field is carried through untouched, so a field added later stays backdrop-relevant until someone lists it here.
  * Both the wallpaper's backdrop cache and the in-app preview's remembered backdrop key on this, which is what keeps them redrawing on exactly the same changes.
  */
-fun backdropSignature(params: SceneParams) = params.copy(moonPhase = 0f, celestialProgress = 0f, overlayLabels = null, showRainbow = false)
+fun backdropSignature(params: SceneParams) = params.copy(moonPhase = 0f, celestialProgress = 0f, overlayLabels = null)
 
 /** Derives render parameters from a weather snapshot for the given moment. */
 fun sceneParamsFor(
@@ -62,7 +61,6 @@ fun sceneParamsFor(
 	precipitationScale: Float = 1f,
 	windScale: Float = 1f,
 	cloudScale: Float = 1f,
-	showRainbow: Boolean = false
 ): SceneParams {
 	val observation = snapshot.observation
 	val condition = conditionFor(observation.weatherCode)
@@ -85,7 +83,6 @@ fun sceneParamsFor(
 		precipitationScale = precipitationScale,
 		windScale = windScale,
 		cloudScale = cloudScale,
-		showRainbow = showRainbow,
 		moonPhase = moonPhaseFor(nowEpochSeconds),
 		celestialProgress = dayPhaseProgressFor(nowEpochSeconds, snapshot.sunriseEpochSeconds, snapshot.sunsetEpochSeconds, dayPhase),
 		backdropScene = backdropScene,

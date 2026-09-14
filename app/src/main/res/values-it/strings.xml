@@ -24,8 +24,6 @@
 	<string name="subtitle_show_weather">es. \"Pioggia leggera · 23°\"</string>
 	<string name="label_show_location">Mostra nome della località</string>
 	<string name="subtitle_show_location">Il luogo a cui si riferisce il meteo</string>
-	<string name="label_show_rainbow">Mostra arcobaleno</string>
-	<string name="subtitle_show_rainbow">Mostra un arcobaleno durante il giorno</string>
 	<string name="label_use_device_location">Usa la posizione del dispositivo</string>
 	<string name="subtitle_use_device_location">Disattiva per scegliere manualmente una città</string>
 	<string name="label_city">Città</string>

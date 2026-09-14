@@ -1,8 +1,6 @@
 package xyz.attacktive.weatherd.domain.render
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 import xyz.attacktive.weatherd.domain.model.DayPhase
 
@@ -16,7 +14,6 @@ class SceneDebugPresetsTest {
 			assertEquals(1f, params.precipitationScale, 0.0001f)
 			assertEquals(1f, params.windScale, 0.0001f)
 			assertEquals(1f, params.cloudScale, 0.0001f)
-			assertFalse(params.showRainbow)
 		}
 	}
 
@@ -67,11 +64,4 @@ class SceneDebugPresetsTest {
 		assertEquals(preset.windFactor, params.windFactor, 0.0001f)
 	}
 
-	@Test
-	fun `rainbow setting reaches scene params`() {
-		val preset = SCENE_PRESETS.first { it.name == "CLEAR" }
-		val params = debugSceneParams(preset, DayPhase.DAY, showRainbow = true)
-
-		assertTrue(params.showRainbow)
-	}
 }

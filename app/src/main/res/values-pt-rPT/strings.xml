@@ -24,8 +24,6 @@
 	<string name="subtitle_show_weather">ex.: \"Chuva fraca · 23°\"</string>
 	<string name="label_show_location">Mostrar nome da localização</string>
 	<string name="subtitle_show_location">O local a que a meteorologia diz respeito</string>
-	<string name="label_show_rainbow">Apresentar arco-íris</string>
-	<string name="subtitle_show_rainbow">Apresentar um arco-íris durante o dia</string>
 	<string name="label_use_device_location">Utilizar localização do dispositivo</string>
 	<string name="subtitle_use_device_location">Desative para escolher uma cidade manualmente</string>
 	<string name="label_city">Cidade</string>
