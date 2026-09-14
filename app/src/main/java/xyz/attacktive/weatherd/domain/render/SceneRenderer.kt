@@ -140,6 +140,8 @@ class SceneRenderer(resources: Resources) {
 	fun renderForeground(canvas: Canvas, width: Int, height: Int, params: SceneParams, timeSeconds: Float) {
 		val w = width.toFloat()
 		val h = height.toFloat()
+		val celestialCenterX = w * CELESTIAL_X_FRACTION
+		val celestialCenterY = h * celestialHeightFraction(params.dayPhase, params.celestialProgress)
 		val precipKey = params.precipitation?.let { "${it.kind}-${(it.severity * 100f).toInt()}" } ?: "dry"
 		// Wind and cloud rendering are foreground concerns: they do not change cached tile pixels, so a refresh must not discard them.
 		val key = "${width}x$height-${params.dayPhase}-$precipKey-f${(params.fogDensity * 100f).toInt()}-t${params.thunder}"
@@ -153,16 +155,16 @@ class SceneRenderer(resources: Resources) {
 			drawShootingStar(canvas, w, h, timeSeconds)
 		}
 
+		if (showsRainbow(params)) {
+			rainbow.draw(canvas, w, h, celestialCenterX, celestialCenterY, params.dayPhase)
+		}
+
 		if (showsCelestialBody(params)) {
-			drawCelestialBody(canvas, w, h, params, timeSeconds)
+			drawCelestialBody(canvas, w, h, celestialCenterX, celestialCenterY, params, timeSeconds)
 		}
 
 		if (showsBirds(params)) {
 			drawBirds(canvas, w, h, timeSeconds, params.dayPhase)
-		}
-
-		if (showsRainbow(params)) {
-			rainbow.draw(canvas, w, h, params.dayPhase)
 		}
 
 		if (params.precipitation == null && params.cloudiness > 0.1f && params.cloudiness <= 0.55f) {
@@ -971,10 +973,7 @@ class SceneRenderer(resources: Resources) {
 		drawSoftDot(canvas, nearFlakeSprite, headX, headY, 3f * envelope)
 	}
 
-	private fun drawCelestialBody(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
-		val centerX = width * 0.72f
-		val centerY = height * celestialHeightFraction(params.dayPhase, params.celestialProgress)
-
+	private fun drawCelestialBody(canvas: Canvas, width: Float, height: Float, centerX: Float, centerY: Float, params: SceneParams, timeSeconds: Float) {
 		/*
 		 * Both discs size off the shorter side, so turning the device moves them without resizing them.
 		 * Sizing off width alone more than doubled the sun against the screen on rotation, which no real sky does.
@@ -1967,6 +1966,8 @@ class SceneRenderer(resources: Resources) {
 
 		/** Edge length of the pre-rendered moon sprite. */
 		private const val MOON_SPRITE_SIZE = 256
+
+		private const val CELESTIAL_X_FRACTION = 0.72f
 
 		/** The moon's radius as a fraction of the screen's shorter side; it stays the generous disc it always was, because a moon genuinely does read large. */
 		private const val MOON_RADIUS_FRACTION = 0.1f

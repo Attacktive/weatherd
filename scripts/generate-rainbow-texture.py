@@ -2,9 +2,9 @@
 # requires-python = ">=3.12"
 # dependencies = ["numpy==2.5.3", "pillow==12.3.0"]
 # ///
-"""Generate original rainbow texture with `uv run scripts/generate-rainbow-texture.py`."""
+"""Generate the original sun-halo texture with `uv run scripts/generate-rainbow-texture.py`."""
 
-# Generates an optical spectral rainbow arc with atmospheric dispersion and feathered boundaries.
+# Generates a chromatic optical halo with atmospheric dispersion and feathered boundaries.
 # No photographs or third-party artwork are sampled.
 
 from pathlib import Path
@@ -12,81 +12,65 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-TEXTURE_WIDTH = 2160
-TEXTURE_HEIGHT = 1440
+TEXTURE_SIZE = 1536
 OUTPUT = Path(__file__).resolve().parents[1] / 'app/src/main/res/drawable-nodpi'
 
-PRIMARY_RADIUS = 2200.0
-PRIMARY_BAND_WIDTH = 64.0
-PRIMARY_PEAK_ALPHA = 0.27
-PRIMARY_APEX_Y = 475.0
-RAINBOW_CENTER_Y = PRIMARY_RADIUS + PRIMARY_APEX_Y
+HALO_RADIUS = TEXTURE_SIZE * 0.34
+HALO_SIGMA = TEXTURE_SIZE * 0.042
+SPECTRAL_PEAK_ALPHA = 0.225
+VEIL_PEAK_ALPHA = 0.025
 
-SECONDARY_RADIUS = 2400.0
-SECONDARY_BAND_WIDTH = 92.0
-SECONDARY_PEAK_ALPHA = 0.045
-
-ATMOSPHERE_RGB = np.array([193, 207, 218], dtype=np.float32)
-SPECTRAL_WEIGHT = 0.67
-STOPS_U = np.array([0.0, 0.16, 0.33, 0.50, 0.68, 0.85, 1.0], dtype=np.float32)
+ATMOSPHERE_RGB = np.array([198, 211, 224], dtype=np.float32)
+SPECTRAL_WEIGHT = 0.80
+STOPS_U = np.array([0.0, 0.17, 0.33, 0.50, 0.67, 0.84, 1.0], dtype=np.float32)
 STOPS_RGB = np.array([
-	[150, 60, 230],
-	[40, 100, 245],
-	[0, 210, 230],
-	[50, 220, 80],
-	[255, 230, 30],
-	[255, 130, 20],
-	[255, 40, 40],
+	[244, 118, 122],
+	[246, 166, 118],
+	[242, 218, 142],
+	[160, 222, 174],
+	[116, 210, 222],
+	[110, 158, 236],
+	[180, 142, 224],
 ], dtype=np.float32)
 
 
-def spectral_color(r, radius, band_width, reverse=False):
-	"""Mix spectral color into cool cloud light."""
-	u = (r - (radius - band_width * 2.0)) / (band_width * 4.0)
-	if reverse:
-		u = 1.0 - u
-
-	rgb = np.zeros((TEXTURE_HEIGHT, TEXTURE_WIDTH, 3), dtype=np.float32)
-	for i in range(3):
-		rgb[..., i] = np.interp(u, STOPS_U, STOPS_RGB[:, i])
+def spectral_color(radius):
+	"""Blend a continuous warm-to-cool spectrum into atmospheric light."""
+	u = np.clip(0.5 + (radius - HALO_RADIUS) / (HALO_SIGMA * 4.0), 0.0, 1.0)
+	rgb = np.zeros((TEXTURE_SIZE, TEXTURE_SIZE, 3), dtype=np.float32)
+	for channel in range(3):
+		rgb[..., channel] = np.interp(u, STOPS_U, STOPS_RGB[:, channel])
 
 	return ATMOSPHERE_RGB + (rgb - ATMOSPHERE_RGB) * SPECTRAL_WEIGHT
 
 
-def bow_alpha(r, radius, band_width, peak_alpha):
-	"""Return a soft radial band without hard edges."""
-	distance = (r - radius) / band_width
-	return np.exp(-0.5 * distance * distance) * peak_alpha
+def halo_alpha(radius):
+	"""Layer a broad spectral ring over a fainter atmospheric veil."""
+	distance = (radius - HALO_RADIUS) / HALO_SIGMA
+	spectral = np.exp(-0.5 * distance * distance) * SPECTRAL_PEAK_ALPHA
+	veil = np.exp(-0.5 * (distance / 1.8) ** 2) * VEIL_PEAK_ALPHA
+	return spectral + veil
 
 
 def atmospheric_veil(theta):
-	"""Vary the bow gently along its arc as cloud and haze would."""
-	veil = 0.76 + 0.11 * np.sin(theta * 4.7 + 0.8) + 0.06 * np.sin(theta * 13.1 - 0.4)
-	return np.clip(veil, 0.58, 0.93)
+	"""Make the lower-left arc gently stronger where the references reveal it through haze."""
+	veil = 0.86 + 0.08 * np.cos(theta - np.pi * 0.75) + 0.025 * np.sin(theta * 3.0 + 0.4)
+	return np.clip(veil, 0.72, 0.96)
 
 
 def rainbow_texture():
-	"""Render a subdued rainbow emerging from cloud-brightened haze."""
-	x = np.arange(TEXTURE_WIDTH, dtype=np.float32)
-	y = np.arange(TEXTURE_HEIGHT, dtype=np.float32)
-	xx, yy = np.meshgrid(x, y)
-	xc = TEXTURE_WIDTH / 2.0
-	yc = RAINBOW_CENTER_Y
-	r = np.sqrt((xx - xc) ** 2 + (yy - yc) ** 2)
-	theta = np.arctan2(yy - yc, xx - xc)
-	veil = atmospheric_veil(theta)
-	primary_alpha = bow_alpha(r, PRIMARY_RADIUS, PRIMARY_BAND_WIDTH, PRIMARY_PEAK_ALPHA) * veil
-	secondary_alpha = bow_alpha(r, SECONDARY_RADIUS, SECONDARY_BAND_WIDTH, SECONDARY_PEAK_ALPHA) * veil
-	primary_rgb = spectral_color(r, PRIMARY_RADIUS, PRIMARY_BAND_WIDTH)
-	secondary_rgb = spectral_color(r, SECONDARY_RADIUS, SECONDARY_BAND_WIDTH, reverse=True)
-	final_alpha = primary_alpha + secondary_alpha
-	final_rgb = primary_rgb * primary_alpha[..., None] + secondary_rgb * secondary_alpha[..., None]
-	has_alpha = final_alpha > 1e-4
-	final_rgb[has_alpha] /= final_alpha[has_alpha, None]
-	base_fade = np.clip((TEXTURE_HEIGHT - yy) / 260.0, 0.0, 1.0)
-	final_alpha = np.clip(final_alpha * base_fade, 0.0, 1.0)
-	final_rgba = np.empty((TEXTURE_HEIGHT, TEXTURE_WIDTH, 4), dtype=np.uint8)
-	final_rgba[..., :3] = np.clip(final_rgb, 0, 255).astype(np.uint8)
+	"""Render a broad, translucent chromatic halo centered in a square texture."""
+	axis = np.arange(TEXTURE_SIZE, dtype=np.float32)
+	xx, yy = np.meshgrid(axis, axis)
+	center = TEXTURE_SIZE / 2.0
+	radius = np.sqrt((xx - center) ** 2 + (yy - center) ** 2)
+	theta = np.arctan2(yy - center, xx - center)
+	final_alpha = np.clip(halo_alpha(radius) * atmospheric_veil(theta), 0.0, 1.0)
+	final_alpha[final_alpha < 1.0 / 255.0] = 0.0
+	final_rgb = spectral_color(radius)
+	final_rgba = np.zeros((TEXTURE_SIZE, TEXTURE_SIZE, 4), dtype=np.uint8)
+	has_alpha = final_alpha > 0.0
+	final_rgba[has_alpha, :3] = np.clip(final_rgb[has_alpha], 0, 255).astype(np.uint8)
 	final_rgba[..., 3] = (final_alpha * 255).astype(np.uint8)
 	return Image.fromarray(final_rgba)
 

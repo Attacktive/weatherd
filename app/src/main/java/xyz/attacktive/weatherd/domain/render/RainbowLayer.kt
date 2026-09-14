@@ -10,24 +10,24 @@ import android.graphics.Paint
 import androidx.annotation.DrawableRes
 import xyz.attacktive.weatherd.domain.model.DayPhase
 
-/** Reuses decoded rainbow pixels, a sampling transform, and day-phase tint state between frames. */
+/** Reuses decoded chromatic halo pixels, a sampling transform, and day-phase tint state between frames. */
 internal class RainbowLayer(resources: Resources, @DrawableRes texture: Int) {
 	private val bitmap = checkNotNull(BitmapFactory.decodeResource(resources, texture, BitmapFactory.Options().apply { inScaled = false }))
 	private val transform = Matrix()
 	private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
 	private var previousTint = Color.WHITE
 
-	fun draw(canvas: Canvas, width: Float, height: Float, dayPhase: DayPhase) {
+	fun draw(canvas: Canvas, width: Float, height: Float, centerX: Float, centerY: Float, dayPhase: DayPhase) {
 		if (width <= 0f || height <= 0f || dayPhase == DayPhase.NIGHT) {
 			return
 		}
 
-		// Keeps the bow's apex high in every aspect ratio instead of pinning a portrait texture to the top edge.
-		val scale = maxOf(width / bitmap.width, (height * 0.72f) / bitmap.height)
+		val targetRadius = minOf(width, height) * HALO_RADIUS_FRACTION
+		val scale = targetRadius / (bitmap.width * TEXTURE_HALO_RADIUS_FRACTION)
 		val drawWidth = bitmap.width * scale
 		val drawHeight = bitmap.height * scale
-		val left = (width - drawWidth) / 2f
-		val top = height * RAINBOW_APEX_HEIGHT - drawHeight * RAINBOW_TEXTURE_APEX_HEIGHT
+		val left = centerX - drawWidth / 2f
+		val top = centerY - drawHeight / 2f
 
 		transform.setScale(scale, scale)
 		transform.postTranslate(left, top)
@@ -47,8 +47,8 @@ internal class RainbowLayer(resources: Resources, @DrawableRes texture: Int) {
 	}
 
 	companion object {
-		private const val RAINBOW_APEX_HEIGHT = 0.46f
-		private const val RAINBOW_TEXTURE_APEX_HEIGHT = 0.33f
+		private const val HALO_RADIUS_FRACTION = 0.40f
+		private const val TEXTURE_HALO_RADIUS_FRACTION = 0.34f
 
 		/** Gentle atmospheric tinting during dawn and dusk to harmonize the rainbow with warm lighting. */
 		internal fun rainbowTint(dayPhase: DayPhase) = when (dayPhase) {
