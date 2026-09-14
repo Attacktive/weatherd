@@ -114,6 +114,7 @@ class RainbowLayerTest {
 		assertTrue("The test scene should expose the halo between weather layers, but found ${stats.exposedCount} pixels", stats.exposedCount >= MIN_EXPOSED_PIXELS)
 		assertTrue("The test scene should overlap the halo with clouds or rain, but found ${stats.occludedCount} pixels", stats.occludedCount >= MIN_OCCLUDED_PIXELS)
 		assertTrue("Clouds and rain should attenuate the halo from ${stats.exposedAverage} to below ${stats.exposedAverage * MAX_OCCLUDED_CONTRIBUTION}", stats.occludedAverage < stats.exposedAverage * MAX_OCCLUDED_CONTRIBUTION)
+
 		halo.recycle()
 		weatherMask.recycle()
 		withoutHalo.recycle()
