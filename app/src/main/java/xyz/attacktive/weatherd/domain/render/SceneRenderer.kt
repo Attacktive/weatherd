@@ -61,8 +61,11 @@ class SceneRenderer(resources: Resources) {
 	private var sceneryGlyphPaths: List<SceneryLayerPath> = emptyList()
 	private var sceneryWindmill: SceneryWindmill? = null
 	private val tiles = HashMap<String, Bitmap>()
-	private val farClouds by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_sheet_far) }
-	private val nearClouds by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_sheet_near) }
+	private val farCloudDeck by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_sheet_far) }
+	private val nearCloudDeck by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_sheet_near) }
+	private val sparseCumulus by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_sparse) }
+	private val nearCumulus by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_near) }
+	private val horizonCumulus by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_horizon) }
 	private val rainbow by lazy(LazyThreadSafetyMode.NONE) { RainbowLayer(resources, R.drawable.rainbow) }
 	private var tilesKey: String? = null
 	private var rainPoints = FloatArray(0)
@@ -167,7 +170,7 @@ class SceneRenderer(resources: Resources) {
 			drawBirds(canvas, w, h, timeSeconds, params.dayPhase)
 		}
 
-		if (params.precipitation == null && params.cloudiness > 0.1f && params.cloudiness <= 0.55f) {
+		if (params.precipitation == null && params.cloudiness > 0.1f && params.cloudiness <= CLOUD_DECK_THRESHOLD) {
 			drawScatteredClouds(canvas, w, h, params, timeSeconds)
 		}
 
@@ -1146,8 +1149,8 @@ class SceneRenderer(resources: Resources) {
 		val swell = 0.9f + 0.1f * (0.7f * sin(timeSeconds * 0.55f) + 0.3f * sin(timeSeconds * 1.31f))
 		val backAlpha = (255f * 0.34f * params.cloudScale).roundToInt()
 		val frontAlpha = (255f * 0.46f * params.cloudScale * swell).roundToInt()
-		farClouds.draw(canvas, width, height * 0.42f + bobAmplitude, backOffset, darken(color, 0.94f), backAlpha, bob - bobAmplitude)
-		nearClouds.draw(canvas, width, height * 0.33f + bobAmplitude * 1.5f, frontOffset, color, frontAlpha, -bob * 1.5f - bobAmplitude * 1.5f)
+		farCloudDeck.draw(canvas, width, height * 0.42f + bobAmplitude, backOffset, darken(color, 0.94f), backAlpha, bob - bobAmplitude)
+		nearCloudDeck.draw(canvas, width, height * 0.33f + bobAmplitude * 1.5f, frontOffset, color, frontAlpha, -bob * 1.5f - bobAmplitude * 1.5f)
 	}
 
 	/**
@@ -1211,17 +1214,99 @@ class SceneRenderer(resources: Resources) {
 	}
 
 	private fun drawScatteredClouds(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
-		val coverage = params.cloudiness / 0.4f
-		val color = cloudTint(params.dayPhase)
-		val period = width * CLOUD_TEXTURE_VIEWPORTS
-		val farAlpha = (255f * 0.23f * coverage * params.cloudScale).roundToInt()
-		val nearAlpha = (255f * 0.48f * coverage * params.cloudScale).roundToInt()
-		val surge = width * 0.005f * params.windFactor * params.windScale
+		val isPortrait = width < height
+		val alpha = (255f * params.cloudScale).roundToInt().coerceIn(0, 255)
+		val surge = width * 0.003f * params.windFactor * params.windScale
 		val drift = surge * (0.6f * sin(timeSeconds * 0.19f) + 0.4f * sin(timeSeconds * 0.47f))
-		val farOffset = wrapOffset(timeSeconds * width * (0.003f + params.windFactor * 0.01f) * params.windScale + drift * 0.6f - width * 0.43f, period)
-		val nearOffset = wrapOffset(timeSeconds * width * (0.008f + params.windFactor * 0.02f) * params.windScale + drift - width * 1.3f, period)
-		farClouds.draw(canvas, width, height * 0.42f, farOffset, color, farAlpha)
-		nearClouds.draw(canvas, width, height * 0.33f, nearOffset, color, nearAlpha)
+
+		val nearHeight = if (isPortrait) {
+			height * 0.30f
+		} else {
+			height * 0.42f
+		}
+
+		val nearTop = if (isPortrait) {
+			height * 0.32f
+		} else {
+			height * 0.18f
+		}
+
+		val skyGradient = skyGradientFor(params)
+		val heroSkyAmbient = lerpColor(
+			skyGradient.topColor,
+			skyGradient.bottomColor,
+			if (isPortrait) {
+				0.32f
+			} else {
+				0.28f
+			}
+		)
+
+		val heroShadowTint = lerpColor(Color.BLACK, heroSkyAmbient, 0.20f)
+		val heroBaseMultiply = cumulusTint(params.dayPhase)
+		val heroMultiply = Color.rgb(
+			(Color.red(heroBaseMultiply) - Color.red(heroShadowTint) * 0.4f).roundToInt().coerceIn(0, 255),
+			(Color.green(heroBaseMultiply) - Color.green(heroShadowTint) * 0.4f).roundToInt().coerceIn(0, 255),
+			(Color.blue(heroBaseMultiply) - Color.blue(heroShadowTint) * 0.4f).roundToInt().coerceIn(0, 255)
+		)
+
+		if (params.cloudiness <= MOSTLY_CLEAR_THRESHOLD) {
+			val sparsePeriod = sparseCumulus.period(nearHeight)
+			val targetX = if (isPortrait) {
+				width * 0.35f
+			} else {
+				width * 0.34f
+			}
+
+			val baseOffset = targetX - sparsePeriod * (650f / 2160f)
+			val sparseOffset = wrapOffset(timeSeconds * width * (0.003f + params.windFactor * 0.008f) * params.windScale + drift * 0.6f + baseOffset, sparsePeriod)
+			sparseCumulus.drawUniform(canvas, width, nearHeight, sparseOffset, heroMultiply, heroShadowTint, alpha, nearTop)
+			return
+		}
+
+		if (params.dayPhase != DayPhase.NIGHT && params.cloudiness > 0.1f) {
+			val span = min(width, height)
+			val radius = span * SUN_RADIUS_FRACTION
+			val sunCenterX = width * CELESTIAL_X_FRACTION
+			val sunCenterY = height * celestialHeightFraction(params.dayPhase, params.celestialProgress)
+			val hazeAlpha = (255f * 0.22f * (params.cloudiness / 0.55f) * params.cloudScale).roundToInt().coerceIn(0, 255)
+			if (hazeAlpha > 0) {
+				val veilTint = when (params.dayPhase) {
+					DayPhase.DAY -> Color.rgb(215, 228, 245)
+					DayPhase.DAWN -> Color.rgb(240, 220, 225)
+					DayPhase.DUSK -> Color.rgb(230, 205, 215)
+					DayPhase.NIGHT -> Color.rgb(64, 72, 90)
+				}
+
+				val atmosphere = tile("sunVeil-${params.dayPhase}", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildSunAtmosphereSprite(it, veilTint) }
+				blitSprite(canvas, atmosphere, sunCenterX, sunCenterY, radius * 3.6f, hazeAlpha)
+			}
+		}
+
+		val horizonHeight = if (isPortrait) {
+			height * 0.30f
+		} else {
+			height * 0.34f
+		}
+
+		val horizonTop = if (isPortrait) {
+			height * 0.44f
+		} else {
+			height * 0.44f
+		}
+
+		val horizonSkyAmbient = lerpColor(skyGradient.topColor, skyGradient.bottomColor, 0.46f)
+		val horizonAdd = lerpColor(Color.BLACK, horizonSkyAmbient, 0.58f)
+		val horizonMul = lerpColor(Color.BLACK, horizonSkyAmbient, 0.42f)
+		val horizonAlpha = (alpha * 0.45f).roundToInt().coerceIn(0, 255)
+
+		val horizonPeriod = horizonCumulus.period(horizonHeight)
+		val horizonOffset = wrapOffset(timeSeconds * width * (0.0015f + params.windFactor * 0.004f) * params.windScale + drift * 0.4f - width * 0.28f, horizonPeriod)
+		val nearPeriod = nearCumulus.period(nearHeight)
+		val nearOffset = wrapOffset(timeSeconds * width * (0.0045f + params.windFactor * 0.010f) * params.windScale + drift - width * 0.45f, nearPeriod)
+
+		horizonCumulus.drawUniform(canvas, width, horizonHeight, horizonOffset, horizonMul, horizonAdd, horizonAlpha, horizonTop)
+		nearCumulus.drawUniform(canvas, width, nearHeight, nearOffset, heroMultiply, heroShadowTint, alpha, nearTop)
 	}
 
 	/** Soft blurred blobs scattered across a tile — used for rolling fog. */
@@ -1999,7 +2084,7 @@ class SceneRenderer(resources: Resources) {
 		 */
 		private const val TILE_DOWNSCALE = 4f
 
-		/** Above this cloud cover the sky reads as a solid deck: the sun/moon disappears and the drift layers churn. */
+		private const val MOSTLY_CLEAR_THRESHOLD = 0.3f
 		private const val CLOUD_DECK_THRESHOLD = 0.75f
 
 		/** Severity at and above which rain becomes a downpour and snow a blizzard (thicker, faster, more slanted). */
@@ -2279,6 +2364,13 @@ private fun cloudTint(dayPhase: DayPhase) = when (dayPhase) {
 	DayPhase.DAWN -> Color.rgb(226, 206, 214)
 	DayPhase.DUSK -> Color.rgb(198, 176, 184)
 	DayPhase.NIGHT -> Color.rgb(64, 72, 90)
+}
+
+private fun cumulusTint(dayPhase: DayPhase) = when (dayPhase) {
+	DayPhase.DAY -> Color.WHITE
+	DayPhase.DAWN -> Color.rgb(255, 232, 235)
+	DayPhase.DUSK -> Color.rgb(238, 212, 222)
+	DayPhase.NIGHT -> Color.rgb(72, 82, 104)
 }
 
 private fun overcastCeiling(dayPhase: DayPhase) = when (dayPhase) {
