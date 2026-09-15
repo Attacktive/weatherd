@@ -64,6 +64,7 @@ class SceneRenderer(resources: Resources) {
 	private val farCloudDeck by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_sheet_far) }
 	private val nearCloudDeck by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_sheet_near) }
 	private val sparseCumulus by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_sparse) }
+	private val midCumulus by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_mid) }
 	private val nearCumulus by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_near) }
 	private val horizonCumulus by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_horizon) }
 	private val rainbow by lazy(LazyThreadSafetyMode.NONE) { RainbowLayer(resources, R.drawable.rainbow) }
@@ -1215,21 +1216,30 @@ class SceneRenderer(resources: Resources) {
 
 	private fun drawScatteredClouds(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
 		val isPortrait = width < height
-		val alpha = (255f * params.cloudScale).roundToInt().coerceIn(0, 255)
+		val alpha = (255f * 0.70f * params.cloudScale).roundToInt().coerceIn(0, 255)
 		val surge = width * 0.003f * params.windFactor * params.windScale
 		val drift = surge * (0.6f * sin(timeSeconds * 0.19f) + 0.4f * sin(timeSeconds * 0.47f))
 
 		val nearHeight = if (isPortrait) {
-			height * 0.30f
+			height * 0.38f
 		} else {
-			height * 0.42f
+			height * 0.48f
 		}
 
-		val nearTop = if (isPortrait) {
-			height * 0.32f
+		val sunBottom = if (params.dayPhase != DayPhase.NIGHT) {
+			val sunCenterY = height * celestialHeightFraction(params.dayPhase, params.celestialProgress)
+			sunCenterY + minOf(width, height) * SUN_RADIUS_FRACTION * 1.8f
 		} else {
-			height * 0.18f
+			0f
 		}
+		val nearTop = maxOf(
+			if (isPortrait) {
+				height * 0.28f
+			} else {
+				height * 0.24f
+			},
+			sunBottom - nearHeight * 0.22f,
+		)
 
 		val skyGradient = skyGradientFor(params)
 		val heroSkyAmbient = lerpColor(
@@ -1258,7 +1268,7 @@ class SceneRenderer(resources: Resources) {
 				width * 0.34f
 			}
 
-			val baseOffset = targetX - sparsePeriod * (650f / 2160f)
+			val baseOffset = targetX - sparsePeriod * (440f / 2160f)
 			val sparseOffset = wrapOffset(timeSeconds * width * (0.003f + params.windFactor * 0.008f) * params.windScale + drift * 0.6f + baseOffset, sparsePeriod)
 			sparseCumulus.drawUniform(canvas, width, nearHeight, sparseOffset, heroMultiply, heroShadowTint, alpha, nearTop)
 			return
@@ -1284,28 +1294,37 @@ class SceneRenderer(resources: Resources) {
 		}
 
 		val horizonHeight = if (isPortrait) {
-			height * 0.30f
+			height * 0.20f
 		} else {
-			height * 0.34f
+			height * 0.24f
 		}
 
 		val horizonTop = if (isPortrait) {
-			height * 0.44f
+			height * 0.58f
 		} else {
-			height * 0.44f
+			height * 0.60f
 		}
 
 		val horizonSkyAmbient = lerpColor(skyGradient.topColor, skyGradient.bottomColor, 0.46f)
 		val horizonAdd = lerpColor(Color.BLACK, horizonSkyAmbient, 0.58f)
 		val horizonMul = lerpColor(Color.BLACK, horizonSkyAmbient, 0.42f)
-		val horizonAlpha = (alpha * 0.45f).roundToInt().coerceIn(0, 255)
+		val horizonAlpha = (alpha * 0.32f).roundToInt().coerceIn(0, 255)
 
 		val horizonPeriod = horizonCumulus.period(horizonHeight)
 		val horizonOffset = wrapOffset(timeSeconds * width * (0.0015f + params.windFactor * 0.004f) * params.windScale + drift * 0.4f - width * 0.28f, horizonPeriod)
+		val midHeight = if (isPortrait) {
+			height * 0.27f
+		} else {
+			height * 0.32f
+		}
+		val midTop = nearTop + height * 0.05f
+		val midPeriod = midCumulus.period(midHeight)
+		val midOffset = wrapOffset(timeSeconds * width * (0.003f + params.windFactor * 0.007f) * params.windScale + drift * 0.75f - width * 0.62f, midPeriod)
 		val nearPeriod = nearCumulus.period(nearHeight)
 		val nearOffset = wrapOffset(timeSeconds * width * (0.0045f + params.windFactor * 0.010f) * params.windScale + drift - width * 0.45f, nearPeriod)
-
+		val midAlpha = (alpha * 0.48f).roundToInt().coerceIn(0, 255)
 		horizonCumulus.drawUniform(canvas, width, horizonHeight, horizonOffset, horizonMul, horizonAdd, horizonAlpha, horizonTop)
+		midCumulus.drawUniform(canvas, width, midHeight, midOffset, heroMultiply, heroShadowTint, midAlpha, midTop)
 		nearCumulus.drawUniform(canvas, width, nearHeight, nearOffset, heroMultiply, heroShadowTint, alpha, nearTop)
 	}
 

@@ -97,7 +97,17 @@ def extract_hero_cloud(crop_rgb, core_thresh=32.0, min_thresh=6.0, min_body_lum=
 	alpha[:4, :] *= np.linspace(0, 1, 4)[:, np.newaxis]
 
 	rgba = np.dstack([unmult_rgb, alpha]).astype(np.uint8)
-	return Image.fromarray(rgba, 'RGBA')
+	ys, xs = np.nonzero(alpha > 1)
+	if len(xs) == 0:
+		return Image.fromarray(rgba, 'RGBA')
+
+	margin = 6
+	left = max(0, xs.min() - margin)
+	top = max(0, ys.min() - margin)
+	right = min(width, xs.max() + margin + 1)
+	bottom = min(height, ys.max() + margin + 1)
+
+	return Image.fromarray(rgba, 'RGBA').crop((left, top, right, bottom))
 
 
 def extract_horizon_band():
@@ -163,20 +173,32 @@ def load_hero_clouds():
 def cumulus_sparse_texture():
 	clouds = load_hero_clouds()
 	canvas = Image.new('RGBA', (TEXTURE_WIDTH, HERO_TEXTURE_HEIGHT), (0, 0, 0, 0))
-	paste_safe(canvas, clouds[0], 650, 150, scale=0.95)
+	paste_safe(canvas, clouds[0], 330, 156, scale=0.46)
+	paste_safe(canvas, clouds[1], 900, 118, scale=0.34)
+	paste_safe(canvas, clouds[2], 1510, 168, scale=0.39)
+	paste_safe(canvas, clouds[1], 2040, 150, scale=0.30)
 	return canvas
 
 
 def cumulus_near_texture():
 	clouds = load_hero_clouds()
 	canvas = Image.new('RGBA', (TEXTURE_WIDTH, HERO_TEXTURE_HEIGHT), (0, 0, 0, 0))
-	paste_safe(canvas, clouds[0], 280, 150, scale=0.95)
-	b_flip = clouds[1].transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-	paste_safe(canvas, b_flip, 680, 200, scale=0.62)
-	paste_safe(canvas, clouds[2], 1240, 145, scale=1.05)
-	paste_safe(canvas, clouds[1], 1680, 210, scale=0.58)
-	a_flip = clouds[0].transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-	paste_safe(canvas, a_flip, 1980, 160, scale=0.88)
+	paste_safe(canvas, clouds[0], 250, 164, scale=0.58)
+	paste_safe(canvas, clouds[1].transpose(Image.Transpose.FLIP_LEFT_RIGHT), 700, 126, scale=0.44)
+	paste_safe(canvas, clouds[2], 1170, 170, scale=0.68)
+	paste_safe(canvas, clouds[1], 1570, 132, scale=0.46)
+	paste_safe(canvas, clouds[0].transpose(Image.Transpose.FLIP_LEFT_RIGHT), 2010, 176, scale=0.52)
+	return canvas
+
+
+def cumulus_mid_texture():
+	clouds = load_hero_clouds()
+	canvas = Image.new('RGBA', (TEXTURE_WIDTH, HERO_TEXTURE_HEIGHT), (0, 0, 0, 0))
+	paste_safe(canvas, clouds[1], 210, 132, scale=0.40)
+	paste_safe(canvas, clouds[2].transpose(Image.Transpose.FLIP_LEFT_RIGHT), 660, 160, scale=0.46)
+	paste_safe(canvas, clouds[0], 1110, 122, scale=0.38)
+	paste_safe(canvas, clouds[1], 1530, 154, scale=0.42)
+	paste_safe(canvas, clouds[2], 1990, 130, scale=0.40)
 	return canvas
 
 
@@ -201,6 +223,7 @@ def main():
 
 	cumulus_layers = (
 		('cloud_cumulus_sparse', cumulus_sparse_texture),
+		('cloud_cumulus_mid', cumulus_mid_texture),
 		('cloud_cumulus_near', cumulus_near_texture),
 		('cloud_cumulus_horizon', cumulus_horizon_texture),
 	)
