@@ -1,16 +1,26 @@
 package xyz.attacktive.weatherd.ui.settings
 
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.launch
 import android.app.Application
 import android.graphics.Bitmap
@@ -36,6 +46,7 @@ sealed interface CitySearchState {
 	data class Error(val message: String): CitySearchState
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
 	application: Application,
@@ -57,7 +68,6 @@ class SettingsViewModel @Inject constructor(
 	 * Downsampled thumbnails for the user's photos, keyed by bucket.
 	 * Decoded off the main thread and republished whenever a photo is added, replaced, or cleared.
 	 */
-	@OptIn(ExperimentalCoroutinesApi::class)
 	val photoThumbnails = photoBackgroundRepository.revision
 		.mapLatest {
 			PhotoBucket.entries.mapNotNull { bucket ->
@@ -76,8 +86,51 @@ class SettingsViewModel @Inject constructor(
 	private val _photoImportFailed = MutableStateFlow(false)
 	val photoImportFailed = _photoImportFailed.asStateFlow()
 
+	private val typingQueries = MutableSharedFlow<String>(replay = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+	private val immediateQueries = MutableSharedFlow<String>(replay = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
 	private val _citySearch = MutableStateFlow<CitySearchState>(CitySearchState.Idle)
 	val citySearch = _citySearch.asStateFlow()
+
+	init {
+		val debouncedTyping = typingQueries.transformLatest { query ->
+			if (query.trim().length >= 2) {
+				delay(CITY_SEARCH_DEBOUNCE_MILLIS)
+			}
+
+			emit(query)
+		}
+
+		viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+			merge(debouncedTyping, immediateQueries)
+				.map { it.trim() }
+				.distinctUntilChanged()
+				.collectLatest { trimmed ->
+					if (trimmed.length < 2) {
+						_citySearch.value = CitySearchState.Idle
+						return@collectLatest
+					}
+
+					_citySearch.value = CitySearchState.Loading
+
+					try {
+						geocodingRepository.search(trimmed)
+							.onSuccess { places ->
+								_citySearch.value = if (places.isEmpty()) {
+									CitySearchState.Empty
+								} else {
+									CitySearchState.Results(places)
+								}
+							}
+							.onFailure {
+								_citySearch.value = CitySearchState.Error(it.message ?: getApplication<Application>().getString(R.string.city_search_failed))
+							}
+					} catch (cancellationException: CancellationException) {
+						throw cancellationException
+					}
+				}
+		}
+	}
 
 	fun save(settings: AppSettings) {
 		viewModelScope.launch {
@@ -85,25 +138,20 @@ class SettingsViewModel @Inject constructor(
 		}
 	}
 
+	fun onCityQueryChange(query: String) {
+		typingQueries.tryEmit(query)
+	}
+
+	fun searchCityImmediately(query: String) {
+		immediateQueries.tryEmit(query)
+	}
+
 	fun searchCity(query: String) {
-		val trimmed = query.trim()
-		if (trimmed.isEmpty()) {
-			return
-		}
+		searchCityImmediately(query)
+	}
 
-		viewModelScope.launch {
-			_citySearch.value = CitySearchState.Loading
-
-			geocodingRepository.search(trimmed)
-				.onSuccess { places ->
-					_citySearch.value = if (places.isEmpty()) {
-						CitySearchState.Empty
-					} else {
-						CitySearchState.Results(places)
-					}
-				}
-				.onFailure { _citySearch.value = CitySearchState.Error(it.message ?: getApplication<Application>().getString(R.string.city_search_failed)) }
-		}
+	fun clearCityQuery() {
+		onCityQueryChange("")
 	}
 
 	/** Persists the chosen place as the manual location; the live wallpaper picks it up on its next refresh. */
@@ -159,5 +207,9 @@ class SettingsViewModel @Inject constructor(
 		applicationScope.launch {
 			photoBackgroundRepository.clear(bucket)
 		}
+	}
+
+	companion object {
+		const val CITY_SEARCH_DEBOUNCE_MILLIS = 400L
 	}
 }

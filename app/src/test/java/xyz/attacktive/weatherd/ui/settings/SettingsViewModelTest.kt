@@ -9,21 +9,26 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import android.app.Application
 import androidx.lifecycle.viewModelScope
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import xyz.attacktive.weatherd.domain.model.AppSettings
+import xyz.attacktive.weatherd.domain.model.GeoPlace
 import xyz.attacktive.weatherd.domain.model.PhotoBucket
 import xyz.attacktive.weatherd.domain.repository.GeocodingRepository
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
@@ -66,7 +71,9 @@ class SettingsViewModelTest {
 			geocodingRepository = geocodingRepository,
 			photoBackgroundRepository = photoBackgroundRepository,
 			applicationScope = CoroutineScope(dispatcher)
-		)
+		).also {
+			testScheduler.runCurrent()
+		}
 	}
 
 	@Test
@@ -128,5 +135,129 @@ class SettingsViewModelTest {
 		advanceUntilIdle()
 
 		assertTrue(cleared)
+	}
+
+	@Test
+	fun `fewer than two trimmed characters produce Idle and never call search`() = runTest {
+		val viewModel = viewModel()
+
+		viewModel.onCityQueryChange("  ")
+		runCurrent()
+		assertEquals(CitySearchState.Idle, viewModel.citySearch.value)
+
+		viewModel.onCityQueryChange("a")
+		runCurrent()
+		assertEquals(CitySearchState.Idle, viewModel.citySearch.value)
+
+		viewModel.onCityQueryChange(" a ")
+		runCurrent()
+		assertEquals(CitySearchState.Idle, viewModel.citySearch.value)
+
+		coVerify(exactly = 0) { geocodingRepository.search(any()) }
+	}
+
+	@Test
+	fun `an eligible query waits 400 ms, then yields Loading and Results`() = runTest {
+		val viewModel = viewModel()
+		val places = listOf(GeoPlace(name = "Tokyo", latitude = 35.6895, longitude = 139.69171))
+		val deferred = CompletableDeferred<Result<List<GeoPlace>>>()
+		coEvery { geocodingRepository.search("Tokyo") } coAnswers { deferred.await() }
+
+		viewModel.onCityQueryChange("Tokyo")
+
+		advanceTimeBy(399)
+		runCurrent()
+		assertEquals(CitySearchState.Idle, viewModel.citySearch.value)
+
+		advanceTimeBy(1)
+		runCurrent()
+		assertEquals(CitySearchState.Loading, viewModel.citySearch.value)
+
+		deferred.complete(Result.success(places))
+		runCurrent()
+		assertEquals(CitySearchState.Results(places), viewModel.citySearch.value)
+	}
+
+	@Test
+	fun `an eligible query waits 400 ms, then yields Empty and Error`() = runTest {
+		val viewModel = viewModel()
+		coEvery { geocodingRepository.search("EmptyCity") } returns Result.success(emptyList())
+		coEvery { geocodingRepository.search("ErrorCity") } returns Result.failure(IllegalStateException("boom"))
+
+		viewModel.onCityQueryChange("EmptyCity")
+		advanceTimeBy(400)
+		runCurrent()
+		assertEquals(CitySearchState.Empty, viewModel.citySearch.value)
+
+		viewModel.onCityQueryChange("ErrorCity")
+		advanceTimeBy(400)
+		runCurrent()
+		assertEquals(CitySearchState.Error("boom"), viewModel.citySearch.value)
+	}
+
+	@Test
+	fun `immediate search executes without advancing virtual time and is not repeated when the debounce window elapses`() = runTest {
+		val viewModel = viewModel()
+		val places = listOf(GeoPlace(name = "Rome", latitude = 41.89, longitude = 12.51))
+		coEvery { geocodingRepository.search("Rome") } returns Result.success(places)
+
+		viewModel.onCityQueryChange("Rome")
+		viewModel.searchCityImmediately("Rome")
+		runCurrent()
+
+		assertEquals(CitySearchState.Results(places), viewModel.citySearch.value)
+		coVerify(exactly = 1) { geocodingRepository.search("Rome") }
+
+		advanceTimeBy(400)
+		runCurrent()
+		coVerify(exactly = 1) { geocodingRepository.search("Rome") }
+	}
+
+	@Test
+	fun `a later query cancels a blocked earlier query and only the later result reaches citySearch`() = runTest {
+		val viewModel = viewModel()
+		val slowDeferred = CompletableDeferred<Result<List<GeoPlace>>>()
+		val tokyoPlaces = listOf(GeoPlace(name = "Tokyo", latitude = 35.6895, longitude = 139.69171))
+		val osakaPlaces = listOf(GeoPlace(name = "Osaka", latitude = 34.6937, longitude = 135.5023))
+
+		coEvery { geocodingRepository.search("Tokyo") } coAnswers { slowDeferred.await() }
+		coEvery { geocodingRepository.search("Osaka") } returns Result.success(osakaPlaces)
+
+		viewModel.onCityQueryChange("Tokyo")
+		advanceTimeBy(400)
+		runCurrent()
+		assertEquals(CitySearchState.Loading, viewModel.citySearch.value)
+
+		viewModel.onCityQueryChange("Osaka")
+		advanceTimeBy(400)
+		runCurrent()
+
+		assertEquals(CitySearchState.Results(osakaPlaces), viewModel.citySearch.value)
+
+		slowDeferred.complete(Result.success(tokyoPlaces))
+		advanceUntilIdle()
+
+		assertEquals(CitySearchState.Results(osakaPlaces), viewModel.citySearch.value)
+	}
+
+	@Test
+	fun `clearing during loading returns to Idle and the canceled request never becomes Error`() = runTest {
+		val viewModel = viewModel()
+		val deferred = CompletableDeferred<Result<List<GeoPlace>>>()
+		coEvery { geocodingRepository.search("Tokyo") } coAnswers { deferred.await() }
+
+		viewModel.onCityQueryChange("Tokyo")
+		advanceTimeBy(400)
+		runCurrent()
+		assertEquals(CitySearchState.Loading, viewModel.citySearch.value)
+
+		viewModel.clearCityQuery()
+		runCurrent()
+		assertEquals(CitySearchState.Idle, viewModel.citySearch.value)
+
+		deferred.complete(Result.failure(IllegalStateException("Canceled request failure")))
+		advanceUntilIdle()
+
+		assertEquals(CitySearchState.Idle, viewModel.citySearch.value)
 	}
 }

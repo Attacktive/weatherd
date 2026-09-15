@@ -155,7 +155,9 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 					settings = settings,
 					citySearch = citySearch,
 					onToggleDeviceLocation = { viewModel.save(settings.copy(useDeviceLocation = it)) },
-					onSearch = viewModel::searchCity,
+					onQueryChange = viewModel::onCityQueryChange,
+					onSearch = viewModel::searchCityImmediately,
+					onClearQuery = viewModel::clearCityQuery,
 					onSelectPlace = viewModel::selectPlace,
 					onClearManualLocation = viewModel::clearManualLocation
 				)
@@ -490,10 +492,14 @@ private fun LocationSection(
 	settings: AppSettings,
 	citySearch: CitySearchState,
 	onToggleDeviceLocation: (Boolean) -> Unit,
+	onQueryChange: (String) -> Unit,
 	onSearch: (String) -> Unit,
+	onClearQuery: () -> Unit,
 	onSelectPlace: (GeoPlace) -> Unit,
 	onClearManualLocation: () -> Unit
 ) {
+	var query by rememberSaveable { mutableStateOf("") }
+
 	SectionLabel(stringResource(R.string.section_location))
 
 	ToggleSetting(
@@ -512,27 +518,53 @@ private fun LocationSection(
 				Spacer(modifier = Modifier.height(8.dp))
 			}
 
-			CitySearchField(onSearch = onSearch)
+			CitySearchField(
+				query = query,
+				onQueryChange = {
+					query = it
+					onQueryChange(it)
+				},
+				onSearch = onSearch,
+				onClear = {
+					query = ""
+					onClearQuery()
+				}
+			)
 
-			CitySearchResults(state = citySearch, onSelectPlace = onSelectPlace)
+			CitySearchResults(
+				state = citySearch,
+				onSelectPlace = { place ->
+					query = ""
+					onSelectPlace(place)
+				}
+			)
 		}
 	}
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CitySearchField(onSearch: (String) -> Unit) {
-	var query by rememberSaveable { mutableStateOf("") }
-
+private fun CitySearchField(
+	query: String,
+	onQueryChange: (String) -> Unit,
+	onSearch: (String) -> Unit,
+	onClear: () -> Unit
+) {
 	OutlinedTextField(
 		value = query,
-		onValueChange = { query = it },
+		onValueChange = onQueryChange,
 		label = { Text(stringResource(R.string.label_city)) },
 		placeholder = { Text(stringResource(R.string.placeholder_city)) },
 		singleLine = true,
 		trailingIcon = {
-			IconButton(onClick = { onSearch(query) }) {
-				Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.content_description_search))
+			if (query.isNotEmpty()) {
+				IconButton(onClick = onClear) {
+					Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.content_description_clear_city))
+				}
+			} else {
+				IconButton(onClick = { onSearch(query) }) {
+					Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.content_description_search))
+				}
 			}
 		},
 		keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
