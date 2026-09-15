@@ -214,6 +214,24 @@ class SettingsViewModelTest {
 	}
 
 	@Test
+	fun `immediate search retries an unchanged query`() = runTest {
+		val viewModel = viewModel()
+		val places = listOf(GeoPlace(name = "Rome", latitude = 41.89, longitude = 12.51))
+		coEvery { geocodingRepository.search("Rome") } returns Result.failure(IllegalStateException("Network failure")) andThen Result.success(places)
+
+		viewModel.onCityQueryChange("Rome")
+		advanceTimeBy(400)
+		runCurrent()
+		assertEquals(CitySearchState.Error("Network failure"), viewModel.citySearch.value)
+		coVerify(exactly = 1) { geocodingRepository.search("Rome") }
+
+		viewModel.searchCityImmediately("Rome")
+		runCurrent()
+		assertEquals(CitySearchState.Results(places), viewModel.citySearch.value)
+		coVerify(exactly = 2) { geocodingRepository.search("Rome") }
+	}
+
+	@Test
 	fun `a later query cancels a blocked earlier query and only the later result reaches citySearch`() = runTest {
 		val viewModel = viewModel()
 		val slowDeferred = CompletableDeferred<Result<List<GeoPlace>>>()

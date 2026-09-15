@@ -46,6 +46,13 @@ sealed interface CitySearchState {
 	data class Error(val message: String): CitySearchState
 }
 
+private sealed interface SearchTrigger {
+	val query: String
+
+	data class Debounced(override val query: String): SearchTrigger
+	data class Immediate(override val query: String): SearchTrigger
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -93,24 +100,37 @@ class SettingsViewModel @Inject constructor(
 	val citySearch = _citySearch.asStateFlow()
 
 	init {
-		val debouncedTyping = typingQueries.transformLatest { query ->
-			if (query.trim().length >= 2) {
-				delay(CITY_SEARCH_DEBOUNCE_MILLIS)
+		val debouncedTyping = typingQueries
+			.map { it.trim() }
+			.distinctUntilChanged()
+			.transformLatest { trimmed ->
+				if (trimmed.length >= 2) {
+					delay(CITY_SEARCH_DEBOUNCE_MILLIS)
+				}
+
+				emit(SearchTrigger.Debounced(trimmed))
 			}
 
-			emit(query)
-		}
+		val immediateSearch = immediateQueries
+			.map { SearchTrigger.Immediate(it.trim()) }
+
+		var lastSearchedQuery: String? = null
 
 		viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
-			merge(debouncedTyping, immediateQueries)
-				.map { it.trim() }
-				.distinctUntilChanged()
-				.collectLatest { trimmed ->
+			merge(debouncedTyping, immediateSearch)
+				.collectLatest { trigger ->
+					val trimmed = trigger.query
 					if (trimmed.length < 2) {
+						lastSearchedQuery = null
 						_citySearch.value = CitySearchState.Idle
 						return@collectLatest
 					}
 
+					if (trigger is SearchTrigger.Debounced && trimmed == lastSearchedQuery) {
+						return@collectLatest
+					}
+
+					lastSearchedQuery = trimmed
 					_citySearch.value = CitySearchState.Loading
 
 					try {

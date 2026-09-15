@@ -557,11 +557,13 @@ private fun CitySearchField(
 		placeholder = { Text(stringResource(R.string.placeholder_city)) },
 		singleLine = true,
 		trailingIcon = {
-			if (query.isNotEmpty()) {
-				IconButton(onClick = onClear) {
-					Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.content_description_clear_city))
+			Row(verticalAlignment = Alignment.CenterVertically) {
+				if (query.isNotEmpty()) {
+					IconButton(onClick = onClear) {
+						Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.content_description_clear_city))
+					}
 				}
-			} else {
+
 				IconButton(onClick = { onSearch(query) }) {
 					Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.content_description_search))
 				}
