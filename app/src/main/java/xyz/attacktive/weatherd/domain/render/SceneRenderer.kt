@@ -167,7 +167,7 @@ class SceneRenderer(resources: Resources) {
 			drawBirds(canvas, w, h, timeSeconds, params.dayPhase)
 		}
 
-		if (params.precipitation == null && params.cloudiness > 0.1f && params.cloudiness <= 0.55f) {
+		if (params.precipitation == null && params.cloudiness > 0.1f && params.cloudiness <= CLOUD_DECK_THRESHOLD) {
 			drawScatteredClouds(canvas, w, h, params, timeSeconds)
 		}
 
@@ -1144,10 +1144,10 @@ class SceneRenderer(resources: Resources) {
 		val bobAmplitude = height * 0.006f * params.windScale
 		val bob = bobAmplitude * (0.65f * sin(timeSeconds * 0.4f) + 0.35f * sin(timeSeconds * 1.07f))
 		val swell = 0.9f + 0.1f * (0.7f * sin(timeSeconds * 0.55f) + 0.3f * sin(timeSeconds * 1.31f))
-		val backAlpha = (255f * 0.34f * params.cloudScale).roundToInt()
-		val frontAlpha = (255f * 0.46f * params.cloudScale * swell).roundToInt()
-		farClouds.draw(canvas, width, height * 0.42f + bobAmplitude, backOffset, darken(color, 0.94f), backAlpha, bob - bobAmplitude)
-		nearClouds.draw(canvas, width, height * 0.33f + bobAmplitude * 1.5f, frontOffset, color, frontAlpha, -bob * 1.5f - bobAmplitude * 1.5f)
+		val backAlpha = (255f * 0.40f * params.cloudScale).roundToInt()
+		val frontAlpha = (255f * 0.54f * params.cloudScale * swell).roundToInt()
+		farClouds.draw(canvas, width, height * 0.50f + bobAmplitude, backOffset, darken(color, 0.94f), backAlpha, bob - bobAmplitude)
+		nearClouds.draw(canvas, width, height * 0.42f + bobAmplitude * 1.5f, frontOffset, color, frontAlpha, -bob * 1.5f - bobAmplitude * 1.5f)
 	}
 
 	/**
@@ -1211,17 +1211,17 @@ class SceneRenderer(resources: Resources) {
 	}
 
 	private fun drawScatteredClouds(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
-		val coverage = params.cloudiness / 0.4f
+		val coverage = (params.cloudiness / 0.4f).coerceAtMost(1f)
 		val color = cloudTint(params.dayPhase)
 		val period = width * CLOUD_TEXTURE_VIEWPORTS
-		val farAlpha = (255f * 0.23f * coverage * params.cloudScale).roundToInt()
-		val nearAlpha = (255f * 0.48f * coverage * params.cloudScale).roundToInt()
+		val farAlpha = (255f * 0.32f * coverage * params.cloudScale).roundToInt()
+		val nearAlpha = (255f * 0.58f * coverage * params.cloudScale).roundToInt()
 		val surge = width * 0.005f * params.windFactor * params.windScale
 		val drift = surge * (0.6f * sin(timeSeconds * 0.19f) + 0.4f * sin(timeSeconds * 0.47f))
 		val farOffset = wrapOffset(timeSeconds * width * (0.003f + params.windFactor * 0.01f) * params.windScale + drift * 0.6f - width * 0.43f, period)
 		val nearOffset = wrapOffset(timeSeconds * width * (0.008f + params.windFactor * 0.02f) * params.windScale + drift - width * 1.3f, period)
-		farClouds.draw(canvas, width, height * 0.42f, farOffset, color, farAlpha)
-		nearClouds.draw(canvas, width, height * 0.33f, nearOffset, color, nearAlpha)
+		farClouds.draw(canvas, width, height * 0.50f, farOffset, color, farAlpha)
+		nearClouds.draw(canvas, width, height * 0.42f, nearOffset, color, nearAlpha)
 	}
 
 	/** Soft blurred blobs scattered across a tile — used for rolling fog. */
