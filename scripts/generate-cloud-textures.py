@@ -46,10 +46,10 @@ def cloud_texture(seed, distant):
 	for octave, weight in enumerate((0.52, 0.27, 0.14, 0.07)):
 		strands += weight * noise(wind_x, wind_y, 16 * 2 ** octave, 34 * 2 ** octave, seed + 10 + octave)
 
-	patches = smoothstep(0.26, 0.76, noise(x, y, 8, 4, seed + 20))
+	patches = 0.25 + 0.75 * smoothstep(0.26, 0.76, noise(x, y, 8, 4, seed + 20))
 	fine = noise(wind_x, wind_y, 210, 220, seed + 21)
-	filaments = smoothstep(0.38, 0.80, strands + (fine - 0.5) * 0.24) ** 1.3
-	veil = smoothstep(0.37, 0.85, noise(wind_x, wind_y, 13, 13, seed + 22))
+	filaments = smoothstep(0.32, 0.80, strands + (fine - 0.5) * 0.24) ** 1.1
+	veil = smoothstep(0.28, 0.85, noise(wind_x, wind_y, 13, 13, seed + 22))
 	envelope = 1 - smoothstep(0.45, 0.97, y + 0.18 * bend)
 	envelope *= 1 - smoothstep(0.80, 0.97, y)
 	envelope *= smoothstep(-0.08, 0.32, y)
@@ -58,7 +58,7 @@ def cloud_texture(seed, distant):
 	else:
 		density = (0.88 * filaments + 0.12 * veil) * patches * envelope
 
-	alpha = np.clip(density * 1.45, 0, 1)
+	alpha = np.clip(density * 1.6, 0, 1)
 	shade = np.clip(1 - 0.065 * smoothstep(0.30, 0.90, veil), 0, 1)
 	pixels = np.empty((TEXTURE_HEIGHT, TEXTURE_WIDTH, 4), dtype=np.uint8)
 	pixels[:, :, :3] = (shade[:, :, None] * 255).astype(np.uint8)
