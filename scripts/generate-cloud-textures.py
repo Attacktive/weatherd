@@ -2,21 +2,17 @@
 # requires-python = ">=3.12"
 # dependencies = ["numpy==2.5.3", "pillow==12.3.0", "scipy==1.18.1"]
 # ///
-"""Generate cloud sheets and photographic cumulus layers with `uv run scripts/generate-cloud-textures.py`."""
+"""Generate procedural cloud layers with `uv run scripts/generate-cloud-textures.py`."""
 
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageFilter
+from PIL import Image
 from scipy.ndimage import map_coordinates
 
 TEXTURE_WIDTH = 2160
 TEXTURE_HEIGHT = 640
-HERO_TEXTURE_HEIGHT = 320
-HORIZON_TEXTURE_HEIGHT = 200
 OUTPUT = Path(__file__).resolve().parents[1] / 'app/src/main/res/drawable-nodpi'
-ASSETS = Path(__file__).resolve().parent / 'assets'
-CC0_ASSETS = ASSETS / 'cc0-clouds'
 
 
 def smoothstep(low, high, values):
@@ -66,197 +62,35 @@ def cloud_texture(seed, distant):
 	return Image.fromarray(pixels)
 
 
-def extract_hero_cloud(crop_rgb, core_thresh=32.0, min_thresh=6.0, min_body_lum=175.0):
-	sig = np.max(crop_rgb, axis=2)
-	alpha = np.zeros_like(sig)
-	mask_core = sig >= core_thresh
-	mask_fringe = (sig > min_thresh) & (sig < core_thresh)
-	alpha[mask_core] = 255.0
-	t = (sig[mask_fringe] - min_thresh) / (core_thresh - min_thresh)
-	alpha[mask_fringe] = 255.0 * (t * t * (3.0 - 2.0 * t))
+def atmospheric_cloud_texture(seed):
+	"""Build soft, broad cloud banks for fair-weather skies."""
+	x, y = np.meshgrid(
+		np.arange(TEXTURE_WIDTH, dtype=np.float32) / TEXTURE_WIDTH,
+		np.arange(TEXTURE_HEIGHT, dtype=np.float32) / TEXTURE_HEIGHT,
+	)
 
-	height, width = alpha.shape
-	unmult_rgb = np.zeros_like(crop_rgb)
-	for c in range(3):
-		chan = crop_rgb[:, :, c]
-		chan_core = chan[mask_core]
-		min_c = np.min(chan_core) if len(chan_core) > 0 else 0.0
-		lifted = min_body_lum + (chan - min_c) * (255.0 - min_body_lum) / max(1.0, 255.0 - min_c)
-		fringe_factor = np.clip(1.0 - alpha / 255.0, 0, 1)
-		chan_clean = np.where(mask_core, lifted, lifted * (1.0 - fringe_factor) + 248.0 * fringe_factor)
-		unmult_rgb[:, :, c] = np.where(alpha > 0, np.clip(chan_clean, 0, 255), 255.0)
+	macro = noise(x, y, 18, 6, seed + 30)
+	middle = noise(x, y, 40, 12, seed + 31)
+	detail = noise(x, y, 110, 32, seed + 32)
+	bend = noise(x, y, 14, 7, seed + 33) - 0.5
+	field = 0.64 * macro + 0.25 * middle + 0.11 * detail
+	field += 0.05 * bend
 
-	fade_rows = 4
-	for r in range(fade_rows):
-		row_idx = height - fade_rows + r
-		factor = (r + 1) / float(fade_rows)
-		alpha[row_idx, :] *= factor
+	banks = smoothstep(0.42, 0.68, field)
+	envelope = smoothstep(0.04, 0.16, y)
+	envelope *= 1 - smoothstep(0.67, 0.92, y)
+	density = banks * envelope
+	density *= 0.72 + 0.28 * smoothstep(0.30, 0.78, detail)
 
-	alpha[-1, :] = 0.0
-	alpha[:, :4] *= np.linspace(0, 1, 4)[np.newaxis, :]
-	alpha[:, -4:] *= np.linspace(1, 0, 4)[np.newaxis, :]
-	alpha[:4, :] *= np.linspace(0, 1, 4)[:, np.newaxis]
-
-	rgba = np.dstack([unmult_rgb, alpha]).astype(np.uint8)
-	ys, xs = np.nonzero(alpha > 1)
-	if len(xs) == 0:
-		return Image.fromarray(rgba, 'RGBA')
-
-	margin = 6
-	left = max(0, xs.min() - margin)
-	top = max(0, ys.min() - margin)
-	right = min(width, xs.max() + margin + 1)
-	bottom = min(height, ys.max() + margin + 1)
-
-	return Image.fromarray(rgba, 'RGBA').crop((left, top, right, bottom))
-
-
-def extract_horizon_band():
-	horizon_plate = Image.open(ASSETS / 'cumulus_horizon_plate.png')
-	arr = np.array(horizon_plate)[:, :, :3].astype(float)
-	crop = arr[315:455, :]
-
-	sig = np.max(crop, axis=2)
-	alpha = np.zeros_like(sig)
-	mask_core = sig >= 32.0
-	mask_fringe = (sig > 6.0) & (sig < 32.0)
-	alpha[mask_core] = 190.0
-	t = (sig[mask_fringe] - 6.0) / (32.0 - 6.0)
-	alpha[mask_fringe] = 190.0 * (t * t * (3.0 - 2.0 * t))
-
-	img_a = Image.fromarray(alpha.astype(np.uint8))
-	img_a_soft = img_a.filter(ImageFilter.GaussianBlur(radius=2.2))
-	alpha_soft = np.array(img_a_soft).astype(float)
-
-	fade_w = min(120, crop.shape[1] // 6)
-	lf = 0.5 * (1.0 - np.cos(np.linspace(0, np.pi, fade_w)))
-	rf = 0.5 * (1.0 + np.cos(np.linspace(0, np.pi, fade_w)))
-	alpha_soft[:, :fade_w] *= lf[np.newaxis, :]
-	alpha_soft[:, -fade_w:] *= rf[np.newaxis, :]
-
-	unmult = np.zeros_like(crop)
-	for c in range(3):
-		chan = crop[:, :, c]
-		min_c = np.min(chan[alpha > 40])
-		chan_lifted = 210.0 + (chan - min_c) * (255.0 - 210.0) / max(1.0, (255.0 - min_c))
-		fringe = np.clip(1.0 - alpha_soft / 190.0, 0, 1)
-		unmult[:, :, c] = np.where(alpha_soft > 0, np.clip(chan_lifted * (1.0 - fringe) + 245.0 * fringe, 0, 255), 255.0)
-
-	h = alpha_soft.shape[0]
-	for r in range(6):
-		alpha_soft[h - 6 + r, :] *= (r / 6.0)
-
-	return Image.fromarray(np.dstack([unmult.astype(np.uint8), alpha_soft.astype(np.uint8)]), 'RGBA')
-
-
-def paste_safe(canvas, sprite, cx, cy, scale=1.0, scale_x=1.0, scale_y=1.0):
-	w = int(sprite.width * scale * scale_x)
-	h = int(sprite.height * scale * scale_y)
-	scaled = sprite.resize((w, h), Image.Resampling.LANCZOS)
-	x = int(cx - w / 2)
-	y = int(cy - h / 2)
-	canvas.paste(scaled, (x, y), scaled)
-	if x + w > TEXTURE_WIDTH:
-		canvas.paste(scaled, (x - TEXTURE_WIDTH, y), scaled)
-	if x < 0:
-		canvas.paste(scaled, (x + TEXTURE_WIDTH, y), scaled)
-
-
-def load_hero_clouds():
-	hero_plate = Image.open(ASSETS / 'cumulus_hero_plate.png')
-	arr = np.array(hero_plate)[:, :, :3].astype(float)
-	cloud_a = extract_hero_cloud(arr[230:520, 25:485])
-	cloud_b = extract_hero_cloud(arr[230:520, 505:900])
-	cloud_c = extract_hero_cloud(arr[230:520, 910:1345])
-	return [cloud_a, cloud_b, cloud_c]
-
-
-def extract_cc0_cloud(path):
-	image = Image.open(path).convert('RGBA')
-	alpha = np.asarray(image.getchannel('A'), dtype=np.float32)
-	alpha = np.clip((alpha - 3.0) * 4.0, 0, 255)
-	alpha[alpha < 10] = 0
-	ys, xs = np.nonzero(alpha > 1)
-	if len(xs) == 0:
-		return Image.new('RGBA', (1, 1), (0, 0, 0, 0))
-
-	left = xs.min()
-	top = ys.min()
-	right = xs.max() + 1
-	bottom = ys.max() + 1
-	alpha = alpha[top:bottom, left:right]
-	height, width = alpha.shape
-	y = np.arange(height, dtype=np.float32)[:, None] / max(height - 1, 1)
-	brightness = np.clip(250 - 34 * y, 0, 255)
-	pixels = np.empty((height, width, 4), dtype=np.uint8)
-	pixels[:, :, 0] = brightness.astype(np.uint8)
-	pixels[:, :, 1] = np.clip(brightness + 4, 0, 255).astype(np.uint8)
-	pixels[:, :, 2] = np.clip(brightness + 12, 0, 255).astype(np.uint8)
-	pixels[:, :, 3] = alpha.astype(np.uint8)
-
+	alpha = np.clip(density * 0.88, 0, 0.82)
+	underside = smoothstep(0.28, 0.88, y)
+	shade = np.clip(0.985 - 0.16 * underside - 0.025 * smoothstep(0.25, 0.75, middle), 0, 1)
+	pixels = np.empty((TEXTURE_HEIGHT, TEXTURE_WIDTH, 4), dtype=np.uint8)
+	pixels[:, :, 0] = (shade * 255).astype(np.uint8)
+	pixels[:, :, 1] = np.clip(shade * 255 + 2, 0, 255).astype(np.uint8)
+	pixels[:, :, 2] = np.clip(shade * 255 + 12, 0, 255).astype(np.uint8)
+	pixels[:, :, 3] = (alpha * 255).astype(np.uint8)
 	return Image.fromarray(pixels, 'RGBA')
-
-
-def load_cc0_clouds():
-	return [
-		extract_cc0_cloud(CC0_ASSETS / 'fx_cloudalpha01.png'),
-		extract_cc0_cloud(CC0_ASSETS / 'fx_cloudalpha04.png'),
-		extract_cc0_cloud(CC0_ASSETS / 'fx_cloudalpha08.png'),
-		extract_cc0_cloud(CC0_ASSETS / 'fx_cloudalpha09.png'),
-	]
-
-
-def cumulus_sparse_texture():
-	clouds = load_hero_clouds()
-	canvas = Image.new('RGBA', (TEXTURE_WIDTH, HERO_TEXTURE_HEIGHT), (0, 0, 0, 0))
-	paste_safe(canvas, clouds[0], 330, 156, scale=0.46)
-	paste_safe(canvas, clouds[1], 900, 118, scale=0.34)
-	paste_safe(canvas, clouds[2], 1510, 168, scale=0.39)
-	paste_safe(canvas, clouds[1], 2040, 150, scale=0.30)
-	return canvas
-
-
-def cumulus_near_texture():
-	clouds = load_hero_clouds()
-	canvas = Image.new('RGBA', (TEXTURE_WIDTH, HERO_TEXTURE_HEIGHT), (0, 0, 0, 0))
-	paste_safe(canvas, clouds[0], 250, 164, scale=0.58)
-	paste_safe(canvas, clouds[1].transpose(Image.Transpose.FLIP_LEFT_RIGHT), 700, 126, scale=0.44)
-	paste_safe(canvas, clouds[2], 1170, 170, scale=0.68)
-	paste_safe(canvas, clouds[1], 1570, 132, scale=0.46)
-	paste_safe(canvas, clouds[0].transpose(Image.Transpose.FLIP_LEFT_RIGHT), 2010, 176, scale=0.52)
-	return canvas
-
-
-def cumulus_mid_texture():
-	clouds = load_hero_clouds()
-	canvas = Image.new('RGBA', (TEXTURE_WIDTH, HERO_TEXTURE_HEIGHT), (0, 0, 0, 0))
-	paste_safe(canvas, clouds[1], 210, 132, scale=0.40)
-	paste_safe(canvas, clouds[2].transpose(Image.Transpose.FLIP_LEFT_RIGHT), 660, 160, scale=0.46)
-	paste_safe(canvas, clouds[0], 1110, 122, scale=0.38)
-	paste_safe(canvas, clouds[1], 1530, 154, scale=0.42)
-	paste_safe(canvas, clouds[2], 1990, 130, scale=0.40)
-	return canvas
-
-
-def cumulus_long_texture():
-	clouds = load_cc0_clouds()
-	canvas = Image.new('RGBA', (TEXTURE_WIDTH, HERO_TEXTURE_HEIGHT), (0, 0, 0, 0))
-	paste_safe(canvas, clouds[0], 330, 148, scale=0.50, scale_x=1.0, scale_y=0.35)
-	paste_safe(canvas, clouds[1], 1020, 132, scale=0.40, scale_x=1.20, scale_y=0.45)
-	paste_safe(canvas, clouds[2], 1580, 154, scale=0.30, scale_x=1.40, scale_y=0.30)
-	paste_safe(canvas, clouds[3], 2040, 140, scale=0.29, scale_x=1.50, scale_y=0.36)
-	return canvas
-
-
-def cumulus_horizon_texture():
-	horizon_band = extract_horizon_band()
-	canvas = Image.new('RGBA', (TEXTURE_WIDTH, HORIZON_TEXTURE_HEIGHT), (0, 0, 0, 0))
-	w_seg = 1450
-	h_seg = int(horizon_band.height * w_seg / horizon_band.width)
-	scaled_seg = horizon_band.resize((w_seg, h_seg), Image.Resampling.LANCZOS)
-	paste_safe(canvas, scaled_seg, 540, 100, scale=1.0)
-	paste_safe(canvas, scaled_seg, 1620, 100, scale=1.0)
-	return canvas
 
 
 def main():
@@ -267,18 +101,11 @@ def main():
 		image.save(path, optimize=True)
 		print(f'{path.relative_to(OUTPUT.parents[4])}: {image.width}x{image.height}, {path.stat().st_size} bytes')
 
-	cumulus_layers = (
-		('cloud_cumulus_sparse', cumulus_sparse_texture),
-		('cloud_cumulus_mid', cumulus_mid_texture),
-		('cloud_cumulus_long', cumulus_long_texture),
-		('cloud_cumulus_near', cumulus_near_texture),
-		('cloud_cumulus_horizon', cumulus_horizon_texture),
-	)
-	for name, builder in cumulus_layers:
-		image = builder()
-		path = OUTPUT / f'{name}.png'
-		image.save(path, optimize=True)
-		print(f'{path.relative_to(OUTPUT.parents[4])}: {image.width}x{image.height}, {path.stat().st_size} bytes')
+	image = atmospheric_cloud_texture(2917)
+	path = OUTPUT / 'cloud_atmosphere.png'
+	image.save(path, optimize=True)
+	print(f'{path.relative_to(OUTPUT.parents[4])}: {image.width}x{image.height}, {path.stat().st_size} bytes')
+
 
 
 if __name__ == '__main__':

@@ -1,6 +1,7 @@
 package xyz.attacktive.weatherd.domain.render
 
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import androidx.core.graphics.createBitmap
@@ -50,33 +51,21 @@ class CloudLayerTest {
 	}
 
 	@Test
-	fun cumulusTexturesDissolveBeforeTheirLowerEdge() {
-		val textures = listOf(
-			R.drawable.cloud_cumulus_sparse,
-			R.drawable.cloud_cumulus_near,
-			R.drawable.cloud_cumulus_horizon,
-		)
+	fun naturalAtmosphericCloudLayerHasSoftCoverage() {
+		val resourceId = resources.getIdentifier("cloud_atmosphere", "drawable", resources.getResourcePackageName(R.drawable.cloud_sheet_far))
+		assertTrue("Natural atmospheric cloud texture must be packaged", resourceId != 0)
 
-		for (texture in textures) {
-			val layer = CloudLayer(resources, texture)
-			val bitmap = render(layer)
-			val bottom = IntArray(bitmap.width)
-			bitmap.getPixels(bottom, 0, bitmap.width, 0, bitmap.height - 1, bitmap.width, 1)
-			assertTrue("Cumulus texture must dissolve before the bottom edge", bottom.all { Color.alpha(it) == 0 })
-			bitmap.recycle()
-		}
+		val bitmap = checkNotNull(BitmapFactory.decodeResource(resources, resourceId, BitmapFactory.Options().apply { inScaled = false }))
+		val pixels = IntArray(bitmap.width * bitmap.height)
+		bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+		val alphaLevels = pixels.map { Color.alpha(it) }.toSet().size
+		val softPixelCount = pixels.count { Color.alpha(it) in 1..254 }
+
+		assertTrue("Natural atmospheric cloud texture must preserve many alpha levels", alphaLevels > 32)
+		assertTrue("Natural atmospheric cloud texture must contain soft coverage", softPixelCount > pixels.size / 20)
+		bitmap.recycle()
 	}
 
-	@Test
-	fun cumulusUniformDrawWrapsSeamlessly() {
-		val layer = CloudLayer(resources, R.drawable.cloud_cumulus_near)
-		val period = layer.period(320f)
-		val before = renderUniform(layer, offset = -20f)
-		val after = renderUniform(layer, offset = period - 20f)
-		assertTrue("Uniform cumulus rendering must wrap seamlessly at period", before.sameAs(after))
-		before.recycle()
-		after.recycle()
-	}
 
 	private fun render(layer: CloudLayer, offset: Float = 0f, tint: Int = Color.WHITE, alpha: Int = 255): Bitmap {
 		val bitmap = createBitmap(540, 320)
@@ -84,9 +73,4 @@ class CloudLayerTest {
 		return bitmap
 	}
 
-	private fun renderUniform(layer: CloudLayer, offset: Float = 0f, tint: Int = Color.WHITE, alpha: Int = 255): Bitmap {
-		val bitmap = createBitmap(540, 320)
-		layer.drawUniform(Canvas(bitmap), bitmap.width.toFloat(), bitmap.height.toFloat(), offset, tint, alpha)
-		return bitmap
-	}
 }
