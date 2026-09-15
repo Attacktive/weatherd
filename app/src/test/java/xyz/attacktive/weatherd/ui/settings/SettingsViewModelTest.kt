@@ -24,6 +24,7 @@ import io.mockk.mockk
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -277,5 +278,31 @@ class SettingsViewModelTest {
 		advanceUntilIdle()
 
 		assertEquals(CitySearchState.Idle, viewModel.citySearch.value)
+	}
+
+	@Test
+	fun `an eligible query edit cancels an active in-flight request during debounce`() = runTest {
+		val viewModel = viewModel()
+		val tokyoDeferred = CompletableDeferred<Result<List<GeoPlace>>>()
+		val tokyoPlaces = listOf(GeoPlace(name = "Tokyo", latitude = 35.6895, longitude = 139.69171))
+		val tokyooPlaces = listOf(GeoPlace(name = "Tokyoo", latitude = 35.0, longitude = 139.0))
+		coEvery { geocodingRepository.search("Tokyo") } coAnswers { tokyoDeferred.await() }
+		coEvery { geocodingRepository.search("Tokyoo") } returns Result.success(tokyooPlaces)
+
+		viewModel.searchCityImmediately("Tokyo")
+		runCurrent()
+		assertEquals(CitySearchState.Loading, viewModel.citySearch.value)
+
+		viewModel.onCityQueryChange("Tokyoo")
+		runCurrent()
+
+		tokyoDeferred.complete(Result.success(tokyoPlaces))
+		runCurrent()
+
+		assertNotEquals(CitySearchState.Results(tokyoPlaces), viewModel.citySearch.value)
+
+		advanceTimeBy(400)
+		runCurrent()
+		assertEquals(CitySearchState.Results(tokyooPlaces), viewModel.citySearch.value)
 	}
 }

@@ -103,34 +103,24 @@ class SettingsViewModel @Inject constructor(
 		val debouncedTyping = typingQueries
 			.map { it.trim() }
 			.distinctUntilChanged()
-			.transformLatest { trimmed ->
-				if (trimmed.length >= 2) {
-					delay(CITY_SEARCH_DEBOUNCE_MILLIS)
-				}
-
-				emit(SearchTrigger.Debounced(trimmed))
-			}
+			.map { SearchTrigger.Debounced(it) }
 
 		val immediateSearch = immediateQueries
 			.map { SearchTrigger.Immediate(it.trim()) }
-
-		var lastSearchedQuery: String? = null
 
 		viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
 			merge(debouncedTyping, immediateSearch)
 				.collectLatest { trigger ->
 					val trimmed = trigger.query
 					if (trimmed.length < 2) {
-						lastSearchedQuery = null
 						_citySearch.value = CitySearchState.Idle
 						return@collectLatest
 					}
 
-					if (trigger is SearchTrigger.Debounced && trimmed == lastSearchedQuery) {
-						return@collectLatest
+					if (trigger is SearchTrigger.Debounced) {
+						delay(CITY_SEARCH_DEBOUNCE_MILLIS)
 					}
 
-					lastSearchedQuery = trimmed
 					_citySearch.value = CitySearchState.Loading
 
 					try {
