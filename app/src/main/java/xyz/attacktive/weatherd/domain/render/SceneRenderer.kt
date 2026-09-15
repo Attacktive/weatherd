@@ -65,6 +65,7 @@ class SceneRenderer(resources: Resources) {
 	private val nearCloudDeck by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_sheet_near) }
 	private val sparseCumulus by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_sparse) }
 	private val midCumulus by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_mid) }
+	private val longCumulus by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_long) }
 	private val nearCumulus by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_near) }
 	private val horizonCumulus by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_horizon) }
 	private val rainbow by lazy(LazyThreadSafetyMode.NONE) { RainbowLayer(resources, R.drawable.rainbow) }
@@ -1320,10 +1321,20 @@ class SceneRenderer(resources: Resources) {
 		val midTop = nearTop + height * 0.05f
 		val midPeriod = midCumulus.period(midHeight)
 		val midOffset = wrapOffset(timeSeconds * width * (0.003f + params.windFactor * 0.007f) * params.windScale + drift * 0.75f - width * 0.62f, midPeriod)
+		val longHeight = if (isPortrait) {
+			height * 0.22f
+		} else {
+			height * 0.26f
+		}
+		val longTop = nearTop + height * 0.14f
+		val longPeriod = longCumulus.period(longHeight)
+		val longOffset = wrapOffset(timeSeconds * width * (0.002f + params.windFactor * 0.005f) * params.windScale + drift * 0.52f - width * 0.34f, longPeriod)
 		val nearPeriod = nearCumulus.period(nearHeight)
 		val nearOffset = wrapOffset(timeSeconds * width * (0.0045f + params.windFactor * 0.010f) * params.windScale + drift - width * 0.45f, nearPeriod)
 		val midAlpha = (alpha * 0.48f).roundToInt().coerceIn(0, 255)
+		val longAlpha = (alpha * 0.42f).roundToInt().coerceIn(0, 255)
 		horizonCumulus.drawUniform(canvas, width, horizonHeight, horizonOffset, horizonMul, horizonAdd, horizonAlpha, horizonTop)
+		longCumulus.drawUniform(canvas, width, longHeight, longOffset, heroMultiply, heroShadowTint, longAlpha, longTop)
 		midCumulus.drawUniform(canvas, width, midHeight, midOffset, heroMultiply, heroShadowTint, midAlpha, midTop)
 		nearCumulus.drawUniform(canvas, width, nearHeight, nearOffset, heroMultiply, heroShadowTint, alpha, nearTop)
 	}

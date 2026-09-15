@@ -148,9 +148,9 @@ def extract_horizon_band():
 	return Image.fromarray(np.dstack([unmult.astype(np.uint8), alpha_soft.astype(np.uint8)]), 'RGBA')
 
 
-def paste_safe(canvas, sprite, cx, cy, scale=1.0):
-	w = int(sprite.width * scale)
-	h = int(sprite.height * scale)
+def paste_safe(canvas, sprite, cx, cy, scale=1.0, scale_x=1.0, scale_y=1.0):
+	w = int(sprite.width * scale * scale_x)
+	h = int(sprite.height * scale * scale_y)
 	scaled = sprite.resize((w, h), Image.Resampling.LANCZOS)
 	x = int(cx - w / 2)
 	y = int(cy - h / 2)
@@ -202,6 +202,15 @@ def cumulus_mid_texture():
 	return canvas
 
 
+def cumulus_long_texture():
+	clouds = load_hero_clouds()
+	canvas = Image.new('RGBA', (TEXTURE_WIDTH, HERO_TEXTURE_HEIGHT), (0, 0, 0, 0))
+	paste_safe(canvas, clouds[2], 360, 148, scale=0.30, scale_x=1.85, scale_y=0.70)
+	paste_safe(canvas, clouds[0], 1120, 126, scale=0.28, scale_x=2.05, scale_y=0.64)
+	paste_safe(canvas, clouds[1].transpose(Image.Transpose.FLIP_LEFT_RIGHT), 1840, 158, scale=0.31, scale_x=1.75, scale_y=0.68)
+	return canvas
+
+
 def cumulus_horizon_texture():
 	horizon_band = extract_horizon_band()
 	canvas = Image.new('RGBA', (TEXTURE_WIDTH, HORIZON_TEXTURE_HEIGHT), (0, 0, 0, 0))
@@ -224,6 +233,7 @@ def main():
 	cumulus_layers = (
 		('cloud_cumulus_sparse', cumulus_sparse_texture),
 		('cloud_cumulus_mid', cumulus_mid_texture),
+		('cloud_cumulus_long', cumulus_long_texture),
 		('cloud_cumulus_near', cumulus_near_texture),
 		('cloud_cumulus_horizon', cumulus_horizon_texture),
 	)
