@@ -1332,7 +1332,7 @@ class SceneRenderer(resources: Resources) {
 		val nearPeriod = nearCumulus.period(nearHeight)
 		val nearOffset = wrapOffset(timeSeconds * width * (0.0045f + params.windFactor * 0.010f) * params.windScale + drift - width * 0.45f, nearPeriod)
 		val midAlpha = (alpha * 0.48f).roundToInt().coerceIn(0, 255)
-		val longAlpha = (alpha * 0.42f).roundToInt().coerceIn(0, 255)
+		val longAlpha = (alpha * 0.60f).roundToInt().coerceIn(0, 255)
 		horizonCumulus.drawUniform(canvas, width, horizonHeight, horizonOffset, horizonMul, horizonAdd, horizonAlpha, horizonTop)
 		longCumulus.drawUniform(canvas, width, longHeight, longOffset, heroMultiply, heroShadowTint, longAlpha, longTop)
 		midCumulus.drawUniform(canvas, width, midHeight, midOffset, heroMultiply, heroShadowTint, midAlpha, midTop)

@@ -1,0 +1,7 @@
+These source masks are from the OpenGameArt.org asset "Clouds with Transparency" by WickedInsignia.
+
+Source: https://opengameart.org/content/clouds-with-transparency
+License: CC0 1.0 Universal (public domain dedication)
+License URL: https://creativecommons.org/publicdomain/zero/1.0/
+
+The selected PNG masks are recolored, cropped, scaled, and composited by scripts/generate-cloud-textures.py.

@@ -16,6 +16,7 @@ HERO_TEXTURE_HEIGHT = 320
 HORIZON_TEXTURE_HEIGHT = 200
 OUTPUT = Path(__file__).resolve().parents[1] / 'app/src/main/res/drawable-nodpi'
 ASSETS = Path(__file__).resolve().parent / 'assets'
+CC0_ASSETS = ASSETS / 'cc0-clouds'
 
 
 def smoothstep(low, high, values):
@@ -170,6 +171,41 @@ def load_hero_clouds():
 	return [cloud_a, cloud_b, cloud_c]
 
 
+def extract_cc0_cloud(path):
+	image = Image.open(path).convert('RGBA')
+	alpha = np.asarray(image.getchannel('A'), dtype=np.float32)
+	alpha = np.clip((alpha - 3.0) * 4.0, 0, 255)
+	alpha[alpha < 10] = 0
+	ys, xs = np.nonzero(alpha > 1)
+	if len(xs) == 0:
+		return Image.new('RGBA', (1, 1), (0, 0, 0, 0))
+
+	left = xs.min()
+	top = ys.min()
+	right = xs.max() + 1
+	bottom = ys.max() + 1
+	alpha = alpha[top:bottom, left:right]
+	height, width = alpha.shape
+	y = np.arange(height, dtype=np.float32)[:, None] / max(height - 1, 1)
+	brightness = np.clip(250 - 34 * y, 0, 255)
+	pixels = np.empty((height, width, 4), dtype=np.uint8)
+	pixels[:, :, 0] = brightness.astype(np.uint8)
+	pixels[:, :, 1] = np.clip(brightness + 4, 0, 255).astype(np.uint8)
+	pixels[:, :, 2] = np.clip(brightness + 12, 0, 255).astype(np.uint8)
+	pixels[:, :, 3] = alpha.astype(np.uint8)
+
+	return Image.fromarray(pixels, 'RGBA')
+
+
+def load_cc0_clouds():
+	return [
+		extract_cc0_cloud(CC0_ASSETS / 'fx_cloudalpha01.png'),
+		extract_cc0_cloud(CC0_ASSETS / 'fx_cloudalpha04.png'),
+		extract_cc0_cloud(CC0_ASSETS / 'fx_cloudalpha08.png'),
+		extract_cc0_cloud(CC0_ASSETS / 'fx_cloudalpha09.png'),
+	]
+
+
 def cumulus_sparse_texture():
 	clouds = load_hero_clouds()
 	canvas = Image.new('RGBA', (TEXTURE_WIDTH, HERO_TEXTURE_HEIGHT), (0, 0, 0, 0))
@@ -203,11 +239,12 @@ def cumulus_mid_texture():
 
 
 def cumulus_long_texture():
-	clouds = load_hero_clouds()
+	clouds = load_cc0_clouds()
 	canvas = Image.new('RGBA', (TEXTURE_WIDTH, HERO_TEXTURE_HEIGHT), (0, 0, 0, 0))
-	paste_safe(canvas, clouds[2], 360, 148, scale=0.30, scale_x=1.85, scale_y=0.70)
-	paste_safe(canvas, clouds[0], 1120, 126, scale=0.28, scale_x=2.05, scale_y=0.64)
-	paste_safe(canvas, clouds[1].transpose(Image.Transpose.FLIP_LEFT_RIGHT), 1840, 158, scale=0.31, scale_x=1.75, scale_y=0.68)
+	paste_safe(canvas, clouds[0], 330, 148, scale=0.50, scale_x=1.0, scale_y=0.35)
+	paste_safe(canvas, clouds[1], 1020, 132, scale=0.40, scale_x=1.20, scale_y=0.45)
+	paste_safe(canvas, clouds[2], 1580, 154, scale=0.30, scale_x=1.40, scale_y=0.30)
+	paste_safe(canvas, clouds[3], 2040, 140, scale=0.29, scale_x=1.50, scale_y=0.36)
 	return canvas
 
 
