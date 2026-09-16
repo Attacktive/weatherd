@@ -24,7 +24,6 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 	}
 
 	private var previousMultiply = Color.WHITE
-	private var previousAdd = Color.BLACK
 
 	fun draw(
 		canvas: Canvas,
@@ -32,20 +31,6 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		height: Float,
 		offset: Float,
 		tint: Int,
-		alpha: Int,
-		top: Float = 0f,
-		viewports: Float = CLOUD_TEXTURE_VIEWPORTS
-	) {
-		draw(canvas, width, height, offset, tint, Color.BLACK, alpha, top, viewports)
-	}
-
-	fun draw(
-		canvas: Canvas,
-		width: Float,
-		height: Float,
-		offset: Float,
-		multiplyColor: Int,
-		addColor: Int,
 		alpha: Int,
 		top: Float = 0f,
 		viewports: Float = CLOUD_TEXTURE_VIEWPORTS
@@ -61,21 +46,20 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		transform.setScale(width * viewports / bitmap.width, height / bitmap.height)
 		transform.postTranslate(offset, top)
 		cloudShader.setLocalMatrix(transform)
-		updateColorFilter(multiplyColor, addColor)
+		updateColorFilter(tint)
 		paint.alpha = alpha.coerceIn(0, 255)
 		canvas.drawRect(0f, top, width, top + height, paint)
 	}
 
-	private fun updateColorFilter(multiplyColor: Int, addColor: Int) {
-		if (multiplyColor != previousMultiply || addColor != previousAdd) {
-			paint.colorFilter = if (multiplyColor == Color.WHITE && addColor == Color.BLACK) {
+	private fun updateColorFilter(multiplyColor: Int) {
+		if (multiplyColor != previousMultiply) {
+			paint.colorFilter = if (multiplyColor == Color.WHITE) {
 				null
 			} else {
-				LightingColorFilter(multiplyColor, addColor)
+				LightingColorFilter(multiplyColor, Color.BLACK)
 			}
 
 			previousMultiply = multiplyColor
-			previousAdd = addColor
 		}
 	}
 
