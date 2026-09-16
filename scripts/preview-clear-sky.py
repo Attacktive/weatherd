@@ -2,13 +2,12 @@
 # requires-python = ">=3.12"
 # dependencies = ["numpy==2.5.3", "pillow==12.3.0"]
 # ///
-"""Preview the clear-sky cloud decks with `uv run scripts/preview-clear-sky.py [out.png]`.
+"""Preview the clear-sky cloud decks with `uv run scripts/preview-clear-sky.py [out.png]`."""
 
-This is a design aid, not a test.
-It re-implements just enough of `SceneRenderer.drawScatteredClouds` and `skyGradientFor` to judge a texture change in seconds instead of a build-and-install round trip, and it will drift from the Kotlin if nobody keeps it honest.
-Only the resting frame is drawn: wind is zero, so drift, bob and swell all sit at their `timeSeconds = 0` values.
-Whenever the deck geometry, the alpha ramp or the cumulus tint changes in Kotlin, mirror it here, and treat any disagreement with the device as the Kotlin being right.
-"""
+# This is a design aid, not a test.
+# It re-implements just enough of `SceneRenderer.drawScatteredClouds` and `skyGradientFor` to judge a texture change in seconds instead of a build-and-install round trip, and it will drift from the Kotlin if nobody keeps it honest.
+# Only the resting frame is drawn: wind is zero, so drift, bob and swell all sit at their `timeSeconds = 0` values.
+# Whenever the deck geometry, the alpha ramp or the cumulus tint changes in Kotlin, mirror it here, and treat any disagreement with the device as the Kotlin being right.
 
 import sys
 from pathlib import Path
@@ -77,7 +76,7 @@ def composite(destination, name, deck_height, offset, top, multiply, alpha, view
 
 def clear_sky(cloudiness, cloud_scale=1.0):
 	"""Mirrors drawScatteredClouds at timeSeconds = 0 with no wind."""
-	canvas, top, bottom = sky(cloudiness)
+	canvas, top, _ = sky(cloudiness)
 	coverage = float(np.clip((cloudiness - SCATTERED_FLOOR) / (DECK_THRESHOLD - SCATTERED_FLOOR), 0, 1))
 	step = coverage * (len(COVERAGE_STEPS) - 1)
 	lower = int(np.floor(step))
