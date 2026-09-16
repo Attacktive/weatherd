@@ -11,7 +11,7 @@ import android.graphics.Paint
 import android.graphics.Shader
 import androidx.annotation.DrawableRes
 
-/** Each generated texture covers four viewport widths before repeating. */
+/** How many viewport widths a texture covers before repeating, unless a deck asks for its own span. */
 internal const val CLOUD_TEXTURE_VIEWPORTS = 4f
 
 /** Reuses decoded cloud pixels, a sampling transform, and tint state between frames. */
@@ -26,8 +26,17 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 	private var previousMultiply = Color.WHITE
 	private var previousAdd = Color.BLACK
 
-	fun draw(canvas: Canvas, width: Float, height: Float, offset: Float, tint: Int, alpha: Int, top: Float = 0f) {
-		draw(canvas, width, height, offset, tint, Color.BLACK, alpha, top)
+	fun draw(
+		canvas: Canvas,
+		width: Float,
+		height: Float,
+		offset: Float,
+		tint: Int,
+		alpha: Int,
+		top: Float = 0f,
+		viewports: Float = CLOUD_TEXTURE_VIEWPORTS
+	) {
+		draw(canvas, width, height, offset, tint, Color.BLACK, alpha, top, viewports)
 	}
 
 	fun draw(
@@ -38,13 +47,18 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		multiplyColor: Int,
 		addColor: Int,
 		alpha: Int,
-		top: Float = 0f
+		top: Float = 0f,
+		viewports: Float = CLOUD_TEXTURE_VIEWPORTS
 	) {
 		if (width <= 0f || height <= 0f || alpha <= 0) {
 			return
 		}
 
-		transform.setScale(width * CLOUD_TEXTURE_VIEWPORTS / bitmap.width, height / bitmap.height)
+		/*
+		 * Fewer viewports shrink the sampled features, which is the only handle a deck has on apparent cloud size: the shader always stretches the texture across `width * viewports`.
+		 * A far deck asks for a smaller span so its clouds read as smaller and further away while sharing the texture's pixels.
+		 */
+		transform.setScale(width * viewports / bitmap.width, height / bitmap.height)
 		transform.postTranslate(offset, top)
 		cloudShader.setLocalMatrix(transform)
 		updateColorFilter(multiplyColor, addColor)

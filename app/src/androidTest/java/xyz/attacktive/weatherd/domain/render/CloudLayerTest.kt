@@ -1,12 +1,15 @@
 package xyz.attacktive.weatherd.domain.render
 
+import kotlin.math.abs
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
+import androidx.annotation.DrawableRes
 import androidx.core.graphics.createBitmap
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -51,26 +54,138 @@ class CloudLayerTest {
 	}
 
 	@Test
-	fun naturalAtmosphericCloudLayerHasSoftCoverage() {
-		val resourceId = resources.getIdentifier("cloud_atmosphere", "drawable", resources.getResourcePackageName(R.drawable.cloud_sheet_far))
-		assertTrue("Natural atmospheric cloud texture must be packaged", resourceId != 0)
+	fun aDeckWrapsOnItsOwnRepeatSpan() {
+		val layer = CloudLayer(resources, R.drawable.cloud_cumulus_far)
+		val before = render(layer, offset = -17.25f, viewports = 2f)
+		val after = render(layer, offset = 540f * 2f - 17.25f, viewports = 2f)
 
-		val bitmap = checkNotNull(BitmapFactory.decodeResource(resources, resourceId, BitmapFactory.Options().apply { inScaled = false }))
-		val pixels = IntArray(bitmap.width * bitmap.height)
-		bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
-		val alphaLevels = pixels.map { Color.alpha(it) }.toSet().size
-		val softPixelCount = pixels.count { Color.alpha(it) in 1..254 }
-
-		assertTrue("Natural atmospheric cloud texture must preserve many alpha levels", alphaLevels > 32)
-		assertTrue("Natural atmospheric cloud texture must contain soft coverage", softPixelCount > pixels.size / 20)
-		bitmap.recycle()
+		// A deck that asks for its own span has to wrap on that span, not on the default one, or its drift jumps every time it crosses the seam.
+		assertTrue("A two-viewport deck must repeat every two viewport widths", before.sameAs(after))
+		before.recycle()
+		after.recycle()
 	}
 
+	@Test
+	fun aShorterRepeatSpanSamplesFinerDetail() {
+		val layer = CloudLayer(resources, R.drawable.cloud_cumulus_far)
+		val wide = render(layer, viewports = 4f)
+		val narrow = render(layer, viewports = 2f)
 
-	private fun render(layer: CloudLayer, offset: Float = 0f, tint: Int = Color.WHITE, alpha: Int = 255): Bitmap {
+		/*
+		 * Halving the span halves the horizontal scale, so the same screen covers twice as much texture and the masses come out smaller.
+		 * Measuring how much neighboring columns differ says that without depending on where bilinear sampling lands a given pixel.
+		 */
+		val wideDetail = horizontalDetail(wide)
+		val narrowDetail = horizontalDetail(narrow)
+		assertTrue(
+			"A shorter span must sample finer detail, saw $wideDetail at four viewports and $narrowDetail at two",
+			narrowDetail > wideDetail
+		)
+
+		wide.recycle()
+		narrow.recycle()
+	}
+
+	@Test
+	fun everyCumulusDeckReachesFullyOpaqueCloud() {
+		/*
+		 * The guard on the whole texture set.
+		 * A deck whose densest pixel is translucent can never paint a sunlit crown white, however the renderer tints or composites it, which is exactly how these decks used to wash out.
+		 */
+		for (texture in CUMULUS_TEXTURES) {
+			val alpha = alphaHistogram(texture)
+			val opaque = alpha.drop(250).sum()
+			assertTrue("${name(texture)} must contain fully opaque cloud, not just a dense veil", opaque > 0)
+			assertTrue("${name(texture)} must keep many partial alpha levels for its edges", alpha.count { it > 0 } > 32)
+		}
+	}
+
+	@Test
+	fun coverageGrowsAcrossTheCumulusSteps() {
+		val covered = CUMULUS_COVERAGE_STEPS.map { texture ->
+			alphaHistogram(texture).drop(128).sum()
+		}
+
+		/*
+		 * Coverage lives in the textures rather than in a paint alpha, so the steps themselves have to differ.
+		 * If they ever stop growing, a cloudier sky silently becomes the same sky drawn less transparently.
+		 */
+		assertEquals("Expected one measurement per coverage step", CUMULUS_COVERAGE_STEPS.size, covered.size)
+		for (step in 1 until covered.size) {
+			assertTrue(
+				"Coverage step $step must cover more sky than step ${step - 1}, saw ${covered[step - 1]} then ${covered[step]}",
+				covered[step] > covered[step - 1]
+			)
+		}
+	}
+
+	@Test
+	fun everyCumulusDeckDissolvesAtBothEdges() {
+		for (texture in CUMULUS_TEXTURES) {
+			val bitmap = decode(texture)
+			val row = IntArray(bitmap.width)
+			bitmap.getPixels(row, 0, bitmap.width, 0, 0, bitmap.width, 1)
+			assertTrue("${name(texture)} must not start on a visible horizontal line", row.all { Color.alpha(it) == 0 })
+			bitmap.getPixels(row, 0, bitmap.width, 0, bitmap.height - 1, bitmap.width, 1)
+			assertTrue("${name(texture)} must not end on a visible horizontal line", row.all { Color.alpha(it) == 0 })
+			bitmap.recycle()
+		}
+	}
+
+	private fun alphaHistogram(@DrawableRes texture: Int): IntArray {
+		val bitmap = decode(texture)
+		val pixels = IntArray(bitmap.width * bitmap.height)
+		bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+		val histogram = IntArray(256)
+		for (pixel in pixels) {
+			histogram[Color.alpha(pixel)]++
+		}
+
+		bitmap.recycle()
+
+		return histogram
+	}
+
+	private fun decode(@DrawableRes texture: Int) =
+		checkNotNull(BitmapFactory.decodeResource(resources, texture, BitmapFactory.Options().apply { inScaled = false }))
+
+	private fun name(@DrawableRes texture: Int) = resources.getResourceEntryName(texture)
+
+	/** Mean absolute difference between horizontally adjacent pixels: higher means the deck is resolving smaller features. */
+	private fun horizontalDetail(bitmap: Bitmap): Double {
+		val pixels = IntArray(bitmap.width * bitmap.height)
+		bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+		var total = 0L
+		for (y in 0 until bitmap.height) {
+			for (x in 1 until bitmap.width) {
+				total += channelDistance(pixels[y * bitmap.width + x], pixels[y * bitmap.width + x - 1])
+			}
+		}
+
+		return total.toDouble() / (bitmap.height * (bitmap.width - 1))
+	}
+
+	private fun channelDistance(a: Int, b: Int) =
+		abs(Color.red(a) - Color.red(b)) + abs(Color.green(a) - Color.green(b)) + abs(Color.blue(a) - Color.blue(b)) + abs(Color.alpha(a) - Color.alpha(b))
+
+	private fun render(
+		layer: CloudLayer,
+		offset: Float = 0f,
+		tint: Int = Color.WHITE,
+		alpha: Int = 255,
+		viewports: Float = CLOUD_TEXTURE_VIEWPORTS
+	): Bitmap {
 		val bitmap = createBitmap(540, 320)
-		layer.draw(Canvas(bitmap), bitmap.width.toFloat(), bitmap.height.toFloat(), offset, tint, alpha)
+		layer.draw(Canvas(bitmap), bitmap.width.toFloat(), bitmap.height.toFloat(), offset, tint, alpha, 0f, viewports)
+
 		return bitmap
+	}
+
+	private companion object {
+		/** The near deck's coverage steps, in the order the renderer cross-fades them. */
+		val CUMULUS_COVERAGE_STEPS = listOf(R.drawable.cloud_cumulus_sparse, R.drawable.cloud_cumulus_scattered, R.drawable.cloud_cumulus_broken)
+
+		val CUMULUS_TEXTURES = CUMULUS_COVERAGE_STEPS + R.drawable.cloud_cumulus_far
 	}
 
 }
