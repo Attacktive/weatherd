@@ -25,6 +25,14 @@ FAR_VIEWPORTS = 2.5
 DECK_THRESHOLD = 0.75
 SCATTERED_FLOOR = 0.1
 
+# Mirrors CloudLayer's fair-weather depth correction.
+NEAR_HEIGHT_SCALE = 1.12
+NEAR_RISE = 0.12
+FAR_HEIGHT_SCALE = 0.85
+FAR_DROP = 0.18
+FAR_ALPHA_FLOOR = 35
+FAR_ALPHA_SCALE = 0.75
+
 # Mirrors ScenePalette.basePhaseGradient(DAY) and phaseGray(DAY), plus OVERCAST_GRAY_FLOOR and OVERCAST_GRAY_FULL.
 SKY_TOP = np.array([74, 144, 217], dtype=np.float32)
 SKY_BOTTOM = np.array([169, 214, 245], dtype=np.float32)
@@ -71,7 +79,12 @@ def composite(destination, name, deck_height, offset, top, multiply, alpha, view
 	opacity = patch[:, :, 3:4] / 255.0 * (alpha / 255.0)
 	rows = slice(max(int(top), 0), min(int(top) + int(deck_height), HEIGHT))
 	span = rows.stop - rows.start
-	destination[rows] = rgb[:span] * opacity[:span] + destination[rows] * (1 - opacity[:span])
+	if span <= 0:
+		return
+
+	patch_start = max(-int(top), 0)
+	patch_end = patch_start + span
+	destination[rows] = rgb[patch_start:patch_end] * opacity[patch_start:patch_end] + destination[rows] * (1 - opacity[patch_start:patch_end])
 
 
 def clear_sky(cloudiness, cloud_scale=1.0):
@@ -84,21 +97,28 @@ def clear_sky(cloudiness, cloud_scale=1.0):
 	near_color = CUMULUS_TINT
 	far_color = lerp(CUMULUS_TINT, top, 0.35)
 
-	# The sun sits at 0.17 of the height at midday, and the deck is kept below its lower limb.
+	# SceneRenderer still places the base deck below the sun. CloudLayer then raises the near masses enough that drifting clouds can naturally cross its disc.
 	cloud_top = max(HEIGHT * 0.10, HEIGHT * 0.17 + WIDTH * 0.072 * 1.8 - HEIGHT * 0.08)
 	far_top = cloud_top + HEIGHT * 0.22
 	far_height = HEIGHT * 0.34
 	near_height = HEIGHT * 0.46
 	near_alpha = round(248 * cloud_scale)
 
-	# The far deck thins with coverage rather than growing, because distance is carried by haze and size.
-	composite(canvas, FAR_TEXTURE, far_height, -WIDTH * 0.34, far_top, far_color, round((70 + 90 * coverage) * cloud_scale), FAR_VIEWPORTS)
+	# Mirrors CloudLayer's depth correction without changing the repeat-span contract.
+	far_draw_top = far_top + far_height * FAR_DROP
+	far_draw_height = far_height * FAR_HEIGHT_SCALE
+	far_alpha = max(round(((70 + 90 * coverage) * cloud_scale - FAR_ALPHA_FLOOR) * FAR_ALPHA_SCALE), 0)
+	near_draw_top = cloud_top - near_height * NEAR_RISE
+	near_draw_height = near_height * NEAR_HEIGHT_SCALE
+
+	# The far deck stays faint and low, especially in mostly-clear weather, so it reads as atmosphere rather than another foreground sheet.
+	composite(canvas, FAR_TEXTURE, far_draw_height, -WIDTH * 0.34, far_draw_top, far_color, far_alpha, FAR_VIEWPORTS)
 
 	for index, weight in ((lower, 1.0), (lower + 1, blend)):
 		if index >= len(COVERAGE_STEPS) or weight < 0.02:
 			continue
 
-		composite(canvas, COVERAGE_STEPS[index], near_height, -WIDTH * 0.78, cloud_top, near_color, round(near_alpha * weight), NEAR_VIEWPORTS)
+		composite(canvas, COVERAGE_STEPS[index], near_draw_height, -WIDTH * 0.78, near_draw_top, near_color, round(near_alpha * weight), NEAR_VIEWPORTS)
 
 	luma = 0.2126 * canvas[:, :, 0] + 0.7152 * canvas[:, :, 1] + 0.0722 * canvas[:, :, 2]
 	print(f'cloudiness={cloudiness:.2f} coverage={coverage:.2f} step={COVERAGE_STEPS[lower]}+{blend:.2f}', end=' ')
