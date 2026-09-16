@@ -1155,10 +1155,10 @@ class SceneRenderer(resources: Resources) {
 		val bobAmplitude = height * 0.006f * params.windScale
 		val bob = bobAmplitude * (0.65f * sin(timeSeconds * 0.4f) + 0.35f * sin(timeSeconds * 1.07f))
 		val swell = 0.9f + 0.1f * (0.7f * sin(timeSeconds * 0.55f) + 0.3f * sin(timeSeconds * 1.31f))
-		val backAlpha = (255f * 0.34f * params.cloudScale).roundToInt()
-		val frontAlpha = (255f * 0.46f * params.cloudScale * swell).roundToInt()
-		farCloudDeck.draw(canvas, width, height * 0.42f + bobAmplitude, backOffset, darken(color, 0.94f), backAlpha, bob - bobAmplitude)
-		nearCloudDeck.draw(canvas, width, height * 0.33f + bobAmplitude * 1.5f, frontOffset, color, frontAlpha, -bob * 1.5f - bobAmplitude * 1.5f)
+		val backAlpha = (255f * 0.40f * params.cloudScale).roundToInt()
+		val frontAlpha = (255f * 0.54f * params.cloudScale * swell).roundToInt()
+		farCloudDeck.draw(canvas, width, height * 0.50f + bobAmplitude, backOffset, darken(color, 0.94f), backAlpha, bob - bobAmplitude)
+		nearCloudDeck.draw(canvas, width, height * 0.42f + bobAmplitude * 1.5f, frontOffset, color, frontAlpha, -bob * 1.5f - bobAmplitude * 1.5f)
 	}
 
 	/**
