@@ -11,5 +11,6 @@ local.properties
 .superpowers/
 .kotlin/
 .screenshots/
+__pycache__/
 
 release.keystore

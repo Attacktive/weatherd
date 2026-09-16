@@ -129,11 +129,22 @@ private fun snowGray(dayPhase: DayPhase) = when (dayPhase) {
 /**
  * How far the sky blends toward gray. Fog and precipitation force their own grayness; otherwise cloud cover drives it (calibrated so 5% cover reads clear and 85% reads fully overcast).
  */
+/**
+ * How far the sky is pulled from its clear color toward gray.
+ * A dry sky holds its full blue until the overcast ceiling starts drawing, because scattered cumulus darken a sky by covering it, not by draining the color out of the gaps between them.
+ * Graying earlier than that leaves white clouds sitting on a washed-out sky with nothing to read against, which is the opposite of what cloud cover looks like.
+ */
 private fun overcastAmount(params: SceneParams): Float = when {
 	params.fogDensity > 0f -> 0.85f
 	params.precipitation != null -> precipitationGray(params.precipitation)
-	else -> ((params.cloudiness - 0.05f) * (0.85f / 0.8f)).coerceIn(0f, 1f)
+	else -> ((params.cloudiness - OVERCAST_GRAY_FLOOR) / (OVERCAST_GRAY_FULL - OVERCAST_GRAY_FLOOR)).coerceIn(0f, 1f)
 }
+
+/** The cloudiness at which a dry sky starts graying, matching where the renderer starts drawing an overcast ceiling. */
+private const val OVERCAST_GRAY_FLOOR = 0.55f
+
+/** The cloudiness at which a dry sky has given up its blue entirely. */
+private const val OVERCAST_GRAY_FULL = 0.85f
 
 private fun precipitationGray(precipitation: Precipitation) = when (precipitation.kind) {
 	PrecipitationKind.SNOW -> 0.6f

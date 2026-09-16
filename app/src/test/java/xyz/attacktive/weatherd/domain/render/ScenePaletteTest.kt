@@ -2,6 +2,7 @@ package xyz.attacktive.weatherd.domain.render
 
 import kotlin.math.abs
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import xyz.attacktive.weatherd.domain.model.DayPhase
@@ -90,6 +91,33 @@ class ScenePaletteTest {
 			"far water should sit closer to its plane tone than near water does",
 			channelDistance(farWater, farTone) < channelDistance(nearWater, nearTone)
 		)
+	}
+
+	@Test
+	fun `a scattered sky keeps the clear day blue`() {
+		val clear = skyGradientFor(clearParams(DayPhase.DAY))
+		val scattered = skyGradientFor(clearParams(DayPhase.DAY).copy(cloudiness = 0.5f))
+
+		// Cumulus darken a sky by covering it, so the gaps between them stay as blue as an empty sky does.
+		assertEquals("scattered cloud must not drain the sky's blue", clear, scattered)
+	}
+
+	@Test
+	fun `the sky starts graying where the overcast ceiling starts drawing`() {
+		val clear = skyGradientFor(clearParams(DayPhase.DAY))
+		val atThreshold = skyGradientFor(clearParams(DayPhase.DAY).copy(cloudiness = 0.55f))
+		val pastThreshold = skyGradientFor(clearParams(DayPhase.DAY).copy(cloudiness = 0.65f))
+
+		assertEquals("blue must hold right up to the ceiling threshold", clear, atThreshold)
+		assertNotEquals("past the threshold the sky must start graying", clear, pastThreshold)
+	}
+
+	@Test
+	fun `an overcast sky gives up its blue entirely`() {
+		val overcast = skyGradientFor(clearParams(DayPhase.DAY).copy(cloudiness = 0.85f))
+
+		// Both ends have reached the same gray, so the gradient has no blue left to lose.
+		assertEquals("a fully overcast sky should flatten to the phase gray", overcast.topColor, overcast.bottomColor)
 	}
 
 	private fun clearParams(dayPhase: DayPhase) = SceneParams(

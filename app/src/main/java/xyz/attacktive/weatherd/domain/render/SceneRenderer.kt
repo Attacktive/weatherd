@@ -35,7 +35,7 @@ import xyz.attacktive.weatherd.domain.weather.SEVERITY_STEADY
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_STORM
 
 /**
- * Draws a weather scene onto a Canvas using procedural scenery and original cloud textures.
+ * Draws a weather scene onto a Canvas using procedural scenery and generated cloud textures.
  * Split into a static [renderBackdrop] (sky, overcast ceiling, fog base, haze, vignette — cache it) and an animated [renderForeground] (twinkling stars, a glowing sun/moon, the horizon scenery, drifting clouds/overcast/mist, precipitation, lightning) advanced by `timeSeconds`.
  * Cloud sheets are decoded once and sampled through repeating bitmap shaders; fog uses cached scrolling tiles, so neither regenerates textures per frame.
  */
@@ -61,8 +61,19 @@ class SceneRenderer(resources: Resources) {
 	private var sceneryGlyphPaths: List<SceneryLayerPath> = emptyList()
 	private var sceneryWindmill: SceneryWindmill? = null
 	private val tiles = HashMap<String, Bitmap>()
-	private val farClouds by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_sheet_far) }
-	private val nearClouds by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_sheet_near) }
+	private val farCloudDeck by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_sheet_far) }
+	private val nearCloudDeck by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_sheet_near) }
+	private val farCumulusDeck by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_far) }
+
+	/*
+	 * The clear-sky decks, ordered from fewest masses to most, matching CUMULUS_COVERAGE in scripts/generate-cloud-textures.py.
+	 * Each is decoded on first use and kept, so a sky that never leaves one coverage step never pays for the others.
+	 */
+	private val cumulusSteps = listOf(
+		lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_sparse) },
+		lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_scattered) },
+		lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_broken) }
+	)
 	private val rainbow by lazy(LazyThreadSafetyMode.NONE) { RainbowLayer(resources, R.drawable.rainbow) }
 	private var tilesKey: String? = null
 	private var rainPoints = FloatArray(0)
@@ -167,7 +178,7 @@ class SceneRenderer(resources: Resources) {
 			drawBirds(canvas, w, h, timeSeconds, params.dayPhase)
 		}
 
-		if (params.precipitation == null && params.cloudiness > 0.1f && params.cloudiness <= 0.55f) {
+		if (params.precipitation == null && params.cloudiness > SCATTERED_CLOUD_FLOOR && params.cloudiness <= CLOUD_DECK_THRESHOLD) {
 			drawScatteredClouds(canvas, w, h, params, timeSeconds)
 		}
 
@@ -1144,10 +1155,10 @@ class SceneRenderer(resources: Resources) {
 		val bobAmplitude = height * 0.006f * params.windScale
 		val bob = bobAmplitude * (0.65f * sin(timeSeconds * 0.4f) + 0.35f * sin(timeSeconds * 1.07f))
 		val swell = 0.9f + 0.1f * (0.7f * sin(timeSeconds * 0.55f) + 0.3f * sin(timeSeconds * 1.31f))
-		val backAlpha = (255f * 0.34f * params.cloudScale).roundToInt()
-		val frontAlpha = (255f * 0.46f * params.cloudScale * swell).roundToInt()
-		farClouds.draw(canvas, width, height * 0.42f + bobAmplitude, backOffset, darken(color, 0.94f), backAlpha, bob - bobAmplitude)
-		nearClouds.draw(canvas, width, height * 0.33f + bobAmplitude * 1.5f, frontOffset, color, frontAlpha, -bob * 1.5f - bobAmplitude * 1.5f)
+		val backAlpha = (255f * 0.40f * params.cloudScale).roundToInt()
+		val frontAlpha = (255f * 0.54f * params.cloudScale * swell).roundToInt()
+		farCloudDeck.draw(canvas, width, height * 0.50f + bobAmplitude, backOffset, darken(color, 0.94f), backAlpha, bob - bobAmplitude)
+		nearCloudDeck.draw(canvas, width, height * 0.42f + bobAmplitude * 1.5f, frontOffset, color, frontAlpha, -bob * 1.5f - bobAmplitude * 1.5f)
 	}
 
 	/**
@@ -1210,18 +1221,155 @@ class SceneRenderer(resources: Resources) {
 		paint.style = Paint.Style.FILL
 	}
 
+	/**
+	 * The clear-sky deck: fair-weather cumulus over blue, rather than a veil whose opacity stands in for how much cloud there is.
+	 * Coverage lives in the textures, as three cuts of one noise field, which is what frees the paint to stay near opaque so a sunlit crown can actually reach white.
+	 * A far deck of smaller, hazier masses sits lower toward the horizon, and the near deck of full-size masses rides above it.
+	 */
 	private fun drawScatteredClouds(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
-		val coverage = params.cloudiness / 0.4f
-		val color = cloudTint(params.dayPhase)
-		val period = width * CLOUD_TEXTURE_VIEWPORTS
-		val farAlpha = (255f * 0.23f * coverage * params.cloudScale).roundToInt()
-		val nearAlpha = (255f * 0.48f * coverage * params.cloudScale).roundToInt()
-		val surge = width * 0.005f * params.windFactor * params.windScale
+		val coverage = ((params.cloudiness - SCATTERED_CLOUD_FLOOR) / (CLOUD_DECK_THRESHOLD - SCATTERED_CLOUD_FLOOR)).coerceIn(0f, 1f)
+		val cloudTop = scatteredCloudTop(width, height, params)
+
+		drawSunVeil(canvas, width, height, params)
+		drawFarCumulus(canvas, width, height, params, timeSeconds, coverage, cloudTop)
+		drawNearCumulus(canvas, width, height, params, timeSeconds, coverage, cloudTop)
+	}
+
+	/** Where the decks may start: clear of the sun's lower limb, so a cloud never swallows the disc the rest of the scene is lit by. */
+	private fun scatteredCloudTop(width: Float, height: Float, params: SceneParams): Float {
+		val sunBottom = if (params.dayPhase == DayPhase.NIGHT) {
+			0f
+		} else {
+			height * celestialHeightFraction(params.dayPhase, params.celestialProgress) + minOf(width, height) * SUN_RADIUS_FRACTION * 1.8f
+		}
+
+		val ceiling = if (width < height) {
+			height * 0.10f
+		} else {
+			height * 0.08f
+		}
+
+		return maxOf(ceiling, sunBottom - height * 0.08f)
+	}
+
+	/** The pale wash the sun throws onto the air around it; drawn under the decks so a cloud crossing it still reads as solid. */
+	private fun drawSunVeil(canvas: Canvas, width: Float, height: Float, params: SceneParams) {
+		if (params.dayPhase == DayPhase.NIGHT) {
+			return
+		}
+
+		val veilAlpha = (255f * 0.22f * (params.cloudiness / 0.55f) * params.cloudScale).roundToInt().coerceIn(0, 255)
+		if (veilAlpha <= 0) {
+			return
+		}
+
+		val veilTint = when (params.dayPhase) {
+			DayPhase.DAY -> Color.rgb(215, 228, 245)
+			DayPhase.DAWN -> Color.rgb(240, 220, 225)
+			DayPhase.DUSK -> Color.rgb(230, 205, 215)
+			DayPhase.NIGHT -> Color.rgb(64, 72, 90)
+		}
+
+		val atmosphere = tile("sunVeil-${params.dayPhase}", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildSunAtmosphereSprite(it, veilTint) }
+		blitSprite(
+			canvas,
+			atmosphere,
+			width * CELESTIAL_X_FRACTION,
+			height * celestialHeightFraction(params.dayPhase, params.celestialProgress),
+			min(width, height) * SUN_RADIUS_FRACTION * 3.6f,
+			veilAlpha
+		)
+	}
+
+	/**
+	 * The distant deck: one texture at a shorter repeat span, so its masses come out smaller, sitting lower and closer to the horizon.
+	 * Distance is carried by haze and size rather than by coverage, so this deck thickens with cloudiness instead of growing new clouds.
+	 */
+	private fun drawFarCumulus(
+		canvas: Canvas,
+		width: Float,
+		height: Float,
+		params: SceneParams,
+		timeSeconds: Float,
+		coverage: Float,
+		cloudTop: Float
+	) {
+		val isPortrait = width < height
+		val tint = lerpColor(cumulusTint(params.dayPhase), skyGradientFor(params).topColor, CUMULUS_FAR_HAZE)
+		val alpha = ((CUMULUS_FAR_MIN_ALPHA + CUMULUS_FAR_ALPHA_RANGE * coverage) * params.cloudScale).roundToInt().coerceIn(0, 255)
+		val drop = if (isPortrait) {
+			height * 0.22f
+		} else {
+			height * 0.18f
+		}
+
+		val deckHeight = if (isPortrait) {
+			height * 0.34f
+		} else {
+			height * 0.30f
+		}
+
+		farCumulusDeck.draw(
+			canvas,
+			width,
+			deckHeight,
+			cumulusOffset(width, params, timeSeconds, 0.004f + params.windFactor * 0.008f, 1f, 0.34f, CUMULUS_FAR_VIEWPORTS),
+			tint,
+			alpha,
+			cloudTop + drop,
+			CUMULUS_FAR_VIEWPORTS
+		)
+	}
+
+	/**
+	 * The near deck: full-size masses at the coverage the weather asks for.
+	 * The steps share a noise field, so drawing the next one over the current at partial alpha grows each mass rather than dissolving it into a different sky.
+	 */
+	private fun drawNearCumulus(
+		canvas: Canvas,
+		width: Float,
+		height: Float,
+		params: SceneParams,
+		timeSeconds: Float,
+		coverage: Float,
+		cloudTop: Float
+	) {
+		val tint = cumulusTint(params.dayPhase)
+		val offset = cumulusOffset(width, params, timeSeconds, 0.008f + params.windFactor * 0.016f, 1.5f, 0.78f, CLOUD_TEXTURE_VIEWPORTS)
+		val deckHeight = if (width < height) {
+			height * 0.46f
+		} else {
+			height * 0.40f
+		}
+
+		val step = coverage * (cumulusSteps.size - 1)
+		val lower = step.toInt().coerceAtMost(cumulusSteps.size - 1)
+		val blend = step - lower
+		val alpha = (CUMULUS_NEAR_ALPHA * params.cloudScale).roundToInt().coerceIn(0, 255)
+		cumulusSteps[lower].value.draw(canvas, width, deckHeight, offset, tint, alpha, cloudTop)
+
+		// The step above draws over the one below rather than beside it, so the masses they share stay opaque all the way through the fade.
+		val upper = lower + 1
+		if (upper < cumulusSteps.size && blend >= CUMULUS_BLEND_FLOOR) {
+			val growth = (CUMULUS_NEAR_ALPHA * blend * params.cloudScale).roundToInt().coerceIn(0, 255)
+			cumulusSteps[upper].value.draw(canvas, width, deckHeight, offset, tint, growth, cloudTop)
+		}
+	}
+
+	/** A deck's horizontal position: a steady drift at its own speed plus a shared gust, wrapped to that deck's own repeat span. */
+	private fun cumulusOffset(
+		width: Float,
+		params: SceneParams,
+		timeSeconds: Float,
+		speed: Float,
+		gust: Float,
+		phase: Float,
+		viewports: Float
+	): Float {
+		val surge = width * 0.004f * params.windFactor * params.windScale
 		val drift = surge * (0.6f * sin(timeSeconds * 0.19f) + 0.4f * sin(timeSeconds * 0.47f))
-		val farOffset = wrapOffset(timeSeconds * width * (0.003f + params.windFactor * 0.01f) * params.windScale + drift * 0.6f - width * 0.43f, period)
-		val nearOffset = wrapOffset(timeSeconds * width * (0.008f + params.windFactor * 0.02f) * params.windScale + drift - width * 1.3f, period)
-		farClouds.draw(canvas, width, height * 0.42f, farOffset, color, farAlpha)
-		nearClouds.draw(canvas, width, height * 0.33f, nearOffset, color, nearAlpha)
+
+		return wrapOffset(timeSeconds * width * speed * params.windScale + drift * gust - width * phase, width * viewports)
 	}
 
 	/** Soft blurred blobs scattered across a tile — used for rolling fog. */
@@ -1999,8 +2147,30 @@ class SceneRenderer(resources: Resources) {
 		 */
 		private const val TILE_DOWNSCALE = 4f
 
-		/** Above this cloud cover the sky reads as a solid deck: the sun/moon disappears and the drift layers churn. */
+		private const val MOSTLY_CLEAR_THRESHOLD = 0.3f
 		private const val CLOUD_DECK_THRESHOLD = 0.75f
+
+		/** Below this cloudiness the sky is drawn empty: a genuinely clear day has no cumulus in it, not a faint suggestion of some. */
+		private const val SCATTERED_CLOUD_FLOOR = 0.1f
+
+		/**
+		 * The near cumulus deck draws very close to opaque, which is the whole point of moving coverage into the textures.
+		 * A sunlit crown has to be able to reach white, and it cannot if the deck's own paint is holding it back.
+		 */
+		private const val CUMULUS_NEAR_ALPHA = 248f
+
+		/** The far deck's repeat span: shorter than the near deck's, which is what makes the same kind of mass come out smaller and read as distant. */
+		private const val CUMULUS_FAR_VIEWPORTS = 2.5f
+
+		/** How far the far deck's tint is pulled toward the sky above it, standing in for the air between. */
+		private const val CUMULUS_FAR_HAZE = 0.35f
+
+		/** The far deck's opacity at the scattered-cloud floor, and how much more it gains by the overcast threshold. */
+		private const val CUMULUS_FAR_MIN_ALPHA = 70f
+		private const val CUMULUS_FAR_ALPHA_RANGE = 90f
+
+		/** Cross-fade weights below this draw nothing, so the common case stays at two deck draws rather than three. */
+		private const val CUMULUS_BLEND_FLOOR = 0.02f
 
 		/** Severity at and above which rain becomes a downpour and snow a blizzard (thicker, faster, more slanted). */
 		private const val HEAVY_SEVERITY = 0.85f
@@ -2274,12 +2444,25 @@ private fun sunColor(dayPhase: DayPhase) = when (dayPhase) {
 	else -> Color.rgb(255, 248, 218)
 }
 
+/**
+ * The multiply a cumulus deck draws through.
+ * The textures carry their own sunlit-to-shadow ramp, so daylight has to pass through untouched or the shading gets applied twice and the crowns go gray.
+ */
+private fun cumulusTint(dayPhase: DayPhase) = when (dayPhase) {
+	DayPhase.DAY -> Color.WHITE
+	DayPhase.DAWN -> Color.rgb(252, 226, 224)
+	DayPhase.DUSK -> Color.rgb(246, 206, 198)
+	DayPhase.NIGHT -> Color.rgb(86, 96, 120)
+}
+
+
 private fun cloudTint(dayPhase: DayPhase) = when (dayPhase) {
 	DayPhase.DAY -> Color.rgb(238, 242, 248)
 	DayPhase.DAWN -> Color.rgb(226, 206, 214)
 	DayPhase.DUSK -> Color.rgb(198, 176, 184)
 	DayPhase.NIGHT -> Color.rgb(64, 72, 90)
 }
+
 
 private fun overcastCeiling(dayPhase: DayPhase) = when (dayPhase) {
 	DayPhase.DAY -> Color.rgb(120, 128, 140)
