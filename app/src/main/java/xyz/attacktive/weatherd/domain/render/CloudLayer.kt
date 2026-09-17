@@ -131,11 +131,11 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 
 		for (placement in placements) {
 			val sprite = cumulusBitmaps[placement.spriteIndex % cumulusBitmaps.size]
-			val spriteHeight = style.baseHeight * placement.scale * style.heightScale
-			val spriteWidth = spriteHeight * sprite.width.toFloat() / sprite.height.toFloat() * style.widthScale
+			val spriteHeight = style.baseHeight * placement.scale * style.scale.height
+			val spriteWidth = spriteHeight * sprite.width.toFloat() / sprite.height.toFloat() * style.scale.width
 			val centerY = geometry.top - style.topOffset + geometry.height * placement.yFraction
 			val centerX = positiveModulo(geometry.offset + period * placement.xFraction, period)
-			val spriteAlpha = (compositionAlpha * style.alphaScale * style.variantAlphaScale * placement.alphaScale).toInt().coerceIn(0, 255)
+			val spriteAlpha = (compositionAlpha * style.scale.alpha * placement.alphaScale).toInt().coerceIn(0, 255)
 			if (spriteAlpha <= 0) {
 				continue
 			}
@@ -158,22 +158,24 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 			return CumulusStyle(
 				tint = liftTowardWhite(tint, FAR_CUMULUS_TINT_LIFT),
 				baseHeight = min(width * FAR_BASE_HEIGHT_TO_WIDTH, height * FAR_BASE_HEIGHT_TO_DECK),
-				alphaScale = FAR_CUMULUS_ALPHA_SCALE,
 				topOffset = height * FAR_CUMULUS_RISE,
-				heightScale = FAR_VEIL_HEIGHT_SCALE,
-				widthScale = FAR_VEIL_WIDTH_SCALE,
-				variantAlphaScale = FAR_VEIL_ALPHA_SCALE
+				scale = CumulusScale(
+					width = FAR_VEIL_WIDTH_SCALE,
+					height = FAR_VEIL_HEIGHT_SCALE,
+					alpha = FAR_CUMULUS_ALPHA_SCALE * FAR_VEIL_ALPHA_SCALE
+				)
 			)
 		}
 
 		return CumulusStyle(
 			tint = tint,
 			baseHeight = min(width * 0.22f, height * 0.48f),
-			alphaScale = HERO_CUMULUS_ALPHA_SCALE,
 			topOffset = 0f,
-			heightScale = 1f,
-			widthScale = 1f,
-			variantAlphaScale = 1f
+			scale = CumulusScale(
+				width = 1f,
+				height = 1f,
+				alpha = HERO_CUMULUS_ALPHA_SCALE
+			)
 		)
 	}
 
@@ -487,7 +489,9 @@ private class CloudGeometry {
 
 private data class PlacementTuning(val xJitter: Float, val yJitter: Float, val scaleJitter: Float, val alphaJitter: Float, val minY: Float, val maxY: Float)
 
-private data class CumulusStyle(val tint: Int, val baseHeight: Float, val alphaScale: Float, val topOffset: Float, val heightScale: Float, val widthScale: Float, val variantAlphaScale: Float)
+private data class CumulusStyle(val tint: Int, val baseHeight: Float, val topOffset: Float, val scale: CumulusScale)
+
+private data class CumulusScale(val width: Float, val height: Float, val alpha: Float)
 
 private data class CumulusAnchor(val xFraction: Float, val yFraction: Float, val scale: Float, val alphaScale: Float = 1f)
 
