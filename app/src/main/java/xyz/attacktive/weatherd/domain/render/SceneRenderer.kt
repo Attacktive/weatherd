@@ -74,6 +74,7 @@ class SceneRenderer(resources: Resources) {
 		lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_scattered) },
 		lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_broken) }
 	)
+
 	private val rainbow by lazy(LazyThreadSafetyMode.NONE) { RainbowLayer(resources, R.drawable.rainbow) }
 	private var tilesKey: String? = null
 	private var rainPoints = FloatArray(0)
@@ -88,14 +89,16 @@ class SceneRenderer(resources: Resources) {
 	private val photoDest = RectF()
 
 	/** Additive-ish compositing for anything that is light rather than surface: the sun's bloom, its streak, and its lens ghosts. */
-	private val glowPaint = Paint(Paint.FILTER_BITMAP_FLAG).apply {
-		xfermode = PorterDuffXfermode(PorterDuff.Mode.SCREEN)
-	}
+	private val glowPaint = Paint(Paint.FILTER_BITMAP_FLAG)
+		.apply {
+			xfermode = PorterDuffXfermode(PorterDuff.Mode.SCREEN)
+		}
 
-	private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-		textAlign = Paint.Align.CENTER
-		letterSpacing = 0.03f
-	}
+	private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+		.apply {
+			textAlign = Paint.Align.CENTER
+			letterSpacing = 0.03f
+		}
 
 	// Per-frame lightning state, recomputed by [updateLightning] before anything that reacts to a flash draws.
 	private var flashWash = 0f
@@ -154,6 +157,7 @@ class SceneRenderer(resources: Resources) {
 		val celestialCenterX = w * CELESTIAL_X_FRACTION
 		val celestialCenterY = h * celestialHeightFraction(params.dayPhase, params.celestialProgress)
 		val precipKey = params.precipitation?.let { "${it.kind}-${(it.severity * 100f).toInt()}" } ?: "dry"
+
 		// Wind and cloud rendering are foreground concerns: they do not change cached tile pixels, so a refresh must not discard them.
 		val key = "${width}x$height-${params.dayPhase}-$precipKey-f${(params.fogDensity * 100f).toInt()}-t${params.thunder}"
 		if (key != tilesKey) {
@@ -278,11 +282,12 @@ class SceneRenderer(resources: Resources) {
 		paint.style = Paint.Style.FILL
 		drawHorizonGlow(canvas, width, height, params.dayPhase, skyBottom)
 		paint.shader = null
+
 		drawSceneryLayers(canvas, SceneryPlane.FAR, params, skyBottom)
 		drawFarPlaneDetails(canvas, width, height, params, timeSeconds, skyBottom)
-
 		drawInterPlaneHaze(canvas, width, skyBottom)
 		paint.shader = null
+
 		drawSceneryLayers(canvas, SceneryPlane.NEAR, params, skyBottom)
 		drawNearPlaneDetails(canvas, width, height, params, timeSeconds, skyBottom, nearColor)
 
@@ -353,14 +358,7 @@ class SceneRenderer(resources: Resources) {
 	}
 
 	/** Painted glyphs (sloop, snowcaps), sea reflection, marine life, and mountain mist — everything that lives on/behind the far plane. */
-	private fun drawFarPlaneDetails(
-		canvas: Canvas,
-		width: Float,
-		height: Float,
-		params: SceneParams,
-		timeSeconds: Float,
-		skyBottom: Int
-	) {
+	private fun drawFarPlaneDetails(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float, skyBottom: Int) {
 		for (part in sceneryGlyphPaths) {
 			if (part.plane != SceneryPlane.FAR) {
 				continue
@@ -386,15 +384,7 @@ class SceneRenderer(resources: Resources) {
 	}
 
 	/** Near-plane glyphs (the farmhouse), parasols, fence accents, windmill sails, windows, beacons, and gulls. */
-	private fun drawNearPlaneDetails(
-		canvas: Canvas,
-		width: Float,
-		height: Float,
-		params: SceneParams,
-		timeSeconds: Float,
-		skyBottom: Int,
-		nearColor: Int
-	) {
+	private fun drawNearPlaneDetails(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float, skyBottom: Int, nearColor: Int) {
 		for (part in sceneryGlyphPaths) {
 			if (part.plane != SceneryPlane.NEAR) {
 				continue
@@ -464,6 +454,7 @@ class SceneRenderer(resources: Resources) {
 			val alpha = (220f * pulse).roundToInt().coerceIn(40, 230)
 			paint.color = Color.argb(alpha, 255, 64, 72)
 			canvas.drawCircle(x, y, radius, paint)
+
 			index += 2
 		}
 	}
@@ -521,6 +512,7 @@ class SceneRenderer(resources: Resources) {
 			birdPath.lineTo(x + tuft * 0.5f, peakY)
 			birdPath.close()
 			canvas.drawPath(birdPath, paint)
+
 			index += 2
 		}
 	}
@@ -849,6 +841,7 @@ class SceneRenderer(resources: Resources) {
 			val x = sceneryWindowXy[index]
 			val y = sceneryWindowXy[index + 1]
 			canvas.drawRect(x, y, x + w, y + h, paint)
+
 			index += 2
 		}
 	}
@@ -1128,8 +1121,19 @@ class SceneRenderer(resources: Resources) {
 	private fun drawOvercastCeiling(canvas: Canvas, width: Float, height: Float, params: SceneParams) {
 		val ceiling = overcastCeiling(params.dayPhase)
 		paint.style = Paint.Style.FILL
-		val ceilingAlpha = (190f * params.cloudScale).roundToInt().coerceIn(0, 255)
-		paint.shader = LinearGradient(0f, 0f, 0f, height * 0.6f, withAlpha(ceiling, ceilingAlpha), withAlpha(ceiling, 0), Shader.TileMode.CLAMP)
+		val ceilingAlpha = (190f * params.cloudScale).roundToInt()
+			.coerceIn(0, 255)
+
+		paint.shader = LinearGradient(
+			0f,
+			0f,
+			0f,
+			height * 0.6f,
+			withAlpha(ceiling, ceilingAlpha),
+			withAlpha(ceiling, 0),
+			Shader.TileMode.CLAMP
+		)
+
 		canvas.drawRect(0f, 0f, width, height * 0.6f, paint)
 
 		paint.shader = null
@@ -1157,6 +1161,7 @@ class SceneRenderer(resources: Resources) {
 		val swell = 0.9f + 0.1f * (0.7f * sin(timeSeconds * 0.55f) + 0.3f * sin(timeSeconds * 1.31f))
 		val backAlpha = (255f * 0.40f * params.cloudScale).roundToInt()
 		val frontAlpha = (255f * 0.54f * params.cloudScale * swell).roundToInt()
+
 		farCloudDeck.draw(canvas, width, height * 0.50f + bobAmplitude, backOffset, darken(color, 0.94f), backAlpha, bob - bobAmplitude)
 		nearCloudDeck.draw(canvas, width, height * 0.42f + bobAmplitude * 1.5f, frontOffset, color, frontAlpha, -bob * 1.5f - bobAmplitude * 1.5f)
 	}
@@ -1271,6 +1276,7 @@ class SceneRenderer(resources: Resources) {
 		}
 
 		val atmosphere = tile("sunVeil-${params.dayPhase}", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildSunAtmosphereSprite(it, veilTint) }
+
 		blitSprite(
 			canvas,
 			atmosphere,
@@ -1285,15 +1291,7 @@ class SceneRenderer(resources: Resources) {
 	 * The distant deck: one texture at a shorter repeat span, so its masses come out smaller, sitting lower and closer to the horizon.
 	 * Distance is carried by haze and size rather than by coverage, so this deck thickens with cloudiness instead of growing new clouds.
 	 */
-	private fun drawFarCumulus(
-		canvas: Canvas,
-		width: Float,
-		height: Float,
-		params: SceneParams,
-		timeSeconds: Float,
-		coverage: Float,
-		cloudTop: Float
-	) {
+	private fun drawFarCumulus(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float, coverage: Float, cloudTop: Float) {
 		val isPortrait = width < height
 		val tint = lerpColor(cumulusTint(params.dayPhase), skyGradientFor(params).topColor, CUMULUS_FAR_HAZE)
 		val alpha = ((CUMULUS_FAR_MIN_ALPHA + CUMULUS_FAR_ALPHA_RANGE * coverage) * params.cloudScale).roundToInt().coerceIn(0, 255)
@@ -1325,15 +1323,7 @@ class SceneRenderer(resources: Resources) {
 	 * The near deck: full-size masses at the coverage the weather asks for.
 	 * The steps share a noise field, so drawing the next one over the current at partial alpha grows each mass rather than dissolving it into a different sky.
 	 */
-	private fun drawNearCumulus(
-		canvas: Canvas,
-		width: Float,
-		height: Float,
-		params: SceneParams,
-		timeSeconds: Float,
-		coverage: Float,
-		cloudTop: Float
-	) {
+	private fun drawNearCumulus(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float, coverage: Float, cloudTop: Float) {
 		val tint = cumulusTint(params.dayPhase)
 		val offset = cumulusOffset(width, params, timeSeconds, 0.008f + params.windFactor * 0.016f, 1.5f, 0.78f, CLOUD_TEXTURE_VIEWPORTS)
 		val deckHeight = if (width < height) {
@@ -1357,15 +1347,7 @@ class SceneRenderer(resources: Resources) {
 	}
 
 	/** A deck's horizontal position: a steady drift at its own speed plus a shared gust, wrapped to that deck's own repeat span. */
-	private fun cumulusOffset(
-		width: Float,
-		params: SceneParams,
-		timeSeconds: Float,
-		speed: Float,
-		gust: Float,
-		phase: Float,
-		viewports: Float
-	): Float {
+	private fun cumulusOffset(width: Float, params: SceneParams, timeSeconds: Float, speed: Float, gust: Float, phase: Float, viewports: Float): Float {
 		val surge = width * 0.004f * params.windFactor * params.windScale
 		val drift = surge * (0.6f * sin(timeSeconds * 0.19f) + 0.4f * sin(timeSeconds * 0.47f))
 
@@ -1398,6 +1380,7 @@ class SceneRenderer(resources: Resources) {
 		paint.style = Paint.Style.FILL
 		paint.shader = LinearGradient(0f, 0f, 0f, height, Color.argb(45, 214, 218, 224), Color.argb(130, 206, 210, 216), Shader.TileMode.CLAMP)
 		canvas.drawRect(0f, 0f, width, height, paint)
+
 		paint.shader = null
 	}
 
@@ -1525,6 +1508,7 @@ class SceneRenderer(resources: Resources) {
 			val fall = travel % span
 			val x = precipitationHorizontalPosition(laneFraction(i * 2, cycle), fall, slant, width)
 			val y = fall - RAIN_WRAP_PAD
+
 			points[i * 4] = x
 			points[i * 4 + 1] = y
 			points[i * 4 + 2] = x + length * slant
@@ -1611,6 +1595,7 @@ class SceneRenderer(resources: Resources) {
 			val fall = travel % span
 			val x = precipitationHorizontalPosition(laneFraction(i + CLOSE_DROP_LANE_OFFSET, cycle), fall, slant, width)
 			val y = fall - RAIN_WRAP_PAD
+
 			points[i * 4] = x
 			points[i * 4 + 1] = y
 			points[i * 4 + 2] = x + length * slant
@@ -1714,6 +1699,7 @@ class SceneRenderer(resources: Resources) {
 			val fall = travel % span
 			val x = precipitationHorizontalPosition(laneFraction(i * 2, cycle), fall, streakSlant, width)
 			val y = fall - 60f
+
 			points[i * 4] = x
 			points[i * 4 + 1] = y
 			points[i * 4 + 2] = x + length * streakSlant
@@ -1908,6 +1894,7 @@ class SceneRenderer(resources: Resources) {
 
 		forkPath.reset()
 		forkPath.moveTo(forkX, forkY)
+
 		val forkDirection = if (random.nextFloat() < 0.5f) {
 			-1f
 		} else {
@@ -1926,6 +1913,7 @@ class SceneRenderer(resources: Resources) {
 		paint.style = Paint.Style.FILL
 		paint.shader = LinearGradient(0f, height * 0.55f, 0f, height, withAlpha(haze, 0), withAlpha(haze, 120), Shader.TileMode.CLAMP)
 		canvas.drawRect(0f, height * 0.55f, width, height, paint)
+
 		paint.shader = null
 	}
 
@@ -1957,6 +1945,7 @@ class SceneRenderer(resources: Resources) {
 		blitPaint.alpha = alpha.coerceIn(0, 255)
 		blitDest.set(offset, yOffset, offset + destWidth, yOffset + destHeight)
 		canvas.drawBitmap(bitmap, null, blitDest, blitPaint)
+
 		blitDest.offset(-destWidth, 0f)
 		canvas.drawBitmap(bitmap, null, blitDest, blitPaint)
 	}

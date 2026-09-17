@@ -76,16 +76,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 	private var cachedNearPlacements: List<CumulusPlacement> = emptyList()
 	private var cachedFarPlacements: List<CumulusPlacement> = emptyList()
 
-	fun draw(
-		canvas: Canvas,
-		width: Float,
-		height: Float,
-		offset: Float,
-		tint: Int,
-		alpha: Int,
-		top: Float = 0f,
-		viewports: Float = CLOUD_TEXTURE_VIEWPORTS
-	) {
+	fun draw(canvas: Canvas, width: Float, height: Float, offset: Float, tint: Int, alpha: Int, top: Float = 0f, viewports: Float = CLOUD_TEXTURE_VIEWPORTS) {
 		if (width <= 0f || height <= 0f || alpha <= 0) {
 			return
 		}
@@ -98,6 +89,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 
 		val source = checkNotNull(bitmap)
 		val shader = checkNotNull(cloudShader)
+
 		transform.setScale(width * viewports / source.width, height / source.height)
 		transform.postTranslate(offset, top)
 		shader.setLocalMatrix(transform)
@@ -195,16 +187,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 	 * They stay high, overlap the sheet texture, and remain faint enough that the eye reads one overcast deck rather than an isolated fair-weather sprite.
 	 * Fog is drawn later and mutes them.
 	 */
-	private fun drawSheetCloudMasses(
-		canvas: Canvas,
-		width: Float,
-		height: Float,
-		offset: Float,
-		tint: Int,
-		alpha: Int,
-		top: Float,
-		kind: SheetKind
-	) {
+	private fun drawSheetCloudMasses(canvas: Canvas, width: Float, height: Float, offset: Float, tint: Int, alpha: Int, top: Float, kind: SheetKind) {
 		if (sheetHeroBitmaps.isEmpty()) {
 			return
 		}
@@ -271,7 +254,6 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 			CumulusKind.SPARSE -> SPARSE_LAYOUT_SEED_SALT
 			CumulusKind.SCATTERED -> SCATTERED_LAYOUT_SEED_SALT
 			CumulusKind.BROKEN -> BROKEN_LAYOUT_SEED_SALT
-			CumulusKind.FAR -> 0
 		}
 
 		cachedNearPlacements = buildPlacements(
@@ -306,7 +288,8 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 			minY = FAR_MIN_Y_FRACTION,
 			maxY = FAR_MAX_Y_FRACTION,
 			variantCount = FAR_VARIANT_COUNT
-		).mapIndexed { index, placement ->
+		)
+		.mapIndexed { index, placement ->
 			when (index) {
 				0 -> placement.copy(spriteIndex = 0)
 				1 -> placement.copy(spriteIndex = 1)
@@ -318,21 +301,12 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		return cachedFarPlacements
 	}
 
-	private fun buildPlacements(
-		anchors: List<CumulusAnchor>,
-		random: Random,
-		xJitter: Float,
-		yJitter: Float,
-		scaleJitter: Float,
-		alphaJitter: Float,
-		minY: Float,
-		maxY: Float,
-		variantCount: Int
-	): List<CumulusPlacement> = anchors.map { base ->
+	private fun buildPlacements(anchors: List<CumulusAnchor>, random: Random, xJitter: Float, yJitter: Float, scaleJitter: Float, alphaJitter: Float, minY: Float, maxY: Float, variantCount: Int): List<CumulusPlacement> = anchors.map { base ->
 		val xDelta = random.nextFloat() * xJitter * 2f - xJitter
 		val yDelta = random.nextFloat() * yJitter * 2f - yJitter
 		val scaleDelta = 1f + random.nextFloat() * scaleJitter * 2f - scaleJitter
 		val alphaDelta = 1f - random.nextFloat() * alphaJitter
+
 		CumulusPlacement(
 			spriteIndex = random.nextInt(variantCount),
 			xFraction = wrapFraction(base.xFraction + xDelta),
@@ -356,15 +330,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		return ((alpha - floor) / (1f - NEAR_COMPOSITION_BLEND_START)).toInt().coerceIn(0, 255)
 	}
 
-	private fun drawSprite(
-		canvas: Canvas,
-		sprite: Bitmap,
-		placement: CumulusPlacement,
-		centerX: Float,
-		centerY: Float,
-		width: Float,
-		height: Float
-	) {
+	private fun drawSprite(canvas: Canvas, sprite: Bitmap, placement: CumulusPlacement, centerX: Float, centerY: Float, width: Float, height: Float) {
 		val left = centerX - width * 0.5f
 		val top = centerY - height * 0.5f
 		spriteDest.set(left, top, left + width, top + height)
@@ -552,27 +518,8 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 	}
 }
 
-private data class CumulusAnchor(
-	val xFraction: Float,
-	val yFraction: Float,
-	val scale: Float,
-	val alphaScale: Float = 1f
-)
+private data class CumulusAnchor(val xFraction: Float, val yFraction: Float, val scale: Float, val alphaScale: Float = 1f)
 
-private data class CumulusPlacement(
-	val spriteIndex: Int,
-	val xFraction: Float,
-	val yFraction: Float,
-	val scale: Float,
-	val mirror: Boolean,
-	val alphaScale: Float
-)
+private data class CumulusPlacement(val spriteIndex: Int, val xFraction: Float, val yFraction: Float, val scale: Float, val mirror: Boolean, val alphaScale: Float)
 
-private data class SheetCloudMass(
-	val xFraction: Float,
-	val yFraction: Float,
-	val widthFraction: Float,
-	val alphaScale: Float,
-	val spriteIndex: Int,
-	val mirror: Boolean
-)
+private data class SheetCloudMass(val xFraction: Float, val yFraction: Float, val widthFraction: Float, val alphaScale: Float, val spriteIndex: Int, val mirror: Boolean)
