@@ -1,5 +1,7 @@
 package xyz.attacktive.weatherd.domain.render
 
+import kotlin.math.min
+import kotlin.random.Random
 import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -12,8 +14,7 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Shader
 import androidx.annotation.DrawableRes
-import kotlin.math.min
-import kotlin.random.Random
+import androidx.core.graphics.withScale
 import xyz.attacktive.weatherd.R
 
 /** How many viewport widths a texture covers before repeating, unless a deck asks for its own span. */
@@ -340,10 +341,9 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 			return
 		}
 
-		val restore = canvas.save()
-		canvas.scale(-1f, 1f, centerX, centerY)
-		canvas.drawBitmap(sprite, null, spriteDest, paint)
-		canvas.restoreToCount(restore)
+		canvas.withScale(-1f, 1f, centerX, centerY) {
+			canvas.drawBitmap(sprite, null, spriteDest, paint)
+		}
 	}
 
 	private fun updateColorFilter(multiplyColor: Int) {
