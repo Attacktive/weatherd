@@ -17,11 +17,13 @@ import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
+import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 
 /** Persists [AppSettings] to a DataStore; absent keys fall back to the [AppSettings] defaults on read. */
 @Singleton
 class SettingsRepository @Inject constructor(private val dataStore: DataStore<Preferences>) {
 	private object Keys {
+		val WEATHER_PROVIDER = stringPreferencesKey("weather_provider")
 		val UPDATE_INTERVAL_MINUTES = intPreferencesKey("update_interval_minutes")
 		val USE_DEVICE_LOCATION = booleanPreferencesKey("use_device_location")
 		val MANUAL_LATITUDE = doublePreferencesKey("manual_latitude")
@@ -41,6 +43,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 
 	val settings: Flow<AppSettings> = dataStore.data.map { preferences ->
 		AppSettings(
+			weatherProvider = WeatherProviderType.fromName(preferences[Keys.WEATHER_PROVIDER]),
 			updateIntervalMinutes = preferences[Keys.UPDATE_INTERVAL_MINUTES] ?: DEFAULTS.updateIntervalMinutes,
 			useDeviceLocation = preferences[Keys.USE_DEVICE_LOCATION] ?: DEFAULTS.useDeviceLocation,
 			manualLatitude = preferences[Keys.MANUAL_LATITUDE],
@@ -61,6 +64,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 
 	suspend fun save(settings: AppSettings) {
 		dataStore.edit { preferences ->
+			preferences[Keys.WEATHER_PROVIDER] = settings.weatherProvider.name
 			preferences[Keys.UPDATE_INTERVAL_MINUTES] = settings.updateIntervalMinutes
 			preferences[Keys.USE_DEVICE_LOCATION] = settings.useDeviceLocation
 			preferences.putOrRemove(Keys.MANUAL_LATITUDE, settings.manualLatitude)

@@ -12,6 +12,7 @@ import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.GeoLocation
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
+import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
 import xyz.attacktive.weatherd.domain.repository.LocationRepository
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
@@ -31,6 +32,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	@Volatile private var snapshot: WeatherSnapshot? = null
 	@Volatile private var lastRefreshEpochSeconds = 0L
 	@Volatile private var lastLocationKey: String? = null
+	@Volatile private var lastWeatherProvider: WeatherProviderType? = null
 	@Volatile private var backdropScene = BackdropScene.NONE
 	@Volatile private var photoRevision = 0
 	@Volatile private var showWeatherLabel = false
@@ -63,7 +65,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 
 	/**
 	 * Fetches fresh weather for the current location, unless a fetch succeeded within the user's configured refresh interval (bypass with [force]).
-	 * A change in location settings (device↔manual, or a new city) also bypasses the interval, so the scene tracks the new place on the next refresh instead of waiting out the throttle.
+	 * A change in location settings (device↔manual, or a new city) or weather provider also bypasses the interval, so the scene tracks the new source on the next refresh instead of waiting out the throttle.
 	 * No-ops without a location fix or permission, leaving the last known scene in place.
 	 */
 	suspend fun refresh(nowEpochSeconds: Long, force: Boolean = false) {
@@ -91,8 +93,9 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 
 		val locationKey = locationKey(settings)
 		val locationChanged = locationKey != lastLocationKey
+		val weatherProviderChanged = settings.weatherProvider != lastWeatherProvider
 		val minRefreshSeconds = settings.updateIntervalMinutes * SECONDS_PER_MINUTE
-		if (!force && !locationChanged && nowEpochSeconds - lastRefreshEpochSeconds < minRefreshSeconds) {
+		if (!force && !locationChanged && !weatherProviderChanged && nowEpochSeconds - lastRefreshEpochSeconds < minRefreshSeconds) {
 			return
 		}
 
@@ -116,6 +119,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			snapshot = it
 			lastRefreshEpochSeconds = nowEpochSeconds
 			lastLocationKey = locationKey
+			lastWeatherProvider = settings.weatherProvider
 			logger.debug(TAG, "weather refreshed: condition=${it.observation.condition.label}, cloud=${it.observation.cloudCoverPercent}%")
 		}
 	}

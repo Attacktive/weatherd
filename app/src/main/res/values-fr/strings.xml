@@ -16,6 +16,10 @@
 	<string name="content_description_back">Retour</string>
 	<string name="content_description_search">Rechercher</string>
 	<string name="content_description_clear_city">Effacer la ville</string>
+	<string name="section_weather_provider">Fournisseur météo</string>
+	<string name="hint_weather_provider">Choisissez le service utilisé par Weatherd pour les données météo. Les deux options fonctionnent sans clé API.</string>
+	<string name="provider_open_meteo">Open-Meteo</string>
+	<string name="provider_met_norway">MET Norway</string>
 	<string name="section_refresh_interval">Intervalle d\'actualisation météo</string>
 	<string name="section_frame_rate">Fréquence d\'images de l\'animation</string>
 	<string name="section_backdrop">Décor en arrière-plan</string>

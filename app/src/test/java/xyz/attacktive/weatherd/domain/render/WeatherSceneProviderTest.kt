@@ -19,6 +19,7 @@ import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.GeoLocation
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
+import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
 import xyz.attacktive.weatherd.domain.repository.LocationRepository
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
@@ -60,6 +61,21 @@ class WeatherSceneProviderTest {
 		provider.refresh(1_000_060L)
 
 		coVerify(exactly = 1) { weatherRepository.current(52.52, 13.40) }
+	}
+
+	@Test
+	fun `changing weather provider refetches within the throttle window`() = runTest {
+		val openMeteo = AppSettings(useDeviceLocation = true, weatherProvider = WeatherProviderType.OPEN_METEO)
+		every { settingsRepository.settings } returns flowOf(openMeteo)
+		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
+		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 3))
+
+		provider.refresh(1_000_000L)
+
+		every { settingsRepository.settings } returns flowOf(openMeteo.copy(weatherProvider = WeatherProviderType.MET_NORWAY))
+		provider.refresh(1_000_060L)
+
+		coVerify(exactly = 2) { weatherRepository.current(52.52, 13.40) }
 	}
 
 	@Test

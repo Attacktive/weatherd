@@ -2,7 +2,7 @@
 
 [![Test](https://github.com/Attacktive/weatherd/actions/workflows/test.yaml/badge.svg)](https://github.com/Attacktive/weatherd/actions/workflows/test.yaml)
 
-Android live wallpaper that renders a procedural weather scene from [Open-Meteo](https://open-meteo.com).
+Android live wallpaper that renders a procedural weather scene from your choice of [Open-Meteo](https://open-meteo.com) or [MET Norway](https://api.met.no).
 
 Uses device location or a manually searched city, refreshes on a configurable interval (15 min – 6 hr), and mirrors the live scene in an in-app preview.
 
@@ -27,10 +27,10 @@ cd weatherd
 ./gradlew assembleDebug
 ```
 
-Debug builds need no secrets. Weather data comes from Open-Meteo with no API key. `release.keystore` with `KEYSTORE_PASSWORD` are needed only for release signing.
+Debug builds need no secrets. Open-Meteo and MET Norway both work without API keys. `release.keystore` with `KEYSTORE_PASSWORD` are needed only for release signing.
 
 Run the unit tests with `./gradlew test`.
 
 ---
 
-Weather data by [Open-Meteo](https://open-meteo.com).
+Weather data by [Open-Meteo](https://open-meteo.com) or [MET Norway](https://api.met.no), depending on the provider selected in Settings.

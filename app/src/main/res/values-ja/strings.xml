@@ -16,6 +16,10 @@
 	<string name="content_description_back">戻る</string>
 	<string name="content_description_search">検索</string>
 	<string name="content_description_clear_city">都市をクリア</string>
+	<string name="section_weather_provider">天気プロバイダー</string>
+	<string name="hint_weather_provider">Weatherd が天気データに使用するサービスを選択します。どちらも API キーなしで利用できます。</string>
+	<string name="provider_open_meteo">Open-Meteo</string>
+	<string name="provider_met_norway">MET Norway</string>
 	<string name="section_refresh_interval">天気の更新間隔</string>
 	<string name="section_frame_rate">アニメーションのフレームレート</string>
 	<string name="section_backdrop">背景の風景</string>

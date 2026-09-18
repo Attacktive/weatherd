@@ -16,6 +16,10 @@
 	<string name="content_description_back">Geri</string>
 	<string name="content_description_search">Ara</string>
 	<string name="content_description_clear_city">Şehri temizle</string>
+	<string name="section_weather_provider">Hava durumu sağlayıcısı</string>
+	<string name="hint_weather_provider">Weatherd için hava durumu verisi sağlayacak hizmeti seçin. Her iki seçenek de API anahtarı olmadan çalışır.</string>
+	<string name="provider_open_meteo">Open-Meteo</string>
+	<string name="provider_met_norway">MET Norway</string>
 	<string name="section_refresh_interval">Hava durumu yenileme sıklığı</string>
 	<string name="section_frame_rate">Animasyon kare hızı</string>
 	<string name="section_backdrop">Arka plan manzarası</string>

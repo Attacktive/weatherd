@@ -20,6 +20,7 @@ import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
+import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsRepositoryTest {
@@ -64,6 +65,7 @@ class SettingsRepositoryTest {
 	fun `saved settings round-trip`() = runTest {
 		val repository = SettingsRepository(dataStore())
 		val updated = AppSettings(
+			weatherProvider = WeatherProviderType.MET_NORWAY,
 			updateIntervalMinutes = 120,
 			useDeviceLocation = false,
 			manualLatitude = 35.68,
@@ -81,6 +83,15 @@ class SettingsRepositoryTest {
 		repository.save(updated)
 
 		assertEquals(updated, repository.settings.first())
+	}
+
+	@Test
+	fun `an unrecognized stored weather provider falls back to Open-Meteo`() = runTest {
+		val dataStore = dataStore()
+		val repository = SettingsRepository(dataStore)
+		dataStore.edit { it[stringPreferencesKey("weather_provider")] = "WEATHER_9000" }
+
+		assertEquals(WeatherProviderType.OPEN_METEO, repository.settings.first().weatherProvider)
 	}
 
 	@Test

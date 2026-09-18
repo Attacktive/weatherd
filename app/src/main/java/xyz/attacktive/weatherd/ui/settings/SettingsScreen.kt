@@ -80,6 +80,7 @@ import xyz.attacktive.weatherd.domain.model.GeoPlace
 import xyz.attacktive.weatherd.domain.model.INTENSITY_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.PhotoBucket
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
+import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.UPDATE_INTERVAL_OPTIONS
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -116,6 +117,10 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 					.verticalScroll(scrollState)
 					.padding(16.dp)
 			) {
+				WeatherProviderSection(settings = settings, onSave = viewModel::save)
+
+				Spacer(modifier = Modifier.height(24.dp))
+
 				RefreshIntervalSection(settings = settings, onSave = viewModel::save)
 
 				Spacer(modifier = Modifier.height(24.dp))
@@ -174,6 +179,43 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 			VersionFooter()
 		}
 	}
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun WeatherProviderSection(settings: AppSettings, onSave: (AppSettings) -> Unit) {
+	var expanded by remember { mutableStateOf(false) }
+
+	SectionLabel(stringResource(R.string.section_weather_provider))
+
+	ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+		OutlinedTextField(
+			value = formatWeatherProvider(settings.weatherProvider),
+			onValueChange = {},
+			readOnly = true,
+			trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+			modifier = Modifier
+				.fillMaxWidth()
+				.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+		)
+
+		ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+			WeatherProviderType.entries.forEach { provider ->
+				DropdownMenuItem(
+					text = { Text(formatWeatherProvider(provider)) },
+					onClick = {
+						if (provider != settings.weatherProvider) {
+							onSave(settings.copy(weatherProvider = provider))
+						}
+
+						expanded = false
+					}
+				)
+			}
+		}
+	}
+
+	HintText(stringResource(R.string.hint_weather_provider))
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -709,6 +751,12 @@ private fun ErrorText(text: String) {
 		color = MaterialTheme.colorScheme.error,
 		modifier = Modifier.padding(vertical = 12.dp)
 	)
+}
+
+@Composable
+private fun formatWeatherProvider(provider: WeatherProviderType) = when (provider) {
+	WeatherProviderType.OPEN_METEO -> stringResource(R.string.provider_open_meteo)
+	WeatherProviderType.MET_NORWAY -> stringResource(R.string.provider_met_norway)
 }
 
 @Composable
