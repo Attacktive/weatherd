@@ -22,6 +22,7 @@ class RainSlantTest {
 
 	@Test
 	fun `the floor is scalable rather than fixed`() {
+		// 0.16 is the renderer's calm baseline slant; the user's Subtle must be able to go under it.
 		val gust = 0.5f
 		val observed = 0.65f
 
@@ -47,6 +48,7 @@ class RainSlantTest {
 
 	@Test
 	fun `zero observed precipitation preserves the original calm floor`() {
+		// With no measured precipitation contribution, the renderer keeps the original baseline values across breeze levels.
 		val table = listOf(
 			0.28717f to 0.3333f,
 			0.48559f to 0.4531f,
@@ -65,11 +67,12 @@ class RainSlantTest {
 
 	@Test
 	fun `the slant clamps at MAX_WIND_SLANT under high wind and scale`() {
+		// High wind and maximum scale must not lean streaks past roughly 54 degrees off vertical.
 		val galeGust = 1f
 
 		val slant = rainSlant(galeGust, 2f, observed = 1f)
 
-		assertEquals(MAX_WIND_SLANT, slant, 0.0001f)
+		assertEquals(1.4f, slant, 0.0001f)
 	}
 
 	@Test
