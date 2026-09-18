@@ -115,7 +115,10 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		lastFix = location
 		refreshLocationLabel(settings)
 
-		// A provider change is an immediate-refresh trigger, not a retry policy. Consume it when the request is attempted so a failing provider does not bypass the normal interval on every visibility change.
+		/*
+		 * A provider change is an immediate-refresh trigger, not a retry policy.
+		 * Consume it when the request is attempted so a failing provider does not bypass the normal interval on every visibility change.
+		 */
 		lastAttemptedWeatherProvider = settings.weatherProvider
 
 		weatherRepository.current(location.latitude, location.longitude).onSuccess {
