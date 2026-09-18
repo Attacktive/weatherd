@@ -64,4 +64,16 @@ class RainSlantTest {
 
 		assertTrue(rainSlant(gust, 1f, heavy = true) > rainSlant(gust, 1f, heavy = false))
 	}
+
+	@Test
+	fun `the downpour lean blends continuously above storm severity`() {
+		val gust = 0.5f
+		val storm = rainSlantForSeverity(gust, 1f, 0.85f)
+		val transition = rainSlantForSeverity(gust, 1f, 0.925f)
+		val downpour = rainSlantForSeverity(gust, 1f, 1f)
+
+		assertTrue(transition > storm)
+		assertTrue(downpour > transition)
+		assertEquals((storm + downpour) / 2f, transition, 0.0001f)
+	}
 }
