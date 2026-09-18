@@ -36,6 +36,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		val WIND_INTENSITY_SCALE = floatPreferencesKey("wind_intensity_scale")
 		val CLOUD_INTENSITY_SCALE = floatPreferencesKey("cloud_intensity_scale")
 		val LENS_FLARE_ENABLED = booleanPreferencesKey("lens_flare_enabled")
+		val SCENE_SIMULATOR_ENABLED = booleanPreferencesKey("scene_simulator_enabled")
 	}
 
 	val settings: Flow<AppSettings> = dataStore.data.map { preferences ->
@@ -54,6 +55,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			windIntensityScale = preferences[Keys.WIND_INTENSITY_SCALE] ?: DEFAULTS.windIntensityScale,
 			cloudIntensityScale = preferences[Keys.CLOUD_INTENSITY_SCALE] ?: DEFAULTS.cloudIntensityScale,
 			lensFlareEnabled = preferences[Keys.LENS_FLARE_ENABLED] ?: DEFAULTS.lensFlareEnabled,
+			sceneSimulatorEnabled = preferences[Keys.SCENE_SIMULATOR_ENABLED] ?: DEFAULTS.sceneSimulatorEnabled,
 		)
 	}
 
@@ -73,6 +75,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			preferences[Keys.WIND_INTENSITY_SCALE] = settings.windIntensityScale
 			preferences[Keys.CLOUD_INTENSITY_SCALE] = settings.cloudIntensityScale
 			preferences[Keys.LENS_FLARE_ENABLED] = settings.lensFlareEnabled
+			preferences[Keys.SCENE_SIMULATOR_ENABLED] = settings.sceneSimulatorEnabled
 		}
 	}
 

@@ -8,6 +8,8 @@
 	<string name="scene_preview">シーンプレビュー</string>
 	<string name="debug_mode_live">ライブ</string>
 	<string name="debug_mode_debug">デバッグ</string>
+	<string name="scene_mode_live">ライブ</string>
+	<string name="scene_mode_simulated">シミュレーション</string>
 
 	<!-- Settings screen -->
 	<string name="settings_title">設定</string>
@@ -22,6 +24,9 @@
 	<string name="subtitle_lens_flare">太陽の周囲にカメラ風の光条と反射を表示</string>
 	<string name="section_labels">ラベル</string>
 	<string name="section_location">位置情報</string>
+	<string name="section_preview_tools">プレビューツール</string>
+	<string name="label_scene_simulator">シーンシミュレーター</string>
+	<string name="subtitle_scene_simulator">さまざまな天気や時間帯をプレビューします</string>
 	<string name="section_current_city">現在の都市</string>
 	<string name="label_show_weather">現在の天気を表示</string>
 	<string name="subtitle_show_weather">例: \"小雨 · 23°\"</string>

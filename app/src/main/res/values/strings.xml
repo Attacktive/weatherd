@@ -8,6 +8,8 @@
 	<string name="scene_preview">Scene preview</string>
 	<string name="debug_mode_live">Live</string>
 	<string name="debug_mode_debug">Debug</string>
+	<string name="scene_mode_live">Live</string>
+	<string name="scene_mode_simulated">Simulated</string>
 
 	<!-- Settings screen -->
 	<string name="settings_title">Settings</string>
@@ -22,6 +24,9 @@
 	<string name="subtitle_lens_flare">Camera-style streak and reflections around the sun</string>
 	<string name="section_labels">Labels</string>
 	<string name="section_location">Location</string>
+	<string name="section_preview_tools">Preview tools</string>
+	<string name="label_scene_simulator">Scene simulator</string>
+	<string name="subtitle_scene_simulator">Preview different weather conditions and times of day</string>
 	<string name="section_current_city">Current city</string>
 	<string name="label_show_weather">Show current weather</string>
 	<string name="subtitle_show_weather">e.g. \"Light rain · 23°\"</string>

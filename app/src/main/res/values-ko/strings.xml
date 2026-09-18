@@ -8,6 +8,8 @@
 	<string name="scene_preview">장면 미리보기</string>
 	<string name="debug_mode_live">실시간</string>
 	<string name="debug_mode_debug">디버그</string>
+	<string name="scene_mode_live">실시간</string>
+	<string name="scene_mode_simulated">시뮬레이션</string>
 
 	<!-- Settings screen -->
 	<string name="settings_title">설정</string>
@@ -22,6 +24,9 @@
 	<string name="subtitle_lens_flare">태양 주변의 카메라식 빛줄기와 반사 효과</string>
 	<string name="section_labels">라벨</string>
 	<string name="section_location">위치</string>
+	<string name="section_preview_tools">미리보기 도구</string>
+	<string name="label_scene_simulator">장면 시뮬레이터</string>
+	<string name="subtitle_scene_simulator">다양한 날씨와 시간대를 미리 봅니다</string>
 	<string name="section_current_city">현재 도시</string>
 	<string name="label_show_weather">현재 날씨 표시</string>
 	<string name="subtitle_show_weather">예: \"가벼운 비 · 23°\"</string>

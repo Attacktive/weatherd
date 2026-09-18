@@ -165,6 +165,10 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 					onSelectPlace = viewModel::selectPlace,
 					onClearManualLocation = viewModel::clearManualLocation
 				)
+
+				Spacer(modifier = Modifier.height(24.dp))
+
+				SceneSimulatorSection(settings = settings, onSave = viewModel::save)
 			}
 
 			VersionFooter()
@@ -500,6 +504,18 @@ private fun LabelsSection(settings: AppSettings, onSave: (AppSettings) -> Unit) 
 		subtitle = stringResource(R.string.subtitle_show_location),
 		checked = settings.showLocationLabel,
 		onToggle = { onSave(settings.copy(showLocationLabel = it)) }
+	)
+}
+
+@Composable
+private fun SceneSimulatorSection(settings: AppSettings, onSave: (AppSettings) -> Unit) {
+	SectionLabel(stringResource(R.string.section_preview_tools))
+
+	ToggleSetting(
+		label = stringResource(R.string.label_scene_simulator),
+		subtitle = stringResource(R.string.subtitle_scene_simulator),
+		checked = settings.sceneSimulatorEnabled,
+		onToggle = { onSave(settings.copy(sceneSimulatorEnabled = it)) }
 	)
 }
 

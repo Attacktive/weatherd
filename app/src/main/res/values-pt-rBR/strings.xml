@@ -8,6 +8,8 @@
 	<string name="scene_preview">Prévia da cena</string>
 	<string name="debug_mode_live">Ao vivo</string>
 	<string name="debug_mode_debug">Depuração</string>
+	<string name="scene_mode_live">Ao vivo</string>
+	<string name="scene_mode_simulated">Simulado</string>
 
 	<!-- Settings screen -->
 	<string name="settings_title">Configurações</string>
@@ -22,6 +24,9 @@
 	<string name="subtitle_lens_flare">Faixas de luz e reflexos de câmera ao redor do sol</string>
 	<string name="section_labels">Rótulos</string>
 	<string name="section_location">Localização</string>
+	<string name="section_preview_tools">Ferramentas de prévia</string>
+	<string name="label_scene_simulator">Simulador de cena</string>
+	<string name="subtitle_scene_simulator">Visualize diferentes condições do tempo e horários do dia</string>
 	<string name="section_current_city">Cidade atual</string>
 	<string name="label_show_weather">Mostrar clima atual</string>
 	<string name="subtitle_show_weather">ex.: \"Chuva fraca · 23°\"</string>

@@ -47,6 +47,11 @@ class HomeViewModel @Inject constructor(
 		.map { it.lensFlareEnabled }
 		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().lensFlareEnabled)
 
+	/** Whether release builds should expose the scene simulator controls on the home preview. */
+	val sceneSimulatorEnabled = settingsRepository.settings
+		.map { it.sceneSimulatorEnabled }
+		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().sceneSimulatorEnabled)
+
 	/** Kicks a weather fetch (rate-limited by the provider) so the preview tracks the latest conditions and any settings change. */
 	fun refresh() {
 		viewModelScope.launch {

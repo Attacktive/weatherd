@@ -82,13 +82,15 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	val windIntensityScale by viewModel.windIntensityScale.collectAsStateWithLifecycle()
 	val cloudIntensityScale by viewModel.cloudIntensityScale.collectAsStateWithLifecycle()
 	val lensFlareEnabled by viewModel.lensFlareEnabled.collectAsStateWithLifecycle()
+	val sceneSimulatorEnabled by viewModel.sceneSimulatorEnabled.collectAsStateWithLifecycle()
+	val sceneSimulatorVisible = debugToolsEnabled || sceneSimulatorEnabled
 
 	// Read inside the frame loop, which is launched once and has to see a cap the user changes while it runs.
 	val currentCap = rememberUpdatedState(frameRateCap)
 
-	// The debug cycler overrides the weather but keeps the user's chosen backdrop and intensity scales, so scenery can be previewed under any condition.
+	// The scene simulator overrides the weather but keeps the user's chosen backdrop and intensity scales, so scenery can be previewed under any condition.
 	// The photo revision comes across with it because the preset carries no revision of its own, which keeps the preview's backdrop key identical in shape to the wallpaper's signature.
-	val params = if (debugEnabled) {
+	val params = if (debugEnabled && sceneSimulatorVisible) {
 		debugSceneParams(
 			SCENE_PRESETS[debugSceneIndex],
 			DayPhase.entries[debugPhaseIndex],
@@ -123,8 +125,14 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 		}
 	}
 
-	LaunchedEffect(debugEnabled) {
-		while (!debugEnabled) {
+	LaunchedEffect(sceneSimulatorVisible) {
+		if (!sceneSimulatorVisible) {
+			debugEnabled = false
+		}
+	}
+
+	LaunchedEffect(debugEnabled, sceneSimulatorVisible) {
+		while (!debugEnabled || !sceneSimulatorVisible) {
 			liveParams = viewModel.currentParams()
 			delay(1000.milliseconds)
 		}
@@ -189,8 +197,8 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 				horizontalAlignment = Alignment.CenterHorizontally,
 				verticalArrangement = Arrangement.spacedBy(8.dp)
 			) {
-				if (debugToolsEnabled) {
-					DebugSceneControls(
+				if (sceneSimulatorVisible) {
+					SceneSimulatorControls(
 						debugEnabled = debugEnabled,
 						sceneLabel = SCENE_PRESETS[debugSceneIndex].name,
 						phaseLabel = DayPhase.entries[debugPhaseIndex].name,
@@ -219,7 +227,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 }
 
 @Composable
-private fun DebugSceneControls(
+private fun SceneSimulatorControls(
 	debugEnabled: Boolean,
 	sceneLabel: String,
 	phaseLabel: String,
@@ -244,9 +252,9 @@ private fun DebugSceneControls(
 			Text(stringResource(R.string.scene_preview), color = Color.White, style = MaterialTheme.typography.labelLarge)
 			TextButton(onClick = { onDebugEnabledChange(!debugEnabled) }) {
 				val text = if (debugEnabled) {
-					stringResource(R.string.debug_mode_live)
+					stringResource(R.string.scene_mode_live)
 				} else {
-					stringResource(R.string.debug_mode_debug)
+					stringResource(R.string.scene_mode_simulated)
 				}
 
 				Text(text, color = Color.White)

@@ -8,6 +8,8 @@
 	<string name="scene_preview">场景预览</string>
 	<string name="debug_mode_live">实时</string>
 	<string name="debug_mode_debug">调试</string>
+	<string name="scene_mode_live">实时</string>
+	<string name="scene_mode_simulated">模拟</string>
 
 	<!-- Settings screen -->
 	<string name="settings_title">设置</string>
@@ -22,6 +24,9 @@
 	<string name="subtitle_lens_flare">太阳周围的相机风格光带和反射</string>
 	<string name="section_labels">标签</string>
 	<string name="section_location">位置</string>
+	<string name="section_preview_tools">预览工具</string>
+	<string name="label_scene_simulator">场景模拟器</string>
+	<string name="subtitle_scene_simulator">预览不同的天气状况和一天中的时段</string>
 	<string name="section_current_city">当前城市</string>
 	<string name="label_show_weather">显示当前天气</string>
 	<string name="subtitle_show_weather">例如：\"小雨 · 23°\"</string>

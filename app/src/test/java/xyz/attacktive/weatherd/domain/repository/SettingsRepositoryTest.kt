@@ -38,6 +38,13 @@ class SettingsRepositoryTest {
 	}
 
 	@Test
+	fun `scene simulator starts hidden`() = runTest {
+		val repository = SettingsRepository(dataStore())
+
+		assertFalse(repository.settings.first().sceneSimulatorEnabled)
+	}
+
+	@Test
 	fun `lens flare starts enabled`() = runTest {
 		val repository = SettingsRepository(dataStore())
 
@@ -67,7 +74,8 @@ class SettingsRepositoryTest {
 			showLocationLabel = true,
 			temperatureUnit = TemperatureUnit.FAHRENHEIT,
 			frameRateCap = FrameRateCap.FPS_30,
-			lensFlareEnabled = false
+			lensFlareEnabled = false,
+			sceneSimulatorEnabled = true
 		)
 
 		repository.save(updated)

@@ -8,6 +8,8 @@
 	<string name="scene_preview">Aperçu de la scène</string>
 	<string name="debug_mode_live">En direct</string>
 	<string name="debug_mode_debug">Débogage</string>
+	<string name="scene_mode_live">En direct</string>
+	<string name="scene_mode_simulated">Simulé</string>
 
 	<!-- Settings screen -->
 	<string name="settings_title">Paramètres</string>
@@ -22,6 +24,9 @@
 	<string name="subtitle_lens_flare">Traînées lumineuses et reflets de type appareil photo autour du soleil</string>
 	<string name="section_labels">Libellés</string>
 	<string name="section_location">Emplacement</string>
+	<string name="section_preview_tools">Outils d’aperçu</string>
+	<string name="label_scene_simulator">Simulateur de scène</string>
+	<string name="subtitle_scene_simulator">Prévisualisez différentes conditions météo et heures de la journée</string>
 	<string name="section_current_city">Ville actuelle</string>
 	<string name="label_show_weather">Afficher la météo actuelle</string>
 	<string name="subtitle_show_weather">ex. \"Pluie légère · 23°\"</string>

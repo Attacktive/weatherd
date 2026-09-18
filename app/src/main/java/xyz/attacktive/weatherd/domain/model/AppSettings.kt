@@ -15,6 +15,7 @@ data class AppSettings(
 	val windIntensityScale: Float = 1f,
 	val cloudIntensityScale: Float = 1f,
 	val lensFlareEnabled: Boolean = true,
+	val sceneSimulatorEnabled: Boolean = false,
 )
 
 /** Selectable weather-refresh intervals in minutes, offered in Settings. */

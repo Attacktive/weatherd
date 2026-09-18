@@ -8,6 +8,8 @@
 	<string name="scene_preview">Sahne önizlemesi</string>
 	<string name="debug_mode_live">Canlı</string>
 	<string name="debug_mode_debug">Hata ayıklama</string>
+	<string name="scene_mode_live">Canlı</string>
+	<string name="scene_mode_simulated">Simüle</string>
 
 	<!-- Settings screen -->
 	<string name="settings_title">Ayarlar</string>
@@ -22,6 +24,9 @@
 	<string name="subtitle_lens_flare">Güneşin etrafında kamera tarzı ışık çizgileri ve yansımalar</string>
 	<string name="section_labels">Etiketler</string>
 	<string name="section_location">Konum</string>
+	<string name="section_preview_tools">Önizleme araçları</string>
+	<string name="label_scene_simulator">Sahne simülatörü</string>
+	<string name="subtitle_scene_simulator">Farklı hava koşullarını ve günün saatlerini önizleyin</string>
 	<string name="section_current_city">Geçerli şehir</string>
 	<string name="label_show_weather">Geçerli hava durumunu göster</string>
 	<string name="subtitle_show_weather">örn. \"Hafif yağmur · 23°\"</string>
