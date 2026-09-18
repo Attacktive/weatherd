@@ -14,6 +14,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import xyz.attacktive.weatherd.BuildConfig
 import xyz.attacktive.weatherd.data.api.GeocodingApiService
+import xyz.attacktive.weatherd.data.api.MetNoApiService
 import xyz.attacktive.weatherd.data.api.OpenMeteoApiService
 
 @Module
@@ -53,6 +54,27 @@ object NetworkModule {
 	@Singleton
 	fun provideOpenMeteoApiService(retrofit: Retrofit): OpenMeteoApiService =
 		retrofit.create(OpenMeteoApiService::class.java)
+
+	@Provides
+	@Singleton
+	fun provideMetNoApiService(okHttpClient: OkHttpClient, json: Json): MetNoApiService {
+		val metNoClient = okHttpClient.newBuilder()
+			.addInterceptor { chain ->
+				val request = chain.request().newBuilder()
+					.header("User-Agent", "weatherd/${BuildConfig.VERSION_NAME} github.com/Attacktive/weatherd")
+					.build()
+
+				chain.proceed(request)
+			}
+			.build()
+
+		return Retrofit.Builder()
+			.baseUrl("https://api.met.no/")
+			.client(metNoClient)
+			.addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+			.build()
+			.create(MetNoApiService::class.java)
+	}
 
 	// Geocoding is a separate Open-Meteo host, so it gets its own Retrofit while sharing the OkHttp client and Json.
 	@Provides
