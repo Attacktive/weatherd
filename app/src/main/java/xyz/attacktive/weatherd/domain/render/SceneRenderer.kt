@@ -1522,39 +1522,33 @@ class SceneRenderer(resources: Resources) {
 			}
 			PrecipitationKind.RAIN -> {
 				val slant = rainSlant(gust, params.windScale, heavy)
-				drawRain(canvas, width, height, counts, slant, timeSeconds, heavy, flash)
+				drawRain(canvas, width, height, counts, slant, timeSeconds, precipitation.severity, flash)
 			}
 		}
 	}
 
-	/** [heavy] turns the shower into a downpour: faster, longer, thicker, more slanted streaks on top of the higher particle count. */
-	private fun drawRain(canvas: Canvas, width: Float, height: Float, counts: ParticleCounts, slant: Float, timeSeconds: Float, heavy: Boolean, flash: Float) {
+	/**
+	 * Rain keeps the existing allocation-free batched drawLines path, but each streak is now a faint motion trail with a shorter bright leading segment instead of two equally long strokes.
+	 * Severity changes fall speed and motion-blur length continuously so drizzle, steady rain, and a downpour blend into each other without a styling jump.
+	 */
+	private fun drawRain(canvas: Canvas, width: Float, height: Float, counts: ParticleCounts, slant: Float, timeSeconds: Float, severity: Float, flash: Float) {
 		paint.style = Paint.Style.STROKE
 		paint.strokeCap = Paint.Cap.ROUND
 
-		val speed = if (heavy) {
-			1.4f
-		} else {
-			1f
-		}
-
-		val stretch = if (heavy) {
-			1.5f
-		} else {
-			1f
-		}
-
+		val severityFactor = rainMotionFactor(severity)
+		val speed = lerp(0.82f, 1.32f, severityFactor)
+		val stretch = lerp(0.72f, 1.3f, severityFactor)
 		val span = height + RAIN_WRAP_PAD * 2f
 		val nearCount = counts.steadyCount / 2
 
 		drawFarRain(canvas, width, height, counts.squallCount, span, slant, stretch, speed, timeSeconds, flash)
-		drawNearRain(canvas, width, height, nearCount, span, slant, stretch, speed, timeSeconds, heavy, flash)
-		drawCloseDrops(canvas, width, height, nearCount, span, slant, stretch, speed, timeSeconds, heavy, flash)
+		drawNearRain(canvas, width, height, nearCount, span, slant, stretch, speed, timeSeconds, flash)
+		drawCloseDrops(canvas, width, height, nearCount, span, slant, stretch, speed, timeSeconds, flash)
 
 		paint.style = Paint.Style.FILL
 	}
 
-	/** Far layer: short, thin, dim streaks that read as distant drizzle, batched into one drawLines call. */
+	/** Far layer: fine low-contrast trails with a short glint at the leading edge. */
 	private fun drawFarRain(canvas: Canvas, width: Float, height: Float, squallCount: Int, span: Float, slant: Float, stretch: Float, speed: Float, timeSeconds: Float, flash: Float) {
 		/*
 		 * Each streak picks a fresh lane per fall cycle, so no drop re-falls one fixed path forever.
@@ -1577,21 +1571,18 @@ class SceneRenderer(resources: Resources) {
 			points[i * 4 + 3] = y + length
 		}
 
-		/*
-		 * No blur here: a per-frame BlurMaskFilter over hundreds of segments is what froze rain scenes.
-		 * Instead, each batch is stroked twice — a wide faint halo under the thin core — so a streak fades out sideways rather than ending in a hard aliased edge.
-		 */
-		paint.strokeWidth = 5.5f
-		paint.color = Color.argb(gleam(20, flash), 205, 218, 238)
+		paint.strokeWidth = 2.8f
+		paint.color = Color.argb(gleam(12, flash), 205, 218, 238)
 		canvas.drawLines(points, 0, squallCount * 4, paint)
 
-		paint.strokeWidth = 2.2f
-		paint.color = Color.argb(gleam(42, flash), 205, 218, 238)
+		trimRainTails(points, squallCount, 0.58f)
+		paint.strokeWidth = 1.1f
+		paint.color = Color.argb(gleam(46, flash), 218, 228, 242)
 		canvas.drawLines(points, 0, squallCount * 4, paint)
 	}
 
-	/** Near layer: long, bright, sharp streaks in the foreground, reusing the same buffer as the far pass. */
-	private fun drawNearRain(canvas: Canvas, width: Float, height: Float, nearCount: Int, span: Float, slant: Float, stretch: Float, speed: Float, timeSeconds: Float, heavy: Boolean, flash: Float) {
+	/** Near layer: longer motion trails whose brighter leading segment stays thin enough to read as water rather than a glowing rod. */
+	private fun drawNearRain(canvas: Canvas, width: Float, height: Float, nearCount: Int, span: Float, slant: Float, stretch: Float, speed: Float, timeSeconds: Float, flash: Float) {
 		val nearRandom = Random(PRECIP_SEED + 1L)
 		val points = rainBuffer(nearCount * 4)
 
@@ -1609,39 +1600,18 @@ class SceneRenderer(resources: Resources) {
 			points[i * 4 + 3] = y + length
 		}
 
-		val nearHaloAlpha = if (heavy) {
-			55
-		} else {
-			45
-		}
-
-		paint.strokeWidth = if (heavy) {
-			8f
-		} else {
-			6.5f
-		}
-
-		paint.color = Color.argb(gleam(nearHaloAlpha, flash), 215, 226, 244)
+		paint.strokeWidth = 3.4f
+		paint.color = Color.argb(gleam(18, flash), 210, 221, 236)
 		canvas.drawLines(points, 0, nearCount * 4, paint)
 
-		val nearCoreAlpha = if (heavy) {
-			145
-		} else {
-			120
-		}
-
-		paint.strokeWidth = if (heavy) {
-			3.2f
-		} else {
-			2.6f
-		}
-
-		paint.color = Color.argb(gleam(nearCoreAlpha, flash), 215, 226, 244)
+		trimRainTails(points, nearCount, 0.52f)
+		paint.strokeWidth = 1.5f
+		paint.color = Color.argb(gleam(110, flash), 225, 234, 246)
 		canvas.drawLines(points, 0, nearCount * 4, paint)
 	}
 
-	/** A sparse pass of standout drops — longer, thicker, brighter and faster than the near layer — so a shower has texture instead of uniform static. */
-	private fun drawCloseDrops(canvas: Canvas, width: Float, height: Float, nearCount: Int, span: Float, slant: Float, stretch: Float, speed: Float, timeSeconds: Float, heavy: Boolean, flash: Float) {
+	/** A sparse foreground pass keeps a few drops distinct without turning them into thick white capsules. */
+	private fun drawCloseDrops(canvas: Canvas, width: Float, height: Float, nearCount: Int, span: Float, slant: Float, stretch: Float, speed: Float, timeSeconds: Float, flash: Float) {
 		val closeCount = nearCount / 12
 		if (closeCount == 0) {
 			return
@@ -1664,25 +1634,23 @@ class SceneRenderer(resources: Resources) {
 			points[i * 4 + 3] = y + length
 		}
 
-		paint.style = Paint.Style.STROKE
-		paint.strokeCap = Paint.Cap.ROUND
-		paint.strokeWidth = if (heavy) {
-			9.5f
-		} else {
-			8f
-		}
-
-		paint.color = Color.argb(gleam(60, flash), 222, 232, 248)
+		paint.strokeWidth = 4.2f
+		paint.color = Color.argb(gleam(24, flash), 216, 226, 240)
 		canvas.drawLines(points, 0, closeCount * 4, paint)
 
-		paint.strokeWidth = if (heavy) {
-			4.2f
-		} else {
-			3.6f
-		}
-
-		paint.color = Color.argb(gleam(185, flash), 226, 236, 250)
+		trimRainTails(points, closeCount, 0.48f)
+		paint.strokeWidth = 2.2f
+		paint.color = Color.argb(gleam(170, flash), 230, 238, 248)
 		canvas.drawLines(points, 0, closeCount * 4, paint)
+	}
+
+	/** Keeps the falling head fixed while shortening each segment from its trailing end, producing a cheap two-step motion blur without shaders or allocations. */
+	private fun trimRainTails(points: FloatArray, count: Int, fraction: Float) {
+		repeat(count) { i ->
+			val offset = i * 4
+			points[offset] = lerp(points[offset], points[offset + 2], fraction)
+			points[offset + 1] = lerp(points[offset + 1], points[offset + 3], fraction)
+		}
 	}
 
 	/**
@@ -2735,6 +2703,9 @@ private const val DIRECT_SUN_MAX_CLOUDINESS = 0.55f
 internal const val MAX_WIND_SLANT = 1.4f
 
 internal const val PRECIPITATION_HORIZONTAL_PAD = 100f
+
+/** Maps the categorical rain severity onto a smooth 0..1 motion range, clamped so malformed provider values cannot exaggerate the animation. */
+internal fun rainMotionFactor(severity: Float) = unlerp(SEVERITY_DRIZZLE, 1f, severity)
 
 /**
  * Slant of falling rain streaks, derived from the gust factor and scaled by the user's intensity preference.
