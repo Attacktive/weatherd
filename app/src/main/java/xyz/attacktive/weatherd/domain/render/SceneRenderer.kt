@@ -1521,7 +1521,7 @@ class SceneRenderer(resources: Resources) {
 				drawSleet(canvas, width, height, count, streakSlant, pelletSlant, timeSeconds, flash)
 			}
 			PrecipitationKind.RAIN -> {
-				val slant = rainSlant(gust, params.windScale, heavy)
+				val slant = rainSlantForSeverity(gust, params.windScale, precipitation.severity)
 				drawRain(canvas, width, height, counts, slant, timeSeconds, precipitation.severity, flash)
 			}
 		}
@@ -1736,7 +1736,7 @@ class SceneRenderer(resources: Resources) {
 			points[i * 4 + 3] = y + length
 		}
 
-		// The same halo-under-core double stroke as rain, so the icy streaks stay soft-edged too.
+		// Sleet keeps the halo-under-core double stroke because its icy streaks are deliberately sharper and brighter than rain.
 		paint.strokeWidth = 5.5f
 		paint.color = Color.argb(gleam(38, flash), 214, 228, 240)
 		canvas.drawLines(points, 0, streakCount * 4, paint)
@@ -2713,11 +2713,19 @@ internal fun rainMotionFactor(severity: Float) = unlerp(SEVERITY_DRIZZLE, 1f, se
  * Clamped to [MAX_WIND_SLANT] so downpours in gales cannot lean past roughly 54 degrees off vertical, where rain reads as broken.
  */
 internal fun rainSlant(gust: Float, scale: Float, heavy: Boolean = false): Float {
-	val slantBase = if (heavy) {
-		0.26f
+	val severity = if (heavy) {
+		1f
 	} else {
-		0.16f
+		SEVERITY_STORM
 	}
+
+	return rainSlantForSeverity(gust, scale, severity)
+}
+
+/** Blends the extra downpour lean in above storm severity instead of snapping the streak angle at one threshold. */
+internal fun rainSlantForSeverity(gust: Float, scale: Float, severity: Float): Float {
+	val heavyFactor = unlerp(SEVERITY_STORM, 1f, severity)
+	val slantBase = lerp(0.16f, 0.26f, heavyFactor)
 
 	return ((slantBase + gust * 0.71f) * scale).coerceAtMost(MAX_WIND_SLANT)
 }
