@@ -8,6 +8,8 @@ Instructions and architectural invariants for agents working in the Weatherd cod
 ## Tools and Environment
 
 Agents use standard file inspection, editing tools, and Gradle tasks (`./gradlew check`).
+- The JDK is installed via SDKMAN.
+- Before Gradle tasks in non-interactive shells, source `"$HOME/.sdkman/bin/sdkman-init.sh"`.
 
 ## Architectural Invariants
 
