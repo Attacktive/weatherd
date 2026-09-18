@@ -108,6 +108,7 @@ class MetNoApiServiceTest {
 					.addHeader("Expires", "Fri, 18 Sep 2026 05:01:00 GMT")
 					.addHeader("Last-Modified", "Fri, 18 Sep 2026 04:30:00 GMT")
 			)
+
 			server.enqueue(MockResponse().setResponseCode(304))
 
 			val api = createMetNoApiService(

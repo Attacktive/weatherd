@@ -98,45 +98,68 @@ internal fun MetNoForecastResponseDto.sunriseDate(longitude: Double): String {
 internal fun String.toMetNoCondition(): WeatherCondition {
 	val code = removeSuffix("_day").removeSuffix("_night").removeSuffix("_polartwilight")
 
-	return when (code) {
-		"clearsky" -> WeatherCondition(label = WeatherLabel.CLEAR_SKY)
-		"fair" -> WeatherCondition(label = WeatherLabel.MAINLY_CLEAR)
-		"partlycloudy" -> WeatherCondition(label = WeatherLabel.PARTLY_CLOUDY)
-		"cloudy" -> WeatherCondition(label = WeatherLabel.OVERCAST)
-		"fog" -> WeatherCondition(label = WeatherLabel.FOG, fog = true)
-		"lightrainshowers" -> WeatherCondition(WeatherLabel.LIGHT_SHOWERS, PrecipitationKind.RAIN, SEVERITY_STEADY)
-		"rainshowers" -> WeatherCondition(WeatherLabel.SHOWERS, PrecipitationKind.RAIN, SEVERITY_STEADY)
-		"heavyrainshowers" -> WeatherCondition(WeatherLabel.VIOLENT_SHOWERS, PrecipitationKind.RAIN, SEVERITY_HEAVY)
-		"lightsleetshowers" -> WeatherCondition(precipitationKind = PrecipitationKind.SLEET, severity = SEVERITY_DRIZZLE)
-		"sleetshowers" -> WeatherCondition(precipitationKind = PrecipitationKind.SLEET, severity = SEVERITY_STEADY)
-		"heavysleetshowers" -> WeatherCondition(precipitationKind = PrecipitationKind.SLEET, severity = SEVERITY_HEAVY)
-		"lightsnowshowers" -> WeatherCondition(WeatherLabel.SNOW_SHOWERS, PrecipitationKind.SNOW, SEVERITY_STEADY)
-		"snowshowers" -> WeatherCondition(WeatherLabel.SNOW_SHOWERS, PrecipitationKind.SNOW, SEVERITY_STEADY)
-		"heavysnowshowers" -> WeatherCondition(WeatherLabel.HEAVY_SNOW_SHOWERS, PrecipitationKind.SNOW, SEVERITY_HEAVY)
-		"lightrain" -> WeatherCondition(WeatherLabel.LIGHT_RAIN, PrecipitationKind.RAIN, SEVERITY_STEADY)
-		"rain" -> WeatherCondition(WeatherLabel.RAIN, PrecipitationKind.RAIN, SEVERITY_STEADY)
-		"heavyrain" -> WeatherCondition(WeatherLabel.HEAVY_RAIN, PrecipitationKind.RAIN, SEVERITY_HEAVY)
-		"lightsleet" -> WeatherCondition(precipitationKind = PrecipitationKind.SLEET, severity = SEVERITY_DRIZZLE)
-		"sleet" -> WeatherCondition(precipitationKind = PrecipitationKind.SLEET, severity = SEVERITY_STEADY)
-		"heavysleet" -> WeatherCondition(precipitationKind = PrecipitationKind.SLEET, severity = SEVERITY_HEAVY)
-		"lightsnow" -> WeatherCondition(WeatherLabel.LIGHT_SNOW, PrecipitationKind.SNOW, SEVERITY_STEADY)
-		"snow" -> WeatherCondition(WeatherLabel.SNOW, PrecipitationKind.SNOW, SEVERITY_STEADY)
-		"heavysnow" -> WeatherCondition(WeatherLabel.HEAVY_SNOW, PrecipitationKind.SNOW, SEVERITY_HEAVY)
-		"lightrainshowersandthunder", "rainshowersandthunder" -> WeatherCondition(WeatherLabel.THUNDERSTORM, PrecipitationKind.RAIN, SEVERITY_STORM, thunder = true)
-		"heavyrainshowersandthunder" -> WeatherCondition(WeatherLabel.THUNDERSTORM, PrecipitationKind.RAIN, SEVERITY_HEAVY, thunder = true)
-		"lightssleetshowersandthunder", "lightsleetshowersandthunder", "sleetshowersandthunder" -> WeatherCondition(WeatherLabel.THUNDERSTORM, PrecipitationKind.SLEET, SEVERITY_STORM, thunder = true)
-		"heavysleetshowersandthunder" -> WeatherCondition(WeatherLabel.THUNDERSTORM, PrecipitationKind.SLEET, SEVERITY_HEAVY, thunder = true)
-		"lightssnowshowersandthunder", "lightsnowshowersandthunder", "snowshowersandthunder" -> WeatherCondition(WeatherLabel.THUNDERSTORM, PrecipitationKind.SNOW, SEVERITY_STORM, thunder = true)
-		"heavysnowshowersandthunder" -> WeatherCondition(WeatherLabel.THUNDERSTORM, PrecipitationKind.SNOW, SEVERITY_HEAVY, thunder = true)
-		"lightrainandthunder", "rainandthunder" -> WeatherCondition(WeatherLabel.THUNDERSTORM, PrecipitationKind.RAIN, SEVERITY_STORM, thunder = true)
-		"heavyrainandthunder" -> WeatherCondition(WeatherLabel.THUNDERSTORM, PrecipitationKind.RAIN, SEVERITY_HEAVY, thunder = true)
-		"lightsleetandthunder", "sleetandthunder" -> WeatherCondition(WeatherLabel.THUNDERSTORM, PrecipitationKind.SLEET, SEVERITY_STORM, thunder = true)
-		"heavysleetandthunder" -> WeatherCondition(WeatherLabel.THUNDERSTORM, PrecipitationKind.SLEET, SEVERITY_HEAVY, thunder = true)
-		"lightsnowandthunder", "snowandthunder" -> WeatherCondition(WeatherLabel.THUNDERSTORM, PrecipitationKind.SNOW, SEVERITY_STORM, thunder = true)
-		"heavysnowandthunder" -> WeatherCondition(WeatherLabel.THUNDERSTORM, PrecipitationKind.SNOW, SEVERITY_HEAVY, thunder = true)
-		else -> error("Unsupported MET Norway symbol code: $this")
-	}
+	return MET_NO_CONDITIONS[code] ?: error("Unsupported MET Norway symbol code: $this")
 }
+
+internal val supportedMetNoSymbolCodes: Set<String>
+	get() = MET_NO_CONDITIONS.keys
+
+private val MET_NO_CONDITIONS = mapOf(
+	"clearsky" to WeatherCondition(label = WeatherLabel.CLEAR_SKY),
+	"fair" to WeatherCondition(label = WeatherLabel.MAINLY_CLEAR),
+	"partlycloudy" to WeatherCondition(label = WeatherLabel.PARTLY_CLOUDY),
+	"cloudy" to WeatherCondition(label = WeatherLabel.OVERCAST),
+	"fog" to WeatherCondition(label = WeatherLabel.FOG, fog = true),
+	"lightrainshowers" to precipitation(WeatherLabel.LIGHT_SHOWERS, PrecipitationKind.RAIN, SEVERITY_STEADY),
+	"rainshowers" to precipitation(WeatherLabel.SHOWERS, PrecipitationKind.RAIN, SEVERITY_STEADY),
+	"heavyrainshowers" to precipitation(WeatherLabel.VIOLENT_SHOWERS, PrecipitationKind.RAIN, SEVERITY_HEAVY),
+	"lightsleetshowers" to precipitation(null, PrecipitationKind.SLEET, SEVERITY_DRIZZLE),
+	"sleetshowers" to precipitation(null, PrecipitationKind.SLEET, SEVERITY_STEADY),
+	"heavysleetshowers" to precipitation(null, PrecipitationKind.SLEET, SEVERITY_HEAVY),
+	"lightsnowshowers" to precipitation(WeatherLabel.SNOW_SHOWERS, PrecipitationKind.SNOW, SEVERITY_STEADY),
+	"snowshowers" to precipitation(WeatherLabel.SNOW_SHOWERS, PrecipitationKind.SNOW, SEVERITY_STEADY),
+	"heavysnowshowers" to precipitation(WeatherLabel.HEAVY_SNOW_SHOWERS, PrecipitationKind.SNOW, SEVERITY_HEAVY),
+	"lightrain" to precipitation(WeatherLabel.LIGHT_RAIN, PrecipitationKind.RAIN, SEVERITY_STEADY),
+	"rain" to precipitation(WeatherLabel.RAIN, PrecipitationKind.RAIN, SEVERITY_STEADY),
+	"heavyrain" to precipitation(WeatherLabel.HEAVY_RAIN, PrecipitationKind.RAIN, SEVERITY_HEAVY),
+	"lightsleet" to precipitation(null, PrecipitationKind.SLEET, SEVERITY_DRIZZLE),
+	"sleet" to precipitation(null, PrecipitationKind.SLEET, SEVERITY_STEADY),
+	"heavysleet" to precipitation(null, PrecipitationKind.SLEET, SEVERITY_HEAVY),
+	"lightsnow" to precipitation(WeatherLabel.LIGHT_SNOW, PrecipitationKind.SNOW, SEVERITY_STEADY),
+	"snow" to precipitation(WeatherLabel.SNOW, PrecipitationKind.SNOW, SEVERITY_STEADY),
+	"heavysnow" to precipitation(WeatherLabel.HEAVY_SNOW, PrecipitationKind.SNOW, SEVERITY_HEAVY),
+	"lightrainshowersandthunder" to thunder(PrecipitationKind.RAIN, SEVERITY_STORM),
+	"rainshowersandthunder" to thunder(PrecipitationKind.RAIN, SEVERITY_STORM),
+	"heavyrainshowersandthunder" to thunder(PrecipitationKind.RAIN, SEVERITY_HEAVY),
+	"lightssleetshowersandthunder" to thunder(PrecipitationKind.SLEET, SEVERITY_STORM),
+	"sleetshowersandthunder" to thunder(PrecipitationKind.SLEET, SEVERITY_STORM),
+	"heavysleetshowersandthunder" to thunder(PrecipitationKind.SLEET, SEVERITY_HEAVY),
+	"lightssnowshowersandthunder" to thunder(PrecipitationKind.SNOW, SEVERITY_STORM),
+	"snowshowersandthunder" to thunder(PrecipitationKind.SNOW, SEVERITY_STORM),
+	"heavysnowshowersandthunder" to thunder(PrecipitationKind.SNOW, SEVERITY_HEAVY),
+	"lightrainandthunder" to thunder(PrecipitationKind.RAIN, SEVERITY_STORM),
+	"rainandthunder" to thunder(PrecipitationKind.RAIN, SEVERITY_STORM),
+	"heavyrainandthunder" to thunder(PrecipitationKind.RAIN, SEVERITY_HEAVY),
+	"lightsleetandthunder" to thunder(PrecipitationKind.SLEET, SEVERITY_STORM),
+	"sleetandthunder" to thunder(PrecipitationKind.SLEET, SEVERITY_STORM),
+	"heavysleetandthunder" to thunder(PrecipitationKind.SLEET, SEVERITY_HEAVY),
+	"lightsnowandthunder" to thunder(PrecipitationKind.SNOW, SEVERITY_STORM),
+	"snowandthunder" to thunder(PrecipitationKind.SNOW, SEVERITY_STORM),
+	"heavysnowandthunder" to thunder(PrecipitationKind.SNOW, SEVERITY_HEAVY)
+)
+
+private fun precipitation(label: WeatherLabel?, kind: PrecipitationKind, severity: Float) = WeatherCondition(
+	label = label,
+	precipitationKind = kind,
+	severity = severity
+)
+
+private fun thunder(kind: PrecipitationKind, severity: Float) = WeatherCondition(
+	label = WeatherLabel.THUNDERSTORM,
+	precipitationKind = kind,
+	severity = severity,
+	thunder = true
+)
 
 private const val METERS_PER_SECOND_TO_KILOMETERS_PER_HOUR = 3.6
 private const val FULL_CIRCLE_DEGREES = 360.0

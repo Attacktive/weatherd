@@ -23,6 +23,7 @@ import xyz.attacktive.weatherd.data.api.dto.MetNoSunEventDto
 import xyz.attacktive.weatherd.data.api.dto.MetNoSunPropertiesDto
 import xyz.attacktive.weatherd.data.api.dto.MetNoSunriseResponseDto
 import xyz.attacktive.weatherd.data.api.dto.MetNoTimeSeriesDto
+import xyz.attacktive.weatherd.data.api.dto.supportedMetNoSymbolCodes
 import xyz.attacktive.weatherd.data.api.dto.toMetNoCondition
 import xyz.attacktive.weatherd.data.api.dto.toSnapshot
 import xyz.attacktive.weatherd.data.provider.MetNoWeatherProvider
@@ -82,7 +83,8 @@ class MetNoWeatherProviderTest {
 	}
 
 	@Test
-	fun `all documented MET symbols map without falling through`() {
+	fun `current MET legend snapshot matches the supported symbol table`() {
+		assertEquals(MET_SYMBOL_CODES.toSet(), supportedMetNoSymbolCodes)
 		MET_SYMBOL_CODES.forEach { symbolCode ->
 			symbolCode.toMetNoCondition()
 		}
