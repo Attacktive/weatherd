@@ -1,10 +1,11 @@
 package xyz.attacktive.weatherd.data.api.dto
 
+import android.annotation.SuppressLint
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import android.annotation.SuppressLint
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
+import xyz.attacktive.weatherd.domain.weather.conditionForWmoCode
 
 @SuppressLint("UnsafeOptInUsageError")
 @Serializable
@@ -29,7 +30,7 @@ data class DailyDto(val sunrise: List<Long> = emptyList(), val sunset: List<Long
 /** Distils the Open-Meteo response into the domain snapshot; sun times take the first (today's) entry. */
 fun ForecastResponseDto.toSnapshot(): WeatherSnapshot {
 	val observation = WeatherObservation(
-		weatherCode = current.weatherCode,
+		condition = conditionForWmoCode(current.weatherCode),
 		isDay = current.isDay == 1,
 		temperatureCelsius = current.temperature,
 		precipitationMillimeters = current.precipitation,

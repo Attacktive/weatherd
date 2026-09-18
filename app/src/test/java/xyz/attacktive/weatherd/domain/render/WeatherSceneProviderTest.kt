@@ -25,6 +25,7 @@ import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.ReverseGeocodingRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
 import xyz.attacktive.weatherd.domain.repository.WeatherRepository
+import xyz.attacktive.weatherd.domain.weather.conditionForWmoCode
 import xyz.attacktive.weatherd.util.AppLogger
 
 class WeatherSceneProviderTest {
@@ -304,7 +305,7 @@ class WeatherSceneProviderTest {
 
 	private fun snapshotWith(weatherCode: Int) = WeatherSnapshot(
 		observation = WeatherObservation(
-			weatherCode = weatherCode,
+			condition = conditionForWmoCode(weatherCode),
 			isDay = true,
 			temperatureCelsius = 10.0,
 			precipitationMillimeters = 0.0,

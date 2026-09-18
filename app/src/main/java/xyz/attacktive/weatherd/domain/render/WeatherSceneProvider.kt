@@ -116,7 +116,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			snapshot = it
 			lastRefreshEpochSeconds = nowEpochSeconds
 			lastLocationKey = locationKey
-			logger.debug(TAG, "weather refreshed: code=${it.observation.weatherCode}, cloud=${it.observation.cloudCoverPercent}%")
+			logger.debug(TAG, "weather refreshed: condition=${it.observation.condition.label}, cloud=${it.observation.cloudCoverPercent}%")
 		}
 	}
 
@@ -187,9 +187,9 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		}
 	}
 
-	/** "Rain · 10°" — or the bare temperature when the code falls outside the label table. */
+	/** "Rain · 10°" — or the bare temperature when the provider has no matching display label. */
 	private fun weatherText(observation: WeatherObservation): String {
-		val labelResId = weatherLabelFor(observation.weatherCode)
+		val labelResId = weatherLabelFor(observation.condition.label)
 		val temperature = temperatureUnit.format(observation.temperatureCelsius)
 
 		return if (labelResId == null) {

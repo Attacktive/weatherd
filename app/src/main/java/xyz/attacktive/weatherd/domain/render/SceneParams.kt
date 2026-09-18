@@ -5,7 +5,6 @@ import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
-import xyz.attacktive.weatherd.domain.weather.conditionFor
 import xyz.attacktive.weatherd.domain.weather.dayPhaseFor
 import xyz.attacktive.weatherd.domain.weather.dayPhaseProgressFor
 import xyz.attacktive.weatherd.domain.weather.moonPhaseFor
@@ -66,7 +65,7 @@ fun sceneParamsFor(
 	lensFlareEnabled: Boolean = true,
 ): SceneParams {
 	val observation = snapshot.observation
-	val condition = conditionFor(observation.weatherCode)
+	val condition = observation.condition
 	val dayPhase = dayPhaseFor(nowEpochSeconds, snapshot.sunriseEpochSeconds, snapshot.sunsetEpochSeconds, observation.isDay)
 
 	return SceneParams(

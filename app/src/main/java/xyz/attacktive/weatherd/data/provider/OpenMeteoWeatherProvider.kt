@@ -9,6 +9,7 @@ import xyz.attacktive.weatherd.domain.provider.WeatherProvider
 
 @Singleton
 class OpenMeteoWeatherProvider @Inject constructor(private val api: OpenMeteoApiService) : WeatherProvider {
-	override suspend fun current(latitude: Double, longitude: Double): WeatherSnapshot =
-		api.forecast(latitude, longitude).toSnapshot()
+	override suspend fun current(latitude: Double, longitude: Double): WeatherSnapshot {
+		return api.forecast(latitude, longitude).toSnapshot()
+	}
 }

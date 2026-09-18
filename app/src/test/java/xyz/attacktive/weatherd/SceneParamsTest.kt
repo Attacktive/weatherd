@@ -19,6 +19,7 @@ import xyz.attacktive.weatherd.domain.render.backdropSignature
 import xyz.attacktive.weatherd.domain.render.sceneParamsFor
 import xyz.attacktive.weatherd.domain.render.showsRainbow
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_DRIZZLE
+import xyz.attacktive.weatherd.domain.weather.conditionForWmoCode
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_STEADY
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_STORM
 
@@ -316,7 +317,7 @@ class SceneParamsTest {
 
 	private fun snapshot(weatherCode: Int, precipitationMillimeters: Double, windSpeedKilometersPerHour: Double, cloudCoverPercent: Int) = WeatherSnapshot(
 		observation = WeatherObservation(
-			weatherCode = weatherCode,
+			condition = conditionForWmoCode(weatherCode),
 			isDay = false,
 			temperatureCelsius = -2.0,
 			precipitationMillimeters = precipitationMillimeters,
