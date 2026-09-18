@@ -60,17 +60,17 @@ data class MetNoSummaryDto(@SerialName("symbol_code") val symbolCode: String? = 
 data class MetNoPeriodDetailsDto(@SerialName("precipitation_amount") val precipitationAmount: Double? = null)
 
 fun MetNoForecastResponseDto.toSnapshot(sun: MetNoSunriseResponseDto): WeatherSnapshot {
-	val current = properties.timeseries.firstOrNull() ?: error("MET Norway response contains no timeseries")
-	val time = current.time ?: error("MET Norway current timeseries has no time")
-	val data = current.data ?: error("MET Norway current timeseries has no data")
-	val details = data.instant?.details ?: error("MET Norway current timeseries has no instant details")
-	val nextOneHour = data.nextOneHour ?: error("MET Norway current timeseries has no next-hour forecast")
-	val symbolCode = nextOneHour.summary?.symbolCode ?: error("MET Norway current timeseries has no next-hour symbol")
-	val periodDetails = nextOneHour.details ?: error("MET Norway current timeseries has no next-hour details")
+	val current = checkNotNull(properties.timeseries.firstOrNull()) { "MET Norway response contains no timeseries" }
+	val time = checkNotNull(current.time) { "MET Norway current timeseries has no time" }
+	val data = checkNotNull(current.data) { "MET Norway current timeseries has no data" }
+	val details = checkNotNull(data.instant?.details) { "MET Norway current timeseries has no instant details" }
+	val nextOneHour = checkNotNull(data.nextOneHour) { "MET Norway current timeseries has no next-hour forecast" }
+	val symbolCode = checkNotNull(nextOneHour.summary?.symbolCode) { "MET Norway current timeseries has no next-hour symbol" }
+	val periodDetails = checkNotNull(nextOneHour.details) { "MET Norway current timeseries has no next-hour details" }
 	val precipitation = periodDetails.precipitationAmount ?: 0.0
-	val airTemperature = details.airTemperature ?: error("MET Norway current timeseries has no air temperature")
-	val cloudAreaFraction = details.cloudAreaFraction ?: error("MET Norway current timeseries has no cloud cover")
-	val windSpeed = details.windSpeed ?: error("MET Norway current timeseries has no wind speed")
+	val airTemperature = checkNotNull(details.airTemperature) { "MET Norway current timeseries has no air temperature" }
+	val cloudAreaFraction = checkNotNull(details.cloudAreaFraction) { "MET Norway current timeseries has no cloud cover" }
+	val windSpeed = checkNotNull(details.windSpeed) { "MET Norway current timeseries has no wind speed" }
 	val observedAtEpochSeconds = Instant.parse(time).epochSecond
 
 	return WeatherSnapshot(
@@ -89,7 +89,7 @@ fun MetNoForecastResponseDto.toSnapshot(sun: MetNoSunriseResponseDto): WeatherSn
 }
 
 internal fun MetNoForecastResponseDto.sunriseDate(longitude: Double): String {
-	val time = properties.timeseries.firstOrNull()?.time ?: error("MET Norway response contains no current time")
+	val time = checkNotNull(properties.timeseries.firstOrNull()?.time) { "MET Norway response contains no current time" }
 	val solarOffsetSeconds = (longitude / FULL_CIRCLE_DEGREES * SECONDS_PER_DAY).roundToLong()
 
 	return Instant.parse(time).plusSeconds(solarOffsetSeconds).atZone(ZoneOffset.UTC).toLocalDate().toString()
