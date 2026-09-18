@@ -35,18 +35,18 @@ class SnowSlantTest {
 		// In dead calm, snow barely leans.
 		assertEquals(0.06f, snowSlant(0f, 1f), 0.0001f)
 
-		// At a 12 km/h breeze, snow slant (0.4315) sits naturally beside rain (0.4531).
+		// At a 12 km/h breeze, snow slant sits naturally beside light rain.
 		val breezeGust = 0.41275f
 		val snowBreeze = snowSlant(breezeGust, 1f)
-		val rainBreeze = rainSlant(breezeGust, 1f)
+		val rainBreeze = rainSlant(breezeGust, 1f, observed = 0.35f)
 
 		assertEquals(0.4315f, snowBreeze, 0.0001f)
-		assertEquals(0.4531f, rainBreeze, 0.0001f)
+		assertEquals(0.4881f, rainBreeze, 0.0001f)
 
-		// Snow catches wind more readily than rain at higher gusts.
+		// Snow catches high wind more readily than light rain.
 		val highGust = 0.85f
 
-		assertTrue(snowSlant(highGust, 1f) > rainSlant(highGust, 1f))
+		assertTrue(snowSlant(highGust, 1f) > rainSlant(highGust, 1f, observed = 0.35f))
 	}
 
 	@Test
