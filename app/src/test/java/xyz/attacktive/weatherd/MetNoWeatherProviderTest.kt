@@ -70,6 +70,18 @@ class MetNoWeatherProviderTest {
 	}
 
 	@Test
+	fun `reuses sunrise for the same location and solar date`() = runTest {
+		coEvery { api.forecast("37.5000", "127.0000") } returns response("cloudy")
+		coEvery { api.sunrise("37.5000", "127.0000", "2025-09-14") } returns sunResponse()
+
+		provider.current(37.500012, 127.000049)
+		provider.current(37.500012, 127.000049)
+
+		coVerify(exactly = 2) { api.forecast("37.5000", "127.0000") }
+		coVerify(exactly = 1) { api.sunrise("37.5000", "127.0000", "2025-09-14") }
+	}
+
+	@Test
 	fun `all documented MET symbols map without falling through`() {
 		MET_SYMBOL_CODES.forEach { symbolCode ->
 			symbolCode.toMetNoCondition()
@@ -115,6 +127,27 @@ class MetNoWeatherProviderTest {
 	}
 
 	@Test
+	fun `missing precipitation amount defaults to zero without discarding the forecast`() {
+		val snapshot = response("rain", precipitationAmount = null).toSnapshot(sunResponse())
+
+		assertEquals(0.0, snapshot.observation.precipitationMillimeters, 0.0001)
+		assertEquals(WeatherLabel.RAIN, snapshot.observation.condition.label)
+	}
+
+	@Test
+	fun `empty timeseries fails instead of inventing a snapshot`() {
+		var failed = false
+
+		try {
+			MetNoForecastResponseDto().toSnapshot(sunResponse())
+		} catch (_: IllegalStateException) {
+			failed = true
+		}
+
+		assertTrue(failed)
+	}
+
+	@Test
 	fun `missing next hour data fails instead of inventing cloudy weather`() {
 		val response = MetNoForecastResponseDto(
 			properties = MetNoPropertiesDto(
@@ -134,6 +167,7 @@ class MetNoWeatherProviderTest {
 				)
 			)
 		)
+
 		var failed = false
 
 		try {
@@ -145,7 +179,7 @@ class MetNoWeatherProviderTest {
 		assertTrue(failed)
 	}
 
-	private fun response(symbolCode: String) = MetNoForecastResponseDto(
+	private fun response(symbolCode: String, precipitationAmount: Double? = 3.2) = MetNoForecastResponseDto(
 		properties = MetNoPropertiesDto(
 			timeseries = listOf(
 				MetNoTimeSeriesDto(
@@ -160,7 +194,7 @@ class MetNoWeatherProviderTest {
 						),
 						nextOneHour = MetNoPeriodDto(
 							summary = MetNoSummaryDto(symbolCode),
-							details = MetNoPeriodDetailsDto(3.2)
+							details = MetNoPeriodDetailsDto(precipitationAmount)
 						)
 					)
 				)

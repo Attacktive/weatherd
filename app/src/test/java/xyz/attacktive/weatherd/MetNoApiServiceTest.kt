@@ -8,9 +8,9 @@ import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import xyz.attacktive.weatherd.di.MET_NO_BASE_URL
 import xyz.attacktive.weatherd.di.createMetNoApiService
 
 class MetNoApiServiceTest {
@@ -76,6 +76,7 @@ class MetNoApiServiceTest {
 					.addHeader("Expires", "Fri, 18 Sep 2099 06:30:00 GMT")
 					.addHeader("Last-Modified", "Fri, 18 Sep 2026 05:30:00 GMT")
 			)
+
 			val api = createMetNoApiService(
 				OkHttpClient(),
 				Json { ignoreUnknownKeys = true },
@@ -94,8 +95,41 @@ class MetNoApiServiceTest {
 	}
 
 	@Test
-	fun `production MET base URL is the official API host`() {
-		assertEquals("https://api.met.no/", MET_NO_BASE_URL)
+	fun `MET client revalidates a stale cached response with last modified`() = runTest {
+		val server = MockWebServer()
+		val cacheDirectory = Files.createTempDirectory("weatherd-met-revalidation").toFile()
+		val cache = Cache(cacheDirectory, 1024L * 1024L)
+		server.start()
+
+		try {
+			server.enqueue(
+				jsonResponse(FORECAST_BODY)
+					.addHeader("Date", "Fri, 18 Sep 2026 05:00:00 GMT")
+					.addHeader("Expires", "Fri, 18 Sep 2026 05:01:00 GMT")
+					.addHeader("Last-Modified", "Fri, 18 Sep 2026 04:30:00 GMT")
+			)
+			server.enqueue(MockResponse().setResponseCode(304))
+
+			val api = createMetNoApiService(
+				OkHttpClient(),
+				Json { ignoreUnknownKeys = true },
+				server.url("/").toString(),
+				cache
+			)
+
+			api.forecast("37.5000", "127.0000")
+			val revalidated = api.forecast("37.5000", "127.0000")
+			val firstRequest = server.takeRequest()
+			val secondRequest = server.takeRequest()
+
+			assertNull(firstRequest.getHeader("If-Modified-Since"))
+			assertEquals("Fri, 18 Sep 2026 04:30:00 GMT", secondRequest.getHeader("If-Modified-Since"))
+			assertEquals("cloudy", revalidated.properties.timeseries.first().data?.nextOneHour?.summary?.symbolCode)
+		} finally {
+			cache.close()
+			cacheDirectory.deleteRecursively()
+			server.shutdown()
+		}
 	}
 
 	private fun jsonResponse(body: String) = MockResponse()

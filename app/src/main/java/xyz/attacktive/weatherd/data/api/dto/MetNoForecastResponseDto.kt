@@ -64,8 +64,10 @@ fun MetNoForecastResponseDto.toSnapshot(sun: MetNoSunriseResponseDto): WeatherSn
 	val time = current.time ?: error("MET Norway current timeseries has no time")
 	val data = current.data ?: error("MET Norway current timeseries has no data")
 	val details = data.instant?.details ?: error("MET Norway current timeseries has no instant details")
-	val symbolCode = data.nextOneHour?.summary?.symbolCode ?: error("MET Norway current timeseries has no next-hour symbol")
-	val precipitation = data.nextOneHour?.details?.precipitationAmount ?: error("MET Norway current timeseries has no next-hour precipitation")
+	val nextOneHour = data.nextOneHour ?: error("MET Norway current timeseries has no next-hour forecast")
+	val symbolCode = nextOneHour.summary?.symbolCode ?: error("MET Norway current timeseries has no next-hour symbol")
+	val periodDetails = nextOneHour.details ?: error("MET Norway current timeseries has no next-hour details")
+	val precipitation = periodDetails.precipitationAmount ?: 0.0
 	val airTemperature = details.airTemperature ?: error("MET Norway current timeseries has no air temperature")
 	val cloudAreaFraction = details.cloudAreaFraction ?: error("MET Norway current timeseries has no cloud cover")
 	val windSpeed = details.windSpeed ?: error("MET Norway current timeseries has no wind speed")

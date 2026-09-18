@@ -25,6 +25,7 @@ class WeatherRepositoryTest {
 			sunriseEpochSeconds = 1_751_866_500L,
 			sunsetEpochSeconds = 1_751_918_700L
 		)
+
 		coEvery { provider.current(37.5, 127.0) } returns expected
 
 		val result = repository.current(37.5, 127.0)
