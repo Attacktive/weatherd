@@ -79,6 +79,24 @@ class WeatherSceneProviderTest {
 	}
 
 	@Test
+	fun `a failed provider switch only bypasses the throttle once`() = runTest {
+		val openMeteo = AppSettings(useDeviceLocation = true, weatherProvider = WeatherProviderType.OPEN_METEO)
+		every { settingsRepository.settings } returns flowOf(openMeteo)
+		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
+		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 3))
+
+		provider.refresh(1_000_000L)
+
+		every { settingsRepository.settings } returns flowOf(openMeteo.copy(weatherProvider = WeatherProviderType.MET_NORWAY))
+		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.failure(IllegalStateException("provider unavailable"))
+
+		provider.refresh(1_000_060L)
+		provider.refresh(1_000_120L)
+
+		coVerify(exactly = 2) { weatherRepository.current(52.52, 13.40) }
+	}
+
+	@Test
 	fun `an unchanged location is throttled within the interval`() = runTest {
 		val device = AppSettings(useDeviceLocation = true, updateIntervalMinutes = 30)
 		every { settingsRepository.settings } returns flowOf(device)

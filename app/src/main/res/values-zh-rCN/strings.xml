@@ -20,6 +20,9 @@
 	<string name="hint_weather_provider">选择 Weatherd 获取天气数据所使用的服务。两种选项都无需 API 密钥。</string>
 	<string name="provider_open_meteo">Open-Meteo</string>
 	<string name="provider_met_norway">MET Norway</string>
+	<string name="section_data_attribution">数据署名</string>
+	<string name="attribution_met_norway">基于 MET Norway 数据</string>
+	<string name="attribution_met_norway_license">CC BY 4.0 · 经 Weatherd 修改</string>
 	<string name="section_refresh_interval">天气刷新间隔</string>
 	<string name="section_frame_rate">动画帧率</string>
 	<string name="section_backdrop">背景风光</string>

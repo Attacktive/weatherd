@@ -31,6 +31,8 @@ Debug builds need no secrets. Open-Meteo and MET Norway both work without API ke
 
 Run the unit tests with `./gradlew test`.
 
----
+## Weather data attribution
 
-Weather data by [Open-Meteo](https://open-meteo.com) or [MET Norway](https://api.met.no), depending on the provider selected in Settings.
+Weather data comes from [Open-Meteo](https://open-meteo.com) or [MET Norway](https://api.met.no), depending on the provider selected in Settings.
+
+MET Norway data is provided by The Norwegian Meteorological Institute ("MET Norway") under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Weatherd modifies that data by normalizing provider-specific fields into its own weather-condition model and rendering the result as procedural scenes.

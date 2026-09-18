@@ -20,6 +20,9 @@
 	<string name="hint_weather_provider">Escolha o serviço que o Weatherd usa para dados meteorológicos. Ambas as opções funcionam sem chave de API.</string>
 	<string name="provider_open_meteo">Open-Meteo</string>
 	<string name="provider_met_norway">MET Norway</string>
+	<string name="section_data_attribution">Atribuição dos dados</string>
+	<string name="attribution_met_norway">Com base em dados do MET Norway</string>
+	<string name="attribution_met_norway_license">CC BY 4.0 · modificado pelo Weatherd</string>
 	<string name="section_refresh_interval">Intervalo de atualização do clima</string>
 	<string name="section_frame_rate">Taxa de quadros da animação</string>
 	<string name="section_backdrop">Cenário de fundo</string>

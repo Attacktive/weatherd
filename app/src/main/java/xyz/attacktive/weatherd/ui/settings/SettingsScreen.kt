@@ -65,6 +65,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -174,6 +175,12 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 				Spacer(modifier = Modifier.height(24.dp))
 
 				SceneSimulatorSection(settings = settings, onSave = viewModel::save)
+
+				if (settings.weatherProvider == WeatherProviderType.MET_NORWAY) {
+					Spacer(modifier = Modifier.height(24.dp))
+
+					MetNoAttributionSection()
+				}
 			}
 
 			VersionFooter()
@@ -562,6 +569,21 @@ private fun SceneSimulatorSection(settings: AppSettings, onSave: (AppSettings) -
 }
 
 @Composable
+private fun MetNoAttributionSection() {
+	val uriHandler = LocalUriHandler.current
+
+	SectionLabel(stringResource(R.string.section_data_attribution))
+
+	TextButton(onClick = { uriHandler.openUri(MET_NORWAY_URL) }) {
+		Text(stringResource(R.string.attribution_met_norway))
+	}
+
+	TextButton(onClick = { uriHandler.openUri(CC_BY_4_URL) }) {
+		Text(stringResource(R.string.attribution_met_norway_license))
+	}
+}
+
+@Composable
 private fun LocationSection(
 	settings: AppSettings,
 	citySearch: CitySearchState,
@@ -835,6 +857,9 @@ private class ChoosableGetContent: ActivityResultContract<String, Uri?>() {
 		return intent.data ?: intent.clipData?.firstUriOrNull()
 	}
 }
+
+private const val MET_NORWAY_URL = "https://api.met.no"
+private const val CC_BY_4_URL = "https://creativecommons.org/licenses/by/4.0/"
 
 private fun ClipData.firstUriOrNull(): Uri? = if (itemCount > 0) {
 	getItemAt(0).uri

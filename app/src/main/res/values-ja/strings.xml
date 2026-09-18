@@ -20,6 +20,9 @@
 	<string name="hint_weather_provider">Weatherd が天気データに使用するサービスを選択します。どちらも API キーなしで利用できます。</string>
 	<string name="provider_open_meteo">Open-Meteo</string>
 	<string name="provider_met_norway">MET Norway</string>
+	<string name="section_data_attribution">データの帰属</string>
+	<string name="attribution_met_norway">MET Norway のデータに基づく</string>
+	<string name="attribution_met_norway_license">CC BY 4.0 · Weatherd により変更</string>
 	<string name="section_refresh_interval">天気の更新間隔</string>
 	<string name="section_frame_rate">アニメーションのフレームレート</string>
 	<string name="section_backdrop">背景の風景</string>

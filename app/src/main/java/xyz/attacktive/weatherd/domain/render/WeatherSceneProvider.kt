@@ -32,7 +32,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	@Volatile private var snapshot: WeatherSnapshot? = null
 	@Volatile private var lastRefreshEpochSeconds = 0L
 	@Volatile private var lastLocationKey: String? = null
-	@Volatile private var lastWeatherProvider: WeatherProviderType? = null
+	@Volatile private var lastAttemptedWeatherProvider: WeatherProviderType? = null
 	@Volatile private var backdropScene = BackdropScene.NONE
 	@Volatile private var photoRevision = 0
 	@Volatile private var showWeatherLabel = false
@@ -93,7 +93,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 
 		val locationKey = locationKey(settings)
 		val locationChanged = locationKey != lastLocationKey
-		val weatherProviderChanged = settings.weatherProvider != lastWeatherProvider
+		val weatherProviderChanged = settings.weatherProvider != lastAttemptedWeatherProvider
 		val minRefreshSeconds = settings.updateIntervalMinutes * SECONDS_PER_MINUTE
 		if (!force && !locationChanged && !weatherProviderChanged && nowEpochSeconds - lastRefreshEpochSeconds < minRefreshSeconds) {
 			return
@@ -115,11 +115,13 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		lastFix = location
 		refreshLocationLabel(settings)
 
+		// A provider change is an immediate-refresh trigger, not a retry policy. Consume it when the request is attempted so a failing provider does not bypass the normal interval on every visibility change.
+		lastAttemptedWeatherProvider = settings.weatherProvider
+
 		weatherRepository.current(location.latitude, location.longitude).onSuccess {
 			snapshot = it
 			lastRefreshEpochSeconds = nowEpochSeconds
 			lastLocationKey = locationKey
-			lastWeatherProvider = settings.weatherProvider
 			logger.debug(TAG, "weather refreshed: condition=${it.observation.condition.label}, cloud=${it.observation.cloudCoverPercent}%")
 		}
 	}
