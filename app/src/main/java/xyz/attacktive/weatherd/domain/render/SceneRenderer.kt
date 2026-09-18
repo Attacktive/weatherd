@@ -1576,7 +1576,7 @@ class SceneRenderer(resources: Resources) {
 		paint.color = Color.argb(gleam(12, flash), 205, 218, 238)
 		canvas.drawLines(points, 0, squallCount * 4, paint)
 
-		trimRainTails(points, squallCount, 0.58f)
+		trimStreakTails(points, squallCount, 0.58f)
 		paint.strokeWidth = 1.1f
 		paint.color = Color.argb(gleam(46, flash), 218, 228, 242)
 		canvas.drawLines(points, 0, squallCount * 4, paint)
@@ -1601,14 +1601,19 @@ class SceneRenderer(resources: Resources) {
 			points[i * 4 + 3] = y + length
 		}
 
+		drawNearPrecipitationStreaks(canvas, points, nearCount, flash)
+	}
+
+	/** Shared near-distance streak treatment for rain and sleet, so changing precipitation kind does not change stroke weight before the sleet pellets even appear. */
+	private fun drawNearPrecipitationStreaks(canvas: Canvas, points: FloatArray, count: Int, flash: Float) {
 		paint.strokeWidth = 3.4f
 		paint.color = Color.argb(gleam(18, flash), 210, 221, 236)
-		canvas.drawLines(points, 0, nearCount * 4, paint)
+		canvas.drawLines(points, 0, count * 4, paint)
 
-		trimRainTails(points, nearCount, 0.52f)
+		trimStreakTails(points, count, 0.52f)
 		paint.strokeWidth = 1.5f
 		paint.color = Color.argb(gleam(110, flash), 225, 234, 246)
-		canvas.drawLines(points, 0, nearCount * 4, paint)
+		canvas.drawLines(points, 0, count * 4, paint)
 	}
 
 	/** A sparse foreground pass keeps a few drops distinct without turning them into thick white capsules. */
@@ -1639,14 +1644,14 @@ class SceneRenderer(resources: Resources) {
 		paint.color = Color.argb(gleam(24, flash), 216, 226, 240)
 		canvas.drawLines(points, 0, closeCount * 4, paint)
 
-		trimRainTails(points, closeCount, 0.48f)
+		trimStreakTails(points, closeCount, 0.48f)
 		paint.strokeWidth = 2.2f
 		paint.color = Color.argb(gleam(170, flash), 230, 238, 248)
 		canvas.drawLines(points, 0, closeCount * 4, paint)
 	}
 
 	/** Keeps the falling head fixed while shortening each segment from its trailing end, producing a cheap two-step motion blur without shaders or allocations. */
-	private fun trimRainTails(points: FloatArray, count: Int, fraction: Float) {
+	private fun trimStreakTails(points: FloatArray, count: Int, fraction: Float) {
 		repeat(count) { i ->
 			val offset = i * 4
 			points[offset] = lerp(points[offset], points[offset + 2], fraction)
@@ -1737,15 +1742,7 @@ class SceneRenderer(resources: Resources) {
 			points[i * 4 + 3] = y + length
 		}
 
-		// Keep sleet streaks on the same tapered treatment as near rain so a rain-to-sleet transition does not suddenly become thicker and brighter.
-		paint.strokeWidth = 3.4f
-		paint.color = Color.argb(gleam(18, flash), 210, 221, 236)
-		canvas.drawLines(points, 0, streakCount * 4, paint)
-
-		trimRainTails(points, streakCount, 0.52f)
-		paint.strokeWidth = 1.5f
-		paint.color = Color.argb(gleam(110, flash), 225, 234, 246)
-		canvas.drawLines(points, 0, streakCount * 4, paint)
+		drawNearPrecipitationStreaks(canvas, points, streakCount, flash)
 
 		paint.style = Paint.Style.FILL
 
