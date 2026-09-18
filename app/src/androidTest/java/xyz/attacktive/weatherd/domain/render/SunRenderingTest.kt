@@ -72,14 +72,14 @@ class SunRenderingTest {
 	}
 
 	@Test
-	fun fullMoonRetainsItsExistingSizeAndPosition() {
+	fun fullMoonKeepsItsRestrainedSizeAndPosition() {
 		val bitmap = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams(dayPhase = DayPhase.NIGHT, moonPhase = 0.5f))
 		val expectedCenter = celestialCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, DayPhase.NIGHT)
 		val bounds = opaqueBounds(bitmap)
 		val radiusFraction = bounds.height / 2f / minOf(PORTRAIT_WIDTH, PORTRAIT_HEIGHT)
 
 		assertTrue("The full moon should remain centered at $expectedCenter, but opaque bounds were $bounds", abs(bounds.centerX - expectedCenter.x) <= POSITION_TOLERANCE_PIXELS && abs(bounds.centerY - expectedCenter.y) <= POSITION_TOLERANCE_PIXELS)
-		assertTrue("The full moon should preserve its existing radius near $MOON_RADIUS_FRACTION, but measured $radiusFraction", radiusFraction in MOON_RADIUS_RANGE)
+		assertTrue("The full moon should keep a restrained radius near $MOON_RADIUS_FRACTION, but measured $radiusFraction", radiusFraction in MOON_RADIUS_RANGE)
 		bitmap.recycle()
 	}
 
@@ -392,8 +392,8 @@ class SunRenderingTest {
 		const val MAX_CLOUDED_EDGE_WARMTH = 52
 		const val ATMOSPHERE_DIRECTION_COUNT = 12
 		const val TAU = 2.0 * PI
-		const val MOON_RADIUS_FRACTION = 0.1f
-		val SUN_RADIUS_RANGE = 0.044f..0.060f
-		val MOON_RADIUS_RANGE = 0.08f..0.12f
+		const val MOON_RADIUS_FRACTION = 0.075f
+		val SUN_RADIUS_RANGE = 0.034f..0.050f
+		val MOON_RADIUS_RANGE = 0.06f..0.09f
 	}
 }

@@ -41,9 +41,9 @@ class RainbowLayerTest {
 		val peak = profile.maxOrNull() ?: 0
 		val quarterPeakWidth = profile.count { it >= peak / 4 }
 
-		assertTrue("The halo must remain visible enough to measure its falloff, but peaked at $peak", peak >= 8)
-		assertTrue("The halo band should be broad, but its quarter-peak width was $quarterPeakWidth pixels", quarterPeakWidth >= span * 0.10f)
-		assertTrue("The halo band should feather away rather than wash the sky, but its quarter-peak width was $quarterPeakWidth pixels", quarterPeakWidth <= span * 0.36f)
+		assertTrue("The halo must remain visible enough to measure its falloff, but peaked at $peak", peak >= 3)
+		assertTrue("The halo band should retain a visible feather, but its quarter-peak width was $quarterPeakWidth pixels", quarterPeakWidth >= span * 0.025f)
+		assertTrue("The halo band should stay compact around the sun, but its quarter-peak width was $quarterPeakWidth pixels", quarterPeakWidth <= span * 0.11f)
 		pair.recycle()
 	}
 
@@ -52,7 +52,7 @@ class RainbowLayerTest {
 		val bitmap = renderLayer(Color.TRANSPARENT)
 		val alpha = highestAlpha(bitmap)
 
-		assertTrue("An optical halo should remain atmospheric, but reached alpha $alpha", alpha <= 64)
+		assertTrue("An optical halo should remain atmospheric, but reached alpha $alpha", alpha <= 32)
 		bitmap.recycle()
 	}
 
@@ -71,7 +71,7 @@ class RainbowLayerTest {
 		val bitmap = renderLayer(cloudySky)
 		val contrast = highestSkyDisplacement(bitmap)
 
-		assertTrue("A daytime halo should remain visible through cloudy haze, but only changed a channel by $contrast", contrast >= 15)
+		assertTrue("A daytime halo should remain visible through cloudy haze, but only changed a channel by $contrast", contrast >= 5)
 		bitmap.recycle()
 	}
 
@@ -86,8 +86,8 @@ class RainbowLayerTest {
 		val innerWarmShift = Color.red(inner) - Color.red(cloudySky) - (Color.blue(inner) - Color.blue(cloudySky))
 		val outerCoolShift = Color.blue(outer) - Color.blue(cloudySky) - (Color.red(outer) - Color.red(cloudySky))
 
-		assertTrue("The inner halo edge should carry subtle warm dispersion, but its warm shift was $innerWarmShift", innerWarmShift >= 2)
-		assertTrue("The outer halo edge should carry subtle cool dispersion, but its cool shift was $outerCoolShift", outerCoolShift >= 2)
+		assertTrue("The inner halo edge should carry subtle warm dispersion, but its warm shift was $innerWarmShift", innerWarmShift >= 1)
+		assertTrue("The outer halo edge should carry subtle cool dispersion, but its cool shift was $outerCoolShift", outerCoolShift >= 1)
 		bitmap.recycle()
 	}
 
@@ -109,7 +109,7 @@ class RainbowLayerTest {
 		}
 
 		for (peak in peaks) {
-			assertTrue("The halo should be visible around the sun, but its strongest alpha was ${peak.strength}", peak.strength >= 32)
+			assertTrue("The halo should be visible around the sun, but its strongest alpha was ${peak.strength}", peak.strength >= 8)
 			assertTrue("The halo radius should follow the shorter side near $expectedRadius pixels, but was ${peak.radius}", abs(peak.radius - expectedRadius) <= span * RADIUS_TOLERANCE_FRACTION)
 		}
 
@@ -272,11 +272,11 @@ class RainbowLayerTest {
 		const val SAMPLE_RADIUS = 2
 		const val SUN_X_FRACTION = 0.72f
 		const val MIDDAY_SUN_Y_FRACTION = 0.17f
-		const val HALO_RADIUS_FRACTION = 0.40f
-		const val SPECTRAL_SAMPLE_OFFSET_FRACTION = 0.035f
-		const val MIN_SEARCH_RADIUS_FRACTION = 0.28f
-		const val MAX_SEARCH_RADIUS_FRACTION = 0.62f
-		const val RADIUS_TOLERANCE_FRACTION = 0.035f
-		const val CIRCULARITY_TOLERANCE_FRACTION = 0.045f
+		const val HALO_RADIUS_FRACTION = 0.145f
+		const val SPECTRAL_SAMPLE_OFFSET_FRACTION = 0.014f
+		const val MIN_SEARCH_RADIUS_FRACTION = 0.08f
+		const val MAX_SEARCH_RADIUS_FRACTION = 0.24f
+		const val RADIUS_TOLERANCE_FRACTION = 0.02f
+		const val CIRCULARITY_TOLERANCE_FRACTION = 0.025f
 	}
 }

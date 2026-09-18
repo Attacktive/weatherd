@@ -32,6 +32,8 @@ internal class RainbowLayer(resources: Resources, @DrawableRes texture: Int) {
 		transform.setScale(scale, scale)
 		transform.postTranslate(left, top)
 
+		paint.alpha = haloAlpha(dayPhase)
+
 		val tint = rainbowTint(dayPhase)
 		if (tint != previousTint) {
 			paint.colorFilter = if (tint == Color.WHITE) {
@@ -47,13 +49,20 @@ internal class RainbowLayer(resources: Resources, @DrawableRes texture: Int) {
 	}
 
 	companion object {
-		private const val HALO_RADIUS_FRACTION = 0.40f
+		private const val HALO_RADIUS_FRACTION = 0.145f
 		private const val TEXTURE_HALO_RADIUS_FRACTION = 0.34f
+
+		private fun haloAlpha(dayPhase: DayPhase) = when (dayPhase) {
+			DayPhase.DAY -> 110
+			DayPhase.DAWN -> 96
+			DayPhase.DUSK -> 88
+			DayPhase.NIGHT -> 0
+		}
 
 		/** Gentle atmospheric tinting during dawn and dusk to harmonize the rainbow with warm lighting. */
 		internal fun rainbowTint(dayPhase: DayPhase) = when (dayPhase) {
-			DayPhase.DAWN -> 0xFFFCECD8.toInt()
-			DayPhase.DUSK -> 0xFFFFDECC.toInt()
+			DayPhase.DAWN -> 0xFFFFF4EA.toInt()
+			DayPhase.DUSK -> 0xFFFFEADD.toInt()
 			DayPhase.DAY -> Color.WHITE
 			DayPhase.NIGHT -> Color.BLACK
 		}

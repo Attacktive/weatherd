@@ -1049,10 +1049,10 @@ class SceneRenderer(resources: Resources) {
 
 		// Two blits of one pre-rendered radial sprite deepen the bloom — building RadialGradients here churned two shader allocations every frame.
 		val halo = tile("moonHalo", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildHaloSprite(it, core) }
-		blitSprite(canvas, halo, centerX, centerY, radius * (2.2f + 1.1f * pulse), ((80f + 130f * pulse) * litScale).roundToInt())
+		blitSprite(canvas, halo, centerX, centerY, radius * (1.65f + 0.35f * pulse), ((55f + 55f * pulse) * litScale).roundToInt())
 
 		// Wide, faint outer bloom breathing in counter-phase, so something is always in motion.
-		blitSprite(canvas, halo, centerX, centerY, radius * (3.6f + 0.9f * (1f - pulse)), ((26f + 34f * (1f - pulse)) * litScale).roundToInt())
+		blitSprite(canvas, halo, centerX, centerY, radius * (2.4f + 0.35f * (1f - pulse)), ((12f + 16f * (1f - pulse)) * litScale).roundToInt())
 
 		// The disc is a sprite shaped by the real synodic phase — tonight's sky and the wallpaper agree on the moon.
 		val phaseIndex = (params.moonPhase * MOON_PHASE_STEPS).roundToInt()
@@ -1177,14 +1177,39 @@ class SceneRenderer(resources: Resources) {
 		}
 
 		litPath.close()
-		brush.color = core
+		brush.shader = RadialGradient(
+			center - radius * 0.16f,
+			center - radius * 0.18f,
+			radius * 1.18f,
+			intArrayOf(lighten(core, 0.78f), core, darken(core, 0.90f)),
+			floatArrayOf(0f, 0.64f, 1f),
+			Shader.TileMode.CLAMP
+		)
+
 		canvas.drawPath(litPath, brush)
 
 		canvas.withClip(litPath) {
-			brush.color = withAlpha(darken(core, 0.82f), 90)
-			drawCircle(center - radius * 0.32f, center - radius * 0.18f, radius * 0.2f, brush)
-			drawCircle(center + radius * 0.18f, center + radius * 0.3f, radius * 0.14f, brush)
-			drawCircle(center + radius * 0.32f, center - radius * 0.32f, radius * 0.1f, brush)
+			brush.shader = null
+			brush.color = withAlpha(darken(core, 0.72f), 44)
+			drawOval(
+				RectF(center - radius * 0.52f, center - radius * 0.33f, center - radius * 0.10f, center + radius * 0.02f),
+				brush
+			)
+			drawOval(
+				RectF(center + radius * 0.02f, center + radius * 0.12f, center + radius * 0.38f, center + radius * 0.38f),
+				brush
+			)
+			brush.color = withAlpha(darken(core, 0.76f), 34)
+			drawOval(
+				RectF(center + radius * 0.18f, center - radius * 0.42f, center + radius * 0.42f, center - radius * 0.20f),
+				brush
+			)
+			drawOval(
+				RectF(center - radius * 0.20f, center + radius * 0.28f, center + radius * 0.04f, center + radius * 0.46f),
+				brush
+			)
+			brush.color = withAlpha(darken(core, 0.80f), 28)
+			drawCircle(center + radius * 0.02f, center - radius * 0.10f, radius * 0.08f, brush)
 		}
 	}
 
@@ -2053,11 +2078,11 @@ class SceneRenderer(resources: Resources) {
 		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
 		val warm = lighten(core, SUN_ATMOSPHERE_LIFT)
 
-		drawAtmosphereLobe(canvas, brush, warm, size * 0.48f, size * 0.46f, size * 0.47f, 205)
-		drawAtmosphereLobe(canvas, brush, warm, size * 0.30f, size * 0.54f, size * 0.34f, 95)
-		drawAtmosphereLobe(canvas, brush, warm, size * 0.69f, size * 0.38f, size * 0.30f, 80)
-		drawAtmosphereLobe(canvas, brush, warm, size * 0.56f, size * 0.70f, size * 0.27f, 58)
-		drawAtmosphereLobe(canvas, brush, warm, size * 0.40f, size * 0.22f, size * 0.23f, 45)
+		drawAtmosphereLobe(canvas, brush, warm, size * 0.48f, size * 0.46f, size * 0.43f, 132)
+		drawAtmosphereLobe(canvas, brush, warm, size * 0.31f, size * 0.54f, size * 0.30f, 54)
+		drawAtmosphereLobe(canvas, brush, warm, size * 0.68f, size * 0.39f, size * 0.27f, 46)
+		drawAtmosphereLobe(canvas, brush, warm, size * 0.56f, size * 0.69f, size * 0.24f, 32)
+		drawAtmosphereLobe(canvas, brush, warm, size * 0.40f, size * 0.24f, size * 0.20f, 24)
 	}
 
 	private fun drawAtmosphereLobe(canvas: Canvas, brush: Paint, color: Int, centerX: Float, centerY: Float, radius: Float, peakAlpha: Int) {
@@ -2331,19 +2356,19 @@ class SceneRenderer(resources: Resources) {
 		brush.maskFilter = BlurMaskFilter(size * SUN_CORONA_BLUR_FRACTION, BlurMaskFilter.Blur.NORMAL)
 
 		repeat(SUN_CORONA_RAY_COUNT) { index ->
-			val primary = random.nextFloat() < 0.22f
+			val primary = random.nextFloat() < 0.14f
 			val angle = index * SUN_CORONA_GOLDEN_ANGLE + random.nextFloat(-SUN_CORONA_ANGLE_JITTER, SUN_CORONA_ANGLE_JITTER)
 			val directionX = cos(angle)
 			val directionY = sin(angle)
 			val normalX = -directionY
 			val normalY = directionX
 			val innerRadius = center * random.nextFloat(0.20f, 0.30f)
-			val outerMin = if (primary) 0.68f else 0.38f
-			val outerMax = if (primary) 0.98f else 0.80f
-			val widthMin = if (primary) 0.010f else 0.005f
-			val widthMax = if (primary) 0.026f else 0.016f
-			val alphaMin = if (primary) 125f else 48f
-			val alphaMax = if (primary) 188f else 118f
+			val outerMin = if (primary) 0.54f else 0.30f
+			val outerMax = if (primary) 0.86f else 0.64f
+			val widthMin = if (primary) 0.006f else 0.003f
+			val widthMax = if (primary) 0.016f else 0.010f
+			val alphaMin = if (primary) 62f else 18f
+			val alphaMax = if (primary) 118f else 58f
 			val outerRadius = center * random.nextFloat(outerMin, outerMax)
 			val halfWidth = center * random.nextFloat(widthMin, widthMax)
 
@@ -2504,7 +2529,7 @@ class SceneRenderer(resources: Resources) {
 		private const val CELESTIAL_X_FRACTION = 0.72f
 
 		/** The moon's radius as a fraction of the screen's shorter side; it stays the generous disc it always was, because a moon genuinely does read large. */
-		private const val MOON_RADIUS_FRACTION = 0.1f
+		private const val MOON_RADIUS_FRACTION = 0.075f
 
 		/** The moon disc fills this fraction of its sprite, leaving margin so the anti-aliased limb never clips at the bitmap edge. */
 		private const val MOON_DISC_MARGIN = 0.96f
@@ -2516,21 +2541,21 @@ class SceneRenderer(resources: Resources) {
 		 * The sun's radius as a fraction of the shorter side, matching the restrained disc in the primary ColorOS reference.
 		 * Bloom carries the remaining apparent size without turning the body into a flat ball.
 		 */
-		private const val SUN_RADIUS_FRACTION = 0.052f
+		private const val SUN_RADIUS_FRACTION = 0.044f
 
 		/** Edge length of the pre-rendered sun disc sprite, matching the moon's so both discs upscale identically. */
 		private const val SUN_SPRITE_SIZE = 256
 
 		/** The sun disc fills this fraction of its sprite radius; the remainder carries the feathered atmospheric edge. */
-		private const val SUN_DISC_MARGIN = 0.84f
+		private const val SUN_DISC_MARGIN = 0.91f
 
 		/** Cached corona geometry and on-screen reach around the smaller solar disc. */
 		private const val SUN_CORONA_SPRITE_SIZE = 512
-		private const val SUN_CORONA_RAY_COUNT = 28
-		private const val SUN_CORONA_REACH = 2.20f
-		private const val SUN_CORONA_ALPHA = 172f
-		private const val SUN_CORONA_BLUR_FRACTION = 0.018f
-		private const val SUN_CORONA_ANGLE_JITTER = 0.085f
+		private const val SUN_CORONA_RAY_COUNT = 52
+		private const val SUN_CORONA_REACH = 1.75f
+		private const val SUN_CORONA_ALPHA = 110f
+		private const val SUN_CORONA_BLUR_FRACTION = 0.025f
+		private const val SUN_CORONA_ANGLE_JITTER = 0.10f
 		private const val SUN_CORONA_GOLDEN_ANGLE = 2.3999632f
 
 		/** Cloud-edge-driven volumetric rays. Sampling the moving silhouette makes the fan itself move with the clouds instead of only changing opacity. */
@@ -2560,21 +2585,21 @@ class SceneRenderer(resources: Resources) {
 		private const val SUN_SHAFT_MIN_PEAK_GAP = 3
 
 		/** How far the inner shoulder is lifted toward white before easing into the cream-colored limb. */
-		private const val SUN_CORE_LIFT = 0.86f
+		private const val SUN_CORE_LIFT = 0.92f
 
 		/** How far the limb is lifted toward white to prevent a saturated yellow outline behind translucent clouds. */
-		private const val SUN_EDGE_LIFT = 0.58f
+		private const val SUN_EDGE_LIFT = 0.72f
 
 		/** Alpha at the nominal limb before the final transparent feather. */
-		private const val SUN_EDGE_ALPHA = 205
+		private const val SUN_EDGE_ALPHA = 160
 
 		/** Bloom reach as a multiple of the disc radius: an irregular atmospheric far pass and a radial near pass hugging the limb. */
-		private const val SUN_BLOOM_FAR = 4.8f
-		private const val SUN_BLOOM_NEAR = 2.4f
+		private const val SUN_BLOOM_FAR = 3.1f
+		private const val SUN_BLOOM_NEAR = 1.8f
 
 		/** Peak alpha of each bloom pass before the restrained breathing scales it. */
-		private const val SUN_BLOOM_FAR_ALPHA = 48f
-		private const val SUN_BLOOM_NEAR_ALPHA = 62f
+		private const val SUN_BLOOM_FAR_ALPHA = 28f
+		private const val SUN_BLOOM_NEAR_ALPHA = 48f
 
 		/** Broad irregular bloom used when cloud or fog transmits the sun; fog remains diffuse-only while overcast may retain a faint limb. */
 		private const val SUN_VEILED_BLOOM_REACH = 7.2f
@@ -2590,7 +2615,7 @@ class SceneRenderer(resources: Resources) {
 		/** The atmospheric sprite uses a pale source color and a long falloff inside each overlapping lobe. */
 		private const val SUN_ATMOSPHERE_LIFT = 0.72f
 		private const val SUN_ATMOSPHERE_MIDDLE_STOP = 0.44f
-		private const val SUN_ATMOSPHERE_MIDDLE_ALPHA = 0.32f
+		private const val SUN_ATMOSPHERE_MIDDLE_ALPHA = 0.22f
 
 		/** Keeps the cloudy-sky air wash at roughly its old absolute size after shrinking the direct disc. */
 		private const val SUN_CUMULUS_VEIL_REACH = 5f
@@ -2600,11 +2625,11 @@ class SceneRenderer(resources: Resources) {
 		private const val SUN_STREAK_SPRITE_HEIGHT = 32
 
 		/** Half-length of the streak as a multiple of the disc radius and its height relative to that half-length. */
-		private const val SUN_STREAK_REACH = 3.4f
-		private const val SUN_STREAK_ASPECT = 0.075f
+		private const val SUN_STREAK_REACH = 2.6f
+		private const val SUN_STREAK_ASPECT = 0.05f
 
 		/** Peak alpha of the streak before the restrained breathing scales it. */
-		private const val SUN_STREAK_ALPHA = 42f
+		private const val SUN_STREAK_ALPHA = 20f
 
 		/** Fraction of a soft-dot sprite's radius that is solid color before the fade to transparent begins. */
 		private const val DOT_CORE_STOP = 0.5f
@@ -2861,10 +2886,10 @@ private data class LensGhost(val distance: Float, val scale: Float, val strength
  * They stay barely visible at ordinary brightness, reading as optical residue only after the eye notices them.
  */
 private val LENS_GHOSTS = listOf(
-	LensGhost(0.62f, 0.70f, 0.052f, Color.rgb(255, 232, 202)),
-	LensGhost(1.05f, 1.05f, 0.038f, Color.rgb(196, 228, 248)),
-	LensGhost(1.42f, 0.58f, 0.030f, Color.rgb(246, 216, 222)),
-	LensGhost(1.82f, 1.35f, 0.018f, Color.rgb(214, 232, 215))
+	LensGhost(0.62f, 0.70f, 0.025f, Color.rgb(255, 232, 202)),
+	LensGhost(1.05f, 1.05f, 0.018f, Color.rgb(196, 228, 248)),
+	LensGhost(1.42f, 0.58f, 0.014f, Color.rgb(246, 216, 222)),
+	LensGhost(1.82f, 1.35f, 0.010f, Color.rgb(214, 232, 215))
 )
 
 private fun darken(color: Int, factor: Float) =
