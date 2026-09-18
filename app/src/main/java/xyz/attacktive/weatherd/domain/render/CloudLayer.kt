@@ -79,6 +79,10 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 	private var cachedFarEpochDay = Long.MIN_VALUE
 	private var cachedNearPlacements: List<CumulusPlacement> = emptyList()
 	private var cachedFarPlacements: List<CumulusPlacement> = emptyList()
+	private var cachedOpacityStyleKind: CumulusKind? = null
+	private var cachedOpacityStyleWidth = Float.NaN
+	private var cachedOpacityStyleHeight = Float.NaN
+	private var cachedOpacityStyle: CumulusStyle? = null
 
 	fun draw(canvas: Canvas, width: Float, height: Float, offset: Float, tint: Int, alpha: Int, top: Float = 0f, viewports: Float = CLOUD_TEXTURE_VIEWPORTS) {
 		if (width <= 0f || height <= 0f || alpha <= 0) {
@@ -135,7 +139,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 			offset = offset,
 			top = top,
 			period = period,
-			style = cumulusStyle(kind, Color.WHITE, width, height),
+			style = opacityStyleFor(kind, width, height),
 			placements = placements,
 			compositionAlpha = nearCompositionAlpha(kind, alpha)
 		)
@@ -145,6 +149,20 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 
 	private fun canSampleOpacity(width: Float, height: Float, alpha: Int) =
 		width > 0f && height > 0f && alpha > 0 && cumulusBitmaps.isNotEmpty()
+
+	private fun opacityStyleFor(kind: CumulusKind, width: Float, height: Float): CumulusStyle {
+		val cached = cachedOpacityStyle
+		if (cached != null && cachedOpacityStyleKind == kind && cachedOpacityStyleWidth == width && cachedOpacityStyleHeight == height) {
+			return cached
+		}
+
+		val style = cumulusStyle(kind, Color.WHITE, width, height)
+		cachedOpacityStyleKind = kind
+		cachedOpacityStyleWidth = width
+		cachedOpacityStyleHeight = height
+		cachedOpacityStyle = style
+		return style
+	}
 
 	inner class OpacitySampler {
 		private var width = 0f
