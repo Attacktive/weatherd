@@ -13,6 +13,15 @@ fun conditionForWmoCode(weatherCode: Int): WeatherCondition =
 @StringRes
 fun weatherLabelFor(label: WeatherLabel?): Int? = WEATHER_LABEL_RESOURCES[label]
 
+private val FOG = WeatherCondition(fog = true)
+private val RAIN_DRIZZLE = WeatherCondition(precipitationKind = PrecipitationKind.RAIN, severity = SEVERITY_DRIZZLE)
+private val RAIN_STEADY = WeatherCondition(precipitationKind = PrecipitationKind.RAIN, severity = SEVERITY_STEADY)
+private val RAIN_HEAVY = WeatherCondition(precipitationKind = PrecipitationKind.RAIN, severity = SEVERITY_HEAVY)
+private val SLEET_STEADY = WeatherCondition(precipitationKind = PrecipitationKind.SLEET, severity = SEVERITY_STEADY)
+private val SNOW_STEADY = WeatherCondition(precipitationKind = PrecipitationKind.SNOW, severity = SEVERITY_STEADY)
+private val SNOW_HEAVY = WeatherCondition(precipitationKind = PrecipitationKind.SNOW, severity = SEVERITY_HEAVY)
+private val RAIN_STORM = WeatherCondition(precipitationKind = PrecipitationKind.RAIN, severity = SEVERITY_STORM, thunder = true)
+
 private val WMO_FEATURES = mapOf(
 	45 to FOG,
 	48 to FOG,
@@ -100,15 +109,6 @@ private val WEATHER_LABEL_RESOURCES = mapOf(
 	WeatherLabel.THUNDERSTORM to R.string.weather_thunderstorm,
 	WeatherLabel.THUNDERSTORM_WITH_HAIL to R.string.weather_thunderstorm_with_hail
 )
-
-private val FOG = WeatherCondition(fog = true)
-private val RAIN_DRIZZLE = WeatherCondition(precipitationKind = PrecipitationKind.RAIN, severity = SEVERITY_DRIZZLE)
-private val RAIN_STEADY = WeatherCondition(precipitationKind = PrecipitationKind.RAIN, severity = SEVERITY_STEADY)
-private val RAIN_HEAVY = WeatherCondition(precipitationKind = PrecipitationKind.RAIN, severity = SEVERITY_HEAVY)
-private val SLEET_STEADY = WeatherCondition(precipitationKind = PrecipitationKind.SLEET, severity = SEVERITY_STEADY)
-private val SNOW_STEADY = WeatherCondition(precipitationKind = PrecipitationKind.SNOW, severity = SEVERITY_STEADY)
-private val SNOW_HEAVY = WeatherCondition(precipitationKind = PrecipitationKind.SNOW, severity = SEVERITY_HEAVY)
-private val RAIN_STORM = WeatherCondition(precipitationKind = PrecipitationKind.RAIN, severity = SEVERITY_STORM, thunder = true)
 
 /** Normalizes hourly precipitation (mm) to a 0..1 intensity used to modulate particle density. */
 fun precipitationIntensity(precipitationMillimeters: Double) = (precipitationMillimeters / MAX_PRECIPITATION_MILLIMETERS).toFloat().coerceIn(0f, 1f)
