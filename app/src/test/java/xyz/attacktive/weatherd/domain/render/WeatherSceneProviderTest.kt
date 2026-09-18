@@ -75,6 +75,22 @@ class WeatherSceneProviderTest {
 	}
 
 	@Test
+	fun `lens flare setting reaches scene params even when refresh is throttled`() = runTest {
+		val device = AppSettings(useDeviceLocation = true, lensFlareEnabled = true)
+		every { settingsRepository.settings } returns flowOf(device)
+		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
+		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 3))
+
+		provider.refresh(1_000_000L)
+		assertTrue(provider.paramsFor(1_000_030L).lensFlareEnabled)
+
+		every { settingsRepository.settings } returns flowOf(device.copy(lensFlareEnabled = false))
+		provider.refresh(1_000_060L)
+
+		assertFalse(provider.paramsFor(1_000_090L).lensFlareEnabled)
+	}
+
+	@Test
 	fun `the backdrop choice reaches the scene params even when the refresh is throttled`() = runTest {
 		val device = AppSettings(useDeviceLocation = true, backdropScene = BackdropScene.MOUNTAINS)
 		every { settingsRepository.settings } returns flowOf(device)

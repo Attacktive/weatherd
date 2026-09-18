@@ -17,6 +17,9 @@
 	<string name="section_refresh_interval">Weather refresh interval</string>
 	<string name="section_frame_rate">Animation frame rate</string>
 	<string name="section_backdrop">Backdrop scenery</string>
+	<string name="section_sun_effects">Sun effects</string>
+	<string name="label_lens_flare">Lens flare</string>
+	<string name="subtitle_lens_flare">Camera-style streak and reflections around the sun</string>
 	<string name="section_labels">Labels</string>
 	<string name="section_location">Location</string>
 	<string name="section_current_city">Current city</string>

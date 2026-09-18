@@ -17,6 +17,9 @@
 	<string name="section_refresh_interval">天気の更新間隔</string>
 	<string name="section_frame_rate">アニメーションのフレームレート</string>
 	<string name="section_backdrop">背景の風景</string>
+	<string name="section_sun_effects">太陽のエフェクト</string>
+	<string name="label_lens_flare">レンズフレア</string>
+	<string name="subtitle_lens_flare">太陽の周囲にカメラ風の光条と反射を表示</string>
 	<string name="section_labels">ラベル</string>
 	<string name="section_location">位置情報</string>
 	<string name="section_current_city">現在の都市</string>

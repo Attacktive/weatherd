@@ -2,7 +2,7 @@
 
 Instructions and architectural invariants for agents working in the Weatherd codebase.
 
-- Version: 1.1.0 (2026-09-16)
+- Version: 1.2.0 (2026-09-18)
 - Persona: Coding assistant pair-programming with the user on Weatherd.
 
 ## Tools and Environment
@@ -91,10 +91,62 @@ It is a design aid, not a test: it re-implements a slice of `SceneRenderer` in P
 
 ## Code Conventions
 
-- Indent with tabs.
-- No ternary operators (`? :`); prefer `if`/`switch` expressions.
-- Braces on all control flow statements (`if`, `for`, `while`).
-- One sentence per physical line in comments.
-- Multiline comments that are not KDoc should use `/* */` blocks.
-- Empty line after multiline expressions and closing braces before other statements.
-- No empty line after opening braces.
+- Do not hard-wrap code only because it is too long; soft-wrapping exists.
+	- This includes comments; keep one sentence per physical line.
+	- Exception: a function call with many arguments may wrap with one argument per line.
+		- This applies even when an argument is a callback; each argument stays on its own line instead of being hugged by a trailing `, arg)`.
+		- When wrapped, start the arguments on the following physical lines and put the closing delimiter on its own line.
+- Prefer `if`/`switch` expressions over the ternary operator (`? :`).
+- A multiline expression requires an empty line after it before the next statement.
+- In brace-based languages, a closing brace requires an empty line before other statements.
+	- Exception: a multiline `is` branch inside a Kotlin `when` clause.
+- Do not put an empty line immediately after an opening brace.
+- Always put braces around `if`, `for`, `while`, and similar control-flow bodies.
+	- `if (true) return` is wrong.
+	- A `case` block is the exception; add braces only when block scope is genuinely required, such as for a `let`, `const`, `class`, or function declaration.
+- Indent code with tabs.
+- Do not insert an empty line between a simple variable declaration and the `if` statement immediately checking it.
+- Multiline comments that are not KDoc/JSDoc should use `/* */` blocks.
+
+### JavaScript / TypeScript
+
+- Prefer TypeScript over plain JavaScript.
+- Use single quotes for strings; JSON stays double-quoted.
+- Prefer template literals to string concatenation.
+- Prefer `T[]` over `Array<T>`.
+- Use JSDoc (`/** */`) for comments documenting declarations; reserve `//` for inline notes in a function body.
+- Prefer separate `import` and `import type` statements over inline type imports such as `import { a, type b }`.
+- Prefer grouped exports such as `export { a, b }` or other export-once patterns over scattering `export` keywords inline.
+- Avoid inline object types in parameters, variables, and return types; prefer dedicated named `interface` or `type` definitions.
+- In interfaces and type literals, put an empty line before an index signature such as `[key: string]: unknown`.
+- Drop return type annotations when they can be fully inferred or when they significantly decrease readability.
+
+### Testing
+
+- Wrap test declarations with multiline arguments:
+
+```ts
+it(
+	'description',
+	() => {
+		// body
+	}
+);
+```
+
+- Format assertions with the matcher method on its own indented line:
+
+```ts
+expect(actual)
+	.toBe(expected);
+```
+
+### YAML
+
+- Default to the `.yaml` extension over `.yml`.
+	- This applies to GitHub Actions workflows even though `.yml` is more common; GitHub accepts either.
+	- Exception: when a tool only recognizes `.yml`, use `.yml`; for example, Codacy requires `detekt.yml` and ignores `detekt.yaml`.
+- Wrap simple string values in single quotes, such as `name: 'Sync platform branches'`, `runs-on: 'ubuntu-latest'`, and `branches: ['main']`.
+	- Leave mapping keys, booleans such as `fail-fast: false`, and numbers such as `fetch-depth: 0` unquoted.
+	- Never quote a value containing a `${{ ... }}` expression; `branch: ${{ matrix.branch }}` stays bare.
+	- Block scalars such as `run: |` are not simple values; the shell inside keeps its own quoting.

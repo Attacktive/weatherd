@@ -42,6 +42,11 @@ class HomeViewModel @Inject constructor(
 		.map { it.cloudIntensityScale }
 		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().cloudIntensityScale)
 
+	/** Whether camera-style lens flare is enabled, so debug mode matches the live wallpaper. */
+	val lensFlareEnabled = settingsRepository.settings
+		.map { it.lensFlareEnabled }
+		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().lensFlareEnabled)
+
 	/** Kicks a weather fetch (rate-limited by the provider) so the preview tracks the latest conditions and any settings change. */
 	fun refresh() {
 		viewModelScope.launch {

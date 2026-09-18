@@ -39,6 +39,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	@Volatile private var precipitationIntensityScale = 1f
 	@Volatile private var windIntensityScale = 1f
 	@Volatile private var cloudIntensityScale = 1f
+	@Volatile private var lensFlareEnabled = true
 	@Volatile private var locationLabel: String? = null
 	@Volatile private var lastFix: GeoLocation? = null
 	@Volatile private var geocodedKey: String? = null
@@ -55,7 +56,8 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			overlayLabels(snapshot),
 			precipitationIntensityScale,
 			windIntensityScale,
-			cloudIntensityScale
+			cloudIntensityScale,
+			lensFlareEnabled
 		)
 	}
 
@@ -84,6 +86,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		precipitationIntensityScale = settings.precipitationIntensityScale
 		windIntensityScale = settings.windIntensityScale
 		cloudIntensityScale = settings.cloudIntensityScale
+		lensFlareEnabled = settings.lensFlareEnabled
 		refreshLocationLabel(settings)
 
 		val locationKey = locationKey(settings)
@@ -224,7 +227,8 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			photoRevision = photoRevision,
 			precipitationScale = precipitationIntensityScale,
 			windScale = windIntensityScale,
-			cloudScale = cloudIntensityScale
+			cloudScale = cloudIntensityScale,
+			lensFlareEnabled = lensFlareEnabled
 		)
 	}
 

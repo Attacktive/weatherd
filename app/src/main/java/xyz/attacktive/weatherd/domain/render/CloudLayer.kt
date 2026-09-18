@@ -1,6 +1,7 @@
 package xyz.attacktive.weatherd.domain.render
 
 import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlin.random.Random
 import android.content.res.Resources
 import android.graphics.Bitmap
@@ -71,6 +72,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 
 	private val spriteDest = RectF()
 	private val geometry = CloudGeometry()
+	private val opacitySampler = OpacitySampler()
 
 	private var previousMultiply = Color.WHITE
 	private var cachedNearEpochDay = Long.MIN_VALUE
@@ -108,6 +110,131 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 
 		sheetKind?.let {
 			drawSheetCloudMasses(canvas, geometry, tint, alpha, it)
+		}
+	}
+
+	/**
+	 * Prepares a reusable opacity sampler using the same sprite placement math as [drawCumulus].
+	 * The expensive style and placement lookup happens once per profile; each subsequent point probe only samples primitive geometry and bitmap alpha.
+	 */
+	fun opacitySampler(width: Float, height: Float, offset: Float, top: Float, viewports: Float, alpha: Int): OpacitySampler? {
+		val kind = cumulusKind ?: return null
+		if (!canSampleOpacity(width, height, alpha)) {
+			return null
+		}
+
+		val period = width * viewports
+		if (period <= 0f) {
+			return null
+		}
+
+		val placements = if (kind == CumulusKind.FAR) farPlacementsFor() else nearPlacementsFor(kind)
+		opacitySampler.configure(
+			width = width,
+			height = height,
+			offset = offset,
+			top = top,
+			period = period,
+			style = cumulusStyle(kind, Color.WHITE, width, height),
+			placements = placements,
+			compositionAlpha = nearCompositionAlpha(kind, alpha)
+		)
+
+		return opacitySampler
+	}
+
+	private fun canSampleOpacity(width: Float, height: Float, alpha: Int) =
+		width > 0f && height > 0f && alpha > 0 && cumulusBitmaps.isNotEmpty()
+
+	inner class OpacitySampler {
+		private var width = 0f
+		private var height = 0f
+		private var offset = 0f
+		private var top = 0f
+		private var period = 0f
+		private lateinit var style: CumulusStyle
+		private var placements: List<CumulusPlacement> = emptyList()
+		private var compositionAlpha = 0
+		private var sampleX = 0f
+		private var sampleY = 0f
+
+		fun configure(
+			width: Float,
+			height: Float,
+			offset: Float,
+			top: Float,
+			period: Float,
+			style: CumulusStyle,
+			placements: List<CumulusPlacement>,
+			compositionAlpha: Int
+		) {
+			this.width = width
+			this.height = height
+			this.offset = offset
+			this.top = top
+			this.period = period
+			this.style = style
+			this.placements = placements
+			this.compositionAlpha = compositionAlpha
+		}
+
+		fun opacityAt(x: Float, y: Float): Float {
+			sampleX = x
+			sampleY = y
+			var opacity = 0f
+			for (placement in placements) {
+				val sourceOpacity = placementOpacityAt(placement)
+				opacity = sourceOpacity + opacity * (1f - sourceOpacity)
+			}
+
+			return opacity.coerceIn(0f, 1f)
+		}
+
+		private fun placementOpacityAt(placement: CumulusPlacement): Float {
+			val sprite = cumulusBitmaps[placement.spriteIndex % cumulusBitmaps.size]
+			val spriteHeight = style.baseHeight * placement.scale * style.scale.height
+			val spriteWidth = spriteHeight * sprite.width.toFloat() / sprite.height.toFloat() * style.scale.width
+			val centerY = top - style.topOffset + height * placement.yFraction
+			val centerX = positiveModulo(offset + period * placement.xFraction, period)
+			val spriteAlpha = (compositionAlpha * style.scale.alpha * placement.alphaScale).toInt().coerceIn(0, 255)
+			if (spriteAlpha <= 0) {
+				return 0f
+			}
+
+			var opacity = 0f
+			for (shift in -1..1) {
+				val sourceOpacity = wrappedSpriteOpacity(sprite, placement, centerX + shift * period, centerY, spriteWidth, spriteHeight, spriteAlpha)
+				opacity = sourceOpacity + opacity * (1f - sourceOpacity)
+			}
+
+			return opacity
+		}
+
+		private fun wrappedSpriteOpacity(
+			sprite: Bitmap,
+			placement: CumulusPlacement,
+			wrappedX: Float,
+			centerY: Float,
+			spriteWidth: Float,
+			spriteHeight: Float,
+			spriteAlpha: Int
+		): Float {
+			val left = wrappedX - spriteWidth * 0.5f
+			val topEdge = centerY - spriteHeight * 0.5f
+			if (sampleX < left || sampleX > left + spriteWidth || sampleY < topEdge || sampleY > topEdge + spriteHeight) {
+				return 0f
+			}
+
+			var u = ((sampleX - left) / spriteWidth).coerceIn(0f, 1f)
+			if (placement.mirror) {
+				u = 1f - u
+			}
+
+			val v = ((sampleY - topEdge) / spriteHeight).coerceIn(0f, 1f)
+			val pixelX = (u * (sprite.width - 1)).roundToInt().coerceIn(0, sprite.width - 1)
+			val pixelY = (v * (sprite.height - 1)).roundToInt().coerceIn(0, sprite.height - 1)
+			val sourceAlpha = Color.alpha(sprite.getPixel(pixelX, pixelY)) / 255f
+			return sourceAlpha * (spriteAlpha / 255f)
 		}
 	}
 
@@ -489,12 +616,12 @@ private class CloudGeometry {
 
 private data class PlacementTuning(val xJitter: Float, val yJitter: Float, val scaleJitter: Float, val alphaJitter: Float, val minY: Float, val maxY: Float)
 
-private data class CumulusStyle(val tint: Int, val baseHeight: Float, val topOffset: Float, val scale: CumulusScale)
+internal data class CumulusStyle(val tint: Int, val baseHeight: Float, val topOffset: Float, val scale: CumulusScale)
 
-private data class CumulusScale(val width: Float, val height: Float, val alpha: Float)
+internal data class CumulusScale(val width: Float, val height: Float, val alpha: Float)
 
 private data class CumulusAnchor(val xFraction: Float, val yFraction: Float, val scale: Float, val alphaScale: Float = 1f)
 
-private data class CumulusPlacement(val spriteIndex: Int, val xFraction: Float, val yFraction: Float, val scale: Float, val mirror: Boolean, val alphaScale: Float)
+internal data class CumulusPlacement(val spriteIndex: Int, val xFraction: Float, val yFraction: Float, val scale: Float, val mirror: Boolean, val alphaScale: Float)
 
 private data class SheetCloudMass(val xFraction: Float, val yFraction: Float, val widthFraction: Float, val alphaScale: Float, val spriteIndex: Int, val mirror: Boolean)

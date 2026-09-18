@@ -17,6 +17,9 @@
 	<string name="section_refresh_interval">Intervalle d\'actualisation météo</string>
 	<string name="section_frame_rate">Fréquence d\'images de l\'animation</string>
 	<string name="section_backdrop">Décor en arrière-plan</string>
+	<string name="section_sun_effects">Effets du soleil</string>
+	<string name="label_lens_flare">Reflets d’objectif</string>
+	<string name="subtitle_lens_flare">Traînées lumineuses et reflets de type appareil photo autour du soleil</string>
 	<string name="section_labels">Libellés</string>
 	<string name="section_location">Emplacement</string>
 	<string name="section_current_city">Ville actuelle</string>

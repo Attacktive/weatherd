@@ -17,6 +17,9 @@
 	<string name="section_refresh_interval">天气刷新间隔</string>
 	<string name="section_frame_rate">动画帧率</string>
 	<string name="section_backdrop">背景风光</string>
+	<string name="section_sun_effects">太阳效果</string>
+	<string name="label_lens_flare">镜头光晕</string>
+	<string name="subtitle_lens_flare">太阳周围的相机风格光带和反射</string>
 	<string name="section_labels">标签</string>
 	<string name="section_location">位置</string>
 	<string name="section_current_city">当前城市</string>

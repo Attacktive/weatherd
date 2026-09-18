@@ -1,6 +1,8 @@
 package xyz.attacktive.weatherd.domain.render
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import xyz.attacktive.weatherd.domain.model.DayPhase
 
@@ -14,6 +16,7 @@ class SceneDebugPresetsTest {
 			assertEquals(1f, params.precipitationScale, 0.0001f)
 			assertEquals(1f, params.windScale, 0.0001f)
 			assertEquals(1f, params.cloudScale, 0.0001f)
+			assertTrue(params.lensFlareEnabled)
 		}
 	}
 
@@ -41,6 +44,14 @@ class SceneDebugPresetsTest {
 
 		assertEquals(preset.cloudiness, params.cloudiness, 0.0001f)
 		assertEquals(0.5f, params.cloudScale, 0.0001f)
+	}
+
+	@Test
+	fun `lens flare preference reaches debug scene params`() {
+		val preset = SCENE_PRESETS.first { it.name == "PARTLY CLOUDY" }
+		val params = debugSceneParams(preset, DayPhase.DAY, lensFlareEnabled = false)
+
+		assertFalse(params.lensFlareEnabled)
 	}
 
 	@Test

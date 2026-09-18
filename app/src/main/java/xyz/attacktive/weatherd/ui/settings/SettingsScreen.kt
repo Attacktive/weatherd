@@ -128,6 +128,10 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 
 				Spacer(modifier = Modifier.height(24.dp))
 
+				SunEffectsSection(settings = settings, onSave = viewModel::save)
+
+				Spacer(modifier = Modifier.height(24.dp))
+
 				BackdropSection(settings = settings, onSave = viewModel::save)
 
 				AnimatedVisibility(visible = settings.backdropScene == BackdropScene.PHOTO) {
@@ -284,6 +288,18 @@ private fun IntensitySlider(label: String, value: Float, onCommit: (Float) -> Un
 		HintText(stringResource(R.string.intensity_subtle))
 		HintText(stringResource(R.string.intensity_intense))
 	}
+}
+
+@Composable
+private fun SunEffectsSection(settings: AppSettings, onSave: (AppSettings) -> Unit) {
+	SectionLabel(stringResource(R.string.section_sun_effects))
+
+	ToggleSetting(
+		label = stringResource(R.string.label_lens_flare),
+		subtitle = stringResource(R.string.subtitle_lens_flare),
+		checked = settings.lensFlareEnabled,
+		onToggle = { onSave(settings.copy(lensFlareEnabled = it)) }
+	)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -12,6 +12,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -37,6 +38,13 @@ class SettingsRepositoryTest {
 	}
 
 	@Test
+	fun `lens flare starts enabled`() = runTest {
+		val repository = SettingsRepository(dataStore())
+
+		assertTrue(repository.settings.first().lensFlareEnabled)
+	}
+
+	@Test
 	fun `both labels stay hidden until the user asks for them`() = runTest {
 		val repository = SettingsRepository(dataStore())
 
@@ -58,7 +66,8 @@ class SettingsRepositoryTest {
 			showWeatherLabel = false,
 			showLocationLabel = true,
 			temperatureUnit = TemperatureUnit.FAHRENHEIT,
-			frameRateCap = FrameRateCap.FPS_30
+			frameRateCap = FrameRateCap.FPS_30,
+			lensFlareEnabled = false
 		)
 
 		repository.save(updated)

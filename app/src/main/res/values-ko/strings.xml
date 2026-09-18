@@ -17,6 +17,9 @@
 	<string name="section_refresh_interval">날씨 새로고침 주기</string>
 	<string name="section_frame_rate">애니메이션 프레임 레이트</string>
 	<string name="section_backdrop">배경 풍경</string>
+	<string name="section_sun_effects">태양 효과</string>
+	<string name="label_lens_flare">렌즈 플레어</string>
+	<string name="subtitle_lens_flare">태양 주변의 카메라식 빛줄기와 반사 효과</string>
 	<string name="section_labels">라벨</string>
 	<string name="section_location">위치</string>
 	<string name="section_current_city">현재 도시</string>

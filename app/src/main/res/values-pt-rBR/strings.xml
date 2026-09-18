@@ -17,6 +17,9 @@
 	<string name="section_refresh_interval">Intervalo de atualização do clima</string>
 	<string name="section_frame_rate">Taxa de quadros da animação</string>
 	<string name="section_backdrop">Cenário de fundo</string>
+	<string name="section_sun_effects">Efeitos do sol</string>
+	<string name="label_lens_flare">Reflexo de lente</string>
+	<string name="subtitle_lens_flare">Faixas de luz e reflexos de câmera ao redor do sol</string>
 	<string name="section_labels">Rótulos</string>
 	<string name="section_location">Localização</string>
 	<string name="section_current_city">Cidade atual</string>
