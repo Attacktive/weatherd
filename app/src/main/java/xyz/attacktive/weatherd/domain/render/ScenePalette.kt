@@ -1,5 +1,6 @@
 package xyz.attacktive.weatherd.domain.render
 
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
@@ -57,6 +58,40 @@ fun sceneryLayerColor(material: SceneryMaterial, plane: SceneryPlane, params: Sc
 	return lerpColor(intrinsicColor(material), target, atmosphereAmount(params, plane))
 }
 
+/**
+ * Computes one ridge face's target lighting color from its unit-space normal and the scene's unit-space key light.
+ * The renderer blends adjacent face targets at their shared boundaries, so this color supplies directional variation without exposing polygon seams.
+ * A straight-up normal is neutral; faces turning toward the light warm and brighten while faces turning away cool and darken.
+ * Atmospheric perspective scales the contrast down with distance and weather, and night removes it entirely so the existing silhouette treatment stays authoritative.
+ */
+fun sceneryFacetColor(material: SceneryMaterial, plane: SceneryPlane, params: SceneParams, skyBottom: Int, facet: SceneryFacet, light: LightDirection): Int {
+	val base = sceneryLayerColor(material, plane, params, skyBottom)
+	if (params.dayPhase == DayPhase.NIGHT) {
+		return base
+	}
+
+	val contrast = SCENERY_FACET_MAX_CONTRAST * (1f - atmosphereAmount(params, plane))
+	if (contrast <= 0f) {
+		return base
+	}
+
+	val dot = facet.normalX * light.x + facet.normalY * light.y
+	val neutralDot = -light.y
+	val response = if (dot >= neutralDot) {
+		((dot - neutralDot) / (1f - neutralDot).coerceAtLeast(SCENERY_FACET_MIN_LIGHT_HEADROOM)).coerceIn(0f, 1f)
+	} else {
+		((dot - neutralDot) / SCENERY_FACET_SHADOW_DOT_SPAN).coerceIn(-1f, 0f)
+	}
+
+	val tint = if (response >= 0f) {
+		sceneryFacetLightTint(params.dayPhase)
+	} else {
+		SCENERY_FACET_SHADOW_TINT
+	}
+
+	return lerpColor(base, tint, abs(response) * contrast)
+}
+
 /** Flat-illustration daylight colors; the atmosphere blend does all weather and time-of-day adaptation. */
 private fun intrinsicColor(material: SceneryMaterial) = when (material) {
 	SceneryMaterial.SILHOUETTE -> BLACK
@@ -104,6 +139,13 @@ private fun atmosphereAmount(params: SceneParams, plane: SceneryPlane): Float {
 	return lerp((base + depth).coerceAtMost(1f), 1f, weather)
 }
 
+/** Sun-facing ridge tint; dawn and dusk deliberately carry more amber than midday. */
+private fun sceneryFacetLightTint(dayPhase: DayPhase) = when (dayPhase) {
+	DayPhase.DAY -> rgb(246, 220, 184)
+	DayPhase.DAWN, DayPhase.DUSK -> rgb(255, 184, 128)
+	DayPhase.NIGHT -> rgb(246, 220, 184)
+}
+
 private fun basePhaseGradient(dayPhase: DayPhase) = when (dayPhase) {
 	DayPhase.DAY -> SkyGradient(rgb(74, 144, 217), rgb(169, 214, 245))
 	DayPhase.DAWN -> SkyGradient(rgb(52, 64, 107), rgb(246, 169, 132))
@@ -139,6 +181,18 @@ private fun overcastAmount(params: SceneParams): Float = when {
 	params.precipitation != null -> precipitationGray(params.precipitation)
 	else -> ((params.cloudiness - OVERCAST_GRAY_FLOOR) / (OVERCAST_GRAY_FULL - OVERCAST_GRAY_FLOOR)).coerceIn(0f, 1f)
 }
+
+/** Maximum daylight color shift applied to a ridge face before atmosphere reduces it. */
+private const val SCENERY_FACET_MAX_CONTRAST = 0.09f
+
+/** Shadow-side dot-product distance from the straight-up neutral that reaches the facet color shift ceiling. */
+private const val SCENERY_FACET_SHADOW_DOT_SPAN = 0.35f
+
+/** Prevents a near-vertical key light from dividing by vanishing positive headroom. */
+private const val SCENERY_FACET_MIN_LIGHT_HEADROOM = 0.01f
+
+/** Cool target for ridge faces turned away from the key light. */
+private val SCENERY_FACET_SHADOW_TINT = rgb(90, 112, 142)
 
 /** The cloudiness at which a dry sky starts graying, matching where the renderer starts drawing an overcast ceiling. */
 private const val OVERCAST_GRAY_FLOOR = 0.55f

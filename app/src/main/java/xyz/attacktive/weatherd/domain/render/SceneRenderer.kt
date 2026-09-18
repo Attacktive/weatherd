@@ -312,17 +312,18 @@ class SceneRenderer(resources: Resources) {
 
 		val skyBottom = skyGradientFor(params).bottomColor
 		val nearColor = sceneryPlaneTone(SceneryPlane.NEAR, skyBottom)
+		val light = lightDirectionFor(params)
 
 		paint.style = Paint.Style.FILL
 		drawHorizonGlow(canvas, width, height, params.dayPhase, skyBottom)
 		paint.shader = null
 
-		drawSceneryLayers(canvas, SceneryPlane.FAR, params, skyBottom)
+		drawSceneryLayers(canvas, SceneryPlane.FAR, params, skyBottom, light)
 		drawFarPlaneDetails(canvas, width, height, params, timeSeconds, skyBottom)
 		drawInterPlaneHaze(canvas, width, skyBottom)
 		paint.shader = null
 
-		drawSceneryLayers(canvas, SceneryPlane.NEAR, params, skyBottom)
+		drawSceneryLayers(canvas, SceneryPlane.NEAR, params, skyBottom, light)
 		drawNearPlaneDetails(canvas, width, height, params, timeSeconds, skyBottom, nearColor)
 
 		if (params.backdropScene == BackdropScene.METROPOLIS && showsHelicopter(params)) {
@@ -332,15 +333,52 @@ class SceneRenderer(resources: Resources) {
 		}
 	}
 
-	/** Fills one depth plane's cached layer paths, each in its material's color for the current weather and phase. */
-	private fun drawSceneryLayers(canvas: Canvas, plane: SceneryPlane, params: SceneParams, skyBottom: Int) {
+	/**
+	 * Fills one depth plane, then shades ridge faces with shared-edge gradients instead of opaque flat polygons.
+	 * Neighboring facets use the same averaged boundary color, so the slope lighting stays continuous and the geometry cannot show up as vertical seams.
+	 */
+	private fun drawSceneryLayers(canvas: Canvas, plane: SceneryPlane, params: SceneParams, skyBottom: Int, light: LightDirection) {
 		for (layer in sceneryLayerPaths) {
 			if (layer.plane != plane) {
 				continue
 			}
 
-			paint.color = sceneryLayerColor(layer.material, plane, params, skyBottom)
+			val baseColor = sceneryLayerColor(layer.material, plane, params, skyBottom)
+			paint.shader = null
+			paint.color = baseColor
 			canvas.drawPath(layer.path, paint)
+
+			val facetColors = layer.facets.map { facet ->
+				sceneryFacetColor(layer.material, plane, params, skyBottom, facet.facet, light)
+			}
+
+			for ((index, facet) in layer.facets.withIndex()) {
+				val centerColor = facetColors[index]
+				val leftColor = if (index == 0) {
+					baseColor
+				} else {
+					lerpColor(facetColors[index - 1], centerColor, 0.5f)
+				}
+
+				val rightColor = if (index == layer.facets.lastIndex) {
+					baseColor
+				} else {
+					lerpColor(centerColor, facetColors[index + 1], 0.5f)
+				}
+
+				paint.shader = LinearGradient(
+					facet.startX,
+					0f,
+					facet.endX,
+					0f,
+					intArrayOf(leftColor, centerColor, rightColor),
+					floatArrayOf(0f, 0.5f, 1f),
+					Shader.TileMode.CLAMP
+				)
+				canvas.drawPath(facet.path, paint)
+			}
+
+			paint.shader = null
 		}
 	}
 
@@ -361,7 +399,20 @@ class SceneRenderer(resources: Resources) {
 			val path = Path()
 			fillSceneryPath(path, layer.outline, width, height)
 
-			SceneryLayerPath(path, layer.material, layer.plane)
+			val facets = layer.facets.map { facet ->
+				val facetPath = Path()
+				fillClosedOutline(facetPath, facet.outline, width, height)
+
+				val topEdge = facet.outline.dropLast(2)
+				SceneryFacetPath(
+					facetPath,
+					facet,
+					topEdge.first().x * width,
+					topEdge.last().x * width
+				)
+			}
+
+			SceneryLayerPath(path, layer.material, layer.plane, facets)
 		}
 
 		fillAccentPath(sceneryAccentPath, outlines.accents, width, height)
@@ -2094,6 +2145,7 @@ class SceneRenderer(resources: Resources) {
 	}
 
 	private fun sunShaftBaseAngle(sun: SunRenderContext): Float {
+		// Ridge lighting shares this celestial origin, but shaft geometry deliberately remains in pixel space because it follows sampled cloud edges.
 		val towardLowerSky = atan2(sun.height - sun.centerY, sun.width * 0.5f - sun.centerX)
 		val timeLean = when (sun.params.dayPhase) {
 			DayPhase.DAWN -> -0.14f + sun.params.celestialProgress * 0.08f
@@ -2501,8 +2553,6 @@ class SceneRenderer(resources: Resources) {
 		/** Edge length of the pre-rendered moon sprite. */
 		private const val MOON_SPRITE_SIZE = 256
 
-		private const val CELESTIAL_X_FRACTION = 0.72f
-
 		/** The moon's radius as a fraction of the screen's shorter side; it stays the generous disc it always was, because a moon genuinely does read large. */
 		private const val MOON_RADIUS_FRACTION = 0.1f
 
@@ -2787,17 +2837,6 @@ private fun lerp(from: Float, to: Float, fraction: Float) = from + (to - from) *
 
 private fun unlerp(from: Float, to: Float, value: Float) = ((value - from) / (to - from)).coerceIn(0f, 1f)
 
-/**
- * Where the sun/moon hangs, as a fraction of screen height.
- * The phase progress eases it along a continuous arc: it climbs through dawn, sweeps a shallow parabola across the day whose ends meet the twilight heights exactly, and sinks back through dusk — motion on the scale of minutes, so even a calm clear scene is never a still image.
- */
-private fun celestialHeightFraction(dayPhase: DayPhase, progress: Float) = when (dayPhase) {
-	DayPhase.DAY -> 0.26f - 0.09f * (4f * progress * (1f - progress))
-	DayPhase.DAWN -> lerp(0.42f, 0.26f, progress)
-	DayPhase.DUSK -> lerp(0.26f, 0.42f, progress)
-	DayPhase.NIGHT -> 0.24f
-}
-
 private fun sunColor(dayPhase: DayPhase) = when (dayPhase) {
 	DayPhase.DAWN -> Color.rgb(255, 224, 190)
 	DayPhase.DUSK -> Color.rgb(255, 208, 178)
@@ -2844,8 +2883,11 @@ private fun hazeColorFor(dayPhase: DayPhase) = when (dayPhase) {
  */
 private data class ParticleCounts(val steadyCount: Int, val squallCount: Int)
 
-/** A cached scenery layer path with the material and plane needed to color it each frame. */
-private data class SceneryLayerPath(val path: Path, val material: SceneryMaterial, val plane: SceneryPlane)
+/** A cached ridge-face path with its pure unit-space normal and horizontal gradient bounds. */
+private data class SceneryFacetPath(val path: Path, val facet: SceneryFacet, val startX: Float, val endX: Float)
+
+/** A cached scenery layer path with the material, plane, and optional ridge facets needed to color it each frame. */
+private data class SceneryLayerPath(val path: Path, val material: SceneryMaterial, val plane: SceneryPlane, val facets: List<SceneryFacetPath> = emptyList())
 
 /** A helicopter mid-crossing: fuselage center, heading, and the fuselage length every other dimension derives from. */
 private data class HelicopterPass(val x: Float, val y: Float, val direction: Float, val bodyW: Float)

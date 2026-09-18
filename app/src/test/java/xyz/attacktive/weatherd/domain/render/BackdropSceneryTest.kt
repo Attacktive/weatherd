@@ -1,6 +1,7 @@
 package xyz.attacktive.weatherd.domain.render
 
 import kotlin.math.abs
+import kotlin.math.sqrt
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -159,6 +160,94 @@ class BackdropSceneryTest {
 			for (cap in outlines.glyphs) {
 				assertTrue("caps need enough points to read as a cap", cap.outline.size >= 4)
 				assertTrue(cap.outline.all { it.y in 0.69f..0.83f })
+			}
+		}
+	}
+
+	@Test
+	fun `only mountain ridge layers carry facets`() {
+		val mountains = sceneryOutlinesFor(BackdropScene.MOUNTAINS, PORTRAIT)!!
+		val rock = mountains.layers.first { it.material == SceneryMaterial.ROCK }
+		val forest = mountains.layers.first { it.material == SceneryMaterial.FOREST }
+		val meadow = mountains.layers.first { it.material == SceneryMaterial.MEADOW }
+
+		assertTrue(rock.facets.isNotEmpty())
+		assertTrue(forest.facets.isNotEmpty())
+		assertTrue(meadow.facets.isEmpty())
+
+		for (scene in SCENERY_SCENES.filter { it != BackdropScene.MOUNTAINS }) {
+			assertTrue("$scene must remain facet-free", sceneryOutlinesFor(scene, PORTRAIT)!!.layers.all { it.facets.isEmpty() })
+		}
+	}
+
+	@Test
+	fun `mountain facets are deterministic at every tested aspect`() {
+		for (aspect in listOf(PORTRAIT, 1f, 2f)) {
+			val first = sceneryOutlinesFor(BackdropScene.MOUNTAINS, aspect)!!.layers.map { it.facets }
+			val second = sceneryOutlinesFor(BackdropScene.MOUNTAINS, aspect)!!.layers.map { it.facets }
+
+			assertEquals(first, second)
+		}
+	}
+
+	@Test
+	fun `every mountain facet normal has unit length`() {
+		for (aspect in listOf(PORTRAIT, 1f, 2f)) {
+			val outlines = sceneryOutlinesFor(BackdropScene.MOUNTAINS, aspect)!!
+
+			for (facet in outlines.layers.flatMap { it.facets }) {
+				val length = sqrt(facet.normalX * facet.normalX + facet.normalY * facet.normalY)
+
+				assertEquals("normal must be unit length at $aspect", 1f, length, 0.0001f)
+			}
+		}
+	}
+
+	@Test
+	fun `mountain facets expose both rising and falling ridge faces`() {
+		for (aspect in listOf(PORTRAIT, 1f, 2f)) {
+			val outlines = sceneryOutlinesFor(BackdropScene.MOUNTAINS, aspect)!!
+
+			for (layer in outlines.layers.filter { it.facets.isNotEmpty() }) {
+				assertTrue("$aspect ${layer.material} needs an up-left face", layer.facets.any { it.normalX < -0.15f })
+				assertTrue("$aspect ${layer.material} needs an up-right face", layer.facets.any { it.normalX > 0.15f })
+			}
+		}
+	}
+
+	@Test
+	fun `mountain facets tile their parent ridge with parent vertices only`() {
+		for (aspect in listOf(PORTRAIT, 1f, 2f)) {
+			val outlines = sceneryOutlinesFor(BackdropScene.MOUNTAINS, aspect)!!
+
+			for (layer in outlines.layers.filter { it.facets.isNotEmpty() }) {
+				val parentVertices = layer.outline.toSet()
+				val topEdges = layer.facets.map { it.outline.dropLast(2) }
+
+				assertEquals(layer.outline.first().x, topEdges.first().first().x, 0f)
+				assertEquals(layer.outline.last().x, topEdges.last().last().x, 0f)
+
+				topEdges.zipWithNext().forEach { (left, right) ->
+					assertEquals("facet boundaries must meet exactly at $aspect", left.last().x, right.first().x, 0f)
+				}
+
+				topEdges.flatten().forEach { point ->
+					assertTrue("facet top edge must reuse a parent vertex at $aspect: $point", point in parentVertices)
+				}
+			}
+		}
+	}
+
+	@Test
+	fun `mountain facets never have a degenerate x span`() {
+		for (aspect in listOf(PORTRAIT, 1f, 2f)) {
+			val outlines = sceneryOutlinesFor(BackdropScene.MOUNTAINS, aspect)!!
+
+			for (facet in outlines.layers.flatMap { it.facets }) {
+				val topEdge = facet.outline.dropLast(2)
+				val span = topEdge.last().x - topEdge.first().x
+
+				assertTrue("facet span must stay positive at $aspect", span > 0.0001f)
 			}
 		}
 	}

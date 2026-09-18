@@ -1,5 +1,6 @@
 package xyz.attacktive.weatherd.domain.render
 
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
@@ -37,11 +38,14 @@ enum class SceneryPlane {
 	NEAR
 }
 
+/** A slope panel inside a layer's silhouette: a closed outline plus the unit-space normal that guides its smooth lighting. */
+data class SceneryFacet(val outline: List<OutlinePoint>, val normalX: Float, val normalY: Float)
+
 /**
  * One filled region of a scene: an upper edge the renderer closes down to the frame bottom.
  * Layers draw in list order, back to front.
  */
-data class SceneryLayer(val outline: List<OutlinePoint>, val material: SceneryMaterial, val plane: SceneryPlane)
+data class SceneryLayer(val outline: List<OutlinePoint>, val material: SceneryMaterial, val plane: SceneryPlane, val facets: List<SceneryFacet> = emptyList())
 
 /** What kind of cheap animated critter [SceneryFauna] describes. */
 enum class SceneryFaunaKind {
@@ -299,8 +303,8 @@ private fun mountains(aspectRatio: Float): SceneryOutlines {
 
 	return SceneryOutlines(
 		layers = listOf(
-			SceneryLayer(far, SceneryMaterial.ROCK, SceneryPlane.FAR),
-			SceneryLayer(near, SceneryMaterial.FOREST, SceneryPlane.NEAR),
+			SceneryLayer(far, SceneryMaterial.ROCK, SceneryPlane.FAR, ridgeFacets(far)),
+			SceneryLayer(near, SceneryMaterial.FOREST, SceneryPlane.NEAR, ridgeFacets(near)),
 			SceneryLayer(meadow, SceneryMaterial.MEADOW, SceneryPlane.NEAR)
 		),
 		glyphs = snowcaps(far)
@@ -727,6 +731,104 @@ private fun mountainRange(
 	return points
 }
 
+/**
+ * Splits a mountain skyline at summits and the deepest saddle between neighboring summits, so each panel follows one rising or falling ridge face instead of averaging a whole valley back toward vertical.
+ * Facet normals deliberately stay in unit-frame coordinates rather than aspect-corrected pixel space.
+ * The key-light vector uses that same anisotropic space, so their dot product stays internally consistent and preserves the useful ridge-slope spread on portrait screens.
+ */
+private fun ridgeFacets(range: List<OutlinePoint>): List<SceneryFacet> {
+	if (range.size < 2) {
+		return emptyList()
+	}
+
+	val localMinima = (1 until range.lastIndex)
+		.filter { index ->
+			range[index].y < range[index - 1].y && range[index].y < range[index + 1].y
+		}
+
+	val summits = mutableListOf<Int>()
+	var cursor = 0
+	while (cursor < localMinima.size) {
+		val first = localMinima[cursor]
+		var last = first
+		var next = cursor + 1
+
+		while (next < localMinima.size) {
+			val candidate = localMinima[next]
+			val sameBroadCrest = candidate - last <= 2 && abs(range[candidate].y - range[first].y) <= RIDGE_CREST_EPSILON
+			if (!sameBroadCrest) {
+				break
+			}
+
+			last = candidate
+			next++
+		}
+
+		summits += (first + last) / 2
+		cursor = next
+	}
+
+	val splitIndices = mutableListOf(0)
+	for (index in summits.indices) {
+		val summit = summits[index]
+		splitIndices += summit
+
+		val nextSummit = summits.getOrNull(index + 1) ?: continue
+		val saddle = (summit + 1 until nextSummit)
+			.maxByOrNull { range[it].y }
+
+		if (saddle != null) {
+			splitIndices += saddle
+		}
+	}
+
+	splitIndices += range.lastIndex
+
+	return splitIndices.distinct().sorted().zipWithNext().mapNotNull { (start, end) ->
+		ridgeFacet(range, start, end)
+	}
+}
+
+/** Builds one closed ridge panel and its length-weighted up-facing normal from a contiguous run of the parent skyline. */
+private fun ridgeFacet(range: List<OutlinePoint>, start: Int, end: Int): SceneryFacet? {
+	val first = range[start]
+	val last = range[end]
+	val span = last.x - first.x
+	if (span < RIDGE_FACET_MIN_SPAN) {
+		return null
+	}
+
+	var normalX = 0f
+	var normalY = 0f
+	for (index in start until end) {
+		val left = range[index]
+		val right = range[index + 1]
+		val dx = right.x - left.x
+		val dy = right.y - left.y
+		val segmentLength = sqrt(dx * dx + dy * dy)
+		if (segmentLength < RIDGE_FACET_MIN_SPAN) {
+			continue
+		}
+
+		val segmentNormalX = dy / segmentLength
+		val segmentNormalY = -dx / segmentLength
+		normalX += segmentNormalX * segmentLength
+		normalY += segmentNormalY * segmentLength
+	}
+
+	val normalLength = sqrt(normalX * normalX + normalY * normalY)
+	if (normalLength < RIDGE_FACET_MIN_SPAN) {
+		return null
+	}
+
+	val outline = range.subList(start, end + 1) + listOf(
+		OutlinePoint(last.x, 1f),
+		OutlinePoint(first.x, 1f)
+	)
+
+	return SceneryFacet(outline, normalX / normalLength, normalY / normalLength)
+}
+
 /** Gentle rolling farmland hills — broader, softer than mountain peaks. */
 private fun rollingHills(random: Random, count: Int, topLow: Float, topHigh: Float): List<OutlinePoint> {
 	val points = mutableListOf<OutlinePoint>()
@@ -909,6 +1011,12 @@ private const val MAX_WINDOWS = 72
 
 /** Only the tallest far towers get a red aviation light — sparse on purpose, especially in landscape. */
 private const val BEACON_COUNT = 3
+
+/** Near-equal local minima this close in height belong to one broad crest rather than separate summit splits. */
+private const val RIDGE_CREST_EPSILON = 0.02f
+
+/** Facets narrower than this unit-space span are discarded before they can become degenerate draw paths. */
+private const val RIDGE_FACET_MIN_SPAN = 0.001f
 
 /** Summits must rise above this (smaller y = higher) to earn a snowcap; lower peaks stay bare. */
 private const val SNOW_SUMMIT_MAX = 0.755f
