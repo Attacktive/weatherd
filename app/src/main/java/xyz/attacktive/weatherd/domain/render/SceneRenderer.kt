@@ -1521,15 +1521,16 @@ class SceneRenderer(resources: Resources) {
 				drawSleet(canvas, width, height, count, streakSlant, pelletSlant, timeSeconds, flash)
 			}
 			PrecipitationKind.RAIN -> {
-				val slant = rainSlantForSeverity(gust, params.windScale, precipitation.severity)
+				val slant = rainSlant(gust, params.windScale, precipitation.observed)
 				drawRain(canvas, width, height, counts, slant, timeSeconds, precipitation.severity, flash)
 			}
 		}
 	}
 
 	/**
-	 * Rain keeps the existing allocation-free batched drawLines path, but each streak is now a faint motion trail with a shorter bright leading segment instead of two equally long strokes.
-	 * Severity changes fall speed and motion-blur length continuously so drizzle, steady rain, and a downpour blend into each other without a styling jump.
+	 * Rain keeps the allocation-free batched drawLines path, but each streak is a faint motion trail with a shorter bright leading segment instead of two equally long strokes.
+	 * Severity changes fall speed and motion-blur length across the forecast bands, while measured precipitation continuously influences the slant.
+	 * Do not replace the tapered double-stroke with a per-frame BlurMaskFilter: blurring hundreds of segments that way previously froze rain scenes.
 	 */
 	private fun drawRain(canvas: Canvas, width: Float, height: Float, counts: ParticleCounts, slant: Float, timeSeconds: Float, severity: Float, flash: Float) {
 		paint.style = Paint.Style.STROKE
@@ -1736,13 +1737,14 @@ class SceneRenderer(resources: Resources) {
 			points[i * 4 + 3] = y + length
 		}
 
-		// Sleet keeps the halo-under-core double stroke because its icy streaks are deliberately sharper and brighter than rain.
-		paint.strokeWidth = 5.5f
-		paint.color = Color.argb(gleam(38, flash), 214, 228, 240)
+		// Keep sleet streaks on the same tapered treatment as near rain so a rain-to-sleet transition does not suddenly become thicker and brighter.
+		paint.strokeWidth = 3.4f
+		paint.color = Color.argb(gleam(18, flash), 210, 221, 236)
 		canvas.drawLines(points, 0, streakCount * 4, paint)
 
-		paint.strokeWidth = 2.2f
-		paint.color = Color.argb(gleam(118, flash), 214, 228, 240)
+		trimRainTails(points, streakCount, 0.52f)
+		paint.strokeWidth = 1.5f
+		paint.color = Color.argb(gleam(110, flash), 225, 234, 246)
 		canvas.drawLines(points, 0, streakCount * 4, paint)
 
 		paint.style = Paint.Style.FILL
@@ -2704,28 +2706,17 @@ internal const val MAX_WIND_SLANT = 1.4f
 
 internal const val PRECIPITATION_HORIZONTAL_PAD = 100f
 
-/** Maps the categorical rain severity onto a smooth 0..1 motion range, clamped so malformed provider values cannot exaggerate the animation. */
+/** Maps the categorical rain severity bands onto a 0..1 motion range, clamped so malformed provider values cannot exaggerate the animation. */
 internal fun rainMotionFactor(severity: Float) = unlerp(SEVERITY_DRIZZLE, 1f, severity)
 
 /**
- * Slant of falling rain streaks, derived from the gust factor and scaled by the user's intensity preference.
- * The scale multiplies the whole expression including its constant floor, so the slider spans its full range rather than being diluted by a fixed base.
+ * Slant of falling rain streaks, derived from the gust factor, measured precipitation, and the user's intensity preference.
+ * [observed] is continuous even though forecast severity is categorical, so it supplies the intermediate lean that live weather can actually produce.
+ * The scale multiplies the whole expression including its calm floor, so the slider spans its full range rather than being diluted by a fixed base.
  * Clamped to [MAX_WIND_SLANT] so downpours in gales cannot lean past roughly 54 degrees off vertical, where rain reads as broken.
  */
-internal fun rainSlant(gust: Float, scale: Float, heavy: Boolean = false): Float {
-	val severity = if (heavy) {
-		1f
-	} else {
-		SEVERITY_STORM
-	}
-
-	return rainSlantForSeverity(gust, scale, severity)
-}
-
-/** Blends the extra downpour lean in above storm severity instead of snapping the streak angle at one threshold. */
-internal fun rainSlantForSeverity(gust: Float, scale: Float, severity: Float): Float {
-	val heavyFactor = unlerp(SEVERITY_STORM, 1f, severity)
-	val slantBase = lerp(0.16f, 0.26f, heavyFactor)
+internal fun rainSlant(gust: Float, scale: Float, observed: Float): Float {
+	val slantBase = lerp(0.16f, 0.26f, observed.coerceIn(0f, 1f))
 
 	return ((slantBase + gust * 0.71f) * scale).coerceAtMost(MAX_WIND_SLANT)
 }
