@@ -71,6 +71,7 @@
 	<string name="backdrop_beach">Plaj</string>
 	<string name="backdrop_mountains">Dağlar</string>
 	<string name="backdrop_countryside">Kırsal</string>
+	<string name="backdrop_not_recommended">%1$s (Önerilmez)</string>
 	<string name="backdrop_photo">Fotoğraflarınız</string>
 
 	<!-- Photo backgrounds -->

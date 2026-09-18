@@ -71,6 +71,7 @@
 	<string name="backdrop_beach">海滩</string>
 	<string name="backdrop_mountains">山峦</string>
 	<string name="backdrop_countryside">乡村</string>
+	<string name="backdrop_not_recommended">%1$s（不推荐）</string>
 	<string name="backdrop_photo">我的照片</string>
 
 	<!-- Photo backgrounds -->

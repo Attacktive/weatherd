@@ -83,6 +83,7 @@ import xyz.attacktive.weatherd.domain.model.PhotoBucket
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.UPDATE_INTERVAL_OPTIONS
+import xyz.attacktive.weatherd.domain.model.drawsScenery
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -798,13 +799,21 @@ private fun formatFrameRate(cap: FrameRateCap) = when (cap) {
 }
 
 @Composable
-private fun formatBackdrop(scene: BackdropScene) = when (scene) {
-	BackdropScene.NONE -> stringResource(R.string.backdrop_none)
-	BackdropScene.METROPOLIS -> stringResource(R.string.backdrop_metropolis)
-	BackdropScene.BEACH -> stringResource(R.string.backdrop_beach)
-	BackdropScene.MOUNTAINS -> stringResource(R.string.backdrop_mountains)
-	BackdropScene.COUNTRYSIDE -> stringResource(R.string.backdrop_countryside)
-	BackdropScene.PHOTO -> stringResource(R.string.backdrop_photo)
+private fun formatBackdrop(scene: BackdropScene): String {
+	val label = when (scene) {
+		BackdropScene.NONE -> stringResource(R.string.backdrop_none)
+		BackdropScene.METROPOLIS -> stringResource(R.string.backdrop_metropolis)
+		BackdropScene.BEACH -> stringResource(R.string.backdrop_beach)
+		BackdropScene.MOUNTAINS -> stringResource(R.string.backdrop_mountains)
+		BackdropScene.COUNTRYSIDE -> stringResource(R.string.backdrop_countryside)
+		BackdropScene.PHOTO -> stringResource(R.string.backdrop_photo)
+	}
+
+	return if (scene.drawsScenery) {
+		stringResource(R.string.backdrop_not_recommended, label)
+	} else {
+		label
+	}
 }
 
 @Composable

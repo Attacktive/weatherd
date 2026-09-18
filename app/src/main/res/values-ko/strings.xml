@@ -71,6 +71,7 @@
 	<string name="backdrop_beach">해변</string>
 	<string name="backdrop_mountains">산</string>
 	<string name="backdrop_countryside">시골</string>
+	<string name="backdrop_not_recommended">%1$s (권장하지 않음)</string>
 	<string name="backdrop_photo">내 사진</string>
 
 	<!-- Photo backgrounds -->

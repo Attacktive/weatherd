@@ -71,6 +71,7 @@
 	<string name="backdrop_beach">Praia</string>
 	<string name="backdrop_mountains">Montanhas</string>
 	<string name="backdrop_countryside">Campo</string>
+	<string name="backdrop_not_recommended">%1$s (Utilização não recomendada)</string>
 	<string name="backdrop_photo">As suas fotografias</string>
 
 	<!-- Photo backgrounds -->

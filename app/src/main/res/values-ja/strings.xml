@@ -71,6 +71,7 @@
 	<string name="backdrop_beach">ビーチ</string>
 	<string name="backdrop_mountains">山</string>
 	<string name="backdrop_countryside">田園</string>
+	<string name="backdrop_not_recommended">%1$s（非推奨）</string>
 	<string name="backdrop_photo">自分の写真</string>
 
 	<!-- Photo backgrounds -->
