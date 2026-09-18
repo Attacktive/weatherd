@@ -2,10 +2,12 @@ package xyz.attacktive.weatherd
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
+import xyz.attacktive.weatherd.domain.model.WeatherLabel
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_DRIZZLE
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_HEAVY
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_STEADY
@@ -104,6 +106,13 @@ class ConditionMappingTest {
 		assertEquals(R.string.weather_thunderstorm, weatherLabelFor(conditionForWmoCode(95).label))
 		assertEquals(R.string.weather_thunderstorm_with_hail, weatherLabelFor(conditionForWmoCode(96).label))
 		assertEquals(R.string.weather_thunderstorm_with_hail, weatherLabelFor(conditionForWmoCode(99).label))
+	}
+
+	@Test
+	fun `every weather label has a string resource`() {
+		WeatherLabel.entries.forEach { label ->
+			assertNotNull(weatherLabelFor(label))
+		}
 	}
 
 	@Test
