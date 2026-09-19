@@ -72,6 +72,26 @@ class SunRenderingTest {
 	}
 
 	@Test
+	fun duskSunFadesAwayAsItDescends() {
+		val earlyProgress = SUNSET_FADE_START
+		val middleProgress = 0.65f
+		val lateProgress = 1f
+		val early = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams(dayPhase = DayPhase.DUSK, celestialProgress = earlyProgress))
+		val middle = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams(dayPhase = DayPhase.DUSK, celestialProgress = middleProgress))
+		val late = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams(dayPhase = DayPhase.DUSK, celestialProgress = lateProgress))
+		val earlyAlpha = Color.alpha(early.getPixel(celestialCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, DayPhase.DUSK, earlyProgress).x, celestialCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, DayPhase.DUSK, earlyProgress).y))
+		val middleAlpha = Color.alpha(middle.getPixel(celestialCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, DayPhase.DUSK, middleProgress).x, celestialCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, DayPhase.DUSK, middleProgress).y))
+		val lateAlpha = Color.alpha(late.getPixel(celestialCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, DayPhase.DUSK, lateProgress).x, celestialCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, DayPhase.DUSK, lateProgress).y))
+
+		assertTrue("Early dusk should keep the sun fully present, but alpha was $earlyAlpha", earlyAlpha >= 250)
+		assertTrue("The sun should fade continuously through dusk, but alpha moved $earlyAlpha -> $middleAlpha -> $lateAlpha", earlyAlpha > middleAlpha && middleAlpha > lateAlpha)
+		assertTrue("The sun should be gone by the end of dusk, but alpha was $lateAlpha", lateAlpha <= 2)
+		early.recycle()
+		middle.recycle()
+		late.recycle()
+	}
+
+	@Test
 	fun fullMoonRetainsItsExistingSizeAndPosition() {
 		val bitmap = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams(dayPhase = DayPhase.NIGHT, moonPhase = 0.5f))
 		val expectedCenter = celestialCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, DayPhase.NIGHT)
@@ -306,15 +326,15 @@ class SunRenderingTest {
 		return PixelBounds(left, top, right, bottom)
 	}
 
-	private fun celestialCenter(width: Int, height: Int, dayPhase: DayPhase) = PixelPoint(
+	private fun celestialCenter(width: Int, height: Int, dayPhase: DayPhase, progress: Float = 0.5f) = PixelPoint(
 		x = (width * CELESTIAL_X_FRACTION).roundToInt(),
-		y = (height * celestialHeight(dayPhase)).roundToInt(),
+		y = (height * celestialHeight(dayPhase, progress)).roundToInt(),
 	)
 
-	private fun celestialHeight(dayPhase: DayPhase) = when (dayPhase) {
-		DayPhase.DAY -> MIDDAY_HEIGHT_FRACTION
-		DayPhase.DAWN -> DAWN_DUSK_MIDPOINT_HEIGHT_FRACTION
-		DayPhase.DUSK -> DAWN_DUSK_MIDPOINT_HEIGHT_FRACTION
+	private fun celestialHeight(dayPhase: DayPhase, progress: Float) = when (dayPhase) {
+		DayPhase.DAY -> 0.26f - 0.09f * (4f * progress * (1f - progress))
+		DayPhase.DAWN -> 0.42f + (0.26f - 0.42f) * progress
+		DayPhase.DUSK -> 0.26f + (0.42f - 0.26f) * progress
 		DayPhase.NIGHT -> NIGHT_HEIGHT_FRACTION
 	}
 
@@ -373,6 +393,7 @@ class SunRenderingTest {
 		const val LANDSCAPE_WIDTH = 780
 		const val LANDSCAPE_HEIGHT = 360
 		const val TIME_SECONDS = 17f
+		const val SUNSET_FADE_START = 0.15f
 		const val CELESTIAL_X_FRACTION = 0.72f
 		const val MIDDAY_HEIGHT_FRACTION = 0.17f
 		const val DAWN_DUSK_MIDPOINT_HEIGHT_FRACTION = 0.34f

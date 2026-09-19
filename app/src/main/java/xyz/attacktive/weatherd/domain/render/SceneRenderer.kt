@@ -63,6 +63,7 @@ class SceneRenderer(resources: Resources) {
 		lateinit var params: SceneParams
 		var pulse = 0f
 		var timeSeconds = 0f
+		var visibility = 1f
 	}
 
 	private class SunShaftGeometry {
@@ -1050,6 +1051,7 @@ class SceneRenderer(resources: Resources) {
 			sunRenderContext.params = params
 			sunRenderContext.pulse = pulse
 			sunRenderContext.timeSeconds = timeSeconds
+			sunRenderContext.visibility = sunVisibility(params.dayPhase, params.celestialProgress)
 			drawSun(canvas, sunRenderContext)
 		}
 	}
@@ -1077,6 +1079,10 @@ class SceneRenderer(resources: Resources) {
 
 	/** The sun as a structured atmospheric light source rather than a painted object. */
 	private fun drawSun(canvas: Canvas, sun: SunRenderContext) {
+		if (sun.visibility <= 0f) {
+			return
+		}
+
 		val radius = sun.span * SUN_RADIUS_FRACTION
 		val core = sunColor(sun.params.dayPhase)
 		val halo = tile("sunHalo", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildHaloSprite(it, core) }
@@ -1092,7 +1098,7 @@ class SceneRenderer(resources: Resources) {
 		}
 
 		val disc = tile("sunDisc", SUN_SPRITE_SIZE, SUN_SPRITE_SIZE) { buildSunSprite(it, core) }
-		blitSprite(canvas, disc, sun.centerX, sun.centerY, radius / SUN_DISC_MARGIN, 255)
+		blitSprite(canvas, disc, sun.centerX, sun.centerY, radius / SUN_DISC_MARGIN, sunAlpha(255f, sun.visibility))
 	}
 
 	private fun drawVeiledSun(canvas: Canvas, sun: SunRenderContext, radius: Float, core: Int, atmosphere: Bitmap): Boolean {
@@ -1101,7 +1107,7 @@ class SceneRenderer(resources: Resources) {
 		}
 
 		val strength = min(veiledCloudStrength(sun.params.cloudiness), veiledFogStrength(sun.params.fogDensity))
-		blitGlow(canvas, atmosphere, sun.centerX, sun.centerY, radius * (SUN_VEILED_BLOOM_REACH + 0.25f * sun.pulse), (SUN_VEILED_BLOOM_ALPHA * strength).roundToInt())
+		blitGlow(canvas, atmosphere, sun.centerX, sun.centerY, radius * (SUN_VEILED_BLOOM_REACH + 0.25f * sun.pulse), sunAlpha(SUN_VEILED_BLOOM_ALPHA * strength, sun.visibility))
 		drawVeiledSunDisc(canvas, sun, radius, core)
 		return true
 	}
@@ -1128,7 +1134,7 @@ class SceneRenderer(resources: Resources) {
 		}
 
 		val cover = unlerp(DIRECT_SUN_MAX_CLOUDINESS, CLOUD_DECK_THRESHOLD, sun.params.cloudiness)
-		val discAlpha = lerp(SUN_VEILED_DISC_MAX_ALPHA, SUN_VEILED_DISC_MIN_ALPHA, cover).roundToInt()
+		val discAlpha = sunAlpha(lerp(SUN_VEILED_DISC_MAX_ALPHA, SUN_VEILED_DISC_MIN_ALPHA, cover), sun.visibility)
 		val disc = tile("sunDisc", SUN_SPRITE_SIZE, SUN_SPRITE_SIZE) { buildSunSprite(it, core) }
 		blitSprite(canvas, disc, sun.centerX, sun.centerY, radius / SUN_DISC_MARGIN * SUN_VEILED_DISC_SCALE, discAlpha)
 	}
@@ -1140,9 +1146,10 @@ class SceneRenderer(resources: Resources) {
 		val atmosphere = tile("sunAtmosphere", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildSunAtmosphereSprite(it, core) }
 		val halo = tile("sunHalo", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildHaloSprite(it, core) }
 		val cover = unlerp(CLOUD_DECK_THRESHOLD, 1f, params.cloudiness)
+		val visibility = sunVisibility(params.dayPhase, params.celestialProgress)
 		val pulse = 0.97f + 0.03f * sin(timeSeconds * 0.8f)
-		val broadAlpha = lerp(SUN_OVERCAST_TRANSMISSION_MAX_ALPHA, SUN_OVERCAST_TRANSMISSION_MIN_ALPHA, cover).roundToInt()
-		val coreAlpha = lerp(SUN_OVERCAST_CORE_MAX_ALPHA, SUN_OVERCAST_CORE_MIN_ALPHA, cover).roundToInt()
+		val broadAlpha = sunAlpha(lerp(SUN_OVERCAST_TRANSMISSION_MAX_ALPHA, SUN_OVERCAST_TRANSMISSION_MIN_ALPHA, cover), visibility)
+		val coreAlpha = sunAlpha(lerp(SUN_OVERCAST_CORE_MAX_ALPHA, SUN_OVERCAST_CORE_MIN_ALPHA, cover), visibility)
 
 		blitGlow(canvas, atmosphere, centerX, centerY, radius * SUN_OVERCAST_TRANSMISSION_REACH * pulse, broadAlpha)
 		blitGlow(canvas, halo, centerX, centerY, radius * SUN_OVERCAST_CORE_REACH * pulse, coreAlpha)
@@ -1150,21 +1157,21 @@ class SceneRenderer(resources: Resources) {
 
 	private fun drawDirectSunGlow(canvas: Canvas, sun: SunRenderContext, radius: Float, core: Int, halo: Bitmap, atmosphere: Bitmap) {
 		val corona = tile("sunCorona", SUN_CORONA_SPRITE_SIZE, SUN_CORONA_SPRITE_SIZE) { buildSunCoronaSprite(it, core) }
-		blitGlow(canvas, atmosphere, sun.centerX, sun.centerY, radius * (SUN_BLOOM_FAR + 0.5f * sun.pulse), (SUN_BLOOM_FAR_ALPHA * (0.94f + 0.06f * sun.pulse)).roundToInt())
-		blitGlow(canvas, halo, sun.centerX, sun.centerY, radius * (SUN_BLOOM_NEAR + 0.25f * (1f - sun.pulse)), (SUN_BLOOM_NEAR_ALPHA * (0.94f + 0.06f * sun.pulse)).roundToInt())
-		blitGlow(canvas, corona, sun.centerX, sun.centerY, radius * SUN_CORONA_REACH, (SUN_CORONA_ALPHA * (0.92f + 0.08f * sun.pulse)).roundToInt())
+		blitGlow(canvas, atmosphere, sun.centerX, sun.centerY, radius * (SUN_BLOOM_FAR + 0.5f * sun.pulse), sunAlpha(SUN_BLOOM_FAR_ALPHA * (0.94f + 0.06f * sun.pulse), sun.visibility))
+		blitGlow(canvas, halo, sun.centerX, sun.centerY, radius * (SUN_BLOOM_NEAR + 0.25f * (1f - sun.pulse)), sunAlpha(SUN_BLOOM_NEAR_ALPHA * (0.94f + 0.06f * sun.pulse), sun.visibility))
+		blitGlow(canvas, corona, sun.centerX, sun.centerY, radius * SUN_CORONA_REACH, sunAlpha(SUN_CORONA_ALPHA * (0.92f + 0.08f * sun.pulse), sun.visibility))
 	}
 
 	private fun drawSunLensFlare(canvas: Canvas, sun: SunRenderContext, radius: Float, core: Int) {
 		val streak = tile("sunStreak", SUN_STREAK_SPRITE_WIDTH, SUN_STREAK_SPRITE_HEIGHT) { buildSunStreakSprite(it, core) }
 		val streakHalfWidth = radius * SUN_STREAK_REACH
-		blitGlowRect(canvas, streak, sun.centerX, sun.centerY, streakHalfWidth, streakHalfWidth * SUN_STREAK_ASPECT, (SUN_STREAK_ALPHA * (0.9f + 0.1f * sun.pulse)).roundToInt())
+		blitGlowRect(canvas, streak, sun.centerX, sun.centerY, streakHalfWidth, streakHalfWidth * SUN_STREAK_ASPECT, sunAlpha(SUN_STREAK_ALPHA * (0.9f + 0.1f * sun.pulse), sun.visibility))
 		val axisX = sun.width / 2f - sun.centerX
 		val axisY = sun.height / 2f - sun.centerY
 		for (index in LENS_GHOSTS.indices) {
 			val ghost = LENS_GHOSTS[index]
 			val tint = tile("sunGhost-$index", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildLensGhostSprite(it, ghost.tint) }
-			blitGlow(canvas, tint, sun.centerX + axisX * ghost.distance, sun.centerY + axisY * ghost.distance, radius * ghost.scale, (ghost.strength * 255f).roundToInt())
+			blitGlow(canvas, tint, sun.centerX + axisX * ghost.distance, sun.centerY + axisY * ghost.distance, radius * ghost.scale, sunAlpha(ghost.strength * 255f, sun.visibility))
 		}
 	}
 
@@ -2197,7 +2204,7 @@ class SceneRenderer(resources: Resources) {
 	private fun drawSunShaft(canvas: Canvas, sun: SunRenderContext, radius: Float, baseAngle: Float, baseReach: Float, tint: Int, refinedIndex: Float, energy: Float) {
 		val normalizedX = -1f + 2f * refinedIndex / (SUN_SHAFT_PROFILE_SAMPLES - 1f)
 		val strength = ((energy - SUN_SHAFT_EDGE_THRESHOLD) / (1f - SUN_SHAFT_EDGE_THRESHOLD)).coerceIn(0f, 1f).pow(0.72f)
-		val alpha = (SUN_SHAFT_MAX_ALPHA * strength).roundToInt().coerceIn(0, SUN_SHAFT_MAX_ALPHA)
+		val alpha = sunAlpha(SUN_SHAFT_MAX_ALPHA * strength, sun.visibility).coerceAtMost(SUN_SHAFT_MAX_ALPHA)
 		if (alpha <= 1) {
 			return
 		}
@@ -2742,6 +2749,7 @@ private fun showsHaze(params: SceneParams) = params.precipitation != null || par
 private const val PRECIPITATION_SCALE_EXPONENT = 0.5f
 
 private const val DIRECT_SUN_MAX_CLOUDINESS = 0.55f
+private const val SUNSET_FADE_START = 0.15f
 
 private const val CLOUD_DECK_THRESHOLD = 0.75f
 
@@ -2843,6 +2851,22 @@ private fun celestialHeightFraction(dayPhase: DayPhase, progress: Float) = when 
 	DayPhase.DUSK -> lerp(0.26f, 0.42f, progress)
 	DayPhase.NIGHT -> 0.24f
 }
+
+/**
+ * Dusk fades every sun component together while leaving the independently rendered orange sky intact.
+ * A smooth curve keeps the source nearly steady at the start of dusk, then eases it completely away before night.
+ */
+private fun sunVisibility(dayPhase: DayPhase, progress: Float): Float {
+	if (dayPhase != DayPhase.DUSK) {
+		return 1f
+	}
+
+	val fade = unlerp(SUNSET_FADE_START, 1f, progress)
+	val eased = fade * fade * (3f - 2f * fade)
+	return 1f - eased
+}
+
+private fun sunAlpha(alpha: Float, visibility: Float) = (alpha * visibility).roundToInt().coerceIn(0, 255)
 
 private fun sunColor(dayPhase: DayPhase) = when (dayPhase) {
 	DayPhase.DAWN -> Color.rgb(255, 224, 190)
