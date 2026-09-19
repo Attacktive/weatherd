@@ -1512,17 +1512,32 @@ class SceneRenderer(resources: Resources) {
 			height * 0.30f
 		}
 
-		farCumulusDeck.draw(
-			canvas,
-			width,
-			deckHeight,
-			cumulusOffset(width, params, timeSeconds, 0.004f + params.windFactor * 0.008f, 1f, 0.34f, CUMULUS_FAR_VIEWPORTS),
-			tint,
-			alpha,
-			cloudTop + drop,
-			CUMULUS_FAR_VIEWPORTS,
-			castShadow
-		)
+		if (castShadow == null) {
+			farCumulusDeck.draw(
+				canvas,
+				width,
+				deckHeight,
+				cumulusOffset(width, params, timeSeconds, 0.004f + params.windFactor * 0.008f, 1f, 0.34f, CUMULUS_FAR_VIEWPORTS),
+				tint,
+				alpha,
+				cloudTop + drop,
+				CUMULUS_FAR_VIEWPORTS
+			)
+		} else {
+			farCumulusDeck.drawShadowed(
+				canvas,
+				CloudLayer.CumulusShadowDraw(
+					width = width,
+					height = deckHeight,
+					offset = cumulusOffset(width, params, timeSeconds, 0.004f + params.windFactor * 0.008f, 1f, 0.34f, CUMULUS_FAR_VIEWPORTS),
+					tint = tint,
+					alpha = alpha,
+					top = cloudTop + drop,
+					viewports = CUMULUS_FAR_VIEWPORTS,
+					shadow = castShadow
+				)
+			)
+		}
 	}
 
 	/**
