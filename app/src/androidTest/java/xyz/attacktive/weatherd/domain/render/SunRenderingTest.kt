@@ -359,7 +359,7 @@ class SunRenderingTest {
 		val haloCenterX = sun.x + (width / 2f - sun.x) * LENS_HALO_AXIS_OFFSET
 		val haloCenterY = sun.y + (height / 2f - sun.y) * LENS_HALO_AXIS_OFFSET
 		val haloRadius = span * SUN_RADIUS_FRACTION * LENS_HALO_REACH * LENS_HALO_RADIUS_FRACTION
-		return PixelPoint((haloCenterX - haloRadius).roundToInt(), haloCenterY.roundToInt())
+		return PixelPoint(haloCenterX.roundToInt(), (haloCenterY + haloRadius).roundToInt())
 	}
 
 	private fun celestialCenter(width: Int, height: Int, dayPhase: DayPhase, progress: Float = 0.5f) = PixelPoint(
@@ -374,7 +374,7 @@ class SunRenderingTest {
 		DayPhase.NIGHT -> NIGHT_HEIGHT_FRACTION
 	}
 
-	private fun clearParams(dayPhase: DayPhase = DayPhase.DAY, cloudiness: Float = 0f, fogDensity: Float = 0f, cloudScale: Float = 1f, precipitation: Precipitation? = null, moonPhase: Float = 0.5f, celestialProgress: Float = 0.5f) = SceneParams(
+	private fun clearParams(dayPhase: DayPhase = DayPhase.DAY, cloudiness: Float = 0f, fogDensity: Float = 0f, cloudScale: Float = 1f, precipitation: Precipitation? = null, moonPhase: Float = 0.5f, celestialProgress: Float = 0.5f, ) = SceneParams(
 		dayPhase = dayPhase,
 		cloudiness = cloudiness,
 		fogDensity = fogDensity,
