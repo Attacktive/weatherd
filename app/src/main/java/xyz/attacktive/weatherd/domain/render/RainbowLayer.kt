@@ -18,12 +18,12 @@ internal class RainbowLayer(resources: Resources, @DrawableRes texture: Int) {
 	private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
 	private var previousTint = Color.WHITE
 
-	fun draw(canvas: Canvas, span: Float, centerX: Float, centerY: Float, dayPhase: DayPhase, visibility: Float = 1f) {
-		if (span <= 0f || dayPhase == DayPhase.NIGHT) {
+	fun draw(canvas: Canvas, centerX: Float, centerY: Float, dayPhase: DayPhase, visibility: Float = 1f) {
+		if (canvas.width <= 0 || canvas.height <= 0 || dayPhase == DayPhase.NIGHT) {
 			return
 		}
 
-		val targetRadius = span * HALO_RADIUS_FRACTION
+		val targetRadius = minOf(canvas.width, canvas.height) * HALO_RADIUS_FRACTION
 		val scale = targetRadius / (bitmap.width * TEXTURE_HALO_RADIUS_FRACTION)
 		val drawWidth = bitmap.width * scale
 		val drawHeight = bitmap.height * scale
