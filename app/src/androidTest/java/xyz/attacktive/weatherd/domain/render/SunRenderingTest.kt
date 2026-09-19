@@ -31,6 +31,7 @@ class SunRenderingTest {
 
 		assertTrue("The daytime sun core should remain fully visible, but alpha was ${Color.alpha(pixel)}", Color.alpha(pixel) >= 250)
 		assertTrue("The daytime sun core should remain warm white, but was (${Color.red(pixel)}, ${Color.green(pixel)}, ${Color.blue(pixel)})", minOf(Color.red(pixel), Color.green(pixel), Color.blue(pixel)) >= 245 && Color.red(pixel) >= Color.blue(pixel))
+
 		bitmap.recycle()
 	}
 
@@ -45,6 +46,7 @@ class SunRenderingTest {
 
 		assertTrue("A new-moon night should not retain the opaque daytime sun, but alpha was ${Color.alpha(nightPixel)}", Color.alpha(nightPixel) < Color.alpha(dayPixel) * 0.7f)
 		assertTrue("Night light should remain moon-cool rather than sun-warm, but was (${Color.red(nightPixel)}, ${Color.green(nightPixel)}, ${Color.blue(nightPixel)})", Color.blue(nightPixel) >= Color.red(nightPixel))
+
 		day.recycle()
 		night.recycle()
 	}
@@ -60,6 +62,7 @@ class SunRenderingTest {
 
 		assertTrue("Dawn should warm the sun shoulder beyond daytime ($dayWarmth), but measured $dawnWarmth", dawnWarmth > dayWarmth)
 		assertTrue("Dusk should remain the warmest phase beyond dawn ($dawnWarmth), but measured $duskWarmth", duskWarmth > dawnWarmth)
+
 		day.recycle()
 		dawn.recycle()
 		dusk.recycle()
@@ -100,6 +103,7 @@ class SunRenderingTest {
 
 		assertTrue("The full moon should remain centered at $expectedCenter, but opaque bounds were $bounds", abs(bounds.centerX - expectedCenter.x) <= POSITION_TOLERANCE_PIXELS && abs(bounds.centerY - expectedCenter.y) <= POSITION_TOLERANCE_PIXELS)
 		assertTrue("The full moon should preserve its existing radius near $MOON_RADIUS_FRACTION, but measured $radiusFraction", radiusFraction in MOON_RADIUS_RANGE)
+
 		bitmap.recycle()
 	}
 
@@ -114,6 +118,7 @@ class SunRenderingTest {
 
 		assertTrue("Clouds should visibly attenuate the sun instead of sitting behind it, but the core changed by only $coreDifference", coreDifference >= MIN_CLOUD_ATTENUATION)
 		assertTrue("Thin clouds should not reveal saturated yellow sun slices, but annulus warmth reached $edgeWarmth", edgeWarmth <= MAX_CLOUDED_EDGE_WARMTH)
+
 		clear.recycle()
 		cloudy.recycle()
 	}
@@ -136,6 +141,7 @@ class SunRenderingTest {
 		val alphaSpread = equalRadiusAlphaSpread(bitmap, center, radius)
 
 		assertTrue("Atmospheric light should not keep equal opacity around a circular radius, but its alpha spread was $alphaSpread", alphaSpread >= MIN_ATMOSPHERE_ALPHA_SPREAD)
+
 		bitmap.recycle()
 	}
 
@@ -147,6 +153,7 @@ class SunRenderingTest {
 		val peakAlpha = highestAlpha(bitmap, center, radius)
 
 		assertTrue("Cloudy daylight should reveal diffuse light without an opaque solar disc, but alpha reached $peakAlpha", peakAlpha < OPAQUE_ALPHA_THRESHOLD)
+
 		bitmap.recycle()
 	}
 
@@ -157,6 +164,7 @@ class SunRenderingTest {
 		val midday = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams(precipitation = precipitation, celestialProgress = 0.5f))
 
 		assertArrayEquals("Changing the hidden sun position must not alter a precipitation scene", pixels(early), pixels(midday))
+
 		early.recycle()
 		midday.recycle()
 	}
@@ -167,6 +175,7 @@ class SunRenderingTest {
 		val second = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams(), TIME_SECONDS)
 
 		assertArrayEquals("Equal scene inputs should generate identical sun pixels", pixels(first), pixels(second))
+
 		first.recycle()
 		second.recycle()
 	}
@@ -180,6 +189,7 @@ class SunRenderingTest {
 
 		assertTrue("The sun should remain centered at $expectedCenter in ${width}x$height, but opaque bounds were $bounds", abs(bounds.centerX - expectedCenter.x) <= POSITION_TOLERANCE_PIXELS && abs(bounds.centerY - expectedCenter.y) <= POSITION_TOLERANCE_PIXELS)
 		assertTrue("The ColorOS-scale sun radius should remain within $SUN_RADIUS_RANGE in ${width}x$height, but measured $radiusFraction", radiusFraction in SUN_RADIUS_RANGE)
+
 		bitmap.recycle()
 	}
 
@@ -195,6 +205,7 @@ class SunRenderingTest {
 		assertTrue("Moving the obscured sun should move visible diffuse light, but the midday region changed by only $displacement", displacement >= MIN_VEILED_DISPLACEMENT)
 		assertTrue("The obscured sun should lift warm light rather than neutral haze, but its warm lift was $warmthLift", warmthLift >= MIN_VEILED_WARMTH_LIFT)
 		assertTrue("The obscured sun should remain diffuse without an opaque disc or streak, but alpha reached $peakAlpha", peakAlpha < OPAQUE_ALPHA_THRESHOLD)
+
 		early.recycle()
 		midday.recycle()
 	}
@@ -338,15 +349,7 @@ class SunRenderingTest {
 		DayPhase.NIGHT -> NIGHT_HEIGHT_FRACTION
 	}
 
-	private fun clearParams(
-		dayPhase: DayPhase = DayPhase.DAY,
-		cloudiness: Float = 0f,
-		fogDensity: Float = 0f,
-		cloudScale: Float = 1f,
-		precipitation: Precipitation? = null,
-		moonPhase: Float = 0.5f,
-		celestialProgress: Float = 0.5f,
-	) = SceneParams(
+	private fun clearParams(dayPhase: DayPhase = DayPhase.DAY, cloudiness: Float = 0f, fogDensity: Float = 0f, cloudScale: Float = 1f, precipitation: Precipitation? = null, moonPhase: Float = 0.5f, celestialProgress: Float = 0.5f, ) = SceneParams(
 		dayPhase = dayPhase,
 		cloudiness = cloudiness,
 		fogDensity = fogDensity,
@@ -360,7 +363,9 @@ class SunRenderingTest {
 
 	private fun renderForeground(width: Int, height: Int, params: SceneParams, timeSeconds: Float = 0f): Bitmap {
 		val bitmap = createBitmap(width, height)
-		SceneRenderer(resources).renderForeground(Canvas(bitmap), width, height, params, timeSeconds)
+
+		SceneRenderer(resources)
+			.renderForeground(Canvas(bitmap), width, height, params, timeSeconds)
 
 		return bitmap
 	}
