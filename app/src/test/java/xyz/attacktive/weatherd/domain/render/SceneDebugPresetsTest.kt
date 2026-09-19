@@ -17,6 +17,7 @@ class SceneDebugPresetsTest {
 			assertEquals(1f, params.windScale, 0.0001f)
 			assertEquals(1f, params.cloudScale, 0.0001f)
 			assertTrue(params.lensFlareEnabled)
+			assertEquals(0.5f, params.celestialProgress, 0.0001f)
 		}
 	}
 
@@ -52,6 +53,14 @@ class SceneDebugPresetsTest {
 		val params = debugSceneParams(preset, DayPhase.DAY, lensFlareEnabled = false)
 
 		assertFalse(params.lensFlareEnabled)
+	}
+
+	@Test
+	fun `celestial progress reaches debug scene params`() {
+		val preset = SCENE_PRESETS.first { it.name == "CLEAR" }
+		val params = debugSceneParams(preset, DayPhase.DUSK, celestialProgress = 0.73f)
+
+		assertEquals(0.73f, params.celestialProgress, 0.0001f)
 	}
 
 	@Test

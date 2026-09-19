@@ -45,6 +45,7 @@ fun debugSceneParams(
 	windScale: Float = 1f,
 	cloudScale: Float = 1f,
 	lensFlareEnabled: Boolean = true,
+	celestialProgress: Float = 0.5f,
 ) = SceneParams(
 	dayPhase = dayPhase,
 	cloudiness = preset.cloudiness,
@@ -56,4 +57,5 @@ fun debugSceneParams(
 	windScale = windScale,
 	cloudScale = cloudScale,
 	lensFlareEnabled = lensFlareEnabled,
+	celestialProgress = celestialProgress,
 )

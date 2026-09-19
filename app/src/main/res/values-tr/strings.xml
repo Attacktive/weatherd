@@ -10,6 +10,7 @@
 	<string name="debug_mode_debug">Hata ayıklama</string>
 	<string name="scene_mode_live">Canlı</string>
 	<string name="scene_mode_simulated">Simüle</string>
+	<string name="scene_phase_progress">Aşama ilerlemesi %1$d%%</string>
 
 	<!-- Settings screen -->
 	<string name="settings_title">Ayarlar</string>

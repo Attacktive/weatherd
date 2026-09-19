@@ -1,5 +1,6 @@
 package xyz.attacktive.weatherd.ui.home
 
+import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -27,6 +28,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -77,6 +79,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	var debugEnabled by remember { mutableStateOf(false) }
 	var debugSceneIndex by remember { mutableIntStateOf(0) }
 	var debugPhaseIndex by remember { mutableIntStateOf(DayPhase.DAY.ordinal) }
+	var debugCelestialProgress by remember { mutableFloatStateOf(0.5f) }
 	var controlsVisible by remember { mutableStateOf(true) }
 	val previewInteraction = remember { MutableInteractionSource() }
 	val frameRateCap by viewModel.frameRateCap.collectAsStateWithLifecycle()
@@ -94,12 +97,13 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	// The photo revision comes across with it because the preset carries no revision of its own, which keeps the preview's backdrop key identical in shape to the wallpaper's signature.
 	val params = if (debugEnabled && sceneSimulatorVisible) {
 		debugSceneParams(
-			SCENE_PRESETS[debugSceneIndex],
-			DayPhase.entries[debugPhaseIndex],
-			precipitationIntensityScale,
-			windIntensityScale,
-			cloudIntensityScale,
-			lensFlareEnabled
+			preset = SCENE_PRESETS[debugSceneIndex],
+			dayPhase = DayPhase.entries[debugPhaseIndex],
+			precipitationScale = precipitationIntensityScale,
+			windScale = windIntensityScale,
+			cloudScale = cloudIntensityScale,
+			lensFlareEnabled = lensFlareEnabled,
+			celestialProgress = debugCelestialProgress
 		)
 			.copy(backdropScene = liveParams.backdropScene, photoRevision = liveParams.photoRevision)
 	} else {
@@ -210,6 +214,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 						debugEnabled = debugEnabled,
 						sceneLabel = SCENE_PRESETS[debugSceneIndex].name,
 						phaseLabel = DayPhase.entries[debugPhaseIndex].name,
+						celestialProgress = debugCelestialProgress,
 						onDebugEnabledChange = { debugEnabled = it },
 						onScenePrevious = {
 							debugSceneIndex = (debugSceneIndex + SCENE_PRESETS.size - 1) % SCENE_PRESETS.size
@@ -222,7 +227,8 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 						},
 						onPhaseNext = {
 							debugPhaseIndex = (debugPhaseIndex + 1) % DayPhase.entries.size
-						}
+						},
+						onCelestialProgressChange = { debugCelestialProgress = it }
 					)
 				}
 
@@ -239,11 +245,13 @@ private fun SceneSimulatorControls(
 	debugEnabled: Boolean,
 	sceneLabel: String,
 	phaseLabel: String,
+	celestialProgress: Float,
 	onDebugEnabledChange: (Boolean) -> Unit,
 	onScenePrevious: () -> Unit,
 	onSceneNext: () -> Unit,
 	onPhasePrevious: () -> Unit,
-	onPhaseNext: () -> Unit
+	onPhaseNext: () -> Unit,
+	onCelestialProgressChange: (Float) -> Unit
 ) {
 	Column(
 		modifier = Modifier
@@ -272,6 +280,16 @@ private fun SceneSimulatorControls(
 		if (debugEnabled) {
 			DebugCycleRow(label = sceneLabel, onPrevious = onScenePrevious, onNext = onSceneNext)
 			DebugCycleRow(label = phaseLabel, onPrevious = onPhasePrevious, onNext = onPhaseNext)
+			Text(
+				stringResource(R.string.scene_phase_progress, (celestialProgress * 100f).roundToInt()),
+				color = Color.White,
+				style = MaterialTheme.typography.labelMedium
+			)
+			Slider(
+				value = celestialProgress,
+				onValueChange = onCelestialProgressChange,
+				valueRange = 0f..1f
+			)
 		}
 	}
 }

@@ -10,6 +10,7 @@
 	<string name="debug_mode_debug">调试</string>
 	<string name="scene_mode_live">实时</string>
 	<string name="scene_mode_simulated">模拟</string>
+	<string name="scene_phase_progress">阶段进度 %1$d%%</string>
 
 	<!-- Settings screen -->
 	<string name="settings_title">设置</string>

@@ -10,6 +10,7 @@
 	<string name="debug_mode_debug">Depuración</string>
 	<string name="scene_mode_live">En vivo</string>
 	<string name="scene_mode_simulated">Simulado</string>
+	<string name="scene_phase_progress">Progreso de fase %1$d%%</string>
 
 	<!-- Settings screen -->
 	<string name="settings_title">Ajustes</string>
