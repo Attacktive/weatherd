@@ -315,7 +315,8 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 			return tint
 		}
 
-		return darken(tint, shadow.opacityAt(x, y) * shadow.strength)
+		val shadowAmount = (shadow.opacityAt(x, y) * shadow.strength).coerceIn(0f, 1f)
+		return darken(tint, 1f - shadowAmount)
 	}
 
 	private fun cumulusStyle(kind: CumulusKind, tint: Int, width: Float, height: Float): CumulusStyle {
@@ -491,16 +492,6 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		}
 
 		return texture
-	}
-
-	private fun darken(color: Int, amount: Float): Int {
-		val factor = 1f - amount.coerceIn(0f, 1f)
-
-		return Color.rgb(
-			(Color.red(color) * factor).roundToInt(),
-			(Color.green(color) * factor).roundToInt(),
-			(Color.blue(color) * factor).roundToInt()
-		)
 	}
 
 	private fun updateColorFilter(multiplyColor: Int) {
