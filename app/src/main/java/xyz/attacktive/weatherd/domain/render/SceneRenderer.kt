@@ -1425,56 +1425,62 @@ class SceneRenderer(resources: Resources) {
 	 * This keeps cast shadows on cloud material instead of painting translated silhouettes into the blue sky.
 	 */
 	private fun cumulusCastShadow(width: Float, height: Float, params: SceneParams, cloudTop: Float, nearState: NearCumulusState): CloudLayer.CumulusShadow? {
-		val strength = when (params.dayPhase) {
-			DayPhase.DAY -> CUMULUS_CAST_SHADOW_DAY_STRENGTH
-			DayPhase.DAWN -> CUMULUS_CAST_SHADOW_TWILIGHT_STRENGTH
-			DayPhase.DUSK -> CUMULUS_CAST_SHADOW_TWILIGHT_STRENGTH * sunVisibility(params.dayPhase, params.celestialProgress)
-			DayPhase.NIGHT -> 0f
-		}
-
+		val strength = cumulusCastShadowStrength(params)
 		if (strength <= 0f) {
 			return null
 		}
 
-		val lower = cumulusSteps[nearState.lower].value.opacitySampler(
-			width,
-			nearState.deckHeight,
-			nearState.offset,
-			cloudTop,
-			CLOUD_TEXTURE_VIEWPORTS,
-			nearState.alpha
-		)
-
-		val upper = if (nearState.upper < cumulusSteps.size && nearState.growth > 0) {
-			cumulusSteps[nearState.upper].value.opacitySampler(
-				width,
-				nearState.deckHeight,
-				nearState.offset,
-				cloudTop,
-				CLOUD_TEXTURE_VIEWPORTS,
-				nearState.growth
-			)
-		} else {
-			null
-		}
-
+		val lower = cumulusShadowSampler(width, cloudTop, nearState, nearState.lower, nearState.alpha)
+		val upper = cumulusShadowSampler(width, cloudTop, nearState, nearState.upper, nearState.growth)
 		if (lower == null && upper == null) {
 			return null
-		}
-
-		val sourceOffsetY = if (width < height) {
-			-height * CUMULUS_CAST_SHADOW_SOURCE_Y_PORTRAIT
-		} else {
-			-height * CUMULUS_CAST_SHADOW_SOURCE_Y_LANDSCAPE
 		}
 
 		return CloudLayer.CumulusShadow(
 			lower = lower,
 			upper = upper,
 			sourceOffsetX = width * (CELESTIAL_X_FRACTION - 0.5f) * CUMULUS_CAST_SHADOW_HORIZONTAL_PROJECTION,
-			sourceOffsetY = sourceOffsetY,
+			sourceOffsetY = cumulusCastShadowOffsetY(width, height),
 			strength = strength
 		)
+	}
+
+	private fun cumulusCastShadowStrength(params: SceneParams) = when (params.dayPhase) {
+		DayPhase.DAY -> CUMULUS_CAST_SHADOW_DAY_STRENGTH
+		DayPhase.DAWN -> CUMULUS_CAST_SHADOW_TWILIGHT_STRENGTH
+		DayPhase.DUSK -> CUMULUS_CAST_SHADOW_TWILIGHT_STRENGTH * sunVisibility(params.dayPhase, params.celestialProgress)
+		DayPhase.NIGHT -> 0f
+	}
+
+	private fun cumulusShadowSampler(
+		width: Float,
+		cloudTop: Float,
+		nearState: NearCumulusState,
+		index: Int,
+		alpha: Int
+	): CloudLayer.OpacitySampler? {
+		if (index !in cumulusSteps.indices || alpha <= 0) {
+			return null
+		}
+
+		return cumulusSteps[index].value.opacitySampler(
+			width,
+			nearState.deckHeight,
+			nearState.offset,
+			cloudTop,
+			CLOUD_TEXTURE_VIEWPORTS,
+			alpha
+		)
+	}
+
+	private fun cumulusCastShadowOffsetY(width: Float, height: Float): Float {
+		val fraction = if (width < height) {
+			CUMULUS_CAST_SHADOW_SOURCE_Y_PORTRAIT
+		} else {
+			CUMULUS_CAST_SHADOW_SOURCE_Y_LANDSCAPE
+		}
+
+		return -height * fraction
 	}
 
 	/**
