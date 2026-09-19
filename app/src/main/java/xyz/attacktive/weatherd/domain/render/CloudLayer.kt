@@ -267,33 +267,6 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		}
 	}
 
-	data class CumulusShadowDraw(
-		val width: Float,
-		val height: Float,
-		val offset: Float,
-		val tint: Int,
-		val alpha: Int,
-		val top: Float,
-		val viewports: Float,
-		val shadow: CumulusShadow
-	)
-
-	class CumulusShadow(
-		private val lower: OpacitySampler?,
-		private val upper: OpacitySampler?,
-		private val sourceOffsetX: Float,
-		private val sourceOffsetY: Float,
-		val strength: Float
-	) {
-		fun opacityAt(x: Float, y: Float): Float {
-			val sourceX = x + sourceOffsetX
-			val sourceY = y + sourceOffsetY
-			val lowerOpacity = lower?.opacityAt(sourceX, sourceY) ?: 0f
-			val upperOpacity = upper?.opacityAt(sourceX, sourceY) ?: 0f
-			return lowerOpacity + upperOpacity * (1f - lowerOpacity)
-		}
-	}
-
 	private fun drawCumulus(canvas: Canvas, geometry: CloudGeometry, tint: Int, alpha: Int, kind: CumulusKind, shadow: CumulusShadow?) {
 		val style = cumulusStyle(kind, tint, geometry.width, geometry.height)
 		paint.shader = null
@@ -522,6 +495,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 
 	private fun darken(color: Int, amount: Float): Int {
 		val factor = 1f - amount.coerceIn(0f, 1f)
+
 		return Color.rgb(
 			(Color.red(color) * factor).roundToInt(),
 			(Color.green(color) * factor).roundToInt(),
@@ -551,6 +525,19 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 	private enum class SheetKind {
 		FAR,
 		NEAR
+	}
+
+	data class CumulusShadowDraw(val width: Float, val height: Float, val offset: Float, val tint: Int, val alpha: Int, val top: Float, val viewports: Float, val shadow: CumulusShadow)
+
+	class CumulusShadow(private val lower: OpacitySampler?, private val upper: OpacitySampler?, private val sourceOffsetX: Float, private val sourceOffsetY: Float, val strength: Float) {
+		fun opacityAt(x: Float, y: Float): Float {
+			val sourceX = x + sourceOffsetX
+			val sourceY = y + sourceOffsetY
+			val lowerOpacity = lower?.opacityAt(sourceX, sourceY) ?: 0f
+			val upperOpacity = upper?.opacityAt(sourceX, sourceY) ?: 0f
+
+			return lowerOpacity + upperOpacity * (1f - lowerOpacity)
+		}
 	}
 
 	private companion object {
