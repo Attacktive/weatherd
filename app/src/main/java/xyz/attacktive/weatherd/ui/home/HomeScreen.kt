@@ -142,7 +142,12 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	}
 
 	LaunchedEffect(persistedDebugEnabled) {
-		debugEnabled = persistedDebugEnabled
+		if (persistedDebugEnabled) {
+			debugEnabled = true
+		} else {
+			liveParams = viewModel.refreshedParams()
+			debugEnabled = false
+		}
 	}
 
 	LaunchedEffect(persistedDebugSceneIndex) {
@@ -237,7 +242,10 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 						phaseLabel = DayPhase.entries[debugPhaseIndex].name,
 						celestialProgress = debugCelestialProgress,
 						onDebugEnabledChange = {
-							debugEnabled = it
+							if (it) {
+								debugEnabled = true
+							}
+
 							viewModel.setSceneSimulatorActive(it)
 						},
 						onScenePrevious = {
