@@ -217,7 +217,7 @@ class SceneRenderer(resources: Resources) {
 		}
 
 		if (showsRainbow(params)) {
-			rainbow.draw(canvas, w, h, celestialCenterX, celestialCenterY, params.dayPhase)
+			rainbow.draw(canvas, minOf(w, h), celestialCenterX, celestialCenterY, params.dayPhase, sunVisibility(params.dayPhase, params.celestialProgress))
 		}
 
 		if (showsCelestialBody(params)) {
@@ -1156,18 +1156,46 @@ class SceneRenderer(resources: Resources) {
 	}
 
 	private fun drawDirectSunGlow(canvas: Canvas, sun: SunRenderContext, radius: Float, core: Int, halo: Bitmap, atmosphere: Bitmap) {
-		val corona = tile("sunCorona", SUN_CORONA_SPRITE_SIZE, SUN_CORONA_SPRITE_SIZE) { buildSunCoronaSprite(it, core) }
 		blitGlow(canvas, atmosphere, sun.centerX, sun.centerY, radius * (SUN_BLOOM_FAR + 0.5f * sun.pulse), sunAlpha(SUN_BLOOM_FAR_ALPHA * (0.94f + 0.06f * sun.pulse), sun.visibility))
 		blitGlow(canvas, halo, sun.centerX, sun.centerY, radius * (SUN_BLOOM_NEAR + 0.25f * (1f - sun.pulse)), sunAlpha(SUN_BLOOM_NEAR_ALPHA * (0.94f + 0.06f * sun.pulse), sun.visibility))
-		blitGlow(canvas, corona, sun.centerX, sun.centerY, radius * SUN_CORONA_REACH, sunAlpha(SUN_CORONA_ALPHA * (0.92f + 0.08f * sun.pulse), sun.visibility))
+		drawSunCorona(canvas, sun, radius, core)
+	}
+
+	private fun drawSunCorona(canvas: Canvas, sun: SunRenderContext, radius: Float, core: Int) {
+		if (sun.params.dayPhase == DayPhase.NIGHT) {
+			return
+		}
+
+		val corona = tile("sunCorona-${sun.params.dayPhase}", SUN_CORONA_SPRITE_SIZE, SUN_CORONA_SPRITE_SIZE) { buildSunCoronaSprite(it, core) }
+		val scale = sunCoronaScale(sun.params.dayPhase)
+		val alpha = sunCoronaAlpha(sun.params.dayPhase)
+		blitGlow(canvas, corona, sun.centerX, sun.centerY, radius * SUN_CORONA_REACH * scale, sunAlpha(SUN_CORONA_ALPHA * alpha * (0.92f + 0.08f * sun.pulse), sun.visibility))
+	}
+
+	private fun sunCoronaScale(dayPhase: DayPhase) = when (dayPhase) {
+		DayPhase.DAY -> 1f
+		DayPhase.DAWN -> SUN_CORONA_DAWN_SCALE
+		DayPhase.DUSK -> SUN_CORONA_DUSK_SCALE
+		DayPhase.NIGHT -> 0f
+	}
+
+	private fun sunCoronaAlpha(dayPhase: DayPhase) = when (dayPhase) {
+		DayPhase.DAY -> 1f
+		DayPhase.DAWN -> SUN_CORONA_DAWN_ALPHA
+		DayPhase.DUSK -> SUN_CORONA_DUSK_ALPHA
+		DayPhase.NIGHT -> 0f
 	}
 
 	private fun drawSunLensFlare(canvas: Canvas, sun: SunRenderContext, radius: Float, core: Int) {
+		val axisX = sun.width / 2f - sun.centerX
+		val axisY = sun.height / 2f - sun.centerY
+		val lensHalo = tile("sunLensHalo-reference", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildLensHaloSprite(it) }
+		val lensHaloAlpha = SUN_LENS_HALO_ALPHA * lensHaloPhaseStrength(sun.params.dayPhase)
+		blitGlow(canvas, lensHalo, sun.centerX + axisX * SUN_LENS_HALO_AXIS_OFFSET, sun.centerY + axisY * SUN_LENS_HALO_AXIS_OFFSET, radius * SUN_LENS_HALO_REACH, sunAlpha(lensHaloAlpha, sun.visibility))
+
 		val streak = tile("sunStreak", SUN_STREAK_SPRITE_WIDTH, SUN_STREAK_SPRITE_HEIGHT) { buildSunStreakSprite(it, core) }
 		val streakHalfWidth = radius * SUN_STREAK_REACH
 		blitGlowRect(canvas, streak, sun.centerX, sun.centerY, streakHalfWidth, streakHalfWidth * SUN_STREAK_ASPECT, sunAlpha(SUN_STREAK_ALPHA * (0.9f + 0.1f * sun.pulse), sun.visibility))
-		val axisX = sun.width / 2f - sun.centerX
-		val axisY = sun.height / 2f - sun.centerY
 		for (index in LENS_GHOSTS.indices) {
 			val ghost = LENS_GHOSTS[index]
 			val tint = tile("sunGhost-$index", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildLensGhostSprite(it, ghost.tint) }
@@ -2480,35 +2508,60 @@ class SceneRenderer(resources: Resources) {
 		val random = Random(SUN_CORONA_SEED)
 		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
 		val ray = Path()
-		val warm = lerpColor(core, Color.rgb(255, 216, 150), 0.28f)
-		brush.style = Paint.Style.FILL
-		brush.maskFilter = BlurMaskFilter(size * SUN_CORONA_BLUR_FRACTION, BlurMaskFilter.Blur.NORMAL)
+		val gold = Color.rgb(255, 201, 92)
+		val warm = lerpColor(core, gold, SUN_CORONA_WARMTH)
 
+		brush.style = Paint.Style.FILL
+		brush.shader = RadialGradient(
+			center,
+			center,
+			center * SUN_CORONA_GLOW_REACH,
+			intArrayOf(withAlpha(warm, 215), withAlpha(warm, 155), withAlpha(warm, 72), withAlpha(warm, 0)),
+			floatArrayOf(0f, 0.34f, 0.66f, 1f),
+			Shader.TileMode.CLAMP
+		)
+		canvas.drawCircle(center, center, center * SUN_CORONA_GLOW_REACH, brush)
+
+		brush.shader = null
+		brush.maskFilter = BlurMaskFilter(size * SUN_CORONA_BLUR_FRACTION, BlurMaskFilter.Blur.NORMAL)
 		repeat(SUN_CORONA_RAY_COUNT) { index ->
-			val primary = random.nextFloat() < 0.22f
-			val angle = index * SUN_CORONA_GOLDEN_ANGLE + random.nextFloat(-SUN_CORONA_ANGLE_JITTER, SUN_CORONA_ANGLE_JITTER)
+			val emphasis = 1f - min(1f, (index % SUN_CORONA_MAIN_RAY_INTERVAL).toFloat())
+			val angle = TAU * index / SUN_CORONA_RAY_COUNT + random.nextFloat(-SUN_CORONA_ANGLE_JITTER, SUN_CORONA_ANGLE_JITTER)
 			val directionX = cos(angle)
 			val directionY = sin(angle)
 			val normalX = -directionY
 			val normalY = directionX
-			val innerRadius = center * random.nextFloat(0.20f, 0.30f)
-			val outerMin = if (primary) 0.68f else 0.38f
-			val outerMax = if (primary) 0.98f else 0.80f
-			val widthMin = if (primary) 0.010f else 0.005f
-			val widthMax = if (primary) 0.026f else 0.016f
-			val alphaMin = if (primary) 125f else 48f
-			val alphaMax = if (primary) 188f else 118f
-			val outerRadius = center * random.nextFloat(outerMin, outerMax)
-			val halfWidth = center * random.nextFloat(widthMin, widthMax)
+			val innerRadius = center * random.nextFloat(0.24f, 0.31f)
+			val outerRadius = center * random.nextFloat(lerp(0.54f, 0.72f, emphasis), lerp(0.78f, 0.90f, emphasis))
+			val halfWidth = center * random.nextFloat(lerp(0.020f, 0.028f, emphasis), lerp(0.040f, 0.048f, emphasis))
+			val alpha = random.nextFloat(lerp(92f, 142f, emphasis), lerp(158f, 196f, emphasis)).roundToInt()
 
 			ray.rewind()
 			ray.moveTo(center + directionX * innerRadius + normalX * halfWidth, center + directionY * innerRadius + normalY * halfWidth)
 			ray.lineTo(center + directionX * outerRadius, center + directionY * outerRadius)
 			ray.lineTo(center + directionX * innerRadius - normalX * halfWidth, center + directionY * innerRadius - normalY * halfWidth)
 			ray.close()
-			brush.color = withAlpha(warm, random.nextFloat(alphaMin, alphaMax).roundToInt())
+			brush.color = withAlpha(warm, alpha)
 			canvas.drawPath(ray, brush)
 		}
+	}
+
+	/** The huge, barely visible optical ring surrounding the direct sun in the latest reference. */
+	private fun buildLensHaloSprite(canvas: Canvas) {
+		val center = HALO_SPRITE_SIZE / 2f
+		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
+		brush.style = Paint.Style.STROKE
+		brush.strokeWidth = HALO_SPRITE_SIZE * SUN_LENS_HALO_STROKE_FRACTION
+		brush.color = withAlpha(Color.rgb(255, 238, 198), SUN_LENS_HALO_SPRITE_ALPHA)
+		brush.maskFilter = BlurMaskFilter(HALO_SPRITE_SIZE * SUN_LENS_HALO_BLUR_FRACTION, BlurMaskFilter.Blur.NORMAL)
+		canvas.drawCircle(center, center, center * SUN_LENS_HALO_RADIUS_FRACTION, brush)
+	}
+
+	private fun lensHaloPhaseStrength(dayPhase: DayPhase) = when (dayPhase) {
+		DayPhase.DAY -> 0.72f
+		DayPhase.DAWN -> 0.32f
+		DayPhase.DUSK -> 0.12f
+		DayPhase.NIGHT -> 0f
 	}
 
 	/** A soft ring rather than another radial blob, matching the translucent circular ghosts visible in the reference lens flare. */
@@ -2688,12 +2741,18 @@ class SceneRenderer(resources: Resources) {
 
 		/** Cached corona geometry and on-screen reach around the smaller solar disc. */
 		private const val SUN_CORONA_SPRITE_SIZE = 512
-		private const val SUN_CORONA_RAY_COUNT = 28
-		private const val SUN_CORONA_REACH = 2.20f
-		private const val SUN_CORONA_ALPHA = 172f
-		private const val SUN_CORONA_BLUR_FRACTION = 0.018f
-		private const val SUN_CORONA_ANGLE_JITTER = 0.085f
-		private const val SUN_CORONA_GOLDEN_ANGLE = 2.3999632f
+		private const val SUN_CORONA_RAY_COUNT = 18
+		private const val SUN_CORONA_REACH = 2.52f
+		private const val SUN_CORONA_ALPHA = 190f
+		private const val SUN_CORONA_BLUR_FRACTION = 0.014f
+		private const val SUN_CORONA_ANGLE_JITTER = 0.13f
+		private const val SUN_CORONA_MAIN_RAY_INTERVAL = 5
+		private const val SUN_CORONA_WARMTH = 0.72f
+		private const val SUN_CORONA_GLOW_REACH = 0.56f
+		private const val SUN_CORONA_DAWN_SCALE = 0.88f
+		private const val SUN_CORONA_DAWN_ALPHA = 0.72f
+		private const val SUN_CORONA_DUSK_SCALE = 0.55f
+		private const val SUN_CORONA_DUSK_ALPHA = 0.38f
 
 		/** Cloud-edge-driven volumetric rays. Sampling the moving silhouette makes the fan itself move with the clouds instead of only changing opacity. */
 		private const val SUN_SHAFT_PROFILE_SAMPLES = 33
@@ -2775,6 +2834,15 @@ class SceneRenderer(resources: Resources) {
 
 		/** Peak alpha of the streak before the restrained breathing scales it. */
 		private const val SUN_STREAK_ALPHA = 42f
+
+		/** Large reference-style optical halo around the direct sun; the sprite itself carries the soft ring profile. */
+		private const val SUN_LENS_HALO_REACH = 7.4f
+		private const val SUN_LENS_HALO_ALPHA = 52f
+		private const val SUN_LENS_HALO_AXIS_OFFSET = 0.18f
+		private const val SUN_LENS_HALO_RADIUS_FRACTION = 0.88f
+		private const val SUN_LENS_HALO_STROKE_FRACTION = 0.0045f
+		private const val SUN_LENS_HALO_BLUR_FRACTION = 0.0065f
+		private const val SUN_LENS_HALO_SPRITE_ALPHA = 54
 
 		/** Fraction of a soft-dot sprite's radius that is solid color before the fade to transparent begins. */
 		private const val DOT_CORE_STOP = 0.5f
@@ -3053,10 +3121,10 @@ private data class LensGhost(val distance: Float, val scale: Float, val strength
  * They stay barely visible at ordinary brightness, reading as optical residue only after the eye notices them.
  */
 private val LENS_GHOSTS = listOf(
-	LensGhost(0.62f, 0.70f, 0.052f, Color.rgb(255, 232, 202)),
-	LensGhost(1.05f, 1.05f, 0.038f, Color.rgb(196, 228, 248)),
-	LensGhost(1.42f, 0.58f, 0.030f, Color.rgb(246, 216, 222)),
-	LensGhost(1.82f, 1.35f, 0.018f, Color.rgb(214, 232, 215))
+	LensGhost(-0.72f, 0.82f, 0.040f, Color.rgb(255, 238, 204)),
+	LensGhost(0.76f, 0.72f, 0.050f, Color.rgb(255, 232, 202)),
+	LensGhost(1.34f, 0.62f, 0.028f, Color.rgb(196, 228, 248)),
+	LensGhost(1.82f, 1.24f, 0.018f, Color.rgb(214, 232, 215))
 )
 
 internal fun darken(color: Int, factor: Float) =
