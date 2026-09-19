@@ -75,6 +75,22 @@ class SunRenderingTest {
 	}
 
 	@Test
+	fun largeLensHaloDisappearsWhenLensFlareIsDisabled() {
+		val enabledParams = clearParams()
+		val enabled = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams)
+		val disabled = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams.copy(lensFlareEnabled = false))
+		val sample = lensHaloSamplePoint(PORTRAIT_WIDTH, PORTRAIT_HEIGHT)
+		val enabledAlpha = Color.alpha(enabled.getPixel(sample.x, sample.y))
+		val disabledAlpha = Color.alpha(disabled.getPixel(sample.x, sample.y))
+
+		assertTrue("The reference-style lens halo should lift alpha at $sample, but only changed $disabledAlpha -> $enabledAlpha", enabledAlpha - disabledAlpha >= MIN_LENS_HALO_ALPHA_LIFT)
+		assertTrue("Disabling lens flare should remove the giant optical halo at $sample, but alpha stayed at $disabledAlpha", disabledAlpha <= MAX_DISABLED_LENS_HALO_ALPHA)
+
+		enabled.recycle()
+		disabled.recycle()
+	}
+
+	@Test
 	fun duskSunFadesAwayAsItDescends() {
 		val earlyProgress = SUNSET_FADE_START
 		val middleProgress = 0.65f
@@ -337,6 +353,15 @@ class SunRenderingTest {
 		return PixelBounds(left, top, right, bottom)
 	}
 
+	private fun lensHaloSamplePoint(width: Int, height: Int): PixelPoint {
+		val sun = celestialCenter(width, height, DayPhase.DAY)
+		val span = minOf(width, height)
+		val haloCenterX = sun.x + (width / 2f - sun.x) * LENS_HALO_AXIS_OFFSET
+		val haloCenterY = sun.y + (height / 2f - sun.y) * LENS_HALO_AXIS_OFFSET
+		val haloRadius = span * SUN_RADIUS_FRACTION * LENS_HALO_REACH * LENS_HALO_RADIUS_FRACTION
+		return PixelPoint(haloCenterX.roundToInt(), (haloCenterY + haloRadius).roundToInt())
+	}
+
 	private fun celestialCenter(width: Int, height: Int, dayPhase: DayPhase, progress: Float = 0.5f) = PixelPoint(
 		x = (width * CELESTIAL_X_FRACTION).roundToInt(),
 		y = (height * celestialHeight(dayPhase, progress)).roundToInt(),
@@ -409,7 +434,13 @@ class SunRenderingTest {
 		const val EDGE_OUTER_RADIUS_FRACTION = 0.11f
 		const val VEILED_SAMPLE_RADIUS_FRACTION = 0.045f
 		const val ATMOSPHERE_SAMPLE_RADIUS_FRACTION = 0.12f
+		const val SUN_RADIUS_FRACTION = 0.052f
+		const val LENS_HALO_REACH = 7.4f
+		const val LENS_HALO_AXIS_OFFSET = 0.18f
+		const val LENS_HALO_RADIUS_FRACTION = 0.88f
 		const val OPAQUE_ALPHA_THRESHOLD = 245
+		const val MIN_LENS_HALO_ALPHA_LIFT = 2
+		const val MAX_DISABLED_LENS_HALO_ALPHA = 2
 		const val POSITION_TOLERANCE_PIXELS = 2
 		const val MIN_CLOUD_ATTENUATION = 2f
 		const val MIN_VEILED_DISPLACEMENT = 1.5f

@@ -8,6 +8,7 @@ import android.graphics.LightingColorFilter
 import android.graphics.Matrix
 import android.graphics.Paint
 import androidx.annotation.DrawableRes
+import kotlin.math.roundToInt
 import xyz.attacktive.weatherd.domain.model.DayPhase
 
 /** Reuses decoded chromatic halo pixels, a sampling transform, and day-phase tint state between frames. */
@@ -17,12 +18,12 @@ internal class RainbowLayer(resources: Resources, @DrawableRes texture: Int) {
 	private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
 	private var previousTint = Color.WHITE
 
-	fun draw(canvas: Canvas, width: Float, height: Float, centerX: Float, centerY: Float, dayPhase: DayPhase) {
-		if (width <= 0f || height <= 0f || dayPhase == DayPhase.NIGHT) {
+	fun draw(canvas: Canvas, centerX: Float, centerY: Float, dayPhase: DayPhase, visibility: Float = 1f) {
+		if (canvas.width <= 0 || canvas.height <= 0 || dayPhase == DayPhase.NIGHT) {
 			return
 		}
 
-		val targetRadius = minOf(width, height) * HALO_RADIUS_FRACTION
+		val targetRadius = minOf(canvas.width, canvas.height) * HALO_RADIUS_FRACTION
 		val scale = targetRadius / (bitmap.width * TEXTURE_HALO_RADIUS_FRACTION)
 		val drawWidth = bitmap.width * scale
 		val drawHeight = bitmap.height * scale
@@ -31,6 +32,7 @@ internal class RainbowLayer(resources: Resources, @DrawableRes texture: Int) {
 
 		transform.setScale(scale, scale)
 		transform.postTranslate(left, top)
+		paint.alpha = (255f * haloStrength(dayPhase) * visibility).roundToInt().coerceIn(0, 255)
 
 		val tint = rainbowTint(dayPhase)
 		if (tint != previousTint) {
@@ -47,8 +49,15 @@ internal class RainbowLayer(resources: Resources, @DrawableRes texture: Int) {
 	}
 
 	companion object {
-		private const val HALO_RADIUS_FRACTION = 0.40f
+		private const val HALO_RADIUS_FRACTION = 0.34f
 		private const val TEXTURE_HALO_RADIUS_FRACTION = 0.34f
+
+		private fun haloStrength(dayPhase: DayPhase) = when (dayPhase) {
+			DayPhase.DAY -> 0.30f
+			DayPhase.DAWN -> 0.18f
+			DayPhase.DUSK -> 0.08f
+			DayPhase.NIGHT -> 0f
+		}
 
 		/** Gentle atmospheric tinting during dawn and dusk to harmonize the rainbow with warm lighting. */
 		internal fun rainbowTint(dayPhase: DayPhase) = when (dayPhase) {
