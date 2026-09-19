@@ -248,7 +248,23 @@ class CloudLayerTest {
 		shadow: CloudLayer.CumulusShadow? = null
 	): Bitmap {
 		val bitmap = createBitmap(540, 320)
-		layer.draw(Canvas(bitmap), bitmap.width.toFloat(), bitmap.height.toFloat(), offset, tint, alpha, 0f, viewports, shadow)
+		if (shadow == null) {
+			layer.draw(Canvas(bitmap), bitmap.width.toFloat(), bitmap.height.toFloat(), offset, tint, alpha, 0f, viewports)
+		} else {
+			layer.drawShadowed(
+				Canvas(bitmap),
+				CloudLayer.CumulusShadowDraw(
+					width = bitmap.width.toFloat(),
+					height = bitmap.height.toFloat(),
+					offset = offset,
+					tint = tint,
+					alpha = alpha,
+					top = 0f,
+					viewports = viewports,
+					shadow = shadow
+				)
+			)
+		}
 
 		return bitmap
 	}
