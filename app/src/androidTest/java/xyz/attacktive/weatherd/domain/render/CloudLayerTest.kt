@@ -41,6 +41,33 @@ class CloudLayerTest {
 	}
 
 	@Test
+	fun cloudSheetsRenderWithBroadInternalShading() {
+		for (texture in SHEET_TEXTURES) {
+			val layer = CloudLayer(resources, texture)
+			var darkest = 255
+			var lightest = 0
+			for (viewport in 0 until CLOUD_TEXTURE_VIEWPORTS.toInt()) {
+				val bitmap = render(layer, offset = -540f * viewport)
+				val pixels = IntArray(bitmap.width * bitmap.height)
+				bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+				for (pixel in pixels) {
+					if (Color.alpha(pixel) < 64) {
+						continue
+					}
+
+					val brightness = (Color.red(pixel) + Color.green(pixel) + Color.blue(pixel)) / 3
+					darkest = minOf(darkest, brightness)
+					lightest = maxOf(lightest, brightness)
+				}
+
+				bitmap.recycle()
+			}
+
+			assertTrue("${name(texture)} must render visible self-shading, saw brightness $darkest..$lightest", lightest - darkest >= 30)
+		}
+	}
+
+	@Test
 	fun tintAndOpacityReturnToTheirPreviousAppearanceAfterAWeatherChange() {
 		val layer = CloudLayer(resources, R.drawable.cloud_sheet_near)
 		val day = render(layer, tint = Color.WHITE, alpha = 180)
@@ -182,6 +209,8 @@ class CloudLayerTest {
 	}
 
 	private companion object {
+		val SHEET_TEXTURES = listOf(R.drawable.cloud_sheet_far, R.drawable.cloud_sheet_near)
+
 		/** The near deck's coverage steps, in the order the renderer cross-fades them. */
 		val CUMULUS_COVERAGE_STEPS = listOf(R.drawable.cloud_cumulus_sparse, R.drawable.cloud_cumulus_scattered, R.drawable.cloud_cumulus_broken)
 

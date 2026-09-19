@@ -1,7 +1,9 @@
 package xyz.attacktive.weatherd.ui.home
 
 import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import android.app.WallpaperManager
 import android.content.ActivityNotFoundException
 import android.content.ComponentName
@@ -107,6 +109,12 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	LifecycleResumeEffect(Unit) {
 		viewModel.refresh()
 		onPauseOrDispose { }
+	}
+
+	LaunchedEffect(renderer) {
+		withContext(Dispatchers.Default) {
+			renderer.prewarmOvercastClouds()
+		}
 	}
 
 	LaunchedEffect(Unit) {

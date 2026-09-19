@@ -54,6 +54,10 @@ class WeatherLiveWallpaperService: WallpaperService() {
 		@Volatile private var frameRateCap = FrameRateCap.UNCAPPED
 
 		init {
+			scope.launch(Dispatchers.Default) {
+				renderer.prewarmOvercastClouds()
+			}
+
 			scope.launch {
 				settingsRepository.settings.collect { frameRateCap = it.frameRateCap }
 			}

@@ -95,8 +95,10 @@ class SceneRenderer(resources: Resources) {
 	private var sceneryGlyphPaths: List<SceneryLayerPath> = emptyList()
 	private var sceneryWindmill: SceneryWindmill? = null
 	private val tiles = HashMap<String, Bitmap>()
-	private val farCloudDeck by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_sheet_far) }
-	private val nearCloudDeck by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_sheet_near) }
+	private val farCloudDeckDelegate = lazy { CloudLayer(resources, R.drawable.cloud_sheet_far) }
+	private val nearCloudDeckDelegate = lazy { CloudLayer(resources, R.drawable.cloud_sheet_near) }
+	private val farCloudDeck by farCloudDeckDelegate
+	private val nearCloudDeck by nearCloudDeckDelegate
 	private val farCumulusDeck by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_far) }
 
 	/*
@@ -162,6 +164,15 @@ class SceneRenderer(resources: Resources) {
 		renderForeground(canvas, width, height, params, timeSeconds)
 	}
 
+	/**
+	 * Builds the expensive procedural overcast sheets before the render loop needs them.
+	 * Call this from a background dispatcher; [drawCloudDrift] deliberately refuses to initialize the lazy decks on a frame.
+	 */
+	fun prewarmOvercastClouds() {
+		farCloudDeckDelegate.value
+		nearCloudDeckDelegate.value
+	}
+
 	/** The static layers (sky, overcast ceiling, fog base, haze, vignette). Cache these — they don't animate frame-to-frame. */
 	fun renderBackdrop(canvas: Canvas, width: Int, height: Int, params: SceneParams) {
 		val w = width.toFloat()
@@ -222,6 +233,10 @@ class SceneRenderer(resources: Resources) {
 
 		if (params.cloudiness > CLOUD_DECK_THRESHOLD || params.precipitation != null) {
 			drawCloudDrift(canvas, w, h, params, timeSeconds)
+		}
+
+		if (showsOvercastSunTransmission(params)) {
+			drawOvercastSunTransmission(canvas, w, h, celestialCenterX, celestialCenterY, params, timeSeconds)
 		}
 
 		// The scenery draws after the celestial body and clouds (they belong to the sky behind it) but before fog, rain, and lightning (weather happens in front of the horizon).
@@ -1108,14 +1123,29 @@ class SceneRenderer(resources: Resources) {
 	}
 
 	private fun drawVeiledSunDisc(canvas: Canvas, sun: SunRenderContext, radius: Float, core: Int) {
-		if (sun.params.fogDensity > 0f || sun.params.thunder || sun.params.cloudiness <= DIRECT_SUN_MAX_CLOUDINESS) {
+		if (sun.params.fogDensity > 0f || sun.params.thunder || sun.params.cloudiness <= DIRECT_SUN_MAX_CLOUDINESS || sun.params.cloudiness > CLOUD_DECK_THRESHOLD) {
 			return
 		}
 
-		val cover = unlerp(DIRECT_SUN_MAX_CLOUDINESS, 1f, sun.params.cloudiness)
+		val cover = unlerp(DIRECT_SUN_MAX_CLOUDINESS, CLOUD_DECK_THRESHOLD, sun.params.cloudiness)
 		val discAlpha = lerp(SUN_VEILED_DISC_MAX_ALPHA, SUN_VEILED_DISC_MIN_ALPHA, cover).roundToInt()
 		val disc = tile("sunDisc", SUN_SPRITE_SIZE, SUN_SPRITE_SIZE) { buildSunSprite(it, core) }
 		blitSprite(canvas, disc, sun.centerX, sun.centerY, radius / SUN_DISC_MARGIN * SUN_VEILED_DISC_SCALE, discAlpha)
+	}
+
+	private fun drawOvercastSunTransmission(canvas: Canvas, width: Float, height: Float, centerX: Float, centerY: Float, params: SceneParams, timeSeconds: Float) {
+		val span = min(width, height)
+		val radius = span * SUN_RADIUS_FRACTION
+		val core = sunColor(params.dayPhase)
+		val atmosphere = tile("sunAtmosphere", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildSunAtmosphereSprite(it, core) }
+		val halo = tile("sunHalo", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildHaloSprite(it, core) }
+		val cover = unlerp(CLOUD_DECK_THRESHOLD, 1f, params.cloudiness)
+		val pulse = 0.97f + 0.03f * sin(timeSeconds * 0.8f)
+		val broadAlpha = lerp(SUN_OVERCAST_TRANSMISSION_MAX_ALPHA, SUN_OVERCAST_TRANSMISSION_MIN_ALPHA, cover).roundToInt()
+		val coreAlpha = lerp(SUN_OVERCAST_CORE_MAX_ALPHA, SUN_OVERCAST_CORE_MIN_ALPHA, cover).roundToInt()
+
+		blitGlow(canvas, atmosphere, centerX, centerY, radius * SUN_OVERCAST_TRANSMISSION_REACH * pulse, broadAlpha)
+		blitGlow(canvas, halo, centerX, centerY, radius * SUN_OVERCAST_CORE_REACH * pulse, coreAlpha)
 	}
 
 	private fun drawDirectSunGlow(canvas: Canvas, sun: SunRenderContext, radius: Float, core: Int, halo: Bitmap, atmosphere: Bitmap) {
@@ -1214,6 +1244,10 @@ class SceneRenderer(resources: Resources) {
 	 * Storm decks stay darker and snow decks lighter, while the day-phase tint keeps night clouds dim.
 	 */
 	private fun drawCloudDrift(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
+		if (!farCloudDeckDelegate.isInitialized() || !nearCloudDeckDelegate.isInitialized()) {
+			return
+		}
+
 		val base = lerpColor(overcastCeiling(params.dayPhase), cloudTint(params.dayPhase), 0.7f)
 		val color = when {
 			params.thunder -> darken(base, 0.72f)
@@ -1229,11 +1263,11 @@ class SceneRenderer(resources: Resources) {
 		val bobAmplitude = height * 0.006f * params.windScale
 		val bob = bobAmplitude * (0.65f * sin(timeSeconds * 0.4f) + 0.35f * sin(timeSeconds * 1.07f))
 		val swell = 0.9f + 0.1f * (0.7f * sin(timeSeconds * 0.55f) + 0.3f * sin(timeSeconds * 1.31f))
-		val backAlpha = (255f * 0.40f * params.cloudScale).roundToInt()
-		val frontAlpha = (255f * 0.54f * params.cloudScale * swell).roundToInt()
+		val backAlpha = (255f * 0.47f * params.cloudScale).roundToInt()
+		val frontAlpha = (255f * 0.68f * params.cloudScale * swell).roundToInt()
 
-		farCloudDeck.draw(canvas, width, height * 0.50f + bobAmplitude, backOffset, darken(color, 0.94f), backAlpha, bob - bobAmplitude)
-		nearCloudDeck.draw(canvas, width, height * 0.42f + bobAmplitude * 1.5f, frontOffset, color, frontAlpha, -bob * 1.5f - bobAmplitude * 1.5f)
+		farCloudDeck.draw(canvas, width, height * 0.72f + bobAmplitude, backOffset, darken(color, 0.94f), backAlpha, bob - bobAmplitude)
+		nearCloudDeck.draw(canvas, width, height * 0.66f + bobAmplitude * 1.5f, frontOffset, color, frontAlpha, -bob * 1.5f - bobAmplitude * 1.5f)
 	}
 
 	/**
@@ -2465,7 +2499,6 @@ class SceneRenderer(resources: Resources) {
 		private const val TILE_DOWNSCALE = 4f
 
 		private const val MOSTLY_CLEAR_THRESHOLD = 0.3f
-		private const val CLOUD_DECK_THRESHOLD = 0.75f
 
 		/** Below this cloudiness the sky is drawn empty: a genuinely clear day has no cumulus in it, not a faint suggestion of some. */
 		private const val SCATTERED_CLOUD_FLOOR = 0.1f
@@ -2582,10 +2615,18 @@ class SceneRenderer(resources: Resources) {
 		private const val SUN_VEILED_MAX_STRENGTH = 0.68f
 		private const val SUN_VEILED_MIN_STRENGTH = 0.42f
 
-		/** The hidden solar limb fades from cloudy to fully overcast and grows slightly so it reads through the deck as diffused light, not a crisp white sticker. */
+		/** The hidden solar limb only survives the cloudy transition; once the overcast deck takes over, the broad atmospheric glow is the only visible sun cue. */
 		private const val SUN_VEILED_DISC_MAX_ALPHA = 160f
 		private const val SUN_VEILED_DISC_MIN_ALPHA = 28f
 		private const val SUN_VEILED_DISC_SCALE = 1.08f
+
+		/** Broad transmitted daylight drawn after the overcast sheets so the source remains perceptible without restoring a circular disc. */
+		private const val SUN_OVERCAST_TRANSMISSION_REACH = 7.2f
+		private const val SUN_OVERCAST_TRANSMISSION_MAX_ALPHA = 78f
+		private const val SUN_OVERCAST_TRANSMISSION_MIN_ALPHA = 48f
+		private const val SUN_OVERCAST_CORE_REACH = 3.6f
+		private const val SUN_OVERCAST_CORE_MAX_ALPHA = 58f
+		private const val SUN_OVERCAST_CORE_MIN_ALPHA = 32f
 
 		/** The atmospheric sprite uses a pale source color and a long falloff inside each overlapping lobe. */
 		private const val SUN_ATMOSPHERE_LIFT = 0.72f
@@ -2679,6 +2720,9 @@ private fun showsCelestialBody(params: SceneParams) = when {
 	else -> params.fogDensity <= 0f && params.cloudiness <= 0.75f
 }
 
+/** A heavy dry deck still transmits a broad patch of daylight even when the solar limb itself is no longer visible. */
+private fun showsOvercastSunTransmission(params: SceneParams) = params.dayPhase != DayPhase.NIGHT && params.precipitation == null && params.fogDensity <= 0f && !params.thunder && params.cloudiness > CLOUD_DECK_THRESHOLD
+
 /** Birds fly only through fair daylight skies: no precipitation, no fog, cover below the deck threshold, and never at night. */
 private fun showsBirds(params: SceneParams) = params.precipitation == null && params.fogDensity <= 0f && params.cloudiness < 0.55f && params.dayPhase != DayPhase.NIGHT
 
@@ -2698,6 +2742,8 @@ private fun showsHaze(params: SceneParams) = params.precipitation != null || par
 private const val PRECIPITATION_SCALE_EXPONENT = 0.5f
 
 private const val DIRECT_SUN_MAX_CLOUDINESS = 0.55f
+
+private const val CLOUD_DECK_THRESHOLD = 0.75f
 
 internal const val MAX_WIND_SLANT = 1.4f
 

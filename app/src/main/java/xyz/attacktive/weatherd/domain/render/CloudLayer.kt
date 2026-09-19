@@ -1,5 +1,7 @@
 package xyz.attacktive.weatherd.domain.render
 
+import kotlin.math.abs
+import kotlin.math.floor
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.random.Random
@@ -25,8 +27,8 @@ internal const val CLOUD_TEXTURE_VIEWPORTS = 4f
  * Reuses decoded cloud pixels, sampling transforms, tint state, and seeded sprite layouts between frames.
  *
  * Fair-weather cumulus uses transparent sprites directly.
- * The far fair-weather plane uses dedicated flat veil assets, while overcast sheets keep their repeating textures and borrow several small, subdued hero fragments to break up the ceiling without leaving a single recognizable fair-weather cloud hanging in the scene.
- * Fog draws over those fragments.
+ * The far fair-weather plane uses dedicated flat veil assets, while overcast sheets are deterministic multi-scale textures generated once when the layer is first used.
+ * Fog draws over those sheets.
  */
 internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 	private val cumulusKind = when (texture) {
@@ -43,22 +45,16 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		else -> null
 	}
 
-	private val bitmap = if (cumulusKind == null) {
-		decode(resources, texture)
-	} else {
-		null
+	private val bitmap = when {
+		cumulusKind != null -> null
+		sheetKind != null -> overcastTexture(sheetKind)
+		else -> decode(resources, texture)
 	}
 
 	private val cumulusBitmaps = when (cumulusKind) {
 		null -> emptyList()
 		CumulusKind.FAR -> farBitmaps(resources)
 		else -> heroBitmaps(resources)
-	}
-
-	private val sheetHeroBitmaps = if (sheetKind != null) {
-		heroBitmaps(resources)
-	} else {
-		emptyList()
 	}
 
 	private val cloudShader = bitmap?.let {
@@ -111,10 +107,6 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		updateColorFilter(tint)
 		paint.alpha = alpha.coerceIn(0, 255)
 		canvas.drawRect(0f, top, width, top + height, paint)
-
-		sheetKind?.let {
-			drawSheetCloudMasses(canvas, geometry, tint, alpha, it)
-		}
 	}
 
 	/**
@@ -324,62 +316,6 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		)
 	}
 
-	/**
-	 * Adds small broad fragments inside a heavy sheet.
-	 * They stay high, overlap the sheet texture, and remain faint enough that the eye reads one overcast deck rather than an isolated fair-weather sprite.
-	 * Fog is drawn later and mutes them.
-	 */
-	private fun drawSheetCloudMasses(canvas: Canvas, geometry: CloudGeometry, tint: Int, alpha: Int, kind: SheetKind) {
-		if (sheetHeroBitmaps.isEmpty()) {
-			return
-		}
-
-		val anchors = if (kind == SheetKind.FAR) {
-			SHEET_FAR_MASSES
-		} else {
-			SHEET_NEAR_MASSES
-		}
-
-		val driftScale = if (kind == SheetKind.FAR) SHEET_FAR_MASS_DRIFT else SHEET_NEAR_MASS_DRIFT
-		val drift = geometry.offset * driftScale
-
-		updateColorFilter(liftTowardWhite(tint, SHEET_MASS_TINT_LIFT))
-		paint.shader = null
-
-		for (anchor in anchors) {
-			val sprite = sheetHeroBitmaps[anchor.spriteIndex % sheetHeroBitmaps.size]
-			val targetWidth = geometry.width * anchor.widthFraction
-			val targetHeight = targetWidth * sprite.height.toFloat() / sprite.width.toFloat()
-			val centerX = positiveModulo(geometry.width * anchor.xFraction + drift, geometry.width)
-			val centerY = geometry.top + geometry.height * anchor.yFraction
-			val spriteAlpha = (alpha * anchor.alphaScale).toInt().coerceIn(0, 255)
-			if (spriteAlpha <= 0) {
-				continue
-			}
-
-			val placement = CumulusPlacement(
-				spriteIndex = anchor.spriteIndex,
-				xFraction = 0f,
-				yFraction = 0f,
-				scale = 1f,
-				mirror = anchor.mirror,
-				alphaScale = 1f
-			)
-
-			paint.alpha = spriteAlpha
-
-			for (shift in -1..1) {
-				val wrappedX = centerX + shift * geometry.width
-				if (wrappedX + targetWidth * 0.5f < 0f || wrappedX - targetWidth * 0.5f > geometry.width) {
-					continue
-				}
-
-				spriteDest.set(wrappedX - targetWidth * 0.5f, centerY - targetHeight * 0.5f, wrappedX + targetWidth * 0.5f, centerY + targetHeight * 0.5f)
-				drawSprite(canvas, sprite, placement, wrappedX, centerY)
-			}
-		}
-	}
-
 	private fun nearPlacementsFor(kind: CumulusKind): List<CumulusPlacement> {
 		val epochDay = System.currentTimeMillis() / MILLIS_PER_DAY
 		if (cachedNearEpochDay == epochDay && cachedNearPlacements.isNotEmpty()) {
@@ -448,6 +384,86 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		}
 	}
 
+	private fun overcastTexture(kind: SheetKind): Bitmap = synchronized(OVERCAST_BITMAP_LOCK) {
+		val cached = cachedOvercastTexture(kind)
+		if (cached != null && !cached.isRecycled) {
+			return@synchronized cached
+		}
+
+		return@synchronized buildOvercastTexture(kind)
+			.also { cacheOvercastTexture(kind, it) }
+	}
+
+	private fun cachedOvercastTexture(kind: SheetKind) = when (kind) {
+		SheetKind.FAR -> sharedFarOvercastBitmap
+		SheetKind.NEAR -> sharedNearOvercastBitmap
+	}
+
+	private fun cacheOvercastTexture(kind: SheetKind, bitmap: Bitmap) {
+		when (kind) {
+			SheetKind.FAR -> sharedFarOvercastBitmap = bitmap
+			SheetKind.NEAR -> sharedNearOvercastBitmap = bitmap
+		}
+	}
+
+	private fun buildOvercastTexture(kind: SheetKind): Bitmap {
+		val profile = when (kind) {
+			SheetKind.FAR -> FAR_OVERCAST_PROFILE
+			SheetKind.NEAR -> NEAR_OVERCAST_PROFILE
+		}
+		val noise = OvercastNoise(profile)
+		val output = IntArray(OVERCAST_FIELD_WIDTH * OVERCAST_FIELD_HEIGHT)
+
+		for (y in 0 until OVERCAST_FIELD_HEIGHT) {
+			val v = y.toFloat() / (OVERCAST_FIELD_HEIGHT - 1)
+			for (x in 0 until OVERCAST_FIELD_WIDTH) {
+				val u = x.toFloat() / OVERCAST_FIELD_WIDTH
+				output[y * OVERCAST_FIELD_WIDTH + x] = overcastPixel(u, v, profile, noise)
+			}
+		}
+
+		return upscaleOvercastField(output)
+	}
+
+	private fun overcastPixel(u: Float, v: Float, profile: OvercastProfile, noise: OvercastNoise): Int {
+		val warpedX = wrapUnit(u + 0.055f * (noise.warpX.sample(u, v) - 0.5f))
+		val warpedY = (v + 0.075f * (noise.warpY.sample(u, v) - 0.5f)).coerceIn(0f, 1f)
+		val body = noise.body.sample(warpedX, warpedY)
+		val billow = noise.billow.sample(warpedX, warpedY)
+		val fine = noise.fine.sample(warpedX, warpedY)
+		val structure = 0.58f * body + 0.35f * billow + 0.07f * fine
+		val bank = 0.76f + 0.24f * smoothstep(0.22f, 0.78f, noise.bank.sample(u, v))
+		val lowerEdge = v + 0.20f * (noise.bottom.sample(u, v) - 0.5f)
+		val envelope = (1f - smoothstep(0.68f, 1.02f, lowerEdge)) * (1f - smoothstep(0.92f, 0.998f, v))
+		val density = smoothstep(profile.density.cut, 0.66f, structure) * bank * envelope
+		val alpha = (density * profile.density.alphaGain).coerceIn(0f, 1f)
+		val upperLeft = noise.body.sample(wrapUnit(warpedX - profile.lighting.shiftX), (warpedY - profile.lighting.shiftY).coerceAtLeast(0f))
+		val lowerRight = noise.body.sample(wrapUnit(warpedX + profile.lighting.shiftX), (warpedY + profile.lighting.shiftY).coerceAtMost(1f))
+		val directional = (upperLeft - lowerRight).coerceIn(-0.25f, 0.25f)
+		val core = smoothstep(0.16f, 0.72f, density)
+		var light = 1f - profile.lighting.shadowStrength * core + profile.lighting.directionalStrength * directional
+		light += profile.lighting.billowLight * (billow - 0.5f)
+		light += 0.045f * (fine - 0.5f)
+
+		// Thin edges stay skylit; only cloud with real optical depth carries the shadow field.
+		light = 1f - alpha * (1f - light)
+		light = light.coerceIn(profile.lighting.minimumLight, 0.96f)
+		val gray = (light * 255f).roundToInt()
+		return Color.argb((alpha * 255f).roundToInt(), gray, gray, gray)
+	}
+
+	private fun upscaleOvercastField(pixels: IntArray): Bitmap {
+		val field = Bitmap.createBitmap(OVERCAST_FIELD_WIDTH, OVERCAST_FIELD_HEIGHT, Bitmap.Config.ARGB_8888).apply {
+			setPixels(pixels, 0, OVERCAST_FIELD_WIDTH, 0, 0, OVERCAST_FIELD_WIDTH, OVERCAST_FIELD_HEIGHT)
+		}
+		val texture = Bitmap.createScaledBitmap(field, OVERCAST_TEXTURE_WIDTH, OVERCAST_TEXTURE_HEIGHT, true)
+		if (texture !== field) {
+			field.recycle()
+		}
+
+		return texture
+	}
+
 	private fun updateColorFilter(multiplyColor: Int) {
 		if (multiplyColor != previousMultiply) {
 			paint.colorFilter = if (multiplyColor == Color.WHITE) {
@@ -492,9 +508,31 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		private const val FAR_BASE_HEIGHT_TO_WIDTH = 0.082f
 		private const val FAR_BASE_HEIGHT_TO_DECK = 0.24f
 
-		private const val SHEET_FAR_MASS_DRIFT = 0.035f
-		private const val SHEET_NEAR_MASS_DRIFT = 0.055f
-		private const val SHEET_MASS_TINT_LIFT = 0.01f
+		private const val OVERCAST_FIELD_WIDTH = 360
+		private const val OVERCAST_FIELD_HEIGHT = 120
+		private const val OVERCAST_TEXTURE_WIDTH = 720
+		private const val OVERCAST_TEXTURE_HEIGHT = 240
+
+		private val FAR_OVERCAST_PROFILE = OvercastProfile(
+			noise = OvercastNoiseProfile(
+				seed = 823,
+				body = NoiseSize(10, 5),
+				billow = NoiseSize(24, 11),
+				fine = NoiseSize(52, 23)
+			),
+			density = OvercastDensityProfile(0.39f, 1.58f),
+			lighting = OvercastLightingProfile(0.26f, 0.34f, 0.61f, 0.014f, 0.028f, 0.08f)
+		)
+		private val NEAR_OVERCAST_PROFILE = OvercastProfile(
+			noise = OvercastNoiseProfile(
+				seed = 1759,
+				body = NoiseSize(7, 4),
+				billow = NoiseSize(17, 8),
+				fine = NoiseSize(40, 18)
+			),
+			density = OvercastDensityProfile(0.38f, 1.78f),
+			lighting = OvercastLightingProfile(0.38f, 0.46f, 0.49f, 0.018f, 0.035f, 0.12f)
+		)
 
 		private val NEAR_PLACEMENT_TUNING = PlacementTuning(0.035f, 0.045f, 0.10f, 0.06f, 0.16f, 0.64f)
 		private val FAR_PLACEMENT_TUNING = PlacementTuning(0.022f, 0.040f, 0.10f, 0.06f, 0.20f, 0.66f)
@@ -533,17 +571,9 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 			CumulusAnchor(0.95f, 0.27f, 0.70f, alphaScale = 0.84f)
 		)
 
-		private val SHEET_FAR_MASSES = listOf(
-			SheetCloudMass(0.08f, 0.18f, 0.32f, 0.28f, 0, false),
-			SheetCloudMass(0.50f, 0.30f, 0.28f, 0.24f, 1, true),
-			SheetCloudMass(0.86f, 0.20f, 0.24f, 0.22f, 0, true)
-		)
-
-		private val SHEET_NEAR_MASSES = listOf(
-			SheetCloudMass(0.30f, 0.24f, 0.36f, 0.26f, 1, false),
-			SheetCloudMass(0.82f, 0.34f, 0.30f, 0.22f, 0, true)
-		)
-
+		private val OVERCAST_BITMAP_LOCK = Any()
+		private var sharedFarOvercastBitmap: Bitmap? = null
+		private var sharedNearOvercastBitmap: Bitmap? = null
 		private var sharedHeroBitmaps: List<Bitmap>? = null
 		private var sharedFarBitmaps: List<Bitmap>? = null
 
@@ -642,4 +672,112 @@ private data class CumulusAnchor(val xFraction: Float, val yFraction: Float, val
 
 internal data class CumulusPlacement(val spriteIndex: Int, val xFraction: Float, val yFraction: Float, val scale: Float, val mirror: Boolean, val alphaScale: Float)
 
-private data class SheetCloudMass(val xFraction: Float, val yFraction: Float, val widthFraction: Float, val alphaScale: Float, val spriteIndex: Int, val mirror: Boolean)
+private data class OvercastProfile(val noise: OvercastNoiseProfile, val density: OvercastDensityProfile, val lighting: OvercastLightingProfile)
+
+private data class OvercastNoiseProfile(val seed: Int, val body: NoiseSize, val billow: NoiseSize, val fine: NoiseSize)
+
+private data class NoiseSize(val columns: Int, val rows: Int)
+
+private data class OvercastDensityProfile(val cut: Float, val alphaGain: Float)
+
+private data class OvercastLightingProfile(
+	val shadowStrength: Float,
+	val directionalStrength: Float,
+	val minimumLight: Float,
+	val shiftX: Float,
+	val shiftY: Float,
+	val billowLight: Float
+)
+
+private class OvercastNoise(profile: OvercastProfile) {
+	private val noise = profile.noise
+	val warpX = NoiseGrid(5, 4, noise.seed + 1)
+	val warpY = NoiseGrid(7, 5, noise.seed + 2)
+	val body = FractalNoise(noise.body.columns, noise.body.rows, 3, noise.seed + 100)
+	val billow = FractalNoise(noise.billow.columns, noise.billow.rows, 3, noise.seed + 200, billow = true)
+	val fine = FractalNoise(noise.fine.columns, noise.fine.rows, 2, noise.seed + 300)
+	val bank = NoiseGrid(4, 3, noise.seed + 400)
+	val bottom = NoiseGrid(5, 3, noise.seed + 500)
+}
+
+private class NoiseGrid(private val columns: Int, private val rows: Int, seed: Int) {
+	private val values = FloatArray(columns * rows)
+	private val random = Random(seed)
+
+	init {
+		for (index in values.indices) {
+			values[index] = random.nextFloat()
+		}
+	}
+
+	fun sample(x: Float, y: Float): Float {
+		val wrappedX = wrapUnit(x)
+		val gridX = wrappedX * columns
+		val xFloor = floor(gridX).toInt()
+		val x0 = positiveModuloInt(xFloor, columns)
+		val x1 = (x0 + 1) % columns
+		val xAmount = smoothCurve(gridX - floor(gridX))
+
+		val gridY = y.coerceIn(0f, 1f) * (rows - 1)
+		val y0 = floor(gridY).toInt().coerceIn(0, rows - 1)
+		val y1 = minOf(y0 + 1, rows - 1)
+		val yAmount = smoothCurve(gridY - floor(gridY))
+
+		val upper = lerpNoise(values[y0 * columns + x0], values[y0 * columns + x1], xAmount)
+		val lower = lerpNoise(values[y1 * columns + x0], values[y1 * columns + x1], xAmount)
+		return lerpNoise(upper, lower, yAmount)
+	}
+}
+
+private class FractalNoise(columns: Int, rows: Int, octaves: Int, seed: Int, private val billow: Boolean = false) {
+	private val layers = List(octaves) { octave ->
+		NoiseGrid(columns shl octave, rows shl octave, seed + octave * 31)
+	}
+
+	fun sample(x: Float, y: Float): Float {
+		var total = 0f
+		var amplitude = 1f
+		var norm = 0f
+		for (layer in layers) {
+			var value = layer.sample(x, y)
+			if (billow) {
+				value = 1f - abs(2f * value - 1f)
+			}
+
+			total += value * amplitude
+			norm += amplitude
+			amplitude *= 0.5f
+		}
+
+		return total / norm
+	}
+}
+
+private fun wrapUnit(value: Float): Float {
+	val wrapped = value - floor(value)
+	return when {
+		wrapped >= 1f -> 0f
+		else -> wrapped
+	}
+}
+
+private fun positiveModuloInt(value: Int, modulo: Int): Int {
+	val result = value % modulo
+	return when {
+		result < 0 -> result + modulo
+		else -> result
+	}
+}
+
+private fun smoothCurve(value: Float): Float {
+	val amount = value.coerceIn(0f, 1f)
+	return amount * amount * (3f - 2f * amount)
+}
+
+private fun smoothstep(low: Float, high: Float, value: Float): Float {
+	return smoothCurve((value - low) / (high - low))
+}
+
+private fun lerpNoise(from: Float, to: Float, fraction: Float) = from + (to - from) * fraction
+
+

@@ -64,11 +64,13 @@ fun debugSceneParams(
 
 - `renderBackdrop(canvas, width, height, params)`: Static layers (sky gradient, overcast ceiling, fog base, haze, vignette). Cached into a `Bitmap` by `WeatherLiveWallpaperService` and `HomeScreen`; re-rasterized only when `backdropSignature(params)` changes.
 - `renderForeground(canvas, width, height, params, timeSeconds)`: Dynamic animated layers (stars, celestial body, birds, clouds, scenery, fog drift, precipitation, lightning, overlay text). Redrawn every frame.
-- Cloud decks use `CloudLayer` with original, lazily decoded `drawable-nodpi` textures and repeating bitmap shaders; their transforms, opacity, and day-phase tints change without rerasterizing the textures.
+- Cloud decks use `CloudLayer` with repeating bitmap shaders; fair-weather assets are decoded lazily, while overcast sheets are generated once per lazy layer. Their transforms, opacity, and day-phase tints change without rerasterizing the textures.
 - `scripts/generate-cloud-textures.py` reproducibly regenerates every cloud asset with `uv run scripts/generate-cloud-textures.py` and samples no third-party artwork. There are two families:
-	- `cloud_sheet_far` / `cloud_sheet_near` are the churned overcast and precipitation sheets, drawn by `drawCloudDrift`.
+	- `cloud_sheet_far` / `cloud_sheet_near` identify the overcast and precipitation decks drawn by `drawCloudDrift`; `CloudLayer` procedurally builds each deck once on first use from deterministic multi-scale noise and reuses the resulting bitmap afterward.
 	- `cloud_cumulus_sparse` / `_scattered` / `_broken` / `_far` are the clear-sky decks, drawn by `drawScatteredClouds`.
 - A texture spans `CLOUD_TEXTURE_VIEWPORTS` viewport widths before repeating unless a deck passes its own `viewports`. A shorter span shrinks the sampled features, which is the only handle a deck has on apparent cloud size.
+- Overcast depth comes from three separate spatial scales: large cloud bodies define the silhouette, medium billows shape the volume, and fine turbulence only breaks up the surface. Do not derive overcast geometry from the old streak textures or paste fair-weather hero sprites into the deck; generation stays one-time and per-frame rendering remains a normal bitmap-shader draw.
+- Procedural overcast generation must never start from `renderForeground` / `drawCloudDrift`. Owners prewarm it on a background dispatcher; if the cache is not ready yet, the frame skips the animated sheet instead of blocking the render thread.
 
 ### Cloud Coverage Belongs to the Texture, Never to the Paint Alpha
 

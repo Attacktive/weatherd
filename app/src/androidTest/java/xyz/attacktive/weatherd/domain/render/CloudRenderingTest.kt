@@ -36,8 +36,8 @@ class CloudRenderingTest {
 		val bounds = differenceBounds(withoutClouds, withClouds)
 
 		assertTrue(
-			"Overcast cloud sheets must reach the mid-sky, but their lower edge was ${bounds.bottom}",
-			bounds.bottom >= (HEIGHT * 0.44f).roundToInt()
+			"Overcast cloud sheets must occupy the mid-sky instead of collapsing into a top strip, but their lower edge was ${bounds.bottom}",
+			bounds.bottom >= (HEIGHT * 0.56f).roundToInt()
 		)
 		withoutClouds.recycle()
 		withClouds.recycle()
@@ -54,7 +54,9 @@ class CloudRenderingTest {
 			windFactor = 0.2f,
 			cloudScale = cloudScale,
 		)
-		SceneRenderer(resources).renderForeground(Canvas(bitmap), WIDTH, HEIGHT, params, TIME_SECONDS)
+		val renderer = SceneRenderer(resources)
+		renderer.prewarmOvercastClouds()
+		renderer.renderForeground(Canvas(bitmap), WIDTH, HEIGHT, params, TIME_SECONDS)
 
 		return bitmap
 	}
