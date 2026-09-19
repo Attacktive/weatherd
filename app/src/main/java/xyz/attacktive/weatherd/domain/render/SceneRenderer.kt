@@ -217,7 +217,7 @@ class SceneRenderer(resources: Resources) {
 		}
 
 		if (showsRainbow(params)) {
-			rainbow.draw(canvas, minOf(w, h), celestialCenterX, celestialCenterY, params.dayPhase, sunVisibility(params.dayPhase, params.celestialProgress))
+			rainbow.draw(canvas, celestialCenterX, celestialCenterY, params.dayPhase, sunVisibility(params.dayPhase, params.celestialProgress))
 		}
 
 		if (showsCelestialBody(params)) {
@@ -2488,6 +2488,7 @@ class SceneRenderer(resources: Resources) {
 		val center0Y = shaft.originY + shaft.directionY * reach0 + shaft.normalY * centerWarp0
 		val center1X = shaft.originX + shaft.directionX * reach1 + shaft.normalX * centerWarp1
 		val center1Y = shaft.originY + shaft.directionY * reach1 + shaft.normalY * centerWarp1
+
 		lightShaftPath.rewind()
 		lightShaftPath.moveTo(center0X + shaft.normalX * width0 * leftScale0, center0Y + shaft.normalY * width0 * leftScale0)
 		lightShaftPath.lineTo(center1X + shaft.normalX * width1 * leftScale1, center1Y + shaft.normalY * width1 * leftScale1)
@@ -2495,6 +2496,7 @@ class SceneRenderer(resources: Resources) {
 		lightShaftPath.lineTo(center0X - shaft.normalX * width0 * rightScale0, center0Y - shaft.normalY * width0 * rightScale0)
 		lightShaftPath.close()
 		glowPaint.color = withAlpha(shaft.tint, segmentAlpha)
+
 		canvas.drawPath(lightShaftPath, glowPaint)
 	}
 
@@ -2512,6 +2514,7 @@ class SceneRenderer(resources: Resources) {
 		val warm = lerpColor(core, gold, SUN_CORONA_WARMTH)
 
 		brush.style = Paint.Style.FILL
+
 		brush.shader = RadialGradient(
 			center,
 			center,
@@ -2520,10 +2523,12 @@ class SceneRenderer(resources: Resources) {
 			floatArrayOf(0f, 0.34f, 0.66f, 1f),
 			Shader.TileMode.CLAMP
 		)
+
 		canvas.drawCircle(center, center, center * SUN_CORONA_GLOW_REACH, brush)
 
 		brush.shader = null
 		brush.maskFilter = BlurMaskFilter(size * SUN_CORONA_BLUR_FRACTION, BlurMaskFilter.Blur.NORMAL)
+
 		repeat(SUN_CORONA_RAY_COUNT) { index ->
 			val emphasis = 1f - min(1f, (index % SUN_CORONA_MAIN_RAY_INTERVAL).toFloat())
 			val angle = TAU * index / SUN_CORONA_RAY_COUNT + random.nextFloat(-SUN_CORONA_ANGLE_JITTER, SUN_CORONA_ANGLE_JITTER)
@@ -2542,6 +2547,7 @@ class SceneRenderer(resources: Resources) {
 			ray.lineTo(center + directionX * innerRadius - normalX * halfWidth, center + directionY * innerRadius - normalY * halfWidth)
 			ray.close()
 			brush.color = withAlpha(warm, alpha)
+
 			canvas.drawPath(ray, brush)
 		}
 	}
