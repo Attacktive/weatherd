@@ -100,8 +100,10 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		val source = checkNotNull(bitmap)
 		val shader = checkNotNull(cloudShader)
 
-		transform.setScale(width * viewports / source.width, height / source.height)
-		transform.postTranslate(offset, top)
+		val period = width * viewports
+		val wrappedOffset = positiveModulo(offset, period)
+		transform.setScale(period / source.width, height / source.height)
+		transform.postTranslate(wrappedOffset, top)
 		shader.setLocalMatrix(transform)
 		paint.shader = shader
 		updateColorFilter(tint)
@@ -128,7 +130,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		opacitySampler.configure(
 			width = width,
 			height = height,
-			offset = offset,
+			offset = positiveModulo(offset, period),
 			top = top,
 			period = period,
 			style = opacityStyleFor(kind, width, height),
@@ -265,13 +267,14 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		}
 
 		val compositionAlpha = nearCompositionAlpha(kind, alpha)
+		val wrappedOffset = positiveModulo(geometry.offset, period)
 
 		for (placement in placements) {
 			val sprite = cumulusBitmaps[placement.spriteIndex % cumulusBitmaps.size]
 			val spriteHeight = style.baseHeight * placement.scale * style.scale.height
 			val spriteWidth = spriteHeight * sprite.width.toFloat() / sprite.height.toFloat() * style.scale.width
 			val centerY = geometry.top - style.topOffset + geometry.height * placement.yFraction
-			val centerX = positiveModulo(geometry.offset + period * placement.xFraction, period)
+			val centerX = positiveModulo(wrappedOffset + period * placement.xFraction, period)
 			val spriteAlpha = (compositionAlpha * style.scale.alpha * placement.alphaScale).toInt().coerceIn(0, 255)
 			if (spriteAlpha <= 0) {
 				continue
@@ -779,5 +782,3 @@ private fun smoothstep(low: Float, high: Float, value: Float): Float {
 }
 
 private fun lerpNoise(from: Float, to: Float, fraction: Float) = from + (to - from) * fraction
-
-
