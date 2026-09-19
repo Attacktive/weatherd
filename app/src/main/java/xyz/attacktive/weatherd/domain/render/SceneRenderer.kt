@@ -3059,7 +3059,7 @@ private val LENS_GHOSTS = listOf(
 	LensGhost(1.82f, 1.35f, 0.018f, Color.rgb(214, 232, 215))
 )
 
-private fun darken(color: Int, factor: Float) =
+internal fun darken(color: Int, factor: Float) =
 	Color.rgb((Color.red(color) * factor).roundToInt(), (Color.green(color) * factor).roundToInt(), (Color.blue(color) * factor).roundToInt())
 
 /** Blends [color] toward white by [factor] (0 = unchanged, 1 = white) — the silvery highlight on lit cloud tops. */
