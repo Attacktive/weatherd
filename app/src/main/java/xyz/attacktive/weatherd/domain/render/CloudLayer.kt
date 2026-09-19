@@ -83,7 +83,17 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 	private var cachedOpacityStyleHeight = Float.NaN
 	private var cachedOpacityStyle: CumulusStyle? = null
 
-	fun draw(canvas: Canvas, width: Float, height: Float, offset: Float, tint: Int, alpha: Int, top: Float = 0f, viewports: Float = CLOUD_TEXTURE_VIEWPORTS) {
+	fun draw(
+		canvas: Canvas,
+		width: Float,
+		height: Float,
+		offset: Float,
+		tint: Int,
+		alpha: Int,
+		top: Float = 0f,
+		viewports: Float = CLOUD_TEXTURE_VIEWPORTS,
+		shadow: CumulusShadow? = null
+	) {
 		if (width <= 0f || height <= 0f || alpha <= 0) {
 			return
 		}
@@ -96,7 +106,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 
 		val kind = cumulusKind
 		if (kind != null) {
-			drawCumulus(canvas, geometry, tint, alpha, kind)
+			drawCumulus(canvas, geometry, tint, alpha, kind, shadow)
 			return
 		}
 
@@ -253,9 +263,28 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		}
 	}
 
-	private fun drawCumulus(canvas: Canvas, geometry: CloudGeometry, tint: Int, alpha: Int, kind: CumulusKind) {
+	class CumulusShadow(
+		private val lower: OpacitySampler?,
+		private val upper: OpacitySampler?,
+		private val sourceOffsetX: Float,
+		private val sourceOffsetY: Float,
+		val strength: Float
+	) {
+		fun opacityAt(x: Float, y: Float): Float {
+			val sourceX = x + sourceOffsetX
+			val sourceY = y + sourceOffsetY
+			val lowerOpacity = lower?.opacityAt(sourceX, sourceY) ?: 0f
+			val upperOpacity = upper?.opacityAt(sourceX, sourceY) ?: 0f
+			return lowerOpacity + upperOpacity * (1f - lowerOpacity)
+		}
+	}
+
+	private fun drawCumulus(canvas: Canvas, geometry: CloudGeometry, tint: Int, alpha: Int, kind: CumulusKind, shadow: CumulusShadow?) {
 		val style = cumulusStyle(kind, tint, geometry.width, geometry.height)
-		updateColorFilter(style.tint)
+		if (kind != CumulusKind.FAR || shadow == null) {
+			updateColorFilter(style.tint)
+		}
+
 		paint.shader = null
 
 		val placements = if (kind == CumulusKind.FAR) {
@@ -288,6 +317,10 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 				val wrappedX = centerX + shift * period
 				if (wrappedX + spriteWidth * 0.5f < 0f || wrappedX - spriteWidth * 0.5f > geometry.width) {
 					continue
+				}
+
+				if (kind == CumulusKind.FAR && shadow != null) {
+					updateColorFilter(darken(style.tint, shadow.opacityAt(wrappedX, centerY) * shadow.strength))
 				}
 
 				spriteDest.set(wrappedX - spriteWidth * 0.5f, centerY - spriteHeight * 0.5f, wrappedX + spriteWidth * 0.5f, centerY + spriteHeight * 0.5f)
@@ -469,6 +502,15 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		}
 
 		return texture
+	}
+
+	private fun darken(color: Int, amount: Float): Int {
+		val factor = 1f - amount.coerceIn(0f, 1f)
+		return Color.rgb(
+			(Color.red(color) * factor).roundToInt(),
+			(Color.green(color) * factor).roundToInt(),
+			(Color.blue(color) * factor).roundToInt()
+		)
 	}
 
 	private fun updateColorFilter(multiplyColor: Int) {

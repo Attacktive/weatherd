@@ -114,6 +114,50 @@ class CloudLayerTest {
 	}
 
 	@Test
+	fun cumulusShadowDarkensCloudsWithoutChangingTheirAlphaMask() {
+		val destination = CloudLayer(resources, R.drawable.cloud_cumulus_far)
+		val blocker = CloudLayer(resources, R.drawable.cloud_cumulus_far)
+		val baseline = render(destination)
+		val blockerSampler = checkNotNull(
+			blocker.opacitySampler(
+				540f,
+				320f,
+				0f,
+				0f,
+				CLOUD_TEXTURE_VIEWPORTS,
+				255
+			)
+		)
+
+		val shadowed = render(
+			destination,
+			shadow = CloudLayer.CumulusShadow(
+				lower = blockerSampler,
+				upper = null,
+				sourceOffsetX = 0f,
+				sourceOffsetY = 0f,
+				strength = 0.35f
+			)
+		)
+
+		val before = IntArray(baseline.width * baseline.height)
+		val after = IntArray(shadowed.width * shadowed.height)
+		baseline.getPixels(before, 0, baseline.width, 0, 0, baseline.width, baseline.height)
+		shadowed.getPixels(after, 0, shadowed.width, 0, 0, shadowed.width, shadowed.height)
+		var changedCloudPixels = 0
+		for (index in before.indices) {
+			assertEquals("A cast shadow must not change the far cloud alpha mask", Color.alpha(before[index]), Color.alpha(after[index]))
+			if (Color.alpha(before[index]) > 0 && before[index] != after[index]) {
+				changedCloudPixels++
+			}
+		}
+
+		assertTrue("The projected blocker must darken at least part of the far cloud deck", changedCloudPixels > 0)
+		baseline.recycle()
+		shadowed.recycle()
+	}
+
+	@Test
 	fun everyCumulusDeckReachesFullyOpaqueCloud() {
 		/*
 		 * The guard on the whole texture set.
@@ -200,10 +244,11 @@ class CloudLayerTest {
 		offset: Float = 0f,
 		tint: Int = Color.WHITE,
 		alpha: Int = 255,
-		viewports: Float = CLOUD_TEXTURE_VIEWPORTS
+		viewports: Float = CLOUD_TEXTURE_VIEWPORTS,
+		shadow: CloudLayer.CumulusShadow? = null
 	): Bitmap {
 		val bitmap = createBitmap(540, 320)
-		layer.draw(Canvas(bitmap), bitmap.width.toFloat(), bitmap.height.toFloat(), offset, tint, alpha, 0f, viewports)
+		layer.draw(Canvas(bitmap), bitmap.width.toFloat(), bitmap.height.toFloat(), offset, tint, alpha, 0f, viewports, shadow)
 
 		return bitmap
 	}

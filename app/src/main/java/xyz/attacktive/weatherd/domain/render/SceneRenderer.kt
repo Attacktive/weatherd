@@ -1345,10 +1345,12 @@ class SceneRenderer(resources: Resources) {
 	private fun drawScatteredClouds(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
 		val coverage = ((params.cloudiness - SCATTERED_CLOUD_FLOOR) / (CLOUD_DECK_THRESHOLD - SCATTERED_CLOUD_FLOOR)).coerceIn(0f, 1f)
 		val cloudTop = scatteredCloudTop(width, height, params)
+		val nearState = nearCumulusState(width, height, params, timeSeconds, coverage)
+		val castShadow = cumulusCastShadow(width, height, params, cloudTop, nearState)
 
 		drawSunVeil(canvas, width, height, params)
-		drawFarCumulus(canvas, width, height, params, timeSeconds, coverage, cloudTop)
-		drawNearCumulus(canvas, width, height, params, timeSeconds, coverage, cloudTop)
+		drawFarCumulus(canvas, width, height, params, timeSeconds, coverage, cloudTop, castShadow)
+		drawNearCumulus(canvas, width, params, cloudTop, nearState)
 	}
 
 	/** Where the clear-sky decks may start; clouds are allowed to cross the sun and naturally occlude the light drawn behind them. */
@@ -1390,11 +1392,105 @@ class SceneRenderer(resources: Resources) {
 		)
 	}
 
+	private fun nearCumulusState(width: Float, height: Float, params: SceneParams, timeSeconds: Float, coverage: Float): NearCumulusState {
+		val deckHeight = if (width < height) {
+			height * 0.46f
+		} else {
+			height * 0.40f
+		}
+
+		val step = coverage * (cumulusSteps.size - 1)
+		val lower = step.toInt().coerceAtMost(cumulusSteps.size - 1)
+		val upper = lower + 1
+		val blend = step - lower
+		val alpha = (CUMULUS_NEAR_ALPHA * params.cloudScale).roundToInt().coerceIn(0, 255)
+		val growth = if (upper < cumulusSteps.size && blend >= CUMULUS_BLEND_FLOOR) {
+			(CUMULUS_NEAR_ALPHA * blend * params.cloudScale).roundToInt().coerceIn(0, 255)
+		} else {
+			0
+		}
+
+		return NearCumulusState(
+			deckHeight = deckHeight,
+			offset = cumulusOffset(width, params, timeSeconds, 0.008f + params.windFactor * 0.016f, 1.5f, 0.78f, CLOUD_TEXTURE_VIEWPORTS),
+			lower = lower,
+			upper = upper,
+			alpha = alpha,
+			growth = growth
+		)
+	}
+
+	/**
+	 * Samples the upper deck along the incoming light direction, then lets the far deck darken only the lower cloud sprites whose projected points are covered.
+	 * This keeps cast shadows on cloud material instead of painting translated silhouettes into the blue sky.
+	 */
+	private fun cumulusCastShadow(width: Float, height: Float, params: SceneParams, cloudTop: Float, nearState: NearCumulusState): CloudLayer.CumulusShadow? {
+		val strength = when (params.dayPhase) {
+			DayPhase.DAY -> CUMULUS_CAST_SHADOW_DAY_STRENGTH
+			DayPhase.DAWN -> CUMULUS_CAST_SHADOW_TWILIGHT_STRENGTH
+			DayPhase.DUSK -> CUMULUS_CAST_SHADOW_TWILIGHT_STRENGTH * sunVisibility(params.dayPhase, params.celestialProgress)
+			DayPhase.NIGHT -> 0f
+		}
+
+		if (strength <= 0f) {
+			return null
+		}
+
+		val lower = cumulusSteps[nearState.lower].value.opacitySampler(
+			width,
+			nearState.deckHeight,
+			nearState.offset,
+			cloudTop,
+			CLOUD_TEXTURE_VIEWPORTS,
+			nearState.alpha
+		)
+
+		val upper = if (nearState.upper < cumulusSteps.size && nearState.growth > 0) {
+			cumulusSteps[nearState.upper].value.opacitySampler(
+				width,
+				nearState.deckHeight,
+				nearState.offset,
+				cloudTop,
+				CLOUD_TEXTURE_VIEWPORTS,
+				nearState.growth
+			)
+		} else {
+			null
+		}
+
+		if (lower == null && upper == null) {
+			return null
+		}
+
+		val sourceOffsetY = if (width < height) {
+			-height * CUMULUS_CAST_SHADOW_SOURCE_Y_PORTRAIT
+		} else {
+			-height * CUMULUS_CAST_SHADOW_SOURCE_Y_LANDSCAPE
+		}
+
+		return CloudLayer.CumulusShadow(
+			lower = lower,
+			upper = upper,
+			sourceOffsetX = width * (CELESTIAL_X_FRACTION - 0.5f) * CUMULUS_CAST_SHADOW_HORIZONTAL_PROJECTION,
+			sourceOffsetY = sourceOffsetY,
+			strength = strength
+		)
+	}
+
 	/**
 	 * The distant deck: one texture at a shorter repeat span, so its masses come out smaller, sitting lower and closer to the horizon.
-	 * Distance is carried by haze and size rather than by coverage, so this deck thickens with cloudiness instead of growing new clouds.
+	 * Distance is carried by haze and size rather than by coverage, while projected opacity from the upper deck selectively shades clouds that sit in its light path.
 	 */
-	private fun drawFarCumulus(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float, coverage: Float, cloudTop: Float) {
+	private fun drawFarCumulus(
+		canvas: Canvas,
+		width: Float,
+		height: Float,
+		params: SceneParams,
+		timeSeconds: Float,
+		coverage: Float,
+		cloudTop: Float,
+		castShadow: CloudLayer.CumulusShadow?
+	) {
 		val isPortrait = width < height
 		val tint = lerpColor(cumulusTint(params.dayPhase), skyGradientFor(params).topColor, CUMULUS_FAR_HAZE)
 		val alpha = ((CUMULUS_FAR_MIN_ALPHA + CUMULUS_FAR_ALPHA_RANGE * coverage) * params.cloudScale).roundToInt().coerceIn(0, 255)
@@ -1418,7 +1514,8 @@ class SceneRenderer(resources: Resources) {
 			tint,
 			alpha,
 			cloudTop + drop,
-			CUMULUS_FAR_VIEWPORTS
+			CUMULUS_FAR_VIEWPORTS,
+			castShadow
 		)
 	}
 
@@ -1426,28 +1523,23 @@ class SceneRenderer(resources: Resources) {
 	 * The near deck: full-size masses at the coverage the weather asks for.
 	 * The steps share a noise field, so drawing the next one over the current at partial alpha grows each mass rather than dissolving it into a different sky.
 	 */
-	private fun drawNearCumulus(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float, coverage: Float, cloudTop: Float) {
+	private fun drawNearCumulus(canvas: Canvas, width: Float, params: SceneParams, cloudTop: Float, state: NearCumulusState) {
 		val tint = cumulusTint(params.dayPhase)
-		val offset = cumulusOffset(width, params, timeSeconds, 0.008f + params.windFactor * 0.016f, 1.5f, 0.78f, CLOUD_TEXTURE_VIEWPORTS)
-		val deckHeight = if (width < height) {
-			height * 0.46f
-		} else {
-			height * 0.40f
-		}
+		cumulusSteps[state.lower].value.draw(canvas, width, state.deckHeight, state.offset, tint, state.alpha, cloudTop)
 
-		val step = coverage * (cumulusSteps.size - 1)
-		val lower = step.toInt().coerceAtMost(cumulusSteps.size - 1)
-		val blend = step - lower
-		val alpha = (CUMULUS_NEAR_ALPHA * params.cloudScale).roundToInt().coerceIn(0, 255)
-		cumulusSteps[lower].value.draw(canvas, width, deckHeight, offset, tint, alpha, cloudTop)
-
-		// The step above draws over the one below rather than beside it, so the masses they share stay opaque all the way through the fade.
-		val upper = lower + 1
-		if (upper < cumulusSteps.size && blend >= CUMULUS_BLEND_FLOOR) {
-			val growth = (CUMULUS_NEAR_ALPHA * blend * params.cloudScale).roundToInt().coerceIn(0, 255)
-			cumulusSteps[upper].value.draw(canvas, width, deckHeight, offset, tint, growth, cloudTop)
+		if (state.upper < cumulusSteps.size && state.growth > 0) {
+			cumulusSteps[state.upper].value.draw(canvas, width, state.deckHeight, state.offset, tint, state.growth, cloudTop)
 		}
 	}
+
+	private data class NearCumulusState(
+		val deckHeight: Float,
+		val offset: Float,
+		val lower: Int,
+		val upper: Int,
+		val alpha: Int,
+		val growth: Int
+	)
 
 	/** A deck's horizontal position: a steady drift at its own speed plus a shared gust, wrapped to that deck's own repeat span. */
 	private fun cumulusOffset(width: Float, params: SceneParams, timeSeconds: Float, speed: Float, gust: Float, phase: Float, viewports: Float): Float {
@@ -2528,6 +2620,15 @@ class SceneRenderer(resources: Resources) {
 
 		/** Cross-fade weights below this draw nothing, so the common case stays at two deck draws rather than three. */
 		private const val CUMULUS_BLEND_FLOOR = 0.02f
+
+		/** The upper deck is sampled slightly toward the sun and upward, projecting its cover onto the lower cloud plane. */
+		private const val CUMULUS_CAST_SHADOW_HORIZONTAL_PROJECTION = 0.18f
+		private const val CUMULUS_CAST_SHADOW_SOURCE_Y_PORTRAIT = 0.14f
+		private const val CUMULUS_CAST_SHADOW_SOURCE_Y_LANDSCAPE = 0.12f
+
+		/** Maximum lower-cloud darkening from a fully opaque upper cloud. */
+		private const val CUMULUS_CAST_SHADOW_DAY_STRENGTH = 0.22f
+		private const val CUMULUS_CAST_SHADOW_TWILIGHT_STRENGTH = 0.15f
 
 		/** Severity at and above which rain becomes a downpour and snow a blizzard (thicker, faster, more slanted). */
 		private const val HEAVY_SEVERITY = 0.85f
