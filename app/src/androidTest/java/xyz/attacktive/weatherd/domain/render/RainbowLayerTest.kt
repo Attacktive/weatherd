@@ -41,7 +41,7 @@ class RainbowLayerTest {
 		val peak = profile.maxOrNull() ?: 0
 		val quarterPeakWidth = profile.count { it >= peak / 4 }
 
-		assertTrue("The halo must remain visible enough to measure its falloff, but peaked at $peak", peak >= 8)
+		assertTrue("The halo must remain visible enough to measure its falloff, but peaked at $peak", peak >= 3)
 		assertTrue("The halo band should be broad, but its quarter-peak width was $quarterPeakWidth pixels", quarterPeakWidth >= span * 0.10f)
 		assertTrue("The halo band should feather away rather than wash the sky, but its quarter-peak width was $quarterPeakWidth pixels", quarterPeakWidth <= span * 0.36f)
 		pair.recycle()
@@ -52,7 +52,7 @@ class RainbowLayerTest {
 		val bitmap = renderLayer(Color.TRANSPARENT)
 		val alpha = highestAlpha(bitmap)
 
-		assertTrue("An optical halo should remain atmospheric, but reached alpha $alpha", alpha <= 64)
+		assertTrue("An optical halo should remain atmospheric, but reached alpha $alpha", alpha <= 24)
 		bitmap.recycle()
 	}
 
@@ -71,7 +71,7 @@ class RainbowLayerTest {
 		val bitmap = renderLayer(cloudySky)
 		val contrast = highestSkyDisplacement(bitmap)
 
-		assertTrue("A daytime halo should remain visible through cloudy haze, but only changed a channel by $contrast", contrast >= 15)
+		assertTrue("A daytime halo should remain visible through cloudy haze, but only changed a channel by $contrast", contrast >= 4)
 		bitmap.recycle()
 	}
 
@@ -99,6 +99,14 @@ class RainbowLayerTest {
 		bitmap.recycle()
 	}
 
+	@Test
+	fun haloDrawsNothingWhenTheSunIsInvisible() {
+		val bitmap = renderLayer(Color.TRANSPARENT, visibility = 0f)
+
+		assertTrue("A fully faded sun must leave no chromatic halo behind", pixels(bitmap).all { Color.alpha(it) == 0 })
+		bitmap.recycle()
+	}
+
 	private fun assertCircularHalo(width: Int, height: Int) {
 		val bitmap = renderLayer(Color.TRANSPARENT, width = width, height = height)
 		val center = sunCenter(width, height)
@@ -109,7 +117,7 @@ class RainbowLayerTest {
 		}
 
 		for (peak in peaks) {
-			assertTrue("The halo should be visible around the sun, but its strongest alpha was ${peak.strength}", peak.strength >= 32)
+			assertTrue("The halo should be visible around the sun, but its strongest alpha was ${peak.strength}", peak.strength >= 8)
 			assertTrue("The halo radius should follow the shorter side near $expectedRadius pixels, but was ${peak.radius}", abs(peak.radius - expectedRadius) <= span * RADIUS_TOLERANCE_FRACTION)
 		}
 
@@ -216,11 +224,11 @@ class RainbowLayerTest {
 		)
 	}
 
-	private fun renderLayer(background: Int, dayPhase: DayPhase = DayPhase.DAY, width: Int = PORTRAIT_WIDTH, height: Int = PORTRAIT_HEIGHT): Bitmap {
+	private fun renderLayer(background: Int, dayPhase: DayPhase = DayPhase.DAY, width: Int = PORTRAIT_WIDTH, height: Int = PORTRAIT_HEIGHT, visibility: Float = 1f): Bitmap {
 		val bitmap = createBitmap(width, height)
 		val canvas = Canvas(bitmap)
 		canvas.drawColor(background)
-		RainbowLayer(resources, R.drawable.rainbow).draw(canvas, bitmap.width.toFloat(), bitmap.height.toFloat(), bitmap.width * SUN_X_FRACTION, bitmap.height * MIDDAY_SUN_Y_FRACTION, dayPhase)
+		RainbowLayer(resources, R.drawable.rainbow).draw(canvas, minOf(bitmap.width, bitmap.height).toFloat(), bitmap.width * SUN_X_FRACTION, bitmap.height * MIDDAY_SUN_Y_FRACTION, dayPhase, visibility)
 
 		return bitmap
 	}
@@ -272,7 +280,7 @@ class RainbowLayerTest {
 		const val SAMPLE_RADIUS = 2
 		const val SUN_X_FRACTION = 0.72f
 		const val MIDDAY_SUN_Y_FRACTION = 0.17f
-		const val HALO_RADIUS_FRACTION = 0.40f
+		const val HALO_RADIUS_FRACTION = 0.34f
 		const val SPECTRAL_SAMPLE_OFFSET_FRACTION = 0.035f
 		const val MIN_SEARCH_RADIUS_FRACTION = 0.28f
 		const val MAX_SEARCH_RADIUS_FRACTION = 0.62f
