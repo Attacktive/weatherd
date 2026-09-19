@@ -83,17 +83,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 	private var cachedOpacityStyleHeight = Float.NaN
 	private var cachedOpacityStyle: CumulusStyle? = null
 
-	fun draw(
-		canvas: Canvas,
-		width: Float,
-		height: Float,
-		offset: Float,
-		tint: Int,
-		alpha: Int,
-		top: Float = 0f,
-		viewports: Float = CLOUD_TEXTURE_VIEWPORTS,
-		shadow: CumulusShadow? = null
-	) {
+	fun draw(canvas: Canvas, width: Float, height: Float, offset: Float, tint: Int, alpha: Int, top: Float = 0f, viewports: Float = CLOUD_TEXTURE_VIEWPORTS) {
 		if (width <= 0f || height <= 0f || alpha <= 0) {
 			return
 		}
@@ -106,7 +96,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 
 		val kind = cumulusKind
 		if (kind != null) {
-			drawCumulus(canvas, geometry, tint, alpha, kind, shadow)
+			drawCumulus(canvas, geometry, tint, alpha, kind, null)
 			return
 		}
 
@@ -122,6 +112,20 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		updateColorFilter(tint)
 		paint.alpha = alpha.coerceIn(0, 255)
 		canvas.drawRect(0f, top, width, top + height, paint)
+	}
+
+	fun drawShadowed(canvas: Canvas, request: CumulusShadowDraw) {
+		if (request.width <= 0f || request.height <= 0f || request.alpha <= 0) {
+			return
+		}
+
+		val kind = cumulusKind ?: return
+		geometry.width = request.width
+		geometry.height = request.height
+		geometry.offset = request.offset
+		geometry.top = request.top
+		geometry.viewports = request.viewports
+		drawCumulus(canvas, geometry, request.tint, request.alpha, kind, request.shadow)
 	}
 
 	/**
@@ -262,6 +266,17 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 			return sourceAlpha * (spriteAlpha / 255f)
 		}
 	}
+
+	data class CumulusShadowDraw(
+		val width: Float,
+		val height: Float,
+		val offset: Float,
+		val tint: Int,
+		val alpha: Int,
+		val top: Float,
+		val viewports: Float,
+		val shadow: CumulusShadow
+	)
 
 	class CumulusShadow(
 		private val lower: OpacitySampler?,
