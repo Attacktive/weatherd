@@ -107,6 +107,13 @@ class HomeViewModel @Inject constructor(
 		}
 	}
 
+	/** Refreshes the shared provider before returning its scene, used when the preview must not expose an intermediate persisted state. */
+	suspend fun refreshedParams(): SceneParams {
+		val now = nowEpochSeconds()
+		sceneProvider.refresh(now)
+		return sceneProvider.paramsFor(now)
+	}
+
 	/** The scene to preview right now — real weather once it has loaded, a clock-lit clear sky until then. */
 	fun currentParams(): SceneParams = sceneProvider.paramsFor(nowEpochSeconds())
 
