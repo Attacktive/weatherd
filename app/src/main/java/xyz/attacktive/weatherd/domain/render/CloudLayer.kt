@@ -17,6 +17,9 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Shader
 import androidx.annotation.DrawableRes
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.get
+import androidx.core.graphics.scale
 import androidx.core.graphics.withScale
 import xyz.attacktive.weatherd.R
 
@@ -245,7 +248,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 			val v = ((sampleY - topEdge) / spriteHeight).coerceIn(0f, 1f)
 			val pixelX = (u * (sprite.width - 1)).roundToInt().coerceIn(0, sprite.width - 1)
 			val pixelY = (v * (sprite.height - 1)).roundToInt().coerceIn(0, sprite.height - 1)
-			val sourceAlpha = Color.alpha(sprite.getPixel(pixelX, pixelY)) / 255f
+			val sourceAlpha = Color.alpha(sprite[pixelX, pixelY]) / 255f
 			return sourceAlpha * (spriteAlpha / 255f)
 		}
 	}
@@ -456,10 +459,11 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 	}
 
 	private fun upscaleOvercastField(pixels: IntArray): Bitmap {
-		val field = Bitmap.createBitmap(OVERCAST_FIELD_WIDTH, OVERCAST_FIELD_HEIGHT, Bitmap.Config.ARGB_8888).apply {
+		val field = createBitmap(OVERCAST_FIELD_WIDTH, OVERCAST_FIELD_HEIGHT).apply {
 			setPixels(pixels, 0, OVERCAST_FIELD_WIDTH, 0, 0, OVERCAST_FIELD_WIDTH, OVERCAST_FIELD_HEIGHT)
 		}
-		val texture = Bitmap.createScaledBitmap(field, OVERCAST_TEXTURE_WIDTH, OVERCAST_TEXTURE_HEIGHT, true)
+
+		val texture = field.scale(OVERCAST_TEXTURE_WIDTH, OVERCAST_TEXTURE_HEIGHT)
 		if (texture !== field) {
 			field.recycle()
 		}
@@ -611,7 +615,9 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		}
 
 		private fun liftTowardWhite(color: Int, amount: Float): Int {
-			fun lift(channel: Int) = (channel + (255 - channel) * amount).toInt().coerceIn(0, 255)
+			fun lift(channel: Int) = (channel + (255 - channel) * amount)
+				.toInt()
+				.coerceIn(0, 255)
 
 			return Color.rgb(
 				lift(Color.red(color)),
