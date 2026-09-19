@@ -2,9 +2,12 @@ package xyz.attacktive.weatherd.ui.home
 
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,8 +23,10 @@ import xyz.attacktive.weatherd.domain.repository.SettingsRepository
 class HomeViewModel @Inject constructor(
 	private val sceneProvider: WeatherSceneProvider,
 	private val photoBackgroundRepository: PhotoBackgroundRepository,
-	settingsRepository: SettingsRepository
+	private val settingsRepository: SettingsRepository
 ): ViewModel() {
+	private val simulatorSettingsMutex = Mutex()
+
 	/** The user's redraw cap, so the preview animates at the same rate the wallpaper will. */
 	val frameRateCap = settingsRepository.settings
 		.map { it.frameRateCap }
@@ -51,6 +56,49 @@ class HomeViewModel @Inject constructor(
 	val sceneSimulatorEnabled = settingsRepository.settings
 		.map { it.sceneSimulatorEnabled }
 		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().sceneSimulatorEnabled)
+
+	/** Whether the simulator currently replaces live weather for both the preview and the wallpaper. */
+	val sceneSimulatorActive = settingsRepository.settings
+		.map { it.sceneSimulatorActive }
+		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().sceneSimulatorActive)
+
+	val sceneSimulatorPresetIndex = settingsRepository.settings
+		.map { it.sceneSimulatorPresetIndex }
+		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().sceneSimulatorPresetIndex)
+
+	val sceneSimulatorDayPhase = settingsRepository.settings
+		.map { it.sceneSimulatorDayPhase }
+		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().sceneSimulatorDayPhase)
+
+	val sceneSimulatorCelestialProgress = settingsRepository.settings
+		.map { it.sceneSimulatorCelestialProgress }
+		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().sceneSimulatorCelestialProgress)
+
+	fun setSceneSimulatorActive(active: Boolean) {
+		updateSceneSimulator { it.copy(sceneSimulatorActive = active) }
+	}
+
+	fun setSceneSimulatorPresetIndex(index: Int) {
+		updateSceneSimulator { it.copy(sceneSimulatorPresetIndex = index.coerceAtLeast(0)) }
+	}
+
+	fun setSceneSimulatorDayPhase(dayPhase: DayPhase) {
+		updateSceneSimulator { it.copy(sceneSimulatorDayPhase = dayPhase) }
+	}
+
+	fun setSceneSimulatorCelestialProgress(progress: Float) {
+		updateSceneSimulator { it.copy(sceneSimulatorCelestialProgress = progress.coerceIn(0f, 1f)) }
+	}
+
+	private fun updateSceneSimulator(transform: (AppSettings) -> AppSettings) {
+		viewModelScope.launch {
+			simulatorSettingsMutex.withLock {
+				val current = settingsRepository.settings.first()
+				settingsRepository.save(transform(current))
+				sceneProvider.refresh(nowEpochSeconds())
+			}
+		}
+	}
 
 	/** Kicks a weather fetch (rate-limited by the provider) so the preview tracks the latest conditions and any settings change. */
 	fun refresh() {

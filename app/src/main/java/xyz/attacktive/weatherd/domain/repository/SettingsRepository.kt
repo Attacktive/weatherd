@@ -15,6 +15,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
+import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
@@ -39,6 +40,10 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		val CLOUD_INTENSITY_SCALE = floatPreferencesKey("cloud_intensity_scale")
 		val LENS_FLARE_ENABLED = booleanPreferencesKey("lens_flare_enabled")
 		val SCENE_SIMULATOR_ENABLED = booleanPreferencesKey("scene_simulator_enabled")
+		val SCENE_SIMULATOR_ACTIVE = booleanPreferencesKey("scene_simulator_active")
+		val SCENE_SIMULATOR_PRESET_INDEX = intPreferencesKey("scene_simulator_preset_index")
+		val SCENE_SIMULATOR_DAY_PHASE = stringPreferencesKey("scene_simulator_day_phase")
+		val SCENE_SIMULATOR_CELESTIAL_PROGRESS = floatPreferencesKey("scene_simulator_celestial_progress")
 	}
 
 	val settings: Flow<AppSettings> = dataStore.data.map { preferences ->
@@ -59,6 +64,12 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			cloudIntensityScale = preferences[Keys.CLOUD_INTENSITY_SCALE] ?: DEFAULTS.cloudIntensityScale,
 			lensFlareEnabled = preferences[Keys.LENS_FLARE_ENABLED] ?: DEFAULTS.lensFlareEnabled,
 			sceneSimulatorEnabled = preferences[Keys.SCENE_SIMULATOR_ENABLED] ?: DEFAULTS.sceneSimulatorEnabled,
+			sceneSimulatorActive = preferences[Keys.SCENE_SIMULATOR_ACTIVE] ?: DEFAULTS.sceneSimulatorActive,
+			sceneSimulatorPresetIndex = (preferences[Keys.SCENE_SIMULATOR_PRESET_INDEX] ?: DEFAULTS.sceneSimulatorPresetIndex).coerceAtLeast(0),
+			sceneSimulatorDayPhase = preferences[Keys.SCENE_SIMULATOR_DAY_PHASE]
+				?.let { stored -> DayPhase.entries.firstOrNull { it.name == stored } }
+				?: DEFAULTS.sceneSimulatorDayPhase,
+			sceneSimulatorCelestialProgress = (preferences[Keys.SCENE_SIMULATOR_CELESTIAL_PROGRESS] ?: DEFAULTS.sceneSimulatorCelestialProgress).coerceIn(0f, 1f),
 		)
 	}
 
@@ -80,6 +91,10 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			preferences[Keys.CLOUD_INTENSITY_SCALE] = settings.cloudIntensityScale
 			preferences[Keys.LENS_FLARE_ENABLED] = settings.lensFlareEnabled
 			preferences[Keys.SCENE_SIMULATOR_ENABLED] = settings.sceneSimulatorEnabled
+			preferences[Keys.SCENE_SIMULATOR_ACTIVE] = settings.sceneSimulatorActive
+			preferences[Keys.SCENE_SIMULATOR_PRESET_INDEX] = settings.sceneSimulatorPresetIndex
+			preferences[Keys.SCENE_SIMULATOR_DAY_PHASE] = settings.sceneSimulatorDayPhase.name
+			preferences[Keys.SCENE_SIMULATOR_CELESTIAL_PROGRESS] = settings.sceneSimulatorCelestialProgress.coerceIn(0f, 1f)
 		}
 	}
 

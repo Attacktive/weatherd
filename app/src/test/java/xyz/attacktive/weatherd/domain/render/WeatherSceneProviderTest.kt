@@ -16,6 +16,7 @@ import org.junit.Test
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
+import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.GeoLocation
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
@@ -44,6 +45,61 @@ class WeatherSceneProviderTest {
 	private val logger = mockk<AppLogger>(relaxed = true)
 
 	private val provider = WeatherSceneProvider(context, locationRepository, weatherRepository, reverseGeocodingRepository, settingsRepository, photoBackgroundRepository, logger)
+
+	@Test
+	fun `scene simulator override replaces weather without fetching`() = runTest {
+		val presetIndex = SCENE_PRESETS.indexOfFirst { it.name == "SNOW" }
+		val preset = SCENE_PRESETS[presetIndex]
+		every { settingsRepository.settings } returns flowOf(
+			AppSettings(
+				backdropScene = BackdropScene.BEACH,
+				precipitationIntensityScale = 1.5f,
+				windIntensityScale = 0.5f,
+				cloudIntensityScale = 0.8f,
+				lensFlareEnabled = false,
+				sceneSimulatorActive = true,
+				sceneSimulatorPresetIndex = presetIndex,
+				sceneSimulatorDayPhase = DayPhase.DUSK,
+				sceneSimulatorCelestialProgress = 0.73f
+			)
+		)
+
+		provider.refresh(1_000_000L)
+
+		val params = provider.paramsFor(1_000_030L)
+		assertEquals(DayPhase.DUSK, params.dayPhase)
+		assertEquals(preset.cloudiness, params.cloudiness, 0.0001f)
+		assertEquals(preset.precipitation, params.precipitation)
+		assertEquals(0.73f, params.celestialProgress, 0.0001f)
+		assertEquals(BackdropScene.BEACH, params.backdropScene)
+		assertEquals(1.5f, params.precipitationScale, 0.0001f)
+		assertEquals(0.5f, params.windScale, 0.0001f)
+		assertEquals(0.8f, params.cloudScale, 0.0001f)
+		assertFalse(params.lensFlareEnabled)
+		coVerify(exactly = 0) { locationRepository.currentLocation() }
+		coVerify(exactly = 0) { weatherRepository.current(any(), any()) }
+	}
+
+	@Test
+	fun `disabling scene simulator returns to cached live weather`() = runTest {
+		val live = AppSettings(useDeviceLocation = true)
+		every { settingsRepository.settings } returns flowOf(live)
+		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
+		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 3))
+
+		provider.refresh(1_000_000L)
+		val liveParams = provider.paramsFor(1_000_030L)
+
+		every { settingsRepository.settings } returns flowOf(live.copy(sceneSimulatorActive = true, sceneSimulatorPresetIndex = 0, sceneSimulatorDayPhase = DayPhase.NIGHT))
+		provider.refresh(1_000_060L)
+		assertEquals(DayPhase.NIGHT, provider.paramsFor(1_000_060L).dayPhase)
+
+		every { settingsRepository.settings } returns flowOf(live)
+		provider.refresh(1_000_090L)
+
+		assertEquals(liveParams.cloudiness, provider.paramsFor(1_000_090L).cloudiness, 0.0001f)
+		coVerify(exactly = 1) { weatherRepository.current(52.52, 13.40) }
+	}
 
 	@Test
 	fun `changing location settings refetches within the throttle window`() = runTest {

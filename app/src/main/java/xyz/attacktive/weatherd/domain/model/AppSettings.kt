@@ -17,6 +17,10 @@ data class AppSettings(
 	val cloudIntensityScale: Float = 1f,
 	val lensFlareEnabled: Boolean = true,
 	val sceneSimulatorEnabled: Boolean = false,
+	val sceneSimulatorActive: Boolean = false,
+	val sceneSimulatorPresetIndex: Int = 0,
+	val sceneSimulatorDayPhase: DayPhase = DayPhase.DAY,
+	val sceneSimulatorCelestialProgress: Float = 0.5f,
 )
 
 /** Selectable weather-refresh intervals in minutes, offered in Settings. */

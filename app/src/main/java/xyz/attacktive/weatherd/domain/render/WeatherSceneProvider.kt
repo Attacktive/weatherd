@@ -24,8 +24,8 @@ import xyz.attacktive.weatherd.domain.weather.weatherLabelFor
 import xyz.attacktive.weatherd.util.AppLogger
 
 /**
- * Shared source of truth for the current [SceneParams], so the live wallpaper and the in-app preview never disagree about what to draw. Weather is fetched lazily and cached; the day phase is re-derived from the clock on every read, so dawn→day→dusk→night transitions happen without a network round-trip.
- * Thread-safe: [refresh] runs off the render thread and publishes the snapshot through a volatile that [paramsFor] reads.
+ * Shared source of truth for the current [SceneParams], so the live wallpaper and the in-app preview never disagree about what to draw. Live weather is fetched lazily and cached; while the persisted scene simulator is active, its preset, phase and progress replace those meteorological fields for both consumers.
+ * Thread-safe: [refresh] runs off the render thread and publishes weather, display settings and simulator state through volatile fields that [paramsFor] reads.
  */
 @Singleton
 class WeatherSceneProvider @Inject constructor(@ApplicationContext private val context: Context, private val locationRepository: LocationRepository, private val weatherRepository: WeatherRepository, private val reverseGeocodingRepository: ReverseGeocodingRepository, private val settingsRepository: SettingsRepository, private val photoBackgroundRepository: PhotoBackgroundRepository, private val logger: AppLogger) {
@@ -42,12 +42,20 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	@Volatile private var windIntensityScale = 1f
 	@Volatile private var cloudIntensityScale = 1f
 	@Volatile private var lensFlareEnabled = true
+	@Volatile private var sceneSimulatorActive = false
+	@Volatile private var sceneSimulatorPresetIndex = 0
+	@Volatile private var sceneSimulatorDayPhase = DayPhase.DAY
+	@Volatile private var sceneSimulatorCelestialProgress = 0.5f
 	@Volatile private var locationLabel: String? = null
 	@Volatile private var lastFix: GeoLocation? = null
 	@Volatile private var geocodedKey: String? = null
 
 	/** The scene to draw at [nowEpochSeconds]; a clock-lit clear sky until the first weather fetch lands. */
 	fun paramsFor(nowEpochSeconds: Long): SceneParams {
+		if (sceneSimulatorActive) {
+			return simulatorParams()
+		}
+
 		val snapshot = this.snapshot ?: return fallbackParams(nowEpochSeconds)
 
 		return sceneParamsFor(
@@ -89,6 +97,14 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		windIntensityScale = settings.windIntensityScale
 		cloudIntensityScale = settings.cloudIntensityScale
 		lensFlareEnabled = settings.lensFlareEnabled
+		sceneSimulatorActive = settings.sceneSimulatorActive
+		sceneSimulatorPresetIndex = settings.sceneSimulatorPresetIndex.coerceIn(0, SCENE_PRESETS.lastIndex)
+		sceneSimulatorDayPhase = settings.sceneSimulatorDayPhase
+		sceneSimulatorCelestialProgress = settings.sceneSimulatorCelestialProgress.coerceIn(0f, 1f)
+		if (sceneSimulatorActive) {
+			return
+		}
+
 		refreshLocationLabel(settings)
 
 		val locationKey = locationKey(settings)
@@ -128,6 +144,18 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			logger.debug(TAG, "weather refreshed: condition=${it.observation.condition.label}, cloud=${it.observation.cloudCoverPercent}%")
 		}
 	}
+
+	/** The persisted simulator scene, carrying the same display preferences as live weather while replacing its meteorological fields. */
+	private fun simulatorParams() = debugSceneParams(
+		preset = SCENE_PRESETS[sceneSimulatorPresetIndex],
+		dayPhase = sceneSimulatorDayPhase,
+		precipitationScale = precipitationIntensityScale,
+		windScale = windIntensityScale,
+		cloudScale = cloudIntensityScale,
+		lensFlareEnabled = lensFlareEnabled,
+		celestialProgress = sceneSimulatorCelestialProgress
+	)
+		.copy(backdropScene = backdropScene, photoRevision = photoRevision)
 
 	/** Manual coordinates win only when the user opted out of device location and actually set a place; otherwise the device fix. */
 	private suspend fun resolveLocation(settings: AppSettings): GeoLocation? {

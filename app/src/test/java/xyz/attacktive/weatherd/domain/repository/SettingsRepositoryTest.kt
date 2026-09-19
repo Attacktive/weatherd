@@ -18,6 +18,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
+import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
@@ -43,6 +44,13 @@ class SettingsRepositoryTest {
 		val repository = SettingsRepository(dataStore())
 
 		assertFalse(repository.settings.first().sceneSimulatorEnabled)
+	}
+
+	@Test
+	fun `scene simulator override starts inactive`() = runTest {
+		val repository = SettingsRepository(dataStore())
+
+		assertFalse(repository.settings.first().sceneSimulatorActive)
 	}
 
 	@Test
@@ -77,7 +85,11 @@ class SettingsRepositoryTest {
 			temperatureUnit = TemperatureUnit.FAHRENHEIT,
 			frameRateCap = FrameRateCap.FPS_30,
 			lensFlareEnabled = false,
-			sceneSimulatorEnabled = true
+			sceneSimulatorEnabled = true,
+			sceneSimulatorActive = true,
+			sceneSimulatorPresetIndex = 7,
+			sceneSimulatorDayPhase = DayPhase.DUSK,
+			sceneSimulatorCelestialProgress = 0.73f
 		)
 
 		repository.save(updated)
@@ -119,6 +131,15 @@ class SettingsRepositoryTest {
 		dataStore.edit { it[stringPreferencesKey("frame_rate_cap")] = "FPS_240" }
 
 		assertEquals(FrameRateCap.UNCAPPED, repository.settings.first().frameRateCap)
+	}
+
+	@Test
+	fun `an unrecognized stored simulator day phase falls back to day`() = runTest {
+		val dataStore = dataStore()
+		val repository = SettingsRepository(dataStore)
+		dataStore.edit { it[stringPreferencesKey("scene_simulator_day_phase")] = "MIDNIGHT_BLUE" }
+
+		assertEquals(DayPhase.DAY, repository.settings.first().sceneSimulatorDayPhase)
 	}
 
 	@Test

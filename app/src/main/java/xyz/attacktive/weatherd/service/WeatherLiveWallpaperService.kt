@@ -23,8 +23,8 @@ import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
 
 /**
- * Live wallpaper that animates the current weather.
- * The scene comes from [WeatherSceneProvider] (shared with the rest of the app): weather is fetched when the wallpaper becomes visible and cached, while the day phase is re-derived from the clock.
+ * Live wallpaper that animates the shared weather scene.
+ * The scene comes from [WeatherSceneProvider] (shared with the rest of the app): live weather is fetched when the wallpaper becomes visible and cached, while an active scene-simulator override replaces it immediately from persisted settings.
  * The static backdrop is cached and only rebuilt when the scene actually changes — a weather refresh or a dawn/day/dusk/night flip; the animated foreground is redrawn on every vsync the user's frame-rate cap allows and gated on visibility, so it costs nothing while the screen is off or covered.
  * Scene flips crossfade briefly instead of swapping in one frame.
  */
@@ -49,7 +49,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 		private var paramsComputedAtSecond = 0L
 		private var width = 0
 		private var height = 0
-		private var visible = false
+		@Volatile private var visible = false
 		private var startNanos = 0L
 		@Volatile private var frameRateCap = FrameRateCap.UNCAPPED
 
@@ -59,7 +59,12 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			}
 
 			scope.launch {
-				settingsRepository.settings.collect { frameRateCap = it.frameRateCap }
+				settingsRepository.settings.collect {
+					frameRateCap = it.frameRateCap
+					if (visible) {
+						sceneProvider.refresh(nowEpochSeconds())
+					}
+				}
 			}
 		}
 

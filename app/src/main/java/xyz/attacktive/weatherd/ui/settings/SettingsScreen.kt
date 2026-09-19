@@ -565,7 +565,9 @@ private fun SceneSimulatorSection(settings: AppSettings, onSave: (AppSettings) -
 		label = stringResource(R.string.label_scene_simulator),
 		subtitle = stringResource(R.string.subtitle_scene_simulator),
 		checked = settings.sceneSimulatorEnabled,
-		onToggle = { onSave(settings.copy(sceneSimulatorEnabled = it)) }
+		onToggle = {
+			onSave(settings.copy(sceneSimulatorEnabled = it, sceneSimulatorActive = settings.sceneSimulatorActive && it))
+		}
 	)
 }
 

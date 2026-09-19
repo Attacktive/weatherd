@@ -2,7 +2,7 @@
 
 Instructions and architectural invariants for agents working in the Weatherd codebase.
 
-- Version: 1.2.0 (2026-09-18)
+- Version: 1.3.0 (2026-09-19)
 - Persona: Coding assistant pair-programming with the user on Weatherd.
 
 ## Tools and Environment
@@ -13,22 +13,23 @@ Agents use standard file inspection, editing tools, and Gradle tasks (`./gradlew
 
 ## Architectural Invariants
 
-### Debug Preview is Meant to Be WYSIWYG
+### Scene Simulator Overrides Live Weather
 
-The in-app preview on `HomeScreen` has two modes:
+The scene simulator on `HomeScreen` has two modes:
 
-1. **Live mode (`debugEnabled = false`)**: Renders real-time conditions derived from `WeatherSceneProvider` using current weather data and clock-derived day phase.
-2. **Debug mode (`debugEnabled = true`)**: A weather simulator cycling through fixed presets (`SCENE_PRESETS`).
+1. **Live mode (`debugEnabled = false`)**: `WeatherSceneProvider` derives both the preview and live wallpaper from current weather and clock-derived day phase.
+2. **Debug mode (`debugEnabled = true`)**: The persisted simulator selection overrides weather in `WeatherSceneProvider`, so the preview and already-running live wallpaper both render the chosen `SCENE_PRESETS` preset, day phase and celestial progress until debug mode is turned off.
 
-**The debug preview is strictly meant to be WYSIWYG with the live wallpaper.**
-It pins meteorological conditions (cloud cover, precipitation kind/severity, fog, thunder, wind) while preserving all user-configured display settings:
+**Debug mode must remain WYSIWYG between the preview and live wallpaper.**
+It pins meteorological conditions (cloud cover, precipitation kind/severity, fog, thunder, wind) and celestial timing while preserving all user-configured display settings:
 
 - Intensity sliders (precipitation, wind, cloud intensity)
 - Scenery / backdrop selections (none, metropolis, beach, mountains, countryside, photos)
 - Frame rate caps
 - Photo background assignments and revisions
 
-To prevent the debug preview from drifting, whenever any new render parameter, intensity multiplier, scene setting, or display behavior is introduced:
+The simulator state is persisted through `SettingsRepository`; changing it while the wallpaper is visible must refresh `WeatherSceneProvider` without requiring the wallpaper to be reset.
+To prevent the simulator and live weather paths from drifting, whenever any new render parameter, intensity multiplier, scene setting, or display behavior is introduced:
 
 1. Add it to `SceneParams` and `sceneParamsFor`.
 2. Wire it into `WeatherSceneProvider` (for the live wallpaper and live preview).

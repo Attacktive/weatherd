@@ -66,8 +66,8 @@ import xyz.attacktive.weatherd.service.WeatherLiveWallpaperService
 import android.graphics.Canvas as AndroidCanvas
 
 /**
- * A live preview of the current scene — the same renderer the wallpaper uses, fed the real weather via [HomeViewModel].
- * Refreshes on resume so returning from Settings (e.g. after changing the city) reflects the new scene, and re-reads the params once a second so the weather loading in and day-phase changes show.
+ * A live preview of the current scene — the same renderer and weather source the wallpaper uses, including the persisted scene-simulator override.
+ * Refreshes on resume so returning from Settings (e.g. after changing the city) reflects the new scene, and re-reads the provider params once a second so weather, display settings and day-phase changes show.
  * Honors the user's frame-rate cap, so the preview animates exactly as choppily as the wallpaper it is previewing.
  */
 @Composable
@@ -88,6 +88,10 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	val cloudIntensityScale by viewModel.cloudIntensityScale.collectAsStateWithLifecycle()
 	val lensFlareEnabled by viewModel.lensFlareEnabled.collectAsStateWithLifecycle()
 	val sceneSimulatorEnabled by viewModel.sceneSimulatorEnabled.collectAsStateWithLifecycle()
+	val persistedDebugEnabled by viewModel.sceneSimulatorActive.collectAsStateWithLifecycle()
+	val persistedDebugSceneIndex by viewModel.sceneSimulatorPresetIndex.collectAsStateWithLifecycle()
+	val persistedDebugDayPhase by viewModel.sceneSimulatorDayPhase.collectAsStateWithLifecycle()
+	val persistedDebugCelestialProgress by viewModel.sceneSimulatorCelestialProgress.collectAsStateWithLifecycle()
 	val sceneSimulatorVisible = debugToolsEnabled || sceneSimulatorEnabled
 
 	// Read inside the frame loop, which is launched once and has to see a cap the user changes while it runs.
@@ -137,14 +141,31 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 		}
 	}
 
-	LaunchedEffect(sceneSimulatorVisible) {
-		if (!sceneSimulatorVisible) {
+	LaunchedEffect(persistedDebugEnabled) {
+		debugEnabled = persistedDebugEnabled
+	}
+
+	LaunchedEffect(persistedDebugSceneIndex) {
+		debugSceneIndex = persistedDebugSceneIndex.coerceIn(0, SCENE_PRESETS.lastIndex)
+	}
+
+	LaunchedEffect(persistedDebugDayPhase) {
+		debugPhaseIndex = persistedDebugDayPhase.ordinal
+	}
+
+	LaunchedEffect(persistedDebugCelestialProgress) {
+		debugCelestialProgress = persistedDebugCelestialProgress.coerceIn(0f, 1f)
+	}
+
+	LaunchedEffect(sceneSimulatorVisible, debugEnabled) {
+		if (!sceneSimulatorVisible && debugEnabled) {
 			debugEnabled = false
+			viewModel.setSceneSimulatorActive(false)
 		}
 	}
 
-	LaunchedEffect(debugEnabled, sceneSimulatorVisible) {
-		while (!debugEnabled || !sceneSimulatorVisible) {
+	LaunchedEffect(viewModel) {
+		while (true) {
 			liveParams = viewModel.currentParams()
 			delay(1000.milliseconds)
 		}
@@ -215,20 +236,30 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 						sceneLabel = SCENE_PRESETS[debugSceneIndex].name,
 						phaseLabel = DayPhase.entries[debugPhaseIndex].name,
 						celestialProgress = debugCelestialProgress,
-						onDebugEnabledChange = { debugEnabled = it },
+						onDebugEnabledChange = {
+							debugEnabled = it
+							viewModel.setSceneSimulatorActive(it)
+						},
 						onScenePrevious = {
 							debugSceneIndex = (debugSceneIndex + SCENE_PRESETS.size - 1) % SCENE_PRESETS.size
+							viewModel.setSceneSimulatorPresetIndex(debugSceneIndex)
 						},
 						onSceneNext = {
 							debugSceneIndex = (debugSceneIndex + 1) % SCENE_PRESETS.size
+							viewModel.setSceneSimulatorPresetIndex(debugSceneIndex)
 						},
 						onPhasePrevious = {
 							debugPhaseIndex = (debugPhaseIndex + DayPhase.entries.size - 1) % DayPhase.entries.size
+							viewModel.setSceneSimulatorDayPhase(DayPhase.entries[debugPhaseIndex])
 						},
 						onPhaseNext = {
 							debugPhaseIndex = (debugPhaseIndex + 1) % DayPhase.entries.size
+							viewModel.setSceneSimulatorDayPhase(DayPhase.entries[debugPhaseIndex])
 						},
-						onCelestialProgressChange = { debugCelestialProgress = it }
+						onCelestialProgressChange = { debugCelestialProgress = it },
+						onCelestialProgressChangeFinished = {
+							viewModel.setSceneSimulatorCelestialProgress(debugCelestialProgress)
+						}
 					)
 				}
 
@@ -251,7 +282,8 @@ private fun SceneSimulatorControls(
 	onSceneNext: () -> Unit,
 	onPhasePrevious: () -> Unit,
 	onPhaseNext: () -> Unit,
-	onCelestialProgressChange: (Float) -> Unit
+	onCelestialProgressChange: (Float) -> Unit,
+	onCelestialProgressChangeFinished: () -> Unit
 ) {
 	Column(
 		modifier = Modifier
@@ -288,6 +320,7 @@ private fun SceneSimulatorControls(
 			Slider(
 				value = celestialProgress,
 				onValueChange = onCelestialProgressChange,
+				onValueChangeFinished = onCelestialProgressChangeFinished,
 				valueRange = 0f..1f
 			)
 		}
