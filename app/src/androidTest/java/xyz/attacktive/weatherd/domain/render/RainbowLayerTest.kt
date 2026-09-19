@@ -101,7 +101,7 @@ class RainbowLayerTest {
 
 	@Test
 	fun haloDrawsNothingWhenTheSunIsInvisible() {
-		val bitmap = renderLayer(Color.TRANSPARENT, visibility = 0f)
+		val bitmap = renderInvisibleHalo()
 
 		assertTrue("A fully faded sun must leave no chromatic halo behind", pixels(bitmap).all { Color.alpha(it) == 0 })
 		bitmap.recycle()
@@ -224,11 +224,19 @@ class RainbowLayerTest {
 		)
 	}
 
-	private fun renderLayer(background: Int, dayPhase: DayPhase = DayPhase.DAY, width: Int = PORTRAIT_WIDTH, height: Int = PORTRAIT_HEIGHT, visibility: Float = 1f): Bitmap {
+	private fun renderLayer(background: Int, dayPhase: DayPhase = DayPhase.DAY, width: Int = PORTRAIT_WIDTH, height: Int = PORTRAIT_HEIGHT): Bitmap {
 		val bitmap = createBitmap(width, height)
 		val canvas = Canvas(bitmap)
 		canvas.drawColor(background)
-		RainbowLayer(resources, R.drawable.rainbow).draw(canvas, minOf(bitmap.width, bitmap.height).toFloat(), bitmap.width * SUN_X_FRACTION, bitmap.height * MIDDAY_SUN_Y_FRACTION, dayPhase, visibility)
+		RainbowLayer(resources, R.drawable.rainbow).draw(canvas, bitmap.width * SUN_X_FRACTION, bitmap.height * MIDDAY_SUN_Y_FRACTION, dayPhase)
+
+		return bitmap
+	}
+
+	private fun renderInvisibleHalo(): Bitmap {
+		val bitmap = createBitmap(PORTRAIT_WIDTH, PORTRAIT_HEIGHT)
+		val canvas = Canvas(bitmap)
+		RainbowLayer(resources, R.drawable.rainbow).draw(canvas, bitmap.width * SUN_X_FRACTION, bitmap.height * MIDDAY_SUN_Y_FRACTION, DayPhase.DAY, 0f)
 
 		return bitmap
 	}
