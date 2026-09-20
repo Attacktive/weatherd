@@ -91,6 +91,24 @@ class SunRenderingTest {
 	}
 
 	@Test
+	fun lensFlareGhostsRenderAsFilledDotsRatherThanHollowRings() {
+		val enabledParams = clearParams()
+		val enabled = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams)
+		val disabled = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams.copy(lensFlareEnabled = false))
+		val center = lensGhostCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, LENS_GHOST_TEST_DISTANCE)
+		val radius = minOf(PORTRAIT_WIDTH, PORTRAIT_HEIGHT) * SUN_RADIUS_FRACTION * LENS_GHOST_TEST_SCALE
+		val edge = PixelPoint(center.x + (radius * LENS_GHOST_EDGE_SAMPLE_FRACTION).roundToInt(), center.y)
+		val centerLift = Color.alpha(enabled.getPixel(center.x, center.y)) - Color.alpha(disabled.getPixel(center.x, center.y))
+		val edgeLift = Color.alpha(enabled.getPixel(edge.x, edge.y)) - Color.alpha(disabled.getPixel(edge.x, edge.y))
+
+		assertTrue("A lens ghost should have a visible filled center at $center, but alpha only lifted by $centerLift", centerLift >= MIN_LENS_GHOST_CENTER_LIFT)
+		assertTrue("A lens ghost should fade outward from its center instead of peaking on a ring, but center/edge lifts were $centerLift/$edgeLift", centerLift - edgeLift >= MIN_LENS_GHOST_CENTER_EDGE_DELTA)
+
+		enabled.recycle()
+		disabled.recycle()
+	}
+
+	@Test
 	fun duskSunFadesAwayAsItDescends() {
 		val earlyProgress = SUNSET_FADE_START
 		val middleProgress = 0.65f
@@ -353,6 +371,14 @@ class SunRenderingTest {
 		return PixelBounds(left, top, right, bottom)
 	}
 
+	private fun lensGhostCenter(width: Int, height: Int, distance: Float): PixelPoint {
+		val sun = celestialCenter(width, height, DayPhase.DAY)
+		val axisX = width / 2f - sun.x
+		val axisY = height / 2f - sun.y
+
+		return PixelPoint((sun.x + axisX * distance).roundToInt(), (sun.y + axisY * distance).roundToInt())
+	}
+
 	private fun lensHaloSamplePoint(width: Int, height: Int): PixelPoint {
 		val sun = celestialCenter(width, height, DayPhase.DAY)
 		val span = minOf(width, height)
@@ -438,8 +464,13 @@ class SunRenderingTest {
 		const val LENS_HALO_REACH = 7.4f
 		const val LENS_HALO_AXIS_OFFSET = 0.18f
 		const val LENS_HALO_RADIUS_FRACTION = 0.88f
+		const val LENS_GHOST_TEST_DISTANCE = 0.76f
+		const val LENS_GHOST_TEST_SCALE = 0.34f
+		const val LENS_GHOST_EDGE_SAMPLE_FRACTION = 0.8f
 		const val OPAQUE_ALPHA_THRESHOLD = 245
 		const val MIN_LENS_HALO_ALPHA_LIFT = 2
+		const val MIN_LENS_GHOST_CENTER_LIFT = 6
+		const val MIN_LENS_GHOST_CENTER_EDGE_DELTA = 3
 		const val MAX_DISABLED_LENS_HALO_ALPHA = 2
 		const val POSITION_TOLERANCE_PIXELS = 2
 		const val MIN_CLOUD_ATTENUATION = 2f
