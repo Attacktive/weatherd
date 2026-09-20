@@ -2,7 +2,7 @@
 
 Instructions and architectural invariants for agents working in the Weatherd codebase.
 
-- Version: 1.3.0 (2026-09-19)
+- Version: 1.3.1 (2026-09-20)
 - Persona: Coding assistant pair-programming with the user on Weatherd.
 
 ## Tools and Environment
@@ -10,6 +10,19 @@ Instructions and architectural invariants for agents working in the Weatherd cod
 Agents use standard file inspection, editing tools, and Gradle tasks (`./gradlew check`).
 - The JDK is installed via SDKMAN.
 - Before Gradle tasks in non-interactive shells, source `"$HOME/.sdkman/bin/sdkman-init.sh"`.
+
+### GitHub Actions Are Not a General-Purpose Remote Shell
+
+- Do not create disposable or one-off GitHub Actions workflows to perform development work.
+	- This includes patching files, generating assets, tuning rendering, inspecting linter results, running ad hoc builds, or compensating for the current agent runtime lacking a local shell, JDK, Android SDK, or other tooling.
+	- Do not create a new workflow for a single issue, pull request, debugging attempt, or iteration.
+- Treat the workflows present on `main` as the repository's intentional CI/CD surface.
+	- Use existing workflows for validation when they already cover the required build, test, analysis, or release task.
+	- Missing local execution capability is not, by itself, justification for adding another workflow.
+- Adding a new persistent workflow requires explicit user approval and a durable repository-level use case.
+	- Explain why an existing workflow cannot serve the purpose before proposing one.
+- Never create a temporary workflow with the intention of deleting it afterward.
+	- GitHub retains historical workflow identities and runs in the Actions UI even after the YAML file is removed.
 
 ## Architectural Invariants
 
