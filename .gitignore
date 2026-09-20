@@ -13,4 +13,5 @@ local.properties
 .screenshots/
 __pycache__/
 
+.mcp.json
 release.keystore
