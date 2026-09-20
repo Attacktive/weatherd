@@ -21,6 +21,8 @@ import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
 import xyz.attacktive.weatherd.domain.render.backdropSignature
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
+import xyz.attacktive.weatherd.platform.currentHomeLauncher
+import xyz.attacktive.weatherd.platform.wallpaperScrollingSupportedBy
 
 /**
  * Live wallpaper that animates the shared weather scene.
@@ -52,7 +54,8 @@ class WeatherLiveWallpaperService: WallpaperService() {
 		@Volatile private var visible = false
 		private var startNanos = 0L
 		@Volatile private var frameRateCap = FrameRateCap.UNCAPPED
-		@Volatile private var wallpaperScrollingEnabled = false
+		@Volatile private var wallpaperScrollingPreferenceEnabled = false
+		@Volatile private var wallpaperScrollingSupported = wallpaperScrollingSupportedBy(currentHomeLauncher(this@WeatherLiveWallpaperService)?.packageName)
 		@Volatile private var wallpaperOffsetX = 0.5f
 
 		init {
@@ -63,7 +66,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			scope.launch {
 				settingsRepository.settings.collect {
 					frameRateCap = it.frameRateCap
-					wallpaperScrollingEnabled = it.wallpaperScrollingEnabled
+					wallpaperScrollingPreferenceEnabled = it.wallpaperScrollingEnabled
 					if (visible) {
 						sceneProvider.refresh(nowEpochSeconds())
 					}
@@ -76,6 +79,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			choreographer.removeFrameCallback(this)
 
 			if (visible) {
+				wallpaperScrollingSupported = wallpaperScrollingSupportedBy(currentHomeLauncher(this@WeatherLiveWallpaperService)?.packageName)
 				scope.launch { sceneProvider.refresh(nowEpochSeconds()) }
 				choreographer.postFrameCallback(this)
 			}
@@ -134,6 +138,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			}
 
 			val params = currentParams()
+			val wallpaperScrollingEnabled = wallpaperScrollingPreferenceEnabled && wallpaperScrollingSupported
 			val sceneWidth = wallpaperSceneWidth(width, wallpaperScrollingEnabled)
 			val outgoing = backdrop
 			val current = backdropFor(params, sceneWidth)

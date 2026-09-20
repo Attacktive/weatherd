@@ -30,6 +30,7 @@
 	<string name="section_wallpaper_motion">Movimiento del fondo</string>
 	<string name="label_wallpaper_scrolling">Desplazamiento de la pantalla de inicio</string>
 	<string name="subtitle_wallpaper_scrolling">Desplaza la escena horizontalmente al cambiar entre páginas de la pantalla de inicio</string>
+	<string name="subtitle_wallpaper_scrolling_unsupported">%1$s no admite el desplazamiento del fondo de pantalla</string>
 	<string name="section_sun_effects">Efectos del sol</string>
 	<string name="label_lens_flare">Destello de lente</string>
 	<string name="subtitle_lens_flare">Destellos y reflejos de cámara alrededor del sol</string>

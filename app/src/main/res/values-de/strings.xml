@@ -30,6 +30,7 @@
 	<string name="section_wallpaper_motion">Hintergrundbewegung</string>
 	<string name="label_wallpaper_scrolling">Startbildschirm-Scrollen</string>
 	<string name="subtitle_wallpaper_scrolling">Szene beim Wischen zwischen Startbildschirm-Seiten horizontal verschieben</string>
+	<string name="subtitle_wallpaper_scrolling_unsupported">%1$s unterstützt das Scrollen des Hintergrundbilds nicht</string>
 	<string name="section_sun_effects">Sonneneffekte</string>
 	<string name="label_lens_flare">Linsenreflexion</string>
 	<string name="subtitle_lens_flare">Kameraartige Lichtstreifen und Reflexionen um die Sonne</string>

@@ -62,15 +62,20 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import xyz.attacktive.weatherd.BuildConfig
 import xyz.attacktive.weatherd.R
@@ -84,6 +89,9 @@ import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.UPDATE_INTERVAL_OPTIONS
 import xyz.attacktive.weatherd.domain.model.drawsScenery
+import xyz.attacktive.weatherd.platform.HomeLauncher
+import xyz.attacktive.weatherd.platform.currentHomeLauncher
+import xyz.attacktive.weatherd.platform.wallpaperScrollingSupportedBy
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -350,14 +358,46 @@ private fun IntensitySlider(label: String, value: Float, onCommit: (Float) -> Un
 
 @Composable
 private fun WallpaperMotionSection(settings: AppSettings, onSave: (AppSettings) -> Unit) {
+	val homeLauncher = rememberCurrentHomeLauncher()
+	val scrollingSupported = wallpaperScrollingSupportedBy(homeLauncher?.packageName)
+	val subtitle = if (scrollingSupported) {
+		stringResource(R.string.subtitle_wallpaper_scrolling)
+	} else {
+		stringResource(R.string.subtitle_wallpaper_scrolling_unsupported, homeLauncher?.label.orEmpty())
+	}
+
 	SectionLabel(stringResource(R.string.section_wallpaper_motion))
 
 	ToggleSetting(
 		label = stringResource(R.string.label_wallpaper_scrolling),
-		subtitle = stringResource(R.string.subtitle_wallpaper_scrolling),
-		checked = settings.wallpaperScrollingEnabled,
-		onToggle = { onSave(settings.copy(wallpaperScrollingEnabled = it)) }
+		subtitle = subtitle,
+		checked = settings.wallpaperScrollingEnabled && scrollingSupported,
+		onToggle = { onSave(settings.copy(wallpaperScrollingEnabled = it)) },
+		enabled = scrollingSupported
 	)
+}
+
+@Composable
+private fun rememberCurrentHomeLauncher(): HomeLauncher? {
+	val context = LocalContext.current
+	val lifecycleOwner = LocalLifecycleOwner.current
+	var launcher by remember(context) { mutableStateOf(currentHomeLauncher(context)) }
+
+	DisposableEffect(context, lifecycleOwner) {
+		val observer = LifecycleEventObserver { _, event ->
+			if (event == Lifecycle.Event.ON_RESUME) {
+				launcher = currentHomeLauncher(context)
+			}
+		}
+
+		lifecycleOwner.lifecycle.addObserver(observer)
+
+		onDispose {
+			lifecycleOwner.lifecycle.removeObserver(observer)
+		}
+	}
+
+	return launcher
 }
 
 @Composable
@@ -739,14 +779,14 @@ private fun CurrentManualLocation(label: String, onClear: () -> Unit) {
 }
 
 @Composable
-private fun ToggleSetting(label: String, subtitle: String, checked: Boolean, onToggle: (Boolean) -> Unit) {
-	Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+private fun ToggleSetting(label: String, subtitle: String, checked: Boolean, onToggle: (Boolean) -> Unit, enabled: Boolean = true) {
+	Row(modifier = Modifier.fillMaxWidth().alpha(if (enabled) 1f else 0.5f), verticalAlignment = Alignment.CenterVertically) {
 		Column(modifier = Modifier.weight(1f)) {
 			Text(label)
 			Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 		}
 
-		Switch(checked = checked, onCheckedChange = onToggle)
+		Switch(checked = checked, onCheckedChange = onToggle, enabled = enabled)
 	}
 }
 

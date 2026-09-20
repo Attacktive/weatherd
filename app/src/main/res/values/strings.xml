@@ -30,6 +30,7 @@
 	<string name="section_wallpaper_motion">Wallpaper motion</string>
 	<string name="label_wallpaper_scrolling">Home screen scrolling</string>
 	<string name="subtitle_wallpaper_scrolling">Pan the scene horizontally as you swipe between home screen pages</string>
+	<string name="subtitle_wallpaper_scrolling_unsupported">%1$s doesn\'t support wallpaper scrolling</string>
 	<string name="section_sun_effects">Sun effects</string>
 	<string name="label_lens_flare">Lens flare</string>
 	<string name="subtitle_lens_flare">Camera-style streak and reflections around the sun</string>

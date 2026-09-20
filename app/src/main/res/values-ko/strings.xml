@@ -30,6 +30,7 @@
 	<string name="section_wallpaper_motion">배경화면 움직임</string>
 	<string name="label_wallpaper_scrolling">홈 화면 스크롤 연동</string>
 	<string name="subtitle_wallpaper_scrolling">홈 화면 페이지를 넘길 때 배경화면을 가로로 이동합니다</string>
+	<string name="subtitle_wallpaper_scrolling_unsupported">%1$s에서는 배경화면 스크롤을 지원하지 않습니다</string>
 	<string name="section_sun_effects">태양 효과</string>
 	<string name="label_lens_flare">렌즈 플레어</string>
 	<string name="subtitle_lens_flare">태양 주변의 카메라식 빛줄기와 반사 효과</string>

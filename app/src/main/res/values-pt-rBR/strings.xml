@@ -30,6 +30,7 @@
 	<string name="section_wallpaper_motion">Movimento do papel de parede</string>
 	<string name="label_wallpaper_scrolling">Rolagem da tela inicial</string>
 	<string name="subtitle_wallpaper_scrolling">Desloque a cena horizontalmente ao alternar entre páginas da tela inicial</string>
+	<string name="subtitle_wallpaper_scrolling_unsupported">%1$s não é compatível com a rolagem do papel de parede</string>
 	<string name="section_sun_effects">Efeitos do sol</string>
 	<string name="label_lens_flare">Reflexo de lente</string>
 	<string name="subtitle_lens_flare">Faixas de luz e reflexos de câmera ao redor do sol</string>

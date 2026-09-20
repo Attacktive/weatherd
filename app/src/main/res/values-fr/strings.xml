@@ -30,6 +30,7 @@
 	<string name="section_wallpaper_motion">Mouvement du fond d’écran</string>
 	<string name="label_wallpaper_scrolling">Défilement de l’écran d’accueil</string>
 	<string name="subtitle_wallpaper_scrolling">Déplace la scène horizontalement lorsque vous passez d’une page de l’écran d’accueil à l’autre</string>
+	<string name="subtitle_wallpaper_scrolling_unsupported">%1$s ne prend pas en charge le défilement du fond d’écran</string>
 	<string name="section_sun_effects">Effets du soleil</string>
 	<string name="label_lens_flare">Reflets d’objectif</string>
 	<string name="subtitle_lens_flare">Traînées lumineuses et reflets de type appareil photo autour du soleil</string>
