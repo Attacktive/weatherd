@@ -28,7 +28,7 @@
 	<string name="section_frame_rate">Animation frame rate</string>
 	<string name="section_backdrop">Backdrop scenery</string>
 	<string name="section_wallpaper_motion">Wallpaper motion</string>
-	<string name="label_wallpaper_scrolling">Scroll with home screen</string>
+	<string name="label_wallpaper_scrolling">Home screen scrolling</string>
 	<string name="subtitle_wallpaper_scrolling">Pan the scene horizontally as you swipe between home screen pages</string>
 	<string name="section_sun_effects">Sun effects</string>
 	<string name="label_lens_flare">Lens flare</string>

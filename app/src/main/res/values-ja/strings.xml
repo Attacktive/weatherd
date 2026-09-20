@@ -28,7 +28,7 @@
 	<string name="section_frame_rate">アニメーションのフレームレート</string>
 	<string name="section_backdrop">背景の風景</string>
 	<string name="section_wallpaper_motion">壁紙の動き</string>
-	<string name="label_wallpaper_scrolling">ホーム画面と連動してスクロール</string>
+	<string name="label_wallpaper_scrolling">ホーム画面のスクロール連動</string>
 	<string name="subtitle_wallpaper_scrolling">ホーム画面のページを切り替えると背景を横方向に移動します</string>
 	<string name="section_sun_effects">太陽のエフェクト</string>
 	<string name="label_lens_flare">レンズフレア</string>

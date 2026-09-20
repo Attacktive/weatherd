@@ -28,7 +28,7 @@
 	<string name="section_frame_rate">Taxa de quadros da animação</string>
 	<string name="section_backdrop">Cenário de fundo</string>
 	<string name="section_wallpaper_motion">Movimento do papel de parede</string>
-	<string name="label_wallpaper_scrolling">Rolar com a tela inicial</string>
+	<string name="label_wallpaper_scrolling">Rolagem da tela inicial</string>
 	<string name="subtitle_wallpaper_scrolling">Desloque a cena horizontalmente ao alternar entre páginas da tela inicial</string>
 	<string name="section_sun_effects">Efeitos do sol</string>
 	<string name="label_lens_flare">Reflexo de lente</string>
