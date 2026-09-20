@@ -113,6 +113,13 @@ class ScenePaletteTest {
 	}
 
 	@Test
+	fun `the overcast ceiling fades in instead of jumping at the threshold`() {
+		assertEquals(0f, overcastCeilingStrength(0.55f), 0.0001f)
+		assertEquals(1f / 3f, overcastCeilingStrength(0.65f), 0.0001f)
+		assertEquals(1f, overcastCeilingStrength(0.85f), 0.0001f)
+	}
+
+	@Test
 	fun `an overcast sky gives up its blue entirely`() {
 		val overcast = skyGradientFor(clearParams(DayPhase.DAY).copy(cloudiness = 0.85f))
 

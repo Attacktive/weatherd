@@ -137,8 +137,11 @@ private fun snowGray(dayPhase: DayPhase) = when (dayPhase) {
 private fun overcastAmount(params: SceneParams): Float = when {
 	params.fogDensity > 0f -> 0.85f
 	params.precipitation != null -> precipitationGray(params.precipitation)
-	else -> ((params.cloudiness - OVERCAST_GRAY_FLOOR) / (OVERCAST_GRAY_FULL - OVERCAST_GRAY_FLOOR)).coerceIn(0f, 1f)
+	else -> overcastCeilingStrength(params.cloudiness)
 }
+
+/** Shared cloud-cover ramp for the gray sky blend and cached overcast ceiling, avoiding a hard visual jump at the threshold. */
+internal fun overcastCeilingStrength(cloudiness: Float) = ((cloudiness - OVERCAST_GRAY_FLOOR) / (OVERCAST_GRAY_FULL - OVERCAST_GRAY_FLOOR)).coerceIn(0f, 1f)
 
 /** The cloudiness at which a dry sky starts graying, matching where the renderer starts drawing an overcast ceiling. */
 private const val OVERCAST_GRAY_FLOOR = 0.55f

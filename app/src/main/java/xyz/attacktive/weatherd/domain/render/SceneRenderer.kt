@@ -181,8 +181,9 @@ class SceneRenderer(resources: Resources) {
 
 		drawSky(canvas, w, h, params)
 
-		if (params.cloudiness > 0.55f) {
-			drawOvercastCeiling(canvas, w, h, params)
+		val ceilingStrength = overcastCeilingStrength(params.cloudiness)
+		if (ceilingStrength > 0f) {
+			drawOvercastCeiling(canvas, w, h, params, ceilingStrength)
 		}
 
 		if (params.fogDensity > 0f) {
@@ -1253,10 +1254,10 @@ class SceneRenderer(resources: Resources) {
 		}
 	}
 
-	private fun drawOvercastCeiling(canvas: Canvas, width: Float, height: Float, params: SceneParams) {
+	private fun drawOvercastCeiling(canvas: Canvas, width: Float, height: Float, params: SceneParams, strength: Float) {
 		val ceiling = overcastCeiling(params.dayPhase)
 		paint.style = Paint.Style.FILL
-		val ceilingAlpha = (190f * params.cloudScale).roundToInt()
+		val ceilingAlpha = (190f * strength * params.cloudScale).roundToInt()
 			.coerceIn(0, 255)
 
 		paint.shader = LinearGradient(
