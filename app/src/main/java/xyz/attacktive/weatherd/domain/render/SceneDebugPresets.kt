@@ -31,7 +31,8 @@ val SCENE_PRESETS = listOf(
 	ScenePreset("SLEET", cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.SLEET, SEVERITY_STEADY, observed = 0.65f), windFactor = 0.45f),
 	ScenePreset("SNOW", cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.SNOW, SEVERITY_STEADY, observed = 0.65f), windFactor = 0.45f),
 	ScenePreset("HEAVY SNOW", cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.SNOW, SEVERITY_HEAVY, observed = 0.9f), windFactor = 0.45f),
-	ScenePreset("THUNDERSTORM", cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.RAIN, SEVERITY_STORM, observed = 0.9f), thunder = true, windFactor = 0.85f)
+	ScenePreset("THUNDERSTORM", cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.RAIN, SEVERITY_STORM, observed = 0.9f), thunder = true, windFactor = 0.85f),
+	ScenePreset("BROKEN CLOUDS", cloudiness = 0.65f)
 )
 
 /**

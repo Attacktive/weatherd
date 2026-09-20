@@ -22,6 +22,20 @@ class SceneDebugPresetsTest {
 	}
 
 	@Test
+	fun `broken clouds covers the middle of the dry overcast transition`() {
+		val partlyCloudy = SCENE_PRESETS.first { it.name == "PARTLY CLOUDY" }
+		val brokenClouds = SCENE_PRESETS.first { it.name == "BROKEN CLOUDS" }
+		val overcast = SCENE_PRESETS.first { it.name == "OVERCAST" }
+
+		assertEquals(0.65f, brokenClouds.cloudiness, 0.0001f)
+		assertTrue(brokenClouds.cloudiness > partlyCloudy.cloudiness)
+		assertTrue(brokenClouds.cloudiness < overcast.cloudiness)
+		assertEquals(0f, brokenClouds.fogDensity, 0.0001f)
+		assertEquals(null, brokenClouds.precipitation)
+		assertFalse(brokenClouds.thunder)
+	}
+
+	@Test
 	fun `non-default precipitation scale reaches scene params`() {
 		val preset = SCENE_PRESETS.first { it.name == "RAIN" }
 		val params = debugSceneParams(preset, DayPhase.DAY, precipitationScale = 1.8f)
