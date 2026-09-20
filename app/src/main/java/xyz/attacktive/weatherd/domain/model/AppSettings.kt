@@ -12,6 +12,7 @@ data class AppSettings(
 	val showLocationLabel: Boolean = false,
 	val temperatureUnit: TemperatureUnit = TemperatureUnit.CELSIUS,
 	val frameRateCap: FrameRateCap = FrameRateCap.UNCAPPED,
+	val wallpaperScrollingEnabled: Boolean = false,
 	val precipitationIntensityScale: Float = 1f,
 	val windIntensityScale: Float = 1f,
 	val cloudIntensityScale: Float = 1f,

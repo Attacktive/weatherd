@@ -52,6 +52,8 @@ class WeatherLiveWallpaperService: WallpaperService() {
 		@Volatile private var visible = false
 		private var startNanos = 0L
 		@Volatile private var frameRateCap = FrameRateCap.UNCAPPED
+		@Volatile private var wallpaperScrollingEnabled = false
+		@Volatile private var wallpaperOffsetX = 0.5f
 
 		init {
 			scope.launch(Dispatchers.Default) {
@@ -61,6 +63,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			scope.launch {
 				settingsRepository.settings.collect {
 					frameRateCap = it.frameRateCap
+					wallpaperScrollingEnabled = it.wallpaperScrollingEnabled
 					if (visible) {
 						sceneProvider.refresh(nowEpochSeconds())
 					}
@@ -76,6 +79,10 @@ class WeatherLiveWallpaperService: WallpaperService() {
 				scope.launch { sceneProvider.refresh(nowEpochSeconds()) }
 				choreographer.postFrameCallback(this)
 			}
+		}
+
+		override fun onOffsetsChanged(xOffset: Float, yOffset: Float, xOffsetStep: Float, yOffsetStep: Float, xPixelOffset: Int, yPixelOffset: Int) {
+			wallpaperOffsetX = normalizeWallpaperOffset(xOffset)
 		}
 
 		override fun onSurfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
@@ -127,12 +134,16 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			}
 
 			val params = currentParams()
+			val sceneWidth = wallpaperSceneWidth(width, wallpaperScrollingEnabled)
 			val outgoing = backdrop
-			val current = backdropFor(params)
-			if (outgoing != null && current !== outgoing) {
+			val current = backdropFor(params, sceneWidth)
+			if (outgoing != null && current !== outgoing && outgoing.width == current.width) {
 				// The scene flipped: keep the outgoing backdrop around and ease the new scene in over it.
 				previousBackdrop = outgoing
 				fadeStartSeconds = timeSeconds
+			} else if (current !== outgoing) {
+				// A scrolling toggle changes the virtual scene width; crossfading bitmaps with different viewports would slide the outgoing scene under the new one.
+				previousBackdrop = null
 			}
 
 			val holder = surfaceHolder
@@ -145,7 +156,8 @@ class WeatherLiveWallpaperService: WallpaperService() {
 				 */
 				canvas = runCatching { holder.lockHardwareCanvas() }.getOrNull() ?: holder.lockCanvas()
 				if (canvas != null) {
-					drawScene(canvas, current, params, timeSeconds)
+					val viewportLeft = wallpaperViewportLeft(width, current.width, wallpaperOffsetX, wallpaperScrollingEnabled)
+					drawScene(canvas, current, params, timeSeconds, viewportLeft)
 				}
 			} finally {
 				if (canvas != null) {
@@ -155,13 +167,12 @@ class WeatherLiveWallpaperService: WallpaperService() {
 		}
 
 		/** Draws the scene, crossfading from the outgoing backdrop for a moment after a scene flip. */
-		private fun drawScene(canvas: Canvas, backdrop: Bitmap, params: SceneParams, timeSeconds: Float) {
+		private fun drawScene(canvas: Canvas, backdrop: Bitmap, params: SceneParams, timeSeconds: Float, viewportLeft: Float) {
 			val outgoing = previousBackdrop
 			val elapsed = timeSeconds - fadeStartSeconds
 			if (outgoing == null || elapsed < 0f || elapsed >= SCENE_FADE_SECONDS) {
 				previousBackdrop = null
-				canvas.drawBitmap(backdrop, 0f, 0f, null)
-				renderer.renderForeground(canvas, width, height, params, timeSeconds)
+				drawViewport(canvas, backdrop, params, timeSeconds, viewportLeft)
 
 				return
 			}
@@ -173,13 +184,23 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			 */
 			val linear = elapsed / SCENE_FADE_SECONDS
 			val eased = linear * linear * (3f - 2f * linear)
-			canvas.drawBitmap(outgoing, 0f, 0f, null)
+			canvas.drawBitmap(outgoing, -viewportLeft, 0f, null)
 
 			val alpha = (eased * 255f).roundToInt().coerceIn(0, 255)
 			val saved = canvas.saveLayerAlpha(0f, 0f, width.toFloat(), height.toFloat(), alpha)
-			canvas.drawBitmap(backdrop, 0f, 0f, null)
-			renderer.renderForeground(canvas, width, height, params, timeSeconds)
+			drawViewport(canvas, backdrop, params, timeSeconds, viewportLeft)
 			canvas.restoreToCount(saved)
+		}
+
+		/** Draws one viewport into the wider virtual wallpaper scene without scaling it, so launcher offsets reveal real off-screen content instead of stretching the current frame. */
+		private fun drawViewport(canvas: Canvas, backdrop: Bitmap, params: SceneParams, timeSeconds: Float, viewportLeft: Float) {
+			canvas.drawBitmap(backdrop, -viewportLeft, 0f, null)
+
+			val saved = canvas.save()
+			canvas.translate(-viewportLeft, 0f)
+			renderer.renderForeground(canvas, backdrop.width, height, params, timeSeconds, includeOverlayLabels = false)
+			canvas.restoreToCount(saved)
+			renderer.renderOverlayLabels(canvas, width, height, params)
 		}
 
 		/** The scene params, recomputed at most once per second — the day phase can shift, but never per frame. */
@@ -197,14 +218,14 @@ class WeatherLiveWallpaperService: WallpaperService() {
 		}
 
 		/** The cached static backdrop, re-rasterized only when a backdrop-relevant part of the scene changes. */
-		private fun backdropFor(params: SceneParams): Bitmap {
+		private fun backdropFor(params: SceneParams, sceneWidth: Int): Bitmap {
 			val current = backdrop
 			val signature = backdropSignature(params)
-			if (current != null && signature == renderedParams) {
+			if (current != null && current.width == sceneWidth && current.height == height && signature == renderedParams) {
 				return current
 			}
 
-			val fresh = createBitmap(width, height)
+			val fresh = createBitmap(sceneWidth, height)
 			rasterizeBackdrop(fresh, params)
 			backdrop = fresh
 			renderedParams = signature
@@ -223,7 +244,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			renderer.backgroundPhoto = photo
 
 			try {
-				renderer.renderBackdrop(Canvas(target), width, height, params)
+				renderer.renderBackdrop(Canvas(target), target.width, target.height, params)
 			} finally {
 				// Clearing before recycling, and in a finally, so a throwing rasterize can neither leak the bitmap nor leave the renderer holding a reference to freed pixels.
 				renderer.backgroundPhoto = null
@@ -240,3 +261,26 @@ private const val CLOCK_WRAP_NANOS = 21_600L * 1_000_000_000L
 
 /** How long a scene flip takes to crossfade — long enough to read as weather moving in, short enough to never lag a glance at the screen. */
 private const val SCENE_FADE_SECONDS = 2.8f
+
+/** Extra virtual width available to launcher page swipes; 12% total travel keeps the effect visible without turning scenery into a sideways conveyor belt. */
+private const val WALLPAPER_PARALLAX_OVERSCAN_FRACTION = 0.12f
+
+internal fun wallpaperSceneWidth(surfaceWidth: Int, scrollingEnabled: Boolean) = if (scrollingEnabled) {
+	(surfaceWidth * (1f + WALLPAPER_PARALLAX_OVERSCAN_FRACTION)).roundToInt()
+} else {
+	surfaceWidth
+}
+
+internal fun wallpaperViewportLeft(surfaceWidth: Int, sceneWidth: Int, xOffset: Float, scrollingEnabled: Boolean): Float {
+	if (!scrollingEnabled || sceneWidth <= surfaceWidth) {
+		return 0f
+	}
+
+	return (sceneWidth - surfaceWidth) * normalizeWallpaperOffset(xOffset)
+}
+
+internal fun normalizeWallpaperOffset(xOffset: Float) = if (!xOffset.isFinite() || xOffset < 0f) {
+	0.5f
+} else {
+	xOffset.coerceAtMost(1f)
+}

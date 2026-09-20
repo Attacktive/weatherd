@@ -35,6 +35,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		val SHOW_LOCATION_LABEL = booleanPreferencesKey("show_location_label")
 		val TEMPERATURE_UNIT = stringPreferencesKey("temperature_unit")
 		val FRAME_RATE_CAP = stringPreferencesKey("frame_rate_cap")
+		val WALLPAPER_SCROLLING_ENABLED = booleanPreferencesKey("wallpaper_scrolling_enabled")
 		val PRECIPITATION_INTENSITY_SCALE = floatPreferencesKey("precipitation_intensity_scale")
 		val WIND_INTENSITY_SCALE = floatPreferencesKey("wind_intensity_scale")
 		val CLOUD_INTENSITY_SCALE = floatPreferencesKey("cloud_intensity_scale")
@@ -59,6 +60,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			showLocationLabel = preferences[Keys.SHOW_LOCATION_LABEL] ?: DEFAULTS.showLocationLabel,
 			temperatureUnit = TemperatureUnit.fromName(preferences[Keys.TEMPERATURE_UNIT]),
 			frameRateCap = FrameRateCap.fromName(preferences[Keys.FRAME_RATE_CAP]),
+			wallpaperScrollingEnabled = preferences[Keys.WALLPAPER_SCROLLING_ENABLED] ?: DEFAULTS.wallpaperScrollingEnabled,
 			precipitationIntensityScale = preferences[Keys.PRECIPITATION_INTENSITY_SCALE] ?: DEFAULTS.precipitationIntensityScale,
 			windIntensityScale = preferences[Keys.WIND_INTENSITY_SCALE] ?: DEFAULTS.windIntensityScale,
 			cloudIntensityScale = preferences[Keys.CLOUD_INTENSITY_SCALE] ?: DEFAULTS.cloudIntensityScale,
@@ -86,6 +88,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			preferences[Keys.SHOW_LOCATION_LABEL] = settings.showLocationLabel
 			preferences[Keys.TEMPERATURE_UNIT] = settings.temperatureUnit.name
 			preferences[Keys.FRAME_RATE_CAP] = settings.frameRateCap.name
+			preferences[Keys.WALLPAPER_SCROLLING_ENABLED] = settings.wallpaperScrollingEnabled
 			preferences[Keys.PRECIPITATION_INTENSITY_SCALE] = settings.precipitationIntensityScale
 			preferences[Keys.WIND_INTENSITY_SCALE] = settings.windIntensityScale
 			preferences[Keys.CLOUD_INTENSITY_SCALE] = settings.cloudIntensityScale

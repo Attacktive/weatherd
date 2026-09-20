@@ -198,7 +198,7 @@ class SceneRenderer(resources: Resources) {
 	}
 
 	/** The animated layers (stars, sun/moon glow, horizon scenery, drifting clouds/overcast/mist, precipitation, lightning). */
-	fun renderForeground(canvas: Canvas, width: Int, height: Int, params: SceneParams, timeSeconds: Float) {
+	fun renderForeground(canvas: Canvas, width: Int, height: Int, params: SceneParams, timeSeconds: Float, includeOverlayLabels: Boolean = true) {
 		val w = width.toFloat()
 		val h = height.toFloat()
 		val celestialCenterX = w * CELESTIAL_X_FRACTION
@@ -266,8 +266,15 @@ class SceneRenderer(resources: Resources) {
 			drawLightning(canvas, w, h)
 		}
 
+		if (includeOverlayLabels) {
+			renderOverlayLabels(canvas, width, height, params)
+		}
+	}
+
+	/** Draws the optional weather/location HUD independently of scene translation, so live-wallpaper parallax does not slide interface text across launcher pages. */
+	fun renderOverlayLabels(canvas: Canvas, width: Int, height: Int, params: SceneParams) {
 		params.overlayLabels?.let {
-			drawOverlayLabels(canvas, w, h, it)
+			drawOverlayLabels(canvas, width.toFloat(), height.toFloat(), it)
 		}
 	}
 

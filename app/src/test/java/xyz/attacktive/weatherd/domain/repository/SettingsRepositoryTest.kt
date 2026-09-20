@@ -54,6 +54,13 @@ class SettingsRepositoryTest {
 	}
 
 	@Test
+	fun `wallpaper scrolling starts disabled`() = runTest {
+		val repository = SettingsRepository(dataStore())
+
+		assertFalse(repository.settings.first().wallpaperScrollingEnabled)
+	}
+
+	@Test
 	fun `lens flare starts enabled`() = runTest {
 		val repository = SettingsRepository(dataStore())
 
@@ -84,6 +91,7 @@ class SettingsRepositoryTest {
 			showLocationLabel = true,
 			temperatureUnit = TemperatureUnit.FAHRENHEIT,
 			frameRateCap = FrameRateCap.FPS_30,
+			wallpaperScrollingEnabled = true,
 			lensFlareEnabled = false,
 			sceneSimulatorEnabled = true,
 			sceneSimulatorActive = true,

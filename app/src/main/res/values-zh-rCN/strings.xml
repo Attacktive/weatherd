@@ -27,6 +27,9 @@
 	<string name="section_refresh_interval">天气刷新间隔</string>
 	<string name="section_frame_rate">动画帧率</string>
 	<string name="section_backdrop">背景风光</string>
+	<string name="section_wallpaper_motion">壁纸运动</string>
+	<string name="label_wallpaper_scrolling">启动器滚动</string>
+	<string name="subtitle_wallpaper_scrolling">在启动器页面间滑动时水平平移场景</string>
 	<string name="section_sun_effects">太阳效果</string>
 	<string name="label_lens_flare">镜头光晕</string>
 	<string name="subtitle_lens_flare">太阳周围的相机风格光带和反射</string>

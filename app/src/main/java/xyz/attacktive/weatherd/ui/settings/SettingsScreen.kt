@@ -131,6 +131,10 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 
 				Spacer(modifier = Modifier.height(24.dp))
 
+				WallpaperMotionSection(settings = settings, onSave = viewModel::save)
+
+				Spacer(modifier = Modifier.height(24.dp))
+
 				IntensitySection(settings = settings, onSave = viewModel::save)
 
 				Spacer(modifier = Modifier.height(24.dp))
@@ -342,6 +346,18 @@ private fun IntensitySlider(label: String, value: Float, onCommit: (Float) -> Un
 		HintText(stringResource(R.string.intensity_subtle))
 		HintText(stringResource(R.string.intensity_intense))
 	}
+}
+
+@Composable
+private fun WallpaperMotionSection(settings: AppSettings, onSave: (AppSettings) -> Unit) {
+	SectionLabel(stringResource(R.string.section_wallpaper_motion))
+
+	ToggleSetting(
+		label = stringResource(R.string.label_wallpaper_scrolling),
+		subtitle = stringResource(R.string.subtitle_wallpaper_scrolling),
+		checked = settings.wallpaperScrollingEnabled,
+		onToggle = { onSave(settings.copy(wallpaperScrollingEnabled = it)) }
+	)
 }
 
 @Composable
