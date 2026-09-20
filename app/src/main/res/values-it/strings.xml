@@ -28,8 +28,8 @@
 	<string name="section_frame_rate">Frequenza fotogrammi animazione</string>
 	<string name="section_backdrop">Panorama di sfondo</string>
 	<string name="section_wallpaper_motion">Movimento dello sfondo</string>
-	<string name="label_wallpaper_scrolling">Scorrimento del launcher</string>
-	<string name="subtitle_wallpaper_scrolling">Sposta la scena orizzontalmente quando scorri tra le pagine del launcher</string>
+	<string name="label_wallpaper_scrolling">Scorri con la schermata Home</string>
+	<string name="subtitle_wallpaper_scrolling">Sposta la scena orizzontalmente quando scorri tra le pagine della schermata Home</string>
 	<string name="section_sun_effects">Effetti del sole</string>
 	<string name="label_lens_flare">Riflesso dell’obiettivo</string>
 	<string name="subtitle_lens_flare">Scie luminose e riflessi in stile fotografico intorno al sole</string>

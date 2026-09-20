@@ -28,8 +28,8 @@
 	<string name="section_frame_rate">Bildwiederholrate der Animation</string>
 	<string name="section_backdrop">Kulisse im Hintergrund</string>
 	<string name="section_wallpaper_motion">Hintergrundbewegung</string>
-	<string name="label_wallpaper_scrolling">Launcher-Scrollen</string>
-	<string name="subtitle_wallpaper_scrolling">Szene beim Wischen zwischen Launcher-Seiten horizontal verschieben</string>
+	<string name="label_wallpaper_scrolling">Mit Startbildschirm scrollen</string>
+	<string name="subtitle_wallpaper_scrolling">Szene beim Wischen zwischen Startbildschirm-Seiten horizontal verschieben</string>
 	<string name="section_sun_effects">Sonneneffekte</string>
 	<string name="label_lens_flare">Linsenreflexion</string>
 	<string name="subtitle_lens_flare">Kameraartige Lichtstreifen und Reflexionen um die Sonne</string>

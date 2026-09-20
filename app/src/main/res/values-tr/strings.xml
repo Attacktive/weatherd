@@ -28,8 +28,8 @@
 	<string name="section_frame_rate">Animasyon kare hızı</string>
 	<string name="section_backdrop">Arka plan manzarası</string>
 	<string name="section_wallpaper_motion">Duvar kâğıdı hareketi</string>
-	<string name="label_wallpaper_scrolling">Başlatıcı kaydırma</string>
-	<string name="subtitle_wallpaper_scrolling">Başlatıcı sayfaları arasında kaydırırken sahneyi yatay olarak hareket ettirin</string>
+	<string name="label_wallpaper_scrolling">Ana ekranla birlikte kaydır</string>
+	<string name="subtitle_wallpaper_scrolling">Ana ekran sayfaları arasında kaydırırken sahneyi yatay olarak hareket ettirin</string>
 	<string name="section_sun_effects">Güneş efektleri</string>
 	<string name="label_lens_flare">Mercek parlaması</string>
 	<string name="subtitle_lens_flare">Güneşin etrafında kamera tarzı ışık çizgileri ve yansımalar</string>
