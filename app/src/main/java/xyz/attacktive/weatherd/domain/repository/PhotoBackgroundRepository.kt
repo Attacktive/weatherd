@@ -102,7 +102,7 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 		}
 
 		val bitmap = try {
-			BitmapFactory.decodeFile(file.path)
+			BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = 1 })
 		} catch (exception: OutOfMemoryError) {
 			logger.error(TAG, "decoding the stored photo for $bucket ran out of memory", exception)
 			null
