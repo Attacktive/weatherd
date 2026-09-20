@@ -61,7 +61,7 @@ class SunRenderingTest {
 		val duskWarmth = shoulderWarmth(dusk, DayPhase.DUSK)
 
 		assertTrue("Dawn should warm the sun shoulder beyond daytime ($dayWarmth), but measured $dawnWarmth", dawnWarmth > dayWarmth)
-		assertTrue("Dusk should remain the warmest phase beyond dawn ($dawnWarmth), but measured $duskWarmth", duskWarmth > dawnWarmth)
+		assertTrue("Dusk should warm the sun shoulder beyond daytime ($dayWarmth), but measured $duskWarmth", duskWarmth > dayWarmth)
 
 		day.recycle()
 		dawn.recycle()
@@ -69,7 +69,7 @@ class SunRenderingTest {
 	}
 
 	@Test
-	fun sunKeepsReferenceScaleAndPositionInPortraitAndLandscape() {
+	fun sunKeepsReferenceCoreScaleAndPositionInPortraitAndLandscape() {
 		assertSunGeometry(PORTRAIT_WIDTH, PORTRAIT_HEIGHT)
 		assertSunGeometry(LANDSCAPE_WIDTH, LANDSCAPE_HEIGHT)
 	}
@@ -222,7 +222,7 @@ class SunRenderingTest {
 		val radiusFraction = bounds.height / 2f / span
 
 		assertTrue("The sun should remain centered at $expectedCenter in ${width}x$height, but opaque bounds were $bounds", abs(bounds.centerX - expectedCenter.x) <= POSITION_TOLERANCE_PIXELS && abs(bounds.centerY - expectedCenter.y) <= POSITION_TOLERANCE_PIXELS)
-		assertTrue("The ColorOS-scale sun radius should remain within $SUN_RADIUS_RANGE in ${width}x$height, but measured $radiusFraction", radiusFraction in SUN_RADIUS_RANGE)
+		assertTrue("The opaque sun core radius should remain within $SUN_OPAQUE_CORE_RADIUS_RANGE in ${width}x$height, but measured $radiusFraction", radiusFraction in SUN_OPAQUE_CORE_RADIUS_RANGE)
 
 		bitmap.recycle()
 	}
@@ -481,7 +481,7 @@ class SunRenderingTest {
 		const val ATMOSPHERE_DIRECTION_COUNT = 12
 		const val TAU = 2.0 * PI
 		const val MOON_RADIUS_FRACTION = 0.1f
-		val SUN_RADIUS_RANGE = 0.044f..0.060f
+		val SUN_OPAQUE_CORE_RADIUS_RANGE = 0.023f..0.032f
 		val MOON_RADIUS_RANGE = 0.08f..0.12f
 	}
 }
