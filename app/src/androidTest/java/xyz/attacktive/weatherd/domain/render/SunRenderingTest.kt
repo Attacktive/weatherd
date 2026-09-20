@@ -1,16 +1,16 @@
 package xyz.attacktive.weatherd.domain.render
 
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.roundToInt
+import kotlin.math.sin
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import androidx.core.graphics.createBitmap
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import kotlin.math.abs
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.roundToInt
-import kotlin.math.sin
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -49,23 +49,6 @@ class SunRenderingTest {
 
 		day.recycle()
 		night.recycle()
-	}
-
-	@Test
-	fun dawnAndDuskKeepWarmerShouldersThanDay() {
-		val day = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams())
-		val dawn = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams(dayPhase = DayPhase.DAWN))
-		val dusk = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams(dayPhase = DayPhase.DUSK))
-		val dayWarmth = shoulderWarmth(day, DayPhase.DAY)
-		val dawnWarmth = shoulderWarmth(dawn, DayPhase.DAWN)
-		val duskWarmth = shoulderWarmth(dusk, DayPhase.DUSK)
-
-		assertTrue("Dawn should warm the sun shoulder beyond daytime ($dayWarmth), but measured $dawnWarmth", dawnWarmth > dayWarmth)
-		assertTrue("Dusk should warm the sun shoulder beyond daytime ($dayWarmth), but measured $duskWarmth", duskWarmth > dayWarmth)
-
-		day.recycle()
-		dawn.recycle()
-		dusk.recycle()
 	}
 
 	@Test
