@@ -136,7 +136,6 @@ class CloudLayerTest {
 				320f,
 				0f,
 				0f,
-				CLOUD_TEXTURE_VIEWPORTS,
 				255
 			)
 		)

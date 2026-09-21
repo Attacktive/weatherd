@@ -135,13 +135,13 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 	 * Prepares a reusable opacity sampler using the same sprite placement math as [drawCumulus].
 	 * The expensive style and placement lookup happens once per profile; each subsequent point probe only samples primitive geometry and bitmap alpha.
 	 */
-	fun opacitySampler(width: Float, height: Float, offset: Float, top: Float, viewports: Float, alpha: Int, sizeScale: Float = 1f): OpacitySampler? {
+	fun opacitySampler(width: Float, height: Float, offset: Float, top: Float, alpha: Int, sizeScale: Float = 1f): OpacitySampler? {
 		val kind = cumulusKind ?: return null
 		if (!canSampleOpacity(width, height, alpha)) {
 			return null
 		}
 
-		val period = width * viewports
+		val period = width * CLOUD_TEXTURE_VIEWPORTS
 		if (period <= 0f) {
 			return null
 		}

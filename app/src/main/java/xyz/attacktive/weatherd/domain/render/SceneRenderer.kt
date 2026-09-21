@@ -1525,7 +1525,6 @@ class SceneRenderer(resources: Resources) {
 			nearState.deckHeight,
 			nearState.offset,
 			cloudTop,
-			CLOUD_TEXTURE_VIEWPORTS,
 			alpha,
 			sizeScale
 		)
@@ -2424,8 +2423,8 @@ class SceneRenderer(resources: Resources) {
 		val upperIndex = lowerIndex + 1
 		val upperAlpha = sunCloudUpperAlpha(upperIndex, blend, sun.params.cloudScale)
 		val sizeScale = cloudSizeScale(sun.params)
-		val lowerSampler = cumulusSteps[lowerIndex].value.opacitySampler(sun.width, deckHeight, offset, cloudTop, CLOUD_TEXTURE_VIEWPORTS, lowerAlpha, sizeScale) ?: return false
-		val upperSampler = if (upperAlpha > 0 && upperIndex < cumulusSteps.size) cumulusSteps[upperIndex].value.opacitySampler(sun.width, deckHeight, offset, cloudTop, CLOUD_TEXTURE_VIEWPORTS, upperAlpha, sizeScale) else null
+		val lowerSampler = cumulusSteps[lowerIndex].value.opacitySampler(sun.width, deckHeight, offset, cloudTop, lowerAlpha, sizeScale) ?: return false
+		val upperSampler = if (upperAlpha > 0 && upperIndex < cumulusSteps.size) cumulusSteps[upperIndex].value.opacitySampler(sun.width, deckHeight, offset, cloudTop, upperAlpha, sizeScale) else null
 		val strongestOpacity = sampleSunCloudRows(sun, radius, lowerSampler, upperSampler)
 		val strongestEdge = computeSunCloudEdgeEnergy()
 		return strongestOpacity > SUN_SHAFT_MIN_OBSTRUCTION && strongestEdge >= SUN_SHAFT_EDGE_THRESHOLD
