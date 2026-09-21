@@ -1413,7 +1413,7 @@ class SceneRenderer(resources: Resources) {
 
 	/** The pale wash the sun throws onto the air around it; drawn under the decks so a cloud crossing it still reads as solid. */
 	private fun drawSunVeil(canvas: Canvas, width: Float, height: Float, params: SceneParams) {
-		if (params.dayPhase == DayPhase.NIGHT) {
+		if (!showsSunVeil(params)) {
 			return
 		}
 
@@ -1422,21 +1422,25 @@ class SceneRenderer(resources: Resources) {
 			return
 		}
 
-		val veilTint = when (params.dayPhase) {
-			DayPhase.DAY -> Color.rgb(215, 228, 245)
-			DayPhase.DAWN -> Color.rgb(240, 220, 225)
-			DayPhase.DUSK -> Color.rgb(230, 205, 215)
-			DayPhase.NIGHT -> Color.rgb(64, 72, 90)
+		val veilTint = if (params.sunColorPreset == SunColorPreset.NATURAL) {
+			when (params.dayPhase) {
+				DayPhase.DAY -> Color.rgb(215, 228, 245)
+				DayPhase.DAWN -> Color.rgb(240, 220, 225)
+				DayPhase.DUSK -> Color.rgb(230, 205, 215)
+				DayPhase.NIGHT -> Color.rgb(64, 72, 90)
+			}
+		} else {
+			sunColor(params.dayPhase, params.sunColorPreset)
 		}
 
-		val atmosphere = tile("sunVeil-${params.dayPhase}", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildSunAtmosphereSprite(it, veilTint) }
+		val atmosphere = tile("sunVeil-${params.dayPhase}-${params.sunColorPreset}", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildSunAtmosphereSprite(it, veilTint) }
 
 		blitSprite(
 			canvas,
 			atmosphere,
 			width * CELESTIAL_X_FRACTION,
 			height * celestialHeightFraction(params.dayPhase, params.celestialProgress),
-			min(width, height) * SUN_RADIUS_FRACTION * SUN_CUMULUS_VEIL_REACH,
+			min(width, height) * SUN_RADIUS_FRACTION * params.sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive) * SUN_CUMULUS_VEIL_REACH,
 			veilAlpha
 		)
 	}
@@ -2961,6 +2965,9 @@ private fun showsCelestialBody(params: SceneParams) = when {
 	params.dayPhase != DayPhase.NIGHT -> true
 	else -> params.fogDensity <= 0f && params.cloudiness <= 0.75f
 }
+
+/** The scattered-cloud air wash belongs to the visible sun and never appears at night. */
+internal fun showsSunVeil(params: SceneParams) = params.sunVisible && params.dayPhase != DayPhase.NIGHT
 
 /** A heavy dry deck still transmits a broad patch of daylight even when the solar limb itself is no longer visible. */
 private fun showsOvercastSunTransmission(params: SceneParams) = params.sunVisible && params.dayPhase != DayPhase.NIGHT && params.precipitation == null && params.fogDensity <= 0f && !params.thunder && params.cloudiness > CLOUD_DECK_THRESHOLD
