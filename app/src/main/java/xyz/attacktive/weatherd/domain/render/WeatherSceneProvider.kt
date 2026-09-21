@@ -10,6 +10,7 @@ import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.GeoLocation
+import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
@@ -41,6 +42,10 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	@Volatile private var precipitationIntensityScale = 1f
 	@Volatile private var windIntensityScale = 1f
 	@Volatile private var cloudIntensityScale = 1f
+	@Volatile private var sunVisible = true
+	@Volatile private var moonVisible = true
+	@Volatile private var sunSizeScale = 1f
+	@Volatile private var sunColorPreset = SunColorPreset.NATURAL
 	@Volatile private var lensFlareEnabled = true
 	@Volatile private var sceneSimulatorActive = false
 	@Volatile private var sceneSimulatorPresetIndex = 0
@@ -59,15 +64,19 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		val snapshot = this.snapshot ?: return fallbackParams(nowEpochSeconds)
 
 		return sceneParamsFor(
-			snapshot,
-			nowEpochSeconds,
-			backdropScene,
-			photoRevision,
-			overlayLabels(snapshot),
-			precipitationIntensityScale,
-			windIntensityScale,
-			cloudIntensityScale,
-			lensFlareEnabled
+			snapshot = snapshot,
+			nowEpochSeconds = nowEpochSeconds,
+			backdropScene = backdropScene,
+			photoRevision = photoRevision,
+			overlayLabels = overlayLabels(snapshot),
+			precipitationScale = precipitationIntensityScale,
+			windScale = windIntensityScale,
+			cloudScale = cloudIntensityScale,
+			sunVisible = sunVisible,
+			moonVisible = moonVisible,
+			sunSizeScale = sunSizeScale,
+			sunColorPreset = sunColorPreset,
+			lensFlareEnabled = lensFlareEnabled
 		)
 	}
 
@@ -96,6 +105,10 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		precipitationIntensityScale = settings.precipitationIntensityScale
 		windIntensityScale = settings.windIntensityScale
 		cloudIntensityScale = settings.cloudIntensityScale
+		sunVisible = settings.sunVisible
+		moonVisible = settings.moonVisible
+		sunSizeScale = settings.sunSizeScale
+		sunColorPreset = settings.sunColorPreset
 		lensFlareEnabled = settings.lensFlareEnabled
 		sceneSimulatorActive = settings.sceneSimulatorActive
 		sceneSimulatorPresetIndex = settings.sceneSimulatorPresetIndex.coerceIn(0, SCENE_PRESETS.lastIndex)
@@ -152,6 +165,10 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		precipitationScale = precipitationIntensityScale,
 		windScale = windIntensityScale,
 		cloudScale = cloudIntensityScale,
+		sunVisible = sunVisible,
+		moonVisible = moonVisible,
+		sunSizeScale = sunSizeScale,
+		sunColorPreset = sunColorPreset,
 		lensFlareEnabled = lensFlareEnabled,
 		celestialProgress = sceneSimulatorCelestialProgress
 	)
@@ -265,6 +282,10 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			precipitationScale = precipitationIntensityScale,
 			windScale = windIntensityScale,
 			cloudScale = cloudIntensityScale,
+			sunVisible = sunVisible,
+			moonVisible = moonVisible,
+			sunSizeScale = sunSizeScale,
+			sunColorPreset = sunColorPreset,
 			lensFlareEnabled = lensFlareEnabled
 		)
 	}

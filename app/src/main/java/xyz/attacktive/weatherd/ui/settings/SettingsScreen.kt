@@ -1,5 +1,6 @@
 package xyz.attacktive.weatherd.ui.settings
 
+import kotlin.math.roundToInt
 import android.app.Activity
 import android.content.ClipData
 import android.content.Context
@@ -85,6 +86,8 @@ import xyz.attacktive.weatherd.domain.model.FrameRateCap
 import xyz.attacktive.weatherd.domain.model.GeoPlace
 import xyz.attacktive.weatherd.domain.model.INTENSITY_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.PhotoBucket
+import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.UPDATE_INTERVAL_OPTIONS
@@ -405,11 +408,89 @@ private fun SunEffectsSection(settings: AppSettings, onSave: (AppSettings) -> Un
 	SectionLabel(stringResource(R.string.section_sun_effects))
 
 	ToggleSetting(
-		label = stringResource(R.string.label_lens_flare),
-		subtitle = stringResource(R.string.subtitle_lens_flare),
-		checked = settings.lensFlareEnabled,
-		onToggle = { onSave(settings.copy(lensFlareEnabled = it)) }
+		label = stringResource(R.string.label_show_sun),
+		subtitle = stringResource(R.string.subtitle_show_sun),
+		checked = settings.sunVisible,
+		onToggle = { onSave(settings.copy(sunVisible = it)) }
 	)
+
+	ToggleSetting(
+		label = stringResource(R.string.label_show_moon),
+		subtitle = stringResource(R.string.subtitle_show_moon),
+		checked = settings.moonVisible,
+		onToggle = { onSave(settings.copy(moonVisible = it)) }
+	)
+
+	AnimatedVisibility(visible = settings.sunVisible) {
+		Column {
+			Spacer(modifier = Modifier.height(12.dp))
+			SunSizeSlider(settings = settings, onSave = onSave)
+			Spacer(modifier = Modifier.height(12.dp))
+			SunColorPicker(settings = settings, onSave = onSave)
+			Spacer(modifier = Modifier.height(12.dp))
+
+			ToggleSetting(
+				label = stringResource(R.string.label_lens_flare),
+				subtitle = stringResource(R.string.subtitle_lens_flare),
+				checked = settings.lensFlareEnabled,
+				onToggle = { onSave(settings.copy(lensFlareEnabled = it)) }
+			)
+		}
+	}
+}
+
+@Composable
+private fun SunSizeSlider(settings: AppSettings, onSave: (AppSettings) -> Unit) {
+	var position by remember(settings.sunSizeScale) { mutableFloatStateOf(settings.sunSizeScale) }
+
+	SectionLabel(stringResource(R.string.label_sun_size, (position * 100f).roundToInt()))
+
+	Slider(
+		value = position,
+		onValueChange = { position = it },
+		onValueChangeFinished = { onSave(settings.copy(sunSizeScale = position)) },
+		valueRange = SUN_SIZE_SCALE_RANGE
+	)
+
+	Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+		HintText(stringResource(R.string.sun_size_small))
+		HintText(stringResource(R.string.sun_size_large))
+	}
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SunColorPicker(settings: AppSettings, onSave: (AppSettings) -> Unit) {
+	var expanded by remember { mutableStateOf(false) }
+
+	SectionLabel(stringResource(R.string.label_sun_color))
+
+	ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+		OutlinedTextField(
+			value = formatSunColor(settings.sunColorPreset),
+			onValueChange = {},
+			readOnly = true,
+			trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+			modifier = Modifier
+				.fillMaxWidth()
+				.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+		)
+
+		ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+			SunColorPreset.entries.forEach { preset ->
+				DropdownMenuItem(
+					text = { Text(formatSunColor(preset)) },
+					onClick = {
+						if (preset != settings.sunColorPreset) {
+							onSave(settings.copy(sunColorPreset = preset))
+						}
+
+						expanded = false
+					}
+				)
+			}
+		}
+	}
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -854,6 +935,14 @@ private fun formatFrameRate(cap: FrameRateCap) = when (cap) {
 	FrameRateCap.FPS_30 -> stringResource(R.string.frame_rate_30)
 	FrameRateCap.FPS_15 -> stringResource(R.string.frame_rate_15)
 	FrameRateCap.FPS_10 -> stringResource(R.string.frame_rate_10)
+}
+
+@Composable
+private fun formatSunColor(preset: SunColorPreset) = when (preset) {
+	SunColorPreset.NATURAL -> stringResource(R.string.sun_color_natural)
+	SunColorPreset.WHITE -> stringResource(R.string.sun_color_white)
+	SunColorPreset.GOLDEN -> stringResource(R.string.sun_color_golden)
+	SunColorPreset.ORANGE -> stringResource(R.string.sun_color_orange)
 }
 
 @Composable

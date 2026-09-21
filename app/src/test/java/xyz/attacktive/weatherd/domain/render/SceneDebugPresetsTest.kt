@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import xyz.attacktive.weatherd.domain.model.DayPhase
+import xyz.attacktive.weatherd.domain.model.SunColorPreset
 
 class SceneDebugPresetsTest {
 	@Test
@@ -16,6 +17,10 @@ class SceneDebugPresetsTest {
 			assertEquals(1f, params.precipitationScale, 0.0001f)
 			assertEquals(1f, params.windScale, 0.0001f)
 			assertEquals(1f, params.cloudScale, 0.0001f)
+			assertTrue(params.sunVisible)
+			assertTrue(params.moonVisible)
+			assertEquals(1f, params.sunSizeScale, 0.0001f)
+			assertEquals(SunColorPreset.NATURAL, params.sunColorPreset)
 			assertTrue(params.lensFlareEnabled)
 			assertEquals(0.5f, params.celestialProgress, 0.0001f)
 		}
@@ -45,6 +50,17 @@ class SceneDebugPresetsTest {
 
 		assertEquals(preset.cloudiness, params.cloudiness, 0.0001f)
 		assertEquals(0.5f, params.cloudScale, 0.0001f)
+	}
+
+	@Test
+	fun `celestial appearance preferences reach debug scene params`() {
+		val preset = SCENE_PRESETS.first { it.name == "CLEAR" }
+		val params = debugSceneParams(preset, DayPhase.DAY, sunVisible = false, moonVisible = false, sunSizeScale = 1.7f, sunColorPreset = SunColorPreset.ORANGE)
+
+		assertFalse(params.sunVisible)
+		assertFalse(params.moonVisible)
+		assertEquals(1.7f, params.sunSizeScale, 0.0001f)
+		assertEquals(SunColorPreset.ORANGE, params.sunColorPreset)
 	}
 
 	@Test

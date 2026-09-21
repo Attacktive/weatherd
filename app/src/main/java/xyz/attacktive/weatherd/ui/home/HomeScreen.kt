@@ -86,6 +86,10 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	val precipitationIntensityScale by viewModel.precipitationIntensityScale.collectAsStateWithLifecycle()
 	val windIntensityScale by viewModel.windIntensityScale.collectAsStateWithLifecycle()
 	val cloudIntensityScale by viewModel.cloudIntensityScale.collectAsStateWithLifecycle()
+	val sunVisible by viewModel.sunVisible.collectAsStateWithLifecycle()
+	val moonVisible by viewModel.moonVisible.collectAsStateWithLifecycle()
+	val sunSizeScale by viewModel.sunSizeScale.collectAsStateWithLifecycle()
+	val sunColorPreset by viewModel.sunColorPreset.collectAsStateWithLifecycle()
 	val lensFlareEnabled by viewModel.lensFlareEnabled.collectAsStateWithLifecycle()
 	val sceneSimulatorEnabled by viewModel.sceneSimulatorEnabled.collectAsStateWithLifecycle()
 	val persistedDebugEnabled by viewModel.sceneSimulatorActive.collectAsStateWithLifecycle()
@@ -106,6 +110,10 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 			precipitationScale = precipitationIntensityScale,
 			windScale = windIntensityScale,
 			cloudScale = cloudIntensityScale,
+			sunVisible = sunVisible,
+			moonVisible = moonVisible,
+			sunSizeScale = sunSizeScale,
+			sunColorPreset = sunColorPreset,
 			lensFlareEnabled = lensFlareEnabled,
 			celestialProgress = debugCelestialProgress
 		)

@@ -47,6 +47,26 @@ class HomeViewModel @Inject constructor(
 		.map { it.cloudIntensityScale }
 		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().cloudIntensityScale)
 
+	/** Whether the sun is rendered, so debug mode matches the live wallpaper. */
+	val sunVisible = settingsRepository.settings
+		.map { it.sunVisible }
+		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().sunVisible)
+
+	/** Whether the moon is rendered, so debug mode matches the live wallpaper. */
+	val moonVisible = settingsRepository.settings
+		.map { it.moonVisible }
+		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().moonVisible)
+
+	/** The user's sun size multiplier, so debug mode matches the live wallpaper. */
+	val sunSizeScale = settingsRepository.settings
+		.map { it.sunSizeScale }
+		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().sunSizeScale)
+
+	/** The user's sun color preset, so debug mode matches the live wallpaper. */
+	val sunColorPreset = settingsRepository.settings
+		.map { it.sunColorPreset }
+		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().sunColorPreset)
+
 	/** Whether camera-style lens flare is enabled, so debug mode matches the live wallpaper. */
 	val lensFlareEnabled = settingsRepository.settings
 		.map { it.lensFlareEnabled }

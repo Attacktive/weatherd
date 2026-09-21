@@ -4,6 +4,8 @@ import kotlin.math.pow
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
+import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
 import xyz.attacktive.weatherd.domain.weather.dayPhaseFor
 import xyz.attacktive.weatherd.domain.weather.dayPhaseProgressFor
@@ -20,6 +22,7 @@ import xyz.attacktive.weatherd.domain.weather.precipitationIntensity
  * [precipitationScale] is the user's preference rather than an observation, so it rides alongside [precipitation] instead of being folded into it: the renderer applies it past its own visibility floor, where it is the drop count the user actually sees.
  * [windScale] is the user's preference rather than an observation, so it rides alongside [windFactor] instead of being folded into it: the renderer applies it past its own floors, where it actually moves visible wind effects.
  * [cloudScale] is the user's preference rather than an observation, so it rides alongside [cloudiness] instead of being folded into it: the renderer applies it past its own floors, where it scales cloud opacity.
+ * [sunVisible], [moonVisible], [sunSizeScale] and [sunColorPreset] customize the celestial bodies without changing the time-of-day lighting.
  * [lensFlareEnabled] is a display preference for camera-style streaks and optical ghosts around the sun; it does not disable the physical corona or atmospheric light shafts.
  */
 data class SceneParams(
@@ -37,6 +40,10 @@ data class SceneParams(
 	val backdropScene: BackdropScene = BackdropScene.NONE,
 	val photoRevision: Int = 0,
 	val overlayLabels: OverlayLabels? = null,
+	val sunVisible: Boolean = true,
+	val moonVisible: Boolean = true,
+	val sunSizeScale: Float = 1f,
+	val sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
 	val lensFlareEnabled: Boolean = true
 )
 
@@ -50,7 +57,7 @@ data class OverlayLabels(val weather: String?, val location: String?)
  * Every other field is carried through untouched, so a field added later stays backdrop-relevant until someone lists it here.
  * Both the wallpaper's backdrop cache and the in-app preview's remembered backdrop key on this, which is what keeps them redrawing on exactly the same changes.
  */
-fun backdropSignature(params: SceneParams) = params.copy(moonPhase = 0f, celestialProgress = 0f, overlayLabels = null, lensFlareEnabled = true)
+fun backdropSignature(params: SceneParams) = params.copy(moonPhase = 0f, celestialProgress = 0f, overlayLabels = null, sunVisible = true, moonVisible = true, sunSizeScale = 1f, sunColorPreset = SunColorPreset.NATURAL, lensFlareEnabled = true)
 
 /** Derives render parameters from a weather snapshot for the given moment. */
 fun sceneParamsFor(
@@ -62,6 +69,10 @@ fun sceneParamsFor(
 	precipitationScale: Float = 1f,
 	windScale: Float = 1f,
 	cloudScale: Float = 1f,
+	sunVisible: Boolean = true,
+	moonVisible: Boolean = true,
+	sunSizeScale: Float = 1f,
+	sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
 	lensFlareEnabled: Boolean = true,
 ): SceneParams {
 	val observation = snapshot.observation
@@ -85,6 +96,10 @@ fun sceneParamsFor(
 		precipitationScale = precipitationScale,
 		windScale = windScale,
 		cloudScale = cloudScale,
+		sunVisible = sunVisible,
+		moonVisible = moonVisible,
+		sunSizeScale = sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive),
+		sunColorPreset = sunColorPreset,
 		moonPhase = moonPhaseFor(nowEpochSeconds),
 		celestialProgress = dayPhaseProgressFor(nowEpochSeconds, snapshot.sunriseEpochSeconds, snapshot.sunsetEpochSeconds, dayPhase),
 		backdropScene = backdropScene,

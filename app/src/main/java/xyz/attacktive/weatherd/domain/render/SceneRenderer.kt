@@ -29,6 +29,8 @@ import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
+import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.drawsScenery
 import xyz.attacktive.weatherd.domain.render.SceneRenderer.Companion.DOT_CORE_STOP
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_DRIZZLE
@@ -206,7 +208,7 @@ class SceneRenderer(resources: Resources) {
 		val precipKey = params.precipitation?.let { "${it.kind}-${(it.severity * 100f).toInt()}" } ?: "dry"
 
 		// Wind and cloud rendering are foreground concerns: they do not change cached tile pixels, so a refresh must not discard them.
-		val key = "${width}x$height-${params.dayPhase}-$precipKey-f${(params.fogDensity * 100f).toInt()}-t${params.thunder}"
+		val key = "${width}x$height-${params.dayPhase}-$precipKey-f${(params.fogDensity * 100f).toInt()}-t${params.thunder}-sun${params.sunColorPreset}"
 		if (key != tilesKey) {
 			tiles.clear()
 			tilesKey = key
@@ -318,7 +320,7 @@ class SceneRenderer(resources: Resources) {
 
 		// A warm band above the horizon sells the low sun at dawn and dusk.
 		if ((params.dayPhase == DayPhase.DAWN || params.dayPhase == DayPhase.DUSK) && showsCelestialBody(params)) {
-			val glow = sunColor(params.dayPhase)
+			val glow = sunColor(params.dayPhase, SunColorPreset.NATURAL)
 			paint.shader = LinearGradient(0f, height * 0.55f, 0f, height, withAlpha(glow, 0), withAlpha(glow, 80), Shader.TileMode.CLAMP)
 			canvas.drawRect(0f, height * 0.55f, width, height, paint)
 			paint.shader = null
@@ -1049,8 +1051,10 @@ class SceneRenderer(resources: Resources) {
 		val pulse = 0.5f + 0.35f * sin(timeSeconds * 0.8f) + 0.15f * sin(timeSeconds * 2.1f)
 
 		if (params.dayPhase == DayPhase.NIGHT) {
-			drawMoon(canvas, span, centerX, centerY, params, pulse)
-		} else {
+			if (params.moonVisible) {
+				drawMoon(canvas, span, centerX, centerY, params, pulse)
+			}
+		} else if (params.sunVisible) {
 			sunRenderContext.span = span
 			sunRenderContext.width = width
 			sunRenderContext.height = height
@@ -1091,8 +1095,8 @@ class SceneRenderer(resources: Resources) {
 			return
 		}
 
-		val radius = sun.span * SUN_RADIUS_FRACTION
-		val core = sunColor(sun.params.dayPhase)
+		val radius = sun.span * SUN_RADIUS_FRACTION * sun.params.sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive)
+		val core = sunColor(sun.params.dayPhase, sun.params.sunColorPreset)
 		val halo = tile("sunHalo", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildHaloSprite(it, core) }
 		val atmosphere = tile("sunAtmosphere", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildSunAtmosphereSprite(it, core) }
 		if (drawVeiledSun(canvas, sun, radius, core, atmosphere)) {
@@ -1149,8 +1153,8 @@ class SceneRenderer(resources: Resources) {
 
 	private fun drawOvercastSunTransmission(canvas: Canvas, width: Float, height: Float, centerX: Float, centerY: Float, params: SceneParams, timeSeconds: Float) {
 		val span = min(width, height)
-		val radius = span * SUN_RADIUS_FRACTION
-		val core = sunColor(params.dayPhase)
+		val radius = span * SUN_RADIUS_FRACTION * params.sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive)
+		val core = sunColor(params.dayPhase, params.sunColorPreset)
 		val atmosphere = tile("sunAtmosphere", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildSunAtmosphereSprite(it, core) }
 		val halo = tile("sunHalo", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildHaloSprite(it, core) }
 		val cover = unlerp(CLOUD_DECK_THRESHOLD, 1f, params.cloudiness)
@@ -2959,13 +2963,13 @@ private fun showsCelestialBody(params: SceneParams) = when {
 }
 
 /** A heavy dry deck still transmits a broad patch of daylight even when the solar limb itself is no longer visible. */
-private fun showsOvercastSunTransmission(params: SceneParams) = params.dayPhase != DayPhase.NIGHT && params.precipitation == null && params.fogDensity <= 0f && !params.thunder && params.cloudiness > CLOUD_DECK_THRESHOLD
+private fun showsOvercastSunTransmission(params: SceneParams) = params.sunVisible && params.dayPhase != DayPhase.NIGHT && params.precipitation == null && params.fogDensity <= 0f && !params.thunder && params.cloudiness > CLOUD_DECK_THRESHOLD
 
 /** Birds fly only through fair daylight skies: no precipitation, no fog, cover below the deck threshold, and never at night. */
 private fun showsBirds(params: SceneParams) = params.precipitation == null && params.fogDensity <= 0f && params.cloudiness < 0.55f && params.dayPhase != DayPhase.NIGHT
 
-/** The chromatic halo follows direct daylight visibility instead of a user preference. */
-internal fun showsRainbow(params: SceneParams) = params.dayPhase != DayPhase.NIGHT && params.precipitation == null && params.fogDensity <= 0f && params.cloudiness <= DIRECT_SUN_MAX_CLOUDINESS
+/** The chromatic halo follows direct daylight visibility and disappears with the user's sun visibility preference. */
+internal fun showsRainbow(params: SceneParams) = params.sunVisible && params.dayPhase != DayPhase.NIGHT && params.precipitation == null && params.fogDensity <= 0f && params.cloudiness <= DIRECT_SUN_MAX_CLOUDINESS
 
 /** Helicopters fly in weather birds won't — night included, that's when the blinking light pays off — but storms, fog, and a heavy deck still ground them. */
 private fun showsHelicopter(params: SceneParams) = params.precipitation == null && params.fogDensity <= 0f && params.cloudiness < 0.55f && !params.thunder
@@ -3099,10 +3103,16 @@ private fun sunVisibility(dayPhase: DayPhase, progress: Float): Float {
 
 private fun sunAlpha(alpha: Float, visibility: Float) = (alpha * visibility).roundToInt().coerceIn(0, 255)
 
-private fun sunColor(dayPhase: DayPhase) = when (dayPhase) {
-	DayPhase.DAWN -> Color.rgb(255, 224, 190)
-	DayPhase.DUSK -> Color.rgb(255, 208, 178)
-	else -> Color.rgb(255, 248, 218)
+private fun sunColor(dayPhase: DayPhase, preset: SunColorPreset) = when (preset) {
+	SunColorPreset.NATURAL -> when (dayPhase) {
+		DayPhase.DAWN -> Color.rgb(255, 224, 190)
+		DayPhase.DUSK -> Color.rgb(255, 208, 178)
+		else -> Color.rgb(255, 248, 218)
+	}
+
+	SunColorPreset.WHITE -> Color.rgb(255, 255, 248)
+	SunColorPreset.GOLDEN -> Color.rgb(255, 228, 150)
+	SunColorPreset.ORANGE -> Color.rgb(255, 188, 118)
 }
 
 /**

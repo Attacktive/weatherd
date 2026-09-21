@@ -20,6 +20,7 @@ import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
+import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 
@@ -61,10 +62,15 @@ class SettingsRepositoryTest {
 	}
 
 	@Test
-	fun `lens flare starts enabled`() = runTest {
+	fun `celestial appearance starts at the current rendering defaults`() = runTest {
 		val repository = SettingsRepository(dataStore())
 
-		assertTrue(repository.settings.first().lensFlareEnabled)
+		val settings = repository.settings.first()
+		assertTrue(settings.sunVisible)
+		assertTrue(settings.moonVisible)
+		assertEquals(1f, settings.sunSizeScale, 0.0001f)
+		assertEquals(SunColorPreset.NATURAL, settings.sunColorPreset)
+		assertTrue(settings.lensFlareEnabled)
 	}
 
 	@Test
@@ -92,6 +98,10 @@ class SettingsRepositoryTest {
 			temperatureUnit = TemperatureUnit.FAHRENHEIT,
 			frameRateCap = FrameRateCap.FPS_30,
 			wallpaperScrollingEnabled = true,
+			sunVisible = false,
+			moonVisible = false,
+			sunSizeScale = 1.65f,
+			sunColorPreset = SunColorPreset.GOLDEN,
 			lensFlareEnabled = false,
 			sceneSimulatorEnabled = true,
 			sceneSimulatorActive = true,

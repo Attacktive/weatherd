@@ -18,6 +18,7 @@ import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.GeoLocation
+import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
@@ -56,6 +57,10 @@ class WeatherSceneProviderTest {
 				precipitationIntensityScale = 1.5f,
 				windIntensityScale = 0.5f,
 				cloudIntensityScale = 0.8f,
+				sunVisible = false,
+				moonVisible = false,
+				sunSizeScale = 1.6f,
+				sunColorPreset = SunColorPreset.GOLDEN,
 				lensFlareEnabled = false,
 				sceneSimulatorActive = true,
 				sceneSimulatorPresetIndex = presetIndex,
@@ -75,6 +80,10 @@ class WeatherSceneProviderTest {
 		assertEquals(1.5f, params.precipitationScale, 0.0001f)
 		assertEquals(0.5f, params.windScale, 0.0001f)
 		assertEquals(0.8f, params.cloudScale, 0.0001f)
+		assertFalse(params.sunVisible)
+		assertFalse(params.moonVisible)
+		assertEquals(1.6f, params.sunSizeScale, 0.0001f)
+		assertEquals(SunColorPreset.GOLDEN, params.sunColorPreset)
 		assertFalse(params.lensFlareEnabled)
 		coVerify(exactly = 0) { locationRepository.currentLocation() }
 		coVerify(exactly = 0) { weatherRepository.current(any(), any()) }
@@ -162,6 +171,26 @@ class WeatherSceneProviderTest {
 		provider.refresh(1_000_000L)
 		provider.refresh(1_000_060L)
 
+		coVerify(exactly = 1) { weatherRepository.current(52.52, 13.40) }
+	}
+
+	@Test
+	fun `celestial appearance settings reach scene params even when refresh is throttled`() = runTest {
+		val device = AppSettings(useDeviceLocation = true)
+		every { settingsRepository.settings } returns flowOf(device)
+		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
+		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 3))
+
+		provider.refresh(1_000_000L)
+
+		every { settingsRepository.settings } returns flowOf(device.copy(sunVisible = false, moonVisible = false, sunSizeScale = 1.8f, sunColorPreset = SunColorPreset.ORANGE))
+		provider.refresh(1_000_060L)
+
+		val params = provider.paramsFor(1_000_090L)
+		assertFalse(params.sunVisible)
+		assertFalse(params.moonVisible)
+		assertEquals(1.8f, params.sunSizeScale, 0.0001f)
+		assertEquals(SunColorPreset.ORANGE, params.sunColorPreset)
 		coVerify(exactly = 1) { weatherRepository.current(52.52, 13.40) }
 	}
 

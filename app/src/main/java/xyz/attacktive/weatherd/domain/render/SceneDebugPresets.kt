@@ -3,6 +3,8 @@ package xyz.attacktive.weatherd.domain.render
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
+import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_DRIZZLE
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_HEAVY
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_STEADY
@@ -44,6 +46,10 @@ fun debugSceneParams(
 	precipitationScale: Float = 1f,
 	windScale: Float = 1f,
 	cloudScale: Float = 1f,
+	sunVisible: Boolean = true,
+	moonVisible: Boolean = true,
+	sunSizeScale: Float = 1f,
+	sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
 	lensFlareEnabled: Boolean = true,
 	celestialProgress: Float = 0.5f,
 ) = SceneParams(
@@ -56,6 +62,10 @@ fun debugSceneParams(
 	precipitationScale = precipitationScale,
 	windScale = windScale,
 	cloudScale = cloudScale,
+	sunVisible = sunVisible,
+	moonVisible = moonVisible,
+	sunSizeScale = sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive),
+	sunColorPreset = sunColorPreset,
 	lensFlareEnabled = lensFlareEnabled,
 	celestialProgress = celestialProgress,
 )
