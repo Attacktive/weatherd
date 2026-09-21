@@ -7,7 +7,7 @@ enum class SunColorPreset {
 	ORANGE;
 
 	companion object {
-		fun fromName(value: String?): SunColorPreset = entries.firstOrNull { it.name == value } ?: NATURAL
+		fun fromName(value: String?) = entries.firstOrNull { it.name == value } ?: NATURAL
 	}
 }
 
