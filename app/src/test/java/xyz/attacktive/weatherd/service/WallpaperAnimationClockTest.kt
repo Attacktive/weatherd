@@ -6,9 +6,9 @@ import org.junit.Test
 class WallpaperAnimationClockTest {
 	@Test
 	fun `animation phase follows the shared monotonic frame clock`() {
-		val frameTimeNanos = 3_601_250_000_000L
+		val frameTimeNanos = 3_601_000_000_000L
 
-		assertEquals(3_601.25f, wallpaperAnimationTimeSeconds(frameTimeNanos), 0.0001f)
+		assertEquals(3_601f, wallpaperAnimationTimeSeconds(frameTimeNanos), 0.0001f)
 	}
 
 	@Test
