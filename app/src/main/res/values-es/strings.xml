@@ -14,6 +14,10 @@
 
 	<!-- Settings screen -->
 	<string name="settings_title">Ajustes</string>
+	<string name="settings_tab_weather">Tiempo</string>
+	<string name="settings_tab_appearance">Apariencia</string>
+	<string name="settings_tab_wallpaper">Fondo</string>
+	<string name="settings_tab_advanced">Avanzado</string>
 	<string name="content_description_back">Atrás</string>
 	<string name="content_description_search">Buscar</string>
 	<string name="content_description_clear_city">Borrar ciudad</string>

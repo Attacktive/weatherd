@@ -14,6 +14,10 @@
 
 	<!-- Settings screen -->
 	<string name="settings_title">Definições</string>
+	<string name="settings_tab_weather">Meteorologia</string>
+	<string name="settings_tab_appearance">Aspeto</string>
+	<string name="settings_tab_wallpaper">Papel de parede</string>
+	<string name="settings_tab_advanced">Avançado</string>
 	<string name="content_description_back">Voltar</string>
 	<string name="content_description_search">Pesquisar</string>
 	<string name="content_description_clear_city">Limpar cidade</string>

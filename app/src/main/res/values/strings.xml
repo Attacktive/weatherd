@@ -14,6 +14,10 @@
 
 	<!-- Settings screen -->
 	<string name="settings_title">Settings</string>
+	<string name="settings_tab_weather">Weather</string>
+	<string name="settings_tab_appearance">Appearance</string>
+	<string name="settings_tab_wallpaper">Wallpaper</string>
+	<string name="settings_tab_advanced">Advanced</string>
 	<string name="content_description_back">Back</string>
 	<string name="content_description_search">Search</string>
 	<string name="content_description_clear_city">Clear city</string>

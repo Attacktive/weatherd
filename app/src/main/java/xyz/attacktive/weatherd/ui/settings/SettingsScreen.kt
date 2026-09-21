@@ -7,15 +7,18 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import androidx.annotation.StringRes
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -44,12 +47,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -57,6 +62,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -106,108 +112,140 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 	val photoBuckets by viewModel.photoBuckets.collectAsStateWithLifecycle()
 	val photoThumbnails by viewModel.photoThumbnails.collectAsStateWithLifecycle()
 	val photoImportFailed by viewModel.photoImportFailed.collectAsStateWithLifecycle()
-	val scrollState = rememberScrollState()
+	var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
+	val weatherScrollState = rememberScrollState()
+	val appearanceScrollState = rememberScrollState()
+	val wallpaperScrollState = rememberScrollState()
+	val advancedScrollState = rememberScrollState()
 
 	Scaffold(
 		topBar = {
-			TopAppBar(
-				title = { Text(stringResource(R.string.settings_title)) },
-				navigationIcon = {
-					IconButton(onClick = onNavigateBack) {
-						Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.content_description_back))
+			Column {
+				TopAppBar(
+					title = { Text(stringResource(R.string.settings_title)) },
+					navigationIcon = {
+						IconButton(onClick = onNavigateBack) {
+							Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.content_description_back))
+						}
+					}
+				)
+
+				PrimaryScrollableTabRow(selectedTabIndex = selectedTabIndex) {
+					SettingsTab.entries.forEachIndexed { index, tab ->
+						Tab(
+							selected = selectedTabIndex == index,
+							onClick = { selectedTabIndex = index },
+							text = { Text(stringResource(tab.label)) }
+						)
 					}
 				}
-			)
+			}
 		}
 	) { padding ->
-		Column(
+		Box(
 			modifier = Modifier
 				.fillMaxSize()
 				.padding(padding)
 		) {
-			Column(
-				modifier = Modifier
-					.weight(1f)
-					.fillMaxWidth()
-					.verticalScroll(scrollState)
-					.padding(16.dp)
-			) {
-				WeatherProviderSection(settings = settings, onSave = viewModel::save)
+			when (SettingsTab.entries[selectedTabIndex]) {
+				SettingsTab.WEATHER -> SettingsTabContent(weatherScrollState) {
+					WeatherProviderSection(settings = settings, onSave = viewModel::save)
 
-				Spacer(modifier = Modifier.height(24.dp))
-
-				RefreshIntervalSection(settings = settings, onSave = viewModel::save)
-
-				Spacer(modifier = Modifier.height(24.dp))
-
-				FrameRateSection(settings = settings, onSave = viewModel::save)
-
-				Spacer(modifier = Modifier.height(24.dp))
-
-				WallpaperMotionSection(settings = settings, onSave = viewModel::save)
-
-				Spacer(modifier = Modifier.height(24.dp))
-
-				IntensitySection(settings = settings, onSave = viewModel::save)
-
-				Spacer(modifier = Modifier.height(24.dp))
-
-				CloudAppearanceSection(settings = settings, onSave = viewModel::save)
-
-				Spacer(modifier = Modifier.height(24.dp))
-
-				SunEffectsSection(settings = settings, onSave = viewModel::save)
-
-				Spacer(modifier = Modifier.height(24.dp))
-
-				BackdropSection(settings = settings, onSave = viewModel::save)
-
-				AnimatedVisibility(visible = settings.backdropScene == BackdropScene.PHOTO) {
-					Column {
-						Spacer(modifier = Modifier.height(24.dp))
-
-						PhotoBackgroundSection(
-							buckets = photoBuckets,
-							thumbnails = photoThumbnails,
-							importFailed = photoImportFailed,
-							onChoose = viewModel::importPhoto,
-							onClear = viewModel::clearPhoto,
-							onDismissFailure = viewModel::dismissImportFailure
-						)
-					}
-				}
-
-				Spacer(modifier = Modifier.height(24.dp))
-
-				LabelsSection(settings = settings, onSave = viewModel::save)
-
-				Spacer(modifier = Modifier.height(24.dp))
-
-				LocationSection(
-					settings = settings,
-					citySearch = citySearch,
-					onToggleDeviceLocation = { viewModel.save(settings.copy(useDeviceLocation = it)) },
-					onQueryChange = viewModel::onCityQueryChange,
-					onSearch = viewModel::searchCityImmediately,
-					onClearQuery = viewModel::clearCityQuery,
-					onSelectPlace = viewModel::selectPlace,
-					onClearManualLocation = viewModel::clearManualLocation
-				)
-
-				Spacer(modifier = Modifier.height(24.dp))
-
-				SceneSimulatorSection(settings = settings, onSave = viewModel::save)
-
-				if (settings.weatherProvider == WeatherProviderType.MET_NORWAY) {
 					Spacer(modifier = Modifier.height(24.dp))
 
-					MetNoAttributionSection()
+					RefreshIntervalSection(settings = settings, onSave = viewModel::save)
+
+					Spacer(modifier = Modifier.height(24.dp))
+
+					LocationSection(
+						settings = settings,
+						citySearch = citySearch,
+						onToggleDeviceLocation = { viewModel.save(settings.copy(useDeviceLocation = it)) },
+						onQueryChange = viewModel::onCityQueryChange,
+						onSearch = viewModel::searchCityImmediately,
+						onClearQuery = viewModel::clearCityQuery,
+						onSelectPlace = viewModel::selectPlace,
+						onClearManualLocation = viewModel::clearManualLocation
+					)
+				}
+
+				SettingsTab.APPEARANCE -> SettingsTabContent(appearanceScrollState) {
+					IntensitySection(settings = settings, onSave = viewModel::save)
+
+					Spacer(modifier = Modifier.height(24.dp))
+
+					CloudAppearanceSection(settings = settings, onSave = viewModel::save)
+
+					Spacer(modifier = Modifier.height(24.dp))
+
+					SunEffectsSection(settings = settings, onSave = viewModel::save)
+
+					Spacer(modifier = Modifier.height(24.dp))
+
+					BackdropSection(settings = settings, onSave = viewModel::save)
+
+					AnimatedVisibility(visible = settings.backdropScene == BackdropScene.PHOTO) {
+						Column {
+							Spacer(modifier = Modifier.height(24.dp))
+
+							PhotoBackgroundSection(
+								buckets = photoBuckets,
+								thumbnails = photoThumbnails,
+								importFailed = photoImportFailed,
+								onChoose = viewModel::importPhoto,
+								onClear = viewModel::clearPhoto,
+								onDismissFailure = viewModel::dismissImportFailure
+							)
+						}
+					}
+
+					Spacer(modifier = Modifier.height(24.dp))
+
+					LabelsSection(settings = settings, onSave = viewModel::save)
+				}
+
+				SettingsTab.WALLPAPER -> SettingsTabContent(wallpaperScrollState) {
+					FrameRateSection(settings = settings, onSave = viewModel::save)
+
+					Spacer(modifier = Modifier.height(24.dp))
+
+					WallpaperMotionSection(settings = settings, onSave = viewModel::save)
+				}
+
+				SettingsTab.ADVANCED -> SettingsTabContent(advancedScrollState) {
+					SceneSimulatorSection(settings = settings, onSave = viewModel::save)
+
+					if (settings.weatherProvider == WeatherProviderType.MET_NORWAY) {
+						Spacer(modifier = Modifier.height(24.dp))
+
+						MetNoAttributionSection()
+					}
+
+					Spacer(modifier = Modifier.height(24.dp))
+
+					VersionFooter()
 				}
 			}
-
-			VersionFooter()
 		}
 	}
+}
+
+private enum class SettingsTab(@StringRes val label: Int) {
+	WEATHER(R.string.settings_tab_weather),
+	APPEARANCE(R.string.settings_tab_appearance),
+	WALLPAPER(R.string.settings_tab_wallpaper),
+	ADVANCED(R.string.settings_tab_advanced)
+}
+
+@Composable
+private fun SettingsTabContent(scrollState: ScrollState, content: @Composable ColumnScope.() -> Unit) {
+	Column(
+		modifier = Modifier
+			.fillMaxSize()
+			.verticalScroll(scrollState)
+			.padding(16.dp),
+		content = content
+	)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

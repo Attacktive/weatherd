@@ -14,6 +14,10 @@
 
 	<!-- Settings screen -->
 	<string name="settings_title">설정</string>
+	<string name="settings_tab_weather">날씨</string>
+	<string name="settings_tab_appearance">모양</string>
+	<string name="settings_tab_wallpaper">배경화면</string>
+	<string name="settings_tab_advanced">고급</string>
 	<string name="content_description_back">뒤로</string>
 	<string name="content_description_search">검색</string>
 	<string name="content_description_clear_city">도시 지우기</string>

@@ -14,6 +14,10 @@
 
 	<!-- Settings screen -->
 	<string name="settings_title">设置</string>
+	<string name="settings_tab_weather">天气</string>
+	<string name="settings_tab_appearance">外观</string>
+	<string name="settings_tab_wallpaper">壁纸</string>
+	<string name="settings_tab_advanced">高级</string>
 	<string name="content_description_back">返回</string>
 	<string name="content_description_search">搜索</string>
 	<string name="content_description_clear_city">清除城市</string>

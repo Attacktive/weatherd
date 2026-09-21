@@ -14,6 +14,10 @@
 
 	<!-- Settings screen -->
 	<string name="settings_title">Ayarlar</string>
+	<string name="settings_tab_weather">Hava durumu</string>
+	<string name="settings_tab_appearance">Görünüm</string>
+	<string name="settings_tab_wallpaper">Duvar kağıdı</string>
+	<string name="settings_tab_advanced">Gelişmiş</string>
 	<string name="content_description_back">Geri</string>
 	<string name="content_description_search">Ara</string>
 	<string name="content_description_clear_city">Şehri temizle</string>
