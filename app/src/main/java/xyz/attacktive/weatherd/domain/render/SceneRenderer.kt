@@ -105,6 +105,7 @@ class SceneRenderer(resources: Resources) {
 	private val farCloudDeck by farCloudDeckDelegate
 	private val nearCloudDeck by nearCloudDeckDelegate
 	private val farCumulusDeck by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_far) }
+	private val cloudDrawGeometry = CloudDrawGeometry()
 
 	/*
 	 * The clear-sky decks, ordered from fewest masses to most, matching CUMULUS_COVERAGE in scripts/generate-cloud-textures.py.
@@ -1324,8 +1325,8 @@ class SceneRenderer(resources: Resources) {
 		val backAlpha = (255f * 0.47f * params.cloudScale).roundToInt()
 		val frontAlpha = (255f * 0.68f * params.cloudScale * swell).roundToInt()
 
-		farCloudDeck.draw(canvas, width, height * 0.72f + bobAmplitude, backOffset, darken(color, 0.94f), backAlpha, bob - bobAmplitude)
-		nearCloudDeck.draw(canvas, width, height * 0.66f + bobAmplitude * 1.5f, frontOffset, color, frontAlpha, -bob * 1.5f - bobAmplitude * 1.5f)
+		farCloudDeck.draw(canvas, cloudDrawGeometry.configure(width, height * 0.72f + bobAmplitude, backOffset, bob - bobAmplitude), darken(color, 0.94f), backAlpha)
+		nearCloudDeck.draw(canvas, cloudDrawGeometry.configure(width, height * 0.66f + bobAmplitude * 1.5f, frontOffset, -bob * 1.5f - bobAmplitude * 1.5f), color, frontAlpha)
 	}
 
 	/**
@@ -1569,34 +1570,16 @@ class SceneRenderer(resources: Resources) {
 			height * 0.30f
 		}
 
-		if (castShadow == null) {
-			farCumulusDeck.draw(
-				canvas,
-				width,
-				deckHeight,
-				cumulusOffset(width, params, timeSeconds, 0.004f + params.windFactor * 0.008f, 1f, 0.34f, CUMULUS_FAR_VIEWPORTS),
-				tint,
-				alpha,
-				cloudTop + drop,
-				CUMULUS_FAR_VIEWPORTS,
-				cloudSizeScale(params)
-			)
-		} else {
-			farCumulusDeck.drawShadowed(
-				canvas,
-				CloudLayer.CumulusShadowDraw(
-					width = width,
-					height = deckHeight,
-					offset = cumulusOffset(width, params, timeSeconds, 0.004f + params.windFactor * 0.008f, 1f, 0.34f, CUMULUS_FAR_VIEWPORTS),
-					tint = tint,
-					alpha = alpha,
-					top = cloudTop + drop,
-					viewports = CUMULUS_FAR_VIEWPORTS,
-					shadow = castShadow,
-					sizeScale = cloudSizeScale(params)
-				)
-			)
-		}
+		val geometry = cloudDrawGeometry.configure(
+			width,
+			deckHeight,
+			cumulusOffset(width, params, timeSeconds, 0.004f + params.windFactor * 0.008f, 1f, 0.34f, CUMULUS_FAR_VIEWPORTS),
+			cloudTop + drop,
+			CUMULUS_FAR_VIEWPORTS,
+			cloudSizeScale(params)
+		)
+
+		farCumulusDeck.draw(canvas, geometry, tint, alpha, castShadow)
 	}
 
 	/**
@@ -1605,10 +1588,11 @@ class SceneRenderer(resources: Resources) {
 	 */
 	private fun drawNearCumulus(canvas: Canvas, width: Float, params: SceneParams, cloudTop: Float, state: NearCumulusState) {
 		val tint = cumulusTint(params.dayPhase)
-		cumulusSteps[state.lower].value.draw(canvas, width, state.deckHeight, state.offset, tint, state.alpha, cloudTop, sizeScale = cloudSizeScale(params))
+		val geometry = cloudDrawGeometry.configure(width, state.deckHeight, state.offset, cloudTop, sizeScale = cloudSizeScale(params))
+		cumulusSteps[state.lower].value.draw(canvas, geometry, tint, state.alpha)
 
 		if (state.upper < cumulusSteps.size && state.growth > 0) {
-			cumulusSteps[state.upper].value.draw(canvas, width, state.deckHeight, state.offset, tint, state.growth, cloudTop, sizeScale = cloudSizeScale(params))
+			cumulusSteps[state.upper].value.draw(canvas, geometry, tint, state.growth)
 		}
 	}
 

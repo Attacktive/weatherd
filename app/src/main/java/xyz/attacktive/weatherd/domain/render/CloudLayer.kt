@@ -70,7 +70,6 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 	}
 
 	private val spriteDest = RectF()
-	private val geometry = CloudGeometry()
 	private val opacitySampler = OpacitySampler()
 
 	private var previousMultiply = Color.WHITE
@@ -84,51 +83,29 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 	private var cachedOpacityStyleSizeScale = Float.NaN
 	private var cachedOpacityStyle: CumulusStyle? = null
 
-	fun draw(canvas: Canvas, width: Float, height: Float, offset: Float, tint: Int, alpha: Int, top: Float = 0f, viewports: Float = CLOUD_TEXTURE_VIEWPORTS, sizeScale: Float = 1f) {
-		if (width <= 0f || height <= 0f || alpha <= 0) {
+	fun draw(canvas: Canvas, geometry: CloudDrawGeometry, tint: Int, alpha: Int, shadow: CumulusShadow? = null) {
+		if (geometry.width <= 0f || geometry.height <= 0f || alpha <= 0) {
 			return
 		}
 
-		geometry.width = width
-		geometry.height = height
-		geometry.offset = offset
-		geometry.top = top
-		geometry.viewports = viewports
-		geometry.sizeScale = sizeScale
-
 		val kind = cumulusKind
 		if (kind != null) {
-			drawCumulus(canvas, geometry, tint, alpha, kind, null)
+			drawCumulus(canvas, geometry, tint, alpha, kind, shadow)
 			return
 		}
 
 		val source = checkNotNull(bitmap)
 		val shader = checkNotNull(cloudShader)
 
-		val period = width * viewports
-		val wrappedOffset = positiveModulo(offset, period)
-		transform.setScale(period / source.width, height / source.height)
-		transform.postTranslate(wrappedOffset, top)
+		val period = geometry.width * geometry.viewports
+		val wrappedOffset = positiveModulo(geometry.offset, period)
+		transform.setScale(period / source.width, geometry.height / source.height)
+		transform.postTranslate(wrappedOffset, geometry.top)
 		shader.setLocalMatrix(transform)
 		paint.shader = shader
 		updateColorFilter(tint)
 		paint.alpha = alpha.coerceIn(0, 255)
-		canvas.drawRect(0f, top, width, top + height, paint)
-	}
-
-	fun drawShadowed(canvas: Canvas, request: CumulusShadowDraw) {
-		if (request.width <= 0f || request.height <= 0f || request.alpha <= 0) {
-			return
-		}
-
-		val kind = cumulusKind ?: return
-		geometry.width = request.width
-		geometry.height = request.height
-		geometry.offset = request.offset
-		geometry.top = request.top
-		geometry.viewports = request.viewports
-		geometry.sizeScale = request.sizeScale
-		drawCumulus(canvas, geometry, request.tint, request.alpha, kind, request.shadow)
+		canvas.drawRect(0f, geometry.top, geometry.width, geometry.top + geometry.height, paint)
 	}
 
 	/**
@@ -271,7 +248,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		}
 	}
 
-	private fun drawCumulus(canvas: Canvas, geometry: CloudGeometry, tint: Int, alpha: Int, kind: CumulusKind, shadow: CumulusShadow?) {
+	private fun drawCumulus(canvas: Canvas, geometry: CloudDrawGeometry, tint: Int, alpha: Int, kind: CumulusKind, shadow: CumulusShadow?) {
 		val style = cumulusStyle(kind, tint, geometry.width, geometry.height, geometry.sizeScale)
 		paint.shader = null
 
@@ -522,8 +499,6 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		NEAR
 	}
 
-	data class CumulusShadowDraw(val width: Float, val height: Float, val offset: Float, val tint: Int, val alpha: Int, val top: Float, val viewports: Float, val shadow: CumulusShadow, val sizeScale: Float = 1f)
-
 	class CumulusShadow(private val lower: OpacitySampler?, private val upper: OpacitySampler?, private val sourceOffsetX: Float, private val sourceOffsetY: Float, val strength: Float) {
 		fun opacityAt(x: Float, y: Float): Float {
 			val sourceX = x + sourceOffsetX
@@ -703,13 +678,22 @@ private fun wrapFraction(value: Float): Float {
 	}
 }
 
-private class CloudGeometry {
+internal class CloudDrawGeometry {
 	var width = 0f
 	var height = 0f
 	var offset = 0f
 	var top = 0f
 	var viewports = CLOUD_TEXTURE_VIEWPORTS
 	var sizeScale = 1f
+
+	fun configure(width: Float, height: Float, offset: Float, top: Float = 0f, viewports: Float = CLOUD_TEXTURE_VIEWPORTS, sizeScale: Float = 1f) = apply {
+		this.width = width
+		this.height = height
+		this.offset = offset
+		this.top = top
+		this.viewports = viewports
+		this.sizeScale = sizeScale
+	}
 }
 
 private data class PlacementTuning(val xJitter: Float, val yJitter: Float, val scaleJitter: Float, val alphaJitter: Float, val minY: Float, val maxY: Float)

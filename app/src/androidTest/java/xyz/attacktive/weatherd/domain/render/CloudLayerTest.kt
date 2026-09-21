@@ -266,24 +266,8 @@ class CloudLayerTest {
 		sizeScale: Float = 1f
 	): Bitmap {
 		val bitmap = createBitmap(540, 320)
-		if (shadow == null) {
-			layer.draw(Canvas(bitmap), bitmap.width.toFloat(), bitmap.height.toFloat(), offset, tint, alpha, 0f, viewports, sizeScale)
-		} else {
-			layer.drawShadowed(
-				Canvas(bitmap),
-				CloudLayer.CumulusShadowDraw(
-					width = bitmap.width.toFloat(),
-					height = bitmap.height.toFloat(),
-					offset = offset,
-					tint = tint,
-					alpha = alpha,
-					top = 0f,
-					viewports = viewports,
-					shadow = shadow,
-					sizeScale = sizeScale
-				)
-			)
-		}
+		val geometry = CloudDrawGeometry().configure(bitmap.width.toFloat(), bitmap.height.toFloat(), offset, viewports = viewports, sizeScale = sizeScale)
+		layer.draw(Canvas(bitmap), geometry, tint, alpha, shadow)
 
 		return bitmap
 	}
