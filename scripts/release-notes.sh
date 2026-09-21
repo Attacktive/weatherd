@@ -21,7 +21,11 @@ EMPTY_NOTES='* Maintenance and improvements'
 
 # Strip GitHub's auto-generated boilerplate down to a flat bullet list.
 clean_notes() {
-	sed '/^## What'\''s Changed$/d' | sed 's/ by @[^ ]* in [^ ]*//g' | sed '/^\*\*Full Changelog\*\*:/d' | sed '/^[[:space:]]*$/d'
+	awk '
+		/^## New Contributors$/ { skip = 1; next }
+		/^## / { skip = 0 }
+		!skip
+	' | sed '/^## What'\''s Changed$/d' | sed 's/ by @[^ ]* in [^ ]*//g' | sed '/^\*\*Full Changelog\*\*:/d' | sed '/^[[:space:]]*$/d'
 }
 
 # Drop bullets whose message is a non-user-facing commit type, e.g. "* ci: ...", "- chore!: ...", "* style(x): ...".
