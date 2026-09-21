@@ -26,7 +26,6 @@ import androidx.core.graphics.createBitmap
 import androidx.core.graphics.withClip
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.BackdropScene
-import xyz.attacktive.weatherd.domain.model.CLOUD_COUNT_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
@@ -2956,9 +2955,6 @@ private fun showsCelestialBody(params: SceneParams) = when {
 	params.dayPhase != DayPhase.NIGHT -> true
 	else -> params.fogDensity <= 0f && effectiveCloudiness(params) <= 0.75f
 }
-
-/** User-adjusted cloud coverage while preserving the provider's raw observation in [SceneParams.cloudiness]. */
-internal fun effectiveCloudiness(params: SceneParams) = (params.cloudiness * params.cloudCountScale.coerceIn(CLOUD_COUNT_SCALE_RANGE.start, CLOUD_COUNT_SCALE_RANGE.endInclusive)).coerceIn(0f, 1f)
 
 /** Fair-weather cloud geometry scale, clamped defensively for direct [SceneParams] construction in tests and previews. */
 private fun cloudSizeScale(params: SceneParams) = params.cloudSizeScale.coerceIn(CLOUD_SIZE_SCALE_RANGE.start, CLOUD_SIZE_SCALE_RANGE.endInclusive)

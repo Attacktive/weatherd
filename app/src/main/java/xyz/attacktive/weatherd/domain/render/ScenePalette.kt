@@ -137,7 +137,7 @@ private fun snowGray(dayPhase: DayPhase) = when (dayPhase) {
 private fun overcastAmount(params: SceneParams): Float = when {
 	params.fogDensity > 0f -> 0.85f
 	params.precipitation != null -> precipitationGray(params.precipitation)
-	else -> overcastCeilingStrength(params.cloudiness)
+	else -> overcastCeilingStrength(effectiveCloudiness(params))
 }
 
 /** Shared cloud-cover ramp for the gray sky blend and cached overcast ceiling, avoiding a hard visual jump at the threshold. */
@@ -166,7 +166,7 @@ private fun darkenAmount(params: SceneParams): Float = when {
 			else -> 0.07f
 		}
 	}
-	params.precipitation == null && params.cloudiness > 0.75f -> 0.07f
+	params.precipitation == null && effectiveCloudiness(params) > 0.75f -> 0.07f
 	else -> 0f
 }
 

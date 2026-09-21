@@ -113,6 +113,17 @@ class ScenePaletteTest {
 	}
 
 	@Test
+	fun `cloud count drives the same dry palette as equivalent observed coverage`() {
+		val clear = skyGradientFor(clearParams(DayPhase.DAY))
+		val scaled = clearParams(DayPhase.DAY).copy(cloudiness = 0.45f, cloudCountScale = 2f)
+		val equivalent = clearParams(DayPhase.DAY).copy(cloudiness = 0.9f)
+
+		assertEquals(0.45f, scaled.cloudiness, 0.0001f)
+		assertNotEquals(clear, skyGradientFor(scaled))
+		assertEquals(skyGradientFor(equivalent), skyGradientFor(scaled))
+	}
+
+	@Test
 	fun `the overcast ceiling fades in instead of jumping at the threshold`() {
 		assertEquals(0f, overcastCeilingStrength(0.55f), 0.0001f)
 		assertEquals(1f / 3f, overcastCeilingStrength(0.65f), 0.0001f)

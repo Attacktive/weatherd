@@ -64,6 +64,9 @@ data class OverlayLabels(val weather: String?, val location: String?)
  */
 fun backdropSignature(params: SceneParams) = params.copy(moonPhase = 0f, celestialProgress = 0f, overlayLabels = null, cloudSizeScale = 1f, sunVisible = true, moonVisible = true, sunSizeScale = 1f, sunColorPreset = SunColorPreset.NATURAL, lensFlareEnabled = true)
 
+/** User-adjusted rendered cloud coverage while preserving the provider's raw observation in [SceneParams.cloudiness]. */
+internal fun effectiveCloudiness(params: SceneParams) = (params.cloudiness * params.cloudCountScale.coerceIn(CLOUD_COUNT_SCALE_RANGE.start, CLOUD_COUNT_SCALE_RANGE.endInclusive)).coerceIn(0f, 1f)
+
 /** Derives render parameters from a weather snapshot for the given moment. */
 fun sceneParamsFor(
 	snapshot: WeatherSnapshot,
