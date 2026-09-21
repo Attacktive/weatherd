@@ -9,7 +9,7 @@
 # Only the resting frame is drawn: wind is zero, so drift, bob and swell all sit at their `timeSeconds = 0` values.
 # Whenever the deck geometry, the alpha ramp or the cumulus tint changes in Kotlin, mirror it here, and treat any disagreement with the device as the Kotlin being right.
 
-import sys
+import argparse
 from pathlib import Path
 
 import numpy as np
@@ -18,6 +18,12 @@ from PIL import Image
 DRAWABLE = Path(__file__).resolve().parents[1] / 'app/src/main/res/drawable-nodpi'
 WIDTH = 1080
 HEIGHT = 2340
+
+# Mirrors CLOUD_SIZE_SCALE_RANGE and CLOUD_COUNT_SCALE_RANGE.
+CLOUD_SIZE_SCALE_MIN = 0.5
+CLOUD_SIZE_SCALE_MAX = 2.0
+CLOUD_COUNT_SCALE_MIN = 0.5
+CLOUD_COUNT_SCALE_MAX = 2.0
 
 # Mirrors SceneRenderer: CLOUD_TEXTURE_VIEWPORTS, CUMULUS_FAR_VIEWPORTS, CLOUD_DECK_THRESHOLD, SCATTERED_CLOUD_FLOOR.
 NEAR_VIEWPORTS = 4.0
@@ -50,6 +56,11 @@ FAR_TEXTURE = 'cloud_cumulus_far'
 
 def lerp(a, b, fraction):
 	return a + (b - a) * float(np.clip(fraction, 0, 1))
+
+
+def effective_cloudiness(cloudiness, cloud_count_scale):
+	clamped_scale = float(np.clip(cloud_count_scale, CLOUD_COUNT_SCALE_MIN, CLOUD_COUNT_SCALE_MAX))
+	return float(np.clip(cloudiness * clamped_scale, 0, 1))
 
 
 def sky(cloudiness):
@@ -87,10 +98,12 @@ def composite(destination, name, deck_height, offset, top, multiply, alpha, view
 	destination[rows] = rgb[patch_start:patch_end] * opacity[patch_start:patch_end] + destination[rows] * (1 - opacity[patch_start:patch_end])
 
 
-def clear_sky(cloudiness, cloud_scale=1.0):
+def clear_sky(cloudiness, cloud_scale=1.0, cloud_size_scale=1.0, cloud_count_scale=1.0):
 	"""Mirrors drawScatteredClouds at timeSeconds = 0 with no wind."""
 	canvas, top, _ = sky(cloudiness)
-	coverage = float(np.clip((cloudiness - SCATTERED_FLOOR) / (DECK_THRESHOLD - SCATTERED_FLOOR), 0, 1))
+	effective = effective_cloudiness(cloudiness, cloud_count_scale)
+	coverage = float(np.clip((effective - SCATTERED_FLOOR) / (DECK_THRESHOLD - SCATTERED_FLOOR), 0, 1))
+	size_scale = float(np.clip(cloud_size_scale, CLOUD_SIZE_SCALE_MIN, CLOUD_SIZE_SCALE_MAX))
 	step = coverage * (len(COVERAGE_STEPS) - 1)
 	lower = int(np.floor(step))
 	blend = step - lower
@@ -105,11 +118,13 @@ def clear_sky(cloudiness, cloud_scale=1.0):
 	near_alpha = round(248 * cloud_scale)
 
 	# Mirrors CloudLayer's depth correction without changing the repeat-span contract.
-	far_draw_top = far_top + far_height * FAR_DROP
-	far_draw_height = far_height * FAR_HEIGHT_SCALE
+	far_base_draw_height = far_height * FAR_HEIGHT_SCALE
+	far_draw_height = far_base_draw_height * size_scale
+	far_draw_top = far_top + far_height * FAR_DROP - (far_draw_height - far_base_draw_height) * 0.5
 	far_alpha = max(round(((70 + 90 * coverage) * cloud_scale - FAR_ALPHA_FLOOR) * FAR_ALPHA_SCALE), 0)
-	near_draw_top = cloud_top - near_height * NEAR_RISE
-	near_draw_height = near_height * NEAR_HEIGHT_SCALE
+	near_base_draw_height = near_height * NEAR_HEIGHT_SCALE
+	near_draw_height = near_base_draw_height * size_scale
+	near_draw_top = cloud_top - near_height * NEAR_RISE - (near_draw_height - near_base_draw_height) * 0.5
 
 	# The far deck stays faint and low, especially in mostly-clear weather, so it reads as atmosphere rather than another foreground sheet.
 	composite(canvas, FAR_TEXTURE, far_draw_height, -WIDTH * 0.34, far_draw_top, far_color, far_alpha, FAR_VIEWPORTS)
@@ -121,18 +136,26 @@ def clear_sky(cloudiness, cloud_scale=1.0):
 		composite(canvas, COVERAGE_STEPS[index], near_draw_height, -WIDTH * 0.78, near_draw_top, near_color, round(near_alpha * weight), NEAR_VIEWPORTS)
 
 	luma = 0.2126 * canvas[:, :, 0] + 0.7152 * canvas[:, :, 1] + 0.0722 * canvas[:, :, 2]
-	print(f'cloudiness={cloudiness:.2f} coverage={coverage:.2f} step={COVERAGE_STEPS[lower]}+{blend:.2f}', end=' ')
+	print(f'cloudiness={cloudiness:.2f} effective={effective:.2f} coverage={coverage:.2f} size={size_scale:.2f} count={cloud_count_scale:.2f} step={COVERAGE_STEPS[lower]}+{blend:.2f}', end=' ')
 	print(f'luma p5={np.percentile(luma, 5):5.1f} p99={np.percentile(luma, 99):5.1f} above200={(luma > 200).mean() * 100:5.2f}%')
 	return canvas
 
 
 def main():
-	out = Path(sys.argv[1]) if len(sys.argv) > 1 else Path('clear-sky-preview.png')
-	strip = np.concatenate([clear_sky(cloudiness) for cloudiness in (0.15, 0.3, 0.45, 0.6, 0.75)], axis=1)
+	parser = argparse.ArgumentParser(description='Preview Weatherd clear-sky cloud rendering.')
+	parser.add_argument('out', nargs='?', type=Path, default=Path('clear-sky-preview.png'))
+	parser.add_argument('--cloud-size', type=float, default=1.0, help='Cloud body size scale (0.5–2.0).')
+	parser.add_argument('--cloud-count', type=float, default=1.0, help='Rendered cloud coverage scale (0.5–2.0).')
+	args = parser.parse_args()
+
+	strip = np.concatenate([
+		clear_sky(cloudiness, cloud_size_scale=args.cloud_size, cloud_count_scale=args.cloud_count)
+		for cloudiness in (0.15, 0.3, 0.45, 0.6, 0.75)
+	], axis=1)
 	image = Image.fromarray(np.clip(strip, 0, 255).astype(np.uint8))
 	image = image.resize((image.width // 5, image.height // 5), Image.LANCZOS)
-	image.save(out)
-	print(f'{out}: {image.width}x{image.height}')
+	image.save(args.out)
+	print(f'{args.out}: {image.width}x{image.height}')
 
 
 if __name__ == '__main__':
