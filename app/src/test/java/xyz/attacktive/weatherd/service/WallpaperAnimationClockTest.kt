@@ -24,6 +24,11 @@ class WallpaperAnimationClockTest {
 	}
 
 	@Test
+	fun `negative monotonic timestamps wrap into a non-negative animation phase`() {
+		assertEquals(21_599f, wallpaperAnimationTimeSeconds(-1_000_000_000L), 0.0001f)
+	}
+
+	@Test
 	fun `animation clock keeps sub-second precision after long uptime`() {
 		val wrapNanos = 21_600L * 1_000_000_000L
 		val frameTimeNanos = wrapNanos * 10_000L + 1_250_000_000L

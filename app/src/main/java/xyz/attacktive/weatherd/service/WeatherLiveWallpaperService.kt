@@ -258,7 +258,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 private const val CLOCK_WRAP_NANOS = 21_600L * 1_000_000_000L
 
 internal fun wallpaperAnimationTimeSeconds(frameTimeNanos: Long): Float {
-	val wrappedNanos = frameTimeNanos % CLOCK_WRAP_NANOS
+	val wrappedNanos = Math.floorMod(frameTimeNanos, CLOCK_WRAP_NANOS)
 
 	return wrappedNanos / 1_000_000_000f
 }
