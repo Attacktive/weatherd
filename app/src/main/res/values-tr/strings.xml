@@ -66,6 +66,13 @@
 	<string name="section_precipitation_intensity">Yağış şiddeti</string>
 	<string name="section_wind_intensity">Rüzgar şiddeti</string>
 	<string name="section_cloud_opacity">Bulut opaklığı</string>
+	<string name="section_cloud_size">Bulut boyutu · %1$d%%</string>
+	<string name="cloud_size_small">Daha küçük</string>
+	<string name="cloud_size_large">Daha büyük</string>
+	<string name="section_cloud_count">Bulut miktarı · %1$d%%</string>
+	<string name="cloud_count_fewer">Daha az</string>
+	<string name="cloud_count_more">Daha fazla</string>
+	<string name="hint_cloud_composition">Boyut, açık havadaki tek tek bulutları değiştirir. Miktar, gökyüzünün ne kadarının bulutlarla kaplandığını değiştirir; opaklık ayrı ayarlanır.</string>
 	<string name="intensity_subtle">Hafif</string>
 	<string name="intensity_intense">Şiddetli</string>
 	<string name="hint_intensity">Gözlenen hava durumuna göre yağış şiddetini, rüzgâr gücünü ve bulutların görünürlüğünü ayarlar.</string>

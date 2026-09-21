@@ -66,6 +66,13 @@
 	<string name="section_precipitation_intensity">Intensità delle precipitazioni</string>
 	<string name="section_wind_intensity">Intensità del vento</string>
 	<string name="section_cloud_opacity">Opacità delle nuvole</string>
+	<string name="section_cloud_size">Dimensione delle nuvole · %1$d%%</string>
+	<string name="cloud_size_small">Più piccole</string>
+	<string name="cloud_size_large">Più grandi</string>
+	<string name="section_cloud_count">Quantità di nuvole · %1$d%%</string>
+	<string name="cloud_count_fewer">Meno</string>
+	<string name="cloud_count_more">Più</string>
+	<string name="hint_cloud_composition">La dimensione modifica le singole nuvole di bel tempo. La quantità cambia quanto cielo è coperto dalle nuvole; l’opacità resta separata.</string>
 	<string name="intensity_subtle">Lieve</string>
 	<string name="intensity_intense">Intenso</string>
 	<string name="hint_intensity">Regola l\'intensità delle precipitazioni, la forza del vento e la visibilità delle nuvole rispetto al meteo osservato.</string>

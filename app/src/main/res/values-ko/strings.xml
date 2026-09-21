@@ -66,6 +66,13 @@
 	<string name="section_precipitation_intensity">강수 강도</string>
 	<string name="section_wind_intensity">바람 세기</string>
 	<string name="section_cloud_opacity">구름 불투명도</string>
+	<string name="section_cloud_size">구름 크기 · %1$d%%</string>
+	<string name="cloud_size_small">작게</string>
+	<string name="cloud_size_large">크게</string>
+	<string name="section_cloud_count">구름 양 · %1$d%%</string>
+	<string name="cloud_count_fewer">적게</string>
+	<string name="cloud_count_more">많게</string>
+	<string name="hint_cloud_composition">크기는 맑은 날의 개별 구름 크기를 변경합니다. 구름 양은 하늘을 덮는 정도를 변경하며 불투명도와는 별개입니다.</string>
 	<string name="intensity_subtle">은은하게</string>
 	<string name="intensity_intense">강렬하게</string>
 	<string name="hint_intensity">관측된 날씨를 기준으로 강수 강도와 바람의 세기, 구름이 보이는 정도를 조절합니다.</string>

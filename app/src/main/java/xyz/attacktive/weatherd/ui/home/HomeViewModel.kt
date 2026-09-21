@@ -47,6 +47,16 @@ class HomeViewModel @Inject constructor(
 		.map { it.cloudIntensityScale }
 		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().cloudIntensityScale)
 
+	/** The user's fair-weather cloud body scale, so debug mode matches the live wallpaper. */
+	val cloudSizeScale = settingsRepository.settings
+		.map { it.cloudSizeScale }
+		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().cloudSizeScale)
+
+	/** The user's cloud coverage multiplier, so debug mode matches the live wallpaper. */
+	val cloudCountScale = settingsRepository.settings
+		.map { it.cloudCountScale }
+		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().cloudCountScale)
+
 	/** Whether the sun is rendered, so debug mode matches the live wallpaper. */
 	val sunVisible = settingsRepository.settings
 		.map { it.sunVisible }

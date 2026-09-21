@@ -26,6 +26,8 @@ import androidx.core.graphics.createBitmap
 import androidx.core.graphics.withClip
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.BackdropScene
+import xyz.attacktive.weatherd.domain.model.CLOUD_COUNT_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.CLOUD_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
@@ -183,7 +185,7 @@ class SceneRenderer(resources: Resources) {
 
 		drawSky(canvas, w, h, params)
 
-		val ceilingStrength = overcastCeilingStrength(params.cloudiness)
+		val ceilingStrength = overcastCeilingStrength(effectiveCloudiness(params))
 		if (ceilingStrength > 0f) {
 			drawOvercastCeiling(canvas, w, h, params, ceilingStrength)
 		}
@@ -231,11 +233,11 @@ class SceneRenderer(resources: Resources) {
 			drawBirds(canvas, w, h, timeSeconds, params.dayPhase)
 		}
 
-		if (params.precipitation == null && params.cloudiness > SCATTERED_CLOUD_FLOOR && params.cloudiness <= CLOUD_DECK_THRESHOLD) {
+		if (params.precipitation == null && effectiveCloudiness(params) > SCATTERED_CLOUD_FLOOR && effectiveCloudiness(params) <= CLOUD_DECK_THRESHOLD) {
 			drawScatteredClouds(canvas, w, h, params, timeSeconds)
 		}
 
-		if (params.cloudiness > CLOUD_DECK_THRESHOLD || params.precipitation != null) {
+		if (effectiveCloudiness(params) > CLOUD_DECK_THRESHOLD || params.precipitation != null) {
 			drawCloudDrift(canvas, w, h, params, timeSeconds)
 		}
 
@@ -1114,11 +1116,11 @@ class SceneRenderer(resources: Resources) {
 	}
 
 	private fun drawVeiledSun(canvas: Canvas, sun: SunRenderContext, radius: Float, core: Int, atmosphere: Bitmap): Boolean {
-		if (sun.params.fogDensity <= 0f && sun.params.cloudiness <= DIRECT_SUN_MAX_CLOUDINESS) {
+		if (sun.params.fogDensity <= 0f && effectiveCloudiness(sun.params) <= DIRECT_SUN_MAX_CLOUDINESS) {
 			return false
 		}
 
-		val strength = min(veiledCloudStrength(sun.params.cloudiness), veiledFogStrength(sun.params.fogDensity))
+		val strength = min(veiledCloudStrength(effectiveCloudiness(sun.params)), veiledFogStrength(sun.params.fogDensity))
 		blitGlow(canvas, atmosphere, sun.centerX, sun.centerY, radius * (SUN_VEILED_BLOOM_REACH + 0.25f * sun.pulse), sunAlpha(SUN_VEILED_BLOOM_ALPHA * strength, sun.visibility))
 		drawVeiledSunDisc(canvas, sun, radius, core)
 		return true
@@ -1141,11 +1143,11 @@ class SceneRenderer(resources: Resources) {
 	}
 
 	private fun drawVeiledSunDisc(canvas: Canvas, sun: SunRenderContext, radius: Float, core: Int) {
-		if (sun.params.fogDensity > 0f || sun.params.thunder || sun.params.cloudiness <= DIRECT_SUN_MAX_CLOUDINESS || sun.params.cloudiness > CLOUD_DECK_THRESHOLD) {
+		if (sun.params.fogDensity > 0f || sun.params.thunder || effectiveCloudiness(sun.params) <= DIRECT_SUN_MAX_CLOUDINESS || effectiveCloudiness(sun.params) > CLOUD_DECK_THRESHOLD) {
 			return
 		}
 
-		val cover = unlerp(DIRECT_SUN_MAX_CLOUDINESS, CLOUD_DECK_THRESHOLD, sun.params.cloudiness)
+		val cover = unlerp(DIRECT_SUN_MAX_CLOUDINESS, CLOUD_DECK_THRESHOLD, effectiveCloudiness(sun.params))
 		val discAlpha = sunAlpha(lerp(SUN_VEILED_DISC_MAX_ALPHA, SUN_VEILED_DISC_MIN_ALPHA, cover), sun.visibility)
 		val disc = tile("sunDisc", SUN_SPRITE_SIZE, SUN_SPRITE_SIZE) { buildSunSprite(it, core) }
 		blitSprite(canvas, disc, sun.centerX, sun.centerY, radius / SUN_DISC_MARGIN * SUN_VEILED_DISC_SCALE, discAlpha)
@@ -1157,7 +1159,7 @@ class SceneRenderer(resources: Resources) {
 		val core = sunColor(params.dayPhase, params.sunColorPreset)
 		val atmosphere = tile("sunAtmosphere", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildSunAtmosphereSprite(it, core) }
 		val halo = tile("sunHalo", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildHaloSprite(it, core) }
-		val cover = unlerp(CLOUD_DECK_THRESHOLD, 1f, params.cloudiness)
+		val cover = unlerp(CLOUD_DECK_THRESHOLD, 1f, effectiveCloudiness(params))
 		val visibility = sunVisibility(params.dayPhase, params.celestialProgress)
 		val pulse = 0.97f + 0.03f * sin(timeSeconds * 0.8f)
 		val broadAlpha = sunAlpha(lerp(SUN_OVERCAST_TRANSMISSION_MAX_ALPHA, SUN_OVERCAST_TRANSMISSION_MIN_ALPHA, cover), visibility)
@@ -1181,7 +1183,7 @@ class SceneRenderer(resources: Resources) {
 		val corona = tile("sunCorona-${sun.params.dayPhase}", SUN_CORONA_SPRITE_SIZE, SUN_CORONA_SPRITE_SIZE) { buildSunCoronaSprite(it, core, sunCoronaWarmth(sun.params.dayPhase)) }
 		val scale = sunCoronaScale(sun.params.dayPhase)
 		val alpha = sunCoronaAlpha(sun.params.dayPhase)
-		val cloudStrength = sunCoronaCloudStrength(sun.params.cloudiness)
+		val cloudStrength = sunCoronaCloudStrength(effectiveCloudiness(sun.params))
 		blitGlow(canvas, corona, sun.centerX, sun.centerY, radius * SUN_CORONA_REACH * scale, sunAlpha(SUN_CORONA_ALPHA * alpha * cloudStrength * (0.92f + 0.08f * sun.pulse), sun.visibility))
 	}
 
@@ -1392,7 +1394,7 @@ class SceneRenderer(resources: Resources) {
 	 * A far deck of smaller, hazier masses sits lower toward the horizon, and the near deck of full-size masses rides above it.
 	 */
 	private fun drawScatteredClouds(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
-		val coverage = ((params.cloudiness - SCATTERED_CLOUD_FLOOR) / (CLOUD_DECK_THRESHOLD - SCATTERED_CLOUD_FLOOR)).coerceIn(0f, 1f)
+		val coverage = ((effectiveCloudiness(params) - SCATTERED_CLOUD_FLOOR) / (CLOUD_DECK_THRESHOLD - SCATTERED_CLOUD_FLOOR)).coerceIn(0f, 1f)
 		val cloudTop = scatteredCloudTop(width, height, params)
 		val nearState = nearCumulusState(width, height, params, timeSeconds, coverage)
 		val castShadow = cumulusCastShadow(width, height, params, cloudTop, nearState)
@@ -1417,7 +1419,7 @@ class SceneRenderer(resources: Resources) {
 			return
 		}
 
-		val veilAlpha = (255f * 0.22f * (params.cloudiness / 0.55f) * params.cloudScale).roundToInt().coerceIn(0, 255)
+		val veilAlpha = (255f * 0.22f * (effectiveCloudiness(params) / 0.55f) * params.cloudScale).roundToInt().coerceIn(0, 255)
 		if (veilAlpha <= 0) {
 			return
 		}
@@ -1483,8 +1485,9 @@ class SceneRenderer(resources: Resources) {
 			return null
 		}
 
-		val lower = cumulusShadowSampler(width, cloudTop, nearState, nearState.lower, nearState.alpha)
-		val upper = cumulusShadowSampler(width, cloudTop, nearState, nearState.upper, nearState.growth)
+		val sizeScale = cloudSizeScale(params)
+		val lower = cumulusShadowSampler(width, cloudTop, nearState, nearState.lower, nearState.alpha, sizeScale)
+		val upper = cumulusShadowSampler(width, cloudTop, nearState, nearState.upper, nearState.growth, sizeScale)
 		if (lower == null && upper == null) {
 			return null
 		}
@@ -1510,7 +1513,8 @@ class SceneRenderer(resources: Resources) {
 		cloudTop: Float,
 		nearState: NearCumulusState,
 		index: Int,
-		alpha: Int
+		alpha: Int,
+		sizeScale: Float
 	): CloudLayer.OpacitySampler? {
 		if (index !in cumulusSteps.indices || alpha <= 0) {
 			return null
@@ -1522,7 +1526,8 @@ class SceneRenderer(resources: Resources) {
 			nearState.offset,
 			cloudTop,
 			CLOUD_TEXTURE_VIEWPORTS,
-			alpha
+			alpha,
+			sizeScale
 		)
 	}
 
@@ -1574,7 +1579,8 @@ class SceneRenderer(resources: Resources) {
 				tint,
 				alpha,
 				cloudTop + drop,
-				CUMULUS_FAR_VIEWPORTS
+				CUMULUS_FAR_VIEWPORTS,
+				cloudSizeScale(params)
 			)
 		} else {
 			farCumulusDeck.drawShadowed(
@@ -1587,7 +1593,8 @@ class SceneRenderer(resources: Resources) {
 					alpha = alpha,
 					top = cloudTop + drop,
 					viewports = CUMULUS_FAR_VIEWPORTS,
-					shadow = castShadow
+					shadow = castShadow,
+					sizeScale = cloudSizeScale(params)
 				)
 			)
 		}
@@ -1599,10 +1606,10 @@ class SceneRenderer(resources: Resources) {
 	 */
 	private fun drawNearCumulus(canvas: Canvas, width: Float, params: SceneParams, cloudTop: Float, state: NearCumulusState) {
 		val tint = cumulusTint(params.dayPhase)
-		cumulusSteps[state.lower].value.draw(canvas, width, state.deckHeight, state.offset, tint, state.alpha, cloudTop)
+		cumulusSteps[state.lower].value.draw(canvas, width, state.deckHeight, state.offset, tint, state.alpha, cloudTop, sizeScale = cloudSizeScale(params))
 
 		if (state.upper < cumulusSteps.size && state.growth > 0) {
-			cumulusSteps[state.upper].value.draw(canvas, width, state.deckHeight, state.offset, tint, state.growth, cloudTop)
+			cumulusSteps[state.upper].value.draw(canvas, width, state.deckHeight, state.offset, tint, state.growth, cloudTop, sizeScale = cloudSizeScale(params))
 		}
 	}
 
@@ -2406,7 +2413,7 @@ class SceneRenderer(resources: Resources) {
 			return false
 		}
 
-		val coverage = ((sun.params.cloudiness - SCATTERED_CLOUD_FLOOR) / (CLOUD_DECK_THRESHOLD - SCATTERED_CLOUD_FLOOR)).coerceIn(0f, 1f)
+		val coverage = ((effectiveCloudiness(sun.params) - SCATTERED_CLOUD_FLOOR) / (CLOUD_DECK_THRESHOLD - SCATTERED_CLOUD_FLOOR)).coerceIn(0f, 1f)
 		val cloudTop = scatteredCloudTop(sun.width, sun.height, sun.params)
 		val offset = cumulusOffset(sun.width, sun.params, sun.timeSeconds, 0.008f + sun.params.windFactor * 0.016f, 1.5f, 0.78f, CLOUD_TEXTURE_VIEWPORTS)
 		val deckHeight = if (sun.width < sun.height) sun.height * 0.46f else sun.height * 0.40f
@@ -2416,15 +2423,16 @@ class SceneRenderer(resources: Resources) {
 		val lowerAlpha = (CUMULUS_NEAR_ALPHA * sun.params.cloudScale).roundToInt().coerceIn(0, 255)
 		val upperIndex = lowerIndex + 1
 		val upperAlpha = sunCloudUpperAlpha(upperIndex, blend, sun.params.cloudScale)
-		val lowerSampler = cumulusSteps[lowerIndex].value.opacitySampler(sun.width, deckHeight, offset, cloudTop, CLOUD_TEXTURE_VIEWPORTS, lowerAlpha) ?: return false
-		val upperSampler = if (upperAlpha > 0 && upperIndex < cumulusSteps.size) cumulusSteps[upperIndex].value.opacitySampler(sun.width, deckHeight, offset, cloudTop, CLOUD_TEXTURE_VIEWPORTS, upperAlpha) else null
+		val sizeScale = cloudSizeScale(sun.params)
+		val lowerSampler = cumulusSteps[lowerIndex].value.opacitySampler(sun.width, deckHeight, offset, cloudTop, CLOUD_TEXTURE_VIEWPORTS, lowerAlpha, sizeScale) ?: return false
+		val upperSampler = if (upperAlpha > 0 && upperIndex < cumulusSteps.size) cumulusSteps[upperIndex].value.opacitySampler(sun.width, deckHeight, offset, cloudTop, CLOUD_TEXTURE_VIEWPORTS, upperAlpha, sizeScale) else null
 		val strongestOpacity = sampleSunCloudRows(sun, radius, lowerSampler, upperSampler)
 		val strongestEdge = computeSunCloudEdgeEnergy()
 		return strongestOpacity > SUN_SHAFT_MIN_OBSTRUCTION && strongestEdge >= SUN_SHAFT_EDGE_THRESHOLD
 	}
 
 	private fun canSampleSunCloudProfile(params: SceneParams) =
-		params.precipitation == null && params.cloudiness > SCATTERED_CLOUD_FLOOR && params.cloudiness <= CLOUD_DECK_THRESHOLD && params.cloudScale > 0f
+		params.precipitation == null && effectiveCloudiness(params) > SCATTERED_CLOUD_FLOOR && effectiveCloudiness(params) <= CLOUD_DECK_THRESHOLD && params.cloudScale > 0f
 
 	private fun sunCloudUpperAlpha(upperIndex: Int, blend: Float, cloudScale: Float): Int {
 		if (upperIndex >= cumulusSteps.size || blend < CUMULUS_BLEND_FLOOR) {
@@ -2963,30 +2971,36 @@ private inline fun wrapX(width: Float, cx: Float, reach: Float, draw: (Float) ->
 private fun showsCelestialBody(params: SceneParams) = when {
 	params.precipitation != null -> false
 	params.dayPhase != DayPhase.NIGHT -> true
-	else -> params.fogDensity <= 0f && params.cloudiness <= 0.75f
+	else -> params.fogDensity <= 0f && effectiveCloudiness(params) <= 0.75f
 }
+
+/** User-adjusted cloud coverage while preserving the provider's raw observation in [SceneParams.cloudiness]. */
+internal fun effectiveCloudiness(params: SceneParams) = (params.cloudiness * params.cloudCountScale.coerceIn(CLOUD_COUNT_SCALE_RANGE.start, CLOUD_COUNT_SCALE_RANGE.endInclusive)).coerceIn(0f, 1f)
+
+/** Fair-weather cloud geometry scale, clamped defensively for direct [SceneParams] construction in tests and previews. */
+private fun cloudSizeScale(params: SceneParams) = params.cloudSizeScale.coerceIn(CLOUD_SIZE_SCALE_RANGE.start, CLOUD_SIZE_SCALE_RANGE.endInclusive)
 
 /** The scattered-cloud air wash belongs to the visible sun and never appears at night. */
 internal fun showsSunVeil(params: SceneParams) = params.sunVisible && params.dayPhase != DayPhase.NIGHT
 
 /** A heavy dry deck still transmits a broad patch of daylight even when the solar limb itself is no longer visible. */
-private fun showsOvercastSunTransmission(params: SceneParams) = params.sunVisible && params.dayPhase != DayPhase.NIGHT && params.precipitation == null && params.fogDensity <= 0f && !params.thunder && params.cloudiness > CLOUD_DECK_THRESHOLD
+private fun showsOvercastSunTransmission(params: SceneParams) = params.sunVisible && params.dayPhase != DayPhase.NIGHT && params.precipitation == null && params.fogDensity <= 0f && !params.thunder && effectiveCloudiness(params) > CLOUD_DECK_THRESHOLD
 
 /** Birds fly only through fair daylight skies: no precipitation, no fog, cover below the deck threshold, and never at night. */
-private fun showsBirds(params: SceneParams) = params.precipitation == null && params.fogDensity <= 0f && params.cloudiness < 0.55f && params.dayPhase != DayPhase.NIGHT
+private fun showsBirds(params: SceneParams) = params.precipitation == null && params.fogDensity <= 0f && effectiveCloudiness(params) < 0.55f && params.dayPhase != DayPhase.NIGHT
 
 /** The chromatic halo follows direct daylight visibility and disappears with the user's sun visibility preference. */
-internal fun showsRainbow(params: SceneParams) = params.sunVisible && params.dayPhase != DayPhase.NIGHT && params.precipitation == null && params.fogDensity <= 0f && params.cloudiness <= DIRECT_SUN_MAX_CLOUDINESS
+internal fun showsRainbow(params: SceneParams) = params.sunVisible && params.dayPhase != DayPhase.NIGHT && params.precipitation == null && params.fogDensity <= 0f && effectiveCloudiness(params) <= DIRECT_SUN_MAX_CLOUDINESS
 
 /** Helicopters fly in weather birds won't — night included, that's when the blinking light pays off — but storms, fog, and a heavy deck still ground them. */
-private fun showsHelicopter(params: SceneParams) = params.precipitation == null && params.fogDensity <= 0f && params.cloudiness < 0.55f && !params.thunder
+private fun showsHelicopter(params: SceneParams) = params.precipitation == null && params.fogDensity <= 0f && effectiveCloudiness(params) < 0.55f && !params.thunder
 
 private fun birdColor(dayPhase: DayPhase) = when (dayPhase) {
 	DayPhase.DAY -> Color.argb(120, 38, 48, 62)
 	else -> Color.argb(140, 26, 26, 38)
 }
 
-private fun showsHaze(params: SceneParams) = params.precipitation != null || params.fogDensity > 0f || params.cloudiness > 0.75f
+private fun showsHaze(params: SceneParams) = params.precipitation != null || params.fogDensity > 0f || effectiveCloudiness(params) > 0.75f
 
 private const val PRECIPITATION_SCALE_EXPONENT = 0.5f
 

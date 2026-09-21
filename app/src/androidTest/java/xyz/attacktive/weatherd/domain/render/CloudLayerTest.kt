@@ -114,6 +114,18 @@ class CloudLayerTest {
 	}
 
 	@Test
+	fun largerCumulusScaleOccupiesMorePixels() {
+		val layer = CloudLayer(resources, R.drawable.cloud_cumulus_sparse)
+		val small = render(layer, sizeScale = 0.5f)
+		val large = render(layer, sizeScale = 2f)
+
+		assertTrue("Larger cloud bodies must cover more pixels", opaqueArea(large) > opaqueArea(small))
+
+		small.recycle()
+		large.recycle()
+	}
+
+	@Test
 	fun cumulusShadowDarkensCloudsWithoutChangingTheirAlphaMask() {
 		val destination = CloudLayer(resources, R.drawable.cloud_cumulus_far)
 		val blocker = CloudLayer(resources, R.drawable.cloud_cumulus_far)
@@ -203,6 +215,12 @@ class CloudLayerTest {
 		}
 	}
 
+	private fun opaqueArea(bitmap: Bitmap): Int {
+		val pixels = IntArray(bitmap.width * bitmap.height)
+		bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+		return pixels.count { Color.alpha(it) > 0 }
+	}
+
 	private fun alphaHistogram(@DrawableRes texture: Int): IntArray {
 		val bitmap = decode(texture)
 		val pixels = IntArray(bitmap.width * bitmap.height)
@@ -245,11 +263,12 @@ class CloudLayerTest {
 		tint: Int = Color.WHITE,
 		alpha: Int = 255,
 		viewports: Float = CLOUD_TEXTURE_VIEWPORTS,
-		shadow: CloudLayer.CumulusShadow? = null
+		shadow: CloudLayer.CumulusShadow? = null,
+		sizeScale: Float = 1f
 	): Bitmap {
 		val bitmap = createBitmap(540, 320)
 		if (shadow == null) {
-			layer.draw(Canvas(bitmap), bitmap.width.toFloat(), bitmap.height.toFloat(), offset, tint, alpha, 0f, viewports)
+			layer.draw(Canvas(bitmap), bitmap.width.toFloat(), bitmap.height.toFloat(), offset, tint, alpha, 0f, viewports, sizeScale)
 		} else {
 			layer.drawShadowed(
 				Canvas(bitmap),
@@ -261,7 +280,8 @@ class CloudLayerTest {
 					alpha = alpha,
 					top = 0f,
 					viewports = viewports,
-					shadow = shadow
+					shadow = shadow,
+					sizeScale = sizeScale
 				)
 			)
 		}

@@ -66,6 +66,13 @@
 	<string name="section_precipitation_intensity">Niederschlagsintensität</string>
 	<string name="section_wind_intensity">Windintensität</string>
 	<string name="section_cloud_opacity">Deckkraft der Wolken</string>
+	<string name="section_cloud_size">Wolkengröße · %1$d%%</string>
+	<string name="cloud_size_small">Kleiner</string>
+	<string name="cloud_size_large">Größer</string>
+	<string name="section_cloud_count">Wolkenmenge · %1$d%%</string>
+	<string name="cloud_count_fewer">Weniger</string>
+	<string name="cloud_count_more">Mehr</string>
+	<string name="hint_cloud_composition">Die Größe verändert einzelne Schönwetterwolken. Die Menge bestimmt, wie viel Himmel mit Wolken bedeckt ist; die Deckkraft bleibt separat.</string>
 	<string name="intensity_subtle">Dezent</string>
 	<string name="intensity_intense">Intensiv</string>
 	<string name="hint_intensity">Stellt ein, wie stark es regnet, wie kräftig der Wind weht und wie sichtbar die Wolken sind – relativ zum beobachteten Wetter.</string>

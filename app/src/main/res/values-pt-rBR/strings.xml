@@ -66,6 +66,13 @@
 	<string name="section_precipitation_intensity">Intensidade da precipitação</string>
 	<string name="section_wind_intensity">Intensidade do vento</string>
 	<string name="section_cloud_opacity">Opacidade das nuvens</string>
+	<string name="section_cloud_size">Tamanho das nuvens · %1$d%%</string>
+	<string name="cloud_size_small">Menores</string>
+	<string name="cloud_size_large">Maiores</string>
+	<string name="section_cloud_count">Quantidade de nuvens · %1$d%%</string>
+	<string name="cloud_count_fewer">Menos</string>
+	<string name="cloud_count_more">Mais</string>
+	<string name="hint_cloud_composition">O tamanho altera as nuvens individuais de tempo bom. A quantidade muda quanto do céu fica coberto por nuvens; a opacidade é controlada separadamente.</string>
 	<string name="intensity_subtle">Sutil</string>
 	<string name="intensity_intense">Intenso</string>
 	<string name="hint_intensity">Ajusta a intensidade da precipitação, a força do vento e a visibilidade das nuvens em relação ao clima observado.</string>

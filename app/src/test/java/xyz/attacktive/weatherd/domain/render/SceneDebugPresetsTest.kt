@@ -17,6 +17,8 @@ class SceneDebugPresetsTest {
 			assertEquals(1f, params.precipitationScale, 0.0001f)
 			assertEquals(1f, params.windScale, 0.0001f)
 			assertEquals(1f, params.cloudScale, 0.0001f)
+			assertEquals(1f, params.cloudSizeScale, 0.0001f)
+			assertEquals(1f, params.cloudCountScale, 0.0001f)
 			assertTrue(params.sunVisible)
 			assertTrue(params.moonVisible)
 			assertEquals(1f, params.sunSizeScale, 0.0001f)
@@ -50,6 +52,16 @@ class SceneDebugPresetsTest {
 
 		assertEquals(preset.cloudiness, params.cloudiness, 0.0001f)
 		assertEquals(0.5f, params.cloudScale, 0.0001f)
+	}
+
+	@Test
+	fun `cloud composition preferences reach debug scene params without mutating observed cloudiness`() {
+		val preset = SCENE_PRESETS.first { it.name == "PARTLY CLOUDY" }
+		val params = debugSceneParams(preset, DayPhase.DAY, cloudSizeScale = 1.8f, cloudCountScale = 0.6f)
+
+		assertEquals(preset.cloudiness, params.cloudiness, 0.0001f)
+		assertEquals(1.8f, params.cloudSizeScale, 0.0001f)
+		assertEquals(0.6f, params.cloudCountScale, 0.0001f)
 	}
 
 	@Test

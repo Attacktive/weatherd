@@ -42,6 +42,8 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	@Volatile private var precipitationIntensityScale = 1f
 	@Volatile private var windIntensityScale = 1f
 	@Volatile private var cloudIntensityScale = 1f
+	@Volatile private var cloudSizeScale = 1f
+	@Volatile private var cloudCountScale = 1f
 	@Volatile private var sunVisible = true
 	@Volatile private var moonVisible = true
 	@Volatile private var sunSizeScale = 1f
@@ -72,6 +74,8 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			precipitationScale = precipitationIntensityScale,
 			windScale = windIntensityScale,
 			cloudScale = cloudIntensityScale,
+			cloudSizeScale = cloudSizeScale,
+			cloudCountScale = cloudCountScale,
 			sunVisible = sunVisible,
 			moonVisible = moonVisible,
 			sunSizeScale = sunSizeScale,
@@ -105,6 +109,8 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		precipitationIntensityScale = settings.precipitationIntensityScale
 		windIntensityScale = settings.windIntensityScale
 		cloudIntensityScale = settings.cloudIntensityScale
+		cloudSizeScale = settings.cloudSizeScale
+		cloudCountScale = settings.cloudCountScale
 		sunVisible = settings.sunVisible
 		moonVisible = settings.moonVisible
 		sunSizeScale = settings.sunSizeScale
@@ -165,6 +171,8 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		precipitationScale = precipitationIntensityScale,
 		windScale = windIntensityScale,
 		cloudScale = cloudIntensityScale,
+		cloudSizeScale = cloudSizeScale,
+		cloudCountScale = cloudCountScale,
 		sunVisible = sunVisible,
 		moonVisible = moonVisible,
 		sunSizeScale = sunSizeScale,
@@ -282,6 +290,8 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			precipitationScale = precipitationIntensityScale,
 			windScale = windIntensityScale,
 			cloudScale = cloudIntensityScale,
+			cloudSizeScale = cloudSizeScale,
+			cloudCountScale = cloudCountScale,
 			sunVisible = sunVisible,
 			moonVisible = moonVisible,
 			sunSizeScale = sunSizeScale,

@@ -81,9 +81,10 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 	private var cachedOpacityStyleKind: CumulusKind? = null
 	private var cachedOpacityStyleWidth = Float.NaN
 	private var cachedOpacityStyleHeight = Float.NaN
+	private var cachedOpacityStyleSizeScale = Float.NaN
 	private var cachedOpacityStyle: CumulusStyle? = null
 
-	fun draw(canvas: Canvas, width: Float, height: Float, offset: Float, tint: Int, alpha: Int, top: Float = 0f, viewports: Float = CLOUD_TEXTURE_VIEWPORTS) {
+	fun draw(canvas: Canvas, width: Float, height: Float, offset: Float, tint: Int, alpha: Int, top: Float = 0f, viewports: Float = CLOUD_TEXTURE_VIEWPORTS, sizeScale: Float = 1f) {
 		if (width <= 0f || height <= 0f || alpha <= 0) {
 			return
 		}
@@ -93,6 +94,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		geometry.offset = offset
 		geometry.top = top
 		geometry.viewports = viewports
+		geometry.sizeScale = sizeScale
 
 		val kind = cumulusKind
 		if (kind != null) {
@@ -125,6 +127,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		geometry.offset = request.offset
 		geometry.top = request.top
 		geometry.viewports = request.viewports
+		geometry.sizeScale = request.sizeScale
 		drawCumulus(canvas, geometry, request.tint, request.alpha, kind, request.shadow)
 	}
 
@@ -132,7 +135,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 	 * Prepares a reusable opacity sampler using the same sprite placement math as [drawCumulus].
 	 * The expensive style and placement lookup happens once per profile; each subsequent point probe only samples primitive geometry and bitmap alpha.
 	 */
-	fun opacitySampler(width: Float, height: Float, offset: Float, top: Float, viewports: Float, alpha: Int): OpacitySampler? {
+	fun opacitySampler(width: Float, height: Float, offset: Float, top: Float, viewports: Float, alpha: Int, sizeScale: Float = 1f): OpacitySampler? {
 		val kind = cumulusKind ?: return null
 		if (!canSampleOpacity(width, height, alpha)) {
 			return null
@@ -150,7 +153,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 			offset = positiveModulo(offset, period),
 			top = top,
 			period = period,
-			style = opacityStyleFor(kind, width, height),
+			style = opacityStyleFor(kind, width, height, sizeScale),
 			placements = placements,
 			compositionAlpha = nearCompositionAlpha(kind, alpha)
 		)
@@ -161,16 +164,17 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 	private fun canSampleOpacity(width: Float, height: Float, alpha: Int) =
 		width > 0f && height > 0f && alpha > 0 && cumulusBitmaps.isNotEmpty()
 
-	private fun opacityStyleFor(kind: CumulusKind, width: Float, height: Float): CumulusStyle {
+	private fun opacityStyleFor(kind: CumulusKind, width: Float, height: Float, sizeScale: Float): CumulusStyle {
 		val cached = cachedOpacityStyle
-		if (cached != null && cachedOpacityStyleKind == kind && cachedOpacityStyleWidth == width && cachedOpacityStyleHeight == height) {
+		if (cached != null && cachedOpacityStyleKind == kind && cachedOpacityStyleWidth == width && cachedOpacityStyleHeight == height && cachedOpacityStyleSizeScale == sizeScale) {
 			return cached
 		}
 
-		val style = cumulusStyle(kind, Color.WHITE, width, height)
+		val style = cumulusStyle(kind, Color.WHITE, width, height, sizeScale)
 		cachedOpacityStyleKind = kind
 		cachedOpacityStyleWidth = width
 		cachedOpacityStyleHeight = height
+		cachedOpacityStyleSizeScale = sizeScale
 		cachedOpacityStyle = style
 		return style
 	}
@@ -268,7 +272,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 	}
 
 	private fun drawCumulus(canvas: Canvas, geometry: CloudGeometry, tint: Int, alpha: Int, kind: CumulusKind, shadow: CumulusShadow?) {
-		val style = cumulusStyle(kind, tint, geometry.width, geometry.height)
+		val style = cumulusStyle(kind, tint, geometry.width, geometry.height, geometry.sizeScale)
 		paint.shader = null
 
 		val placements = if (kind == CumulusKind.FAR) {
@@ -319,11 +323,11 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		return darken(tint, 1f - shadowAmount)
 	}
 
-	private fun cumulusStyle(kind: CumulusKind, tint: Int, width: Float, height: Float): CumulusStyle {
+	private fun cumulusStyle(kind: CumulusKind, tint: Int, width: Float, height: Float, sizeScale: Float): CumulusStyle {
 		if (kind == CumulusKind.FAR) {
 			return CumulusStyle(
 				tint = liftTowardWhite(tint, FAR_CUMULUS_TINT_LIFT),
-				baseHeight = min(width * FAR_BASE_HEIGHT_TO_WIDTH, height * FAR_BASE_HEIGHT_TO_DECK),
+				baseHeight = min(width * FAR_BASE_HEIGHT_TO_WIDTH, height * FAR_BASE_HEIGHT_TO_DECK) * sizeScale,
 				topOffset = height * FAR_CUMULUS_RISE,
 				scale = CumulusScale(
 					width = FAR_VEIL_WIDTH_SCALE,
@@ -335,7 +339,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 
 		return CumulusStyle(
 			tint = tint,
-			baseHeight = min(width * 0.22f, height * 0.48f),
+			baseHeight = min(width * 0.22f, height * 0.48f) * sizeScale,
 			topOffset = 0f,
 			scale = CumulusScale(
 				width = 1f,
@@ -518,7 +522,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		NEAR
 	}
 
-	data class CumulusShadowDraw(val width: Float, val height: Float, val offset: Float, val tint: Int, val alpha: Int, val top: Float, val viewports: Float, val shadow: CumulusShadow)
+	data class CumulusShadowDraw(val width: Float, val height: Float, val offset: Float, val tint: Int, val alpha: Int, val top: Float, val viewports: Float, val shadow: CumulusShadow, val sizeScale: Float = 1f)
 
 	class CumulusShadow(private val lower: OpacitySampler?, private val upper: OpacitySampler?, private val sourceOffsetX: Float, private val sourceOffsetY: Float, val strength: Float) {
 		fun opacityAt(x: Float, y: Float): Float {
@@ -705,6 +709,7 @@ private class CloudGeometry {
 	var offset = 0f
 	var top = 0f
 	var viewports = CLOUD_TEXTURE_VIEWPORTS
+	var sizeScale = 1f
 }
 
 private data class PlacementTuning(val xJitter: Float, val yJitter: Float, val scaleJitter: Float, val alphaJitter: Float, val minY: Float, val maxY: Float)

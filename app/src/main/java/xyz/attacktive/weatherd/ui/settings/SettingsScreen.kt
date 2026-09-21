@@ -82,6 +82,8 @@ import xyz.attacktive.weatherd.BuildConfig
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
+import xyz.attacktive.weatherd.domain.model.CLOUD_COUNT_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.CLOUD_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
 import xyz.attacktive.weatherd.domain.model.GeoPlace
 import xyz.attacktive.weatherd.domain.model.INTENSITY_SCALE_RANGE
@@ -147,6 +149,10 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 				Spacer(modifier = Modifier.height(24.dp))
 
 				IntensitySection(settings = settings, onSave = viewModel::save)
+
+				Spacer(modifier = Modifier.height(24.dp))
+
+				CloudAppearanceSection(settings = settings, onSave = viewModel::save)
 
 				Spacer(modifier = Modifier.height(24.dp))
 
@@ -334,6 +340,48 @@ private fun IntensitySection(settings: AppSettings, onSave: (AppSettings) -> Uni
 	)
 
 	HintText(stringResource(R.string.hint_intensity))
+}
+
+@Composable
+private fun CloudAppearanceSection(settings: AppSettings, onSave: (AppSettings) -> Unit) {
+	PercentageSlider(
+		label = R.string.section_cloud_size,
+		value = settings.cloudSizeScale,
+		valueRange = CLOUD_SIZE_SCALE_RANGE,
+		lowLabel = R.string.cloud_size_small,
+		highLabel = R.string.cloud_size_large,
+		onCommit = { onSave(settings.copy(cloudSizeScale = it)) }
+	)
+
+	PercentageSlider(
+		label = R.string.section_cloud_count,
+		value = settings.cloudCountScale,
+		valueRange = CLOUD_COUNT_SCALE_RANGE,
+		lowLabel = R.string.cloud_count_fewer,
+		highLabel = R.string.cloud_count_more,
+		onCommit = { onSave(settings.copy(cloudCountScale = it)) }
+	)
+
+	HintText(stringResource(R.string.hint_cloud_composition))
+}
+
+@Composable
+private fun PercentageSlider(label: Int, value: Float, valueRange: ClosedFloatingPointRange<Float>, lowLabel: Int, highLabel: Int, onCommit: (Float) -> Unit) {
+	var position by remember(value) { mutableFloatStateOf(value) }
+
+	SectionLabel(stringResource(label, (position * 100f).roundToInt()))
+
+	Slider(
+		value = position,
+		onValueChange = { position = it },
+		onValueChangeFinished = { onCommit(position) },
+		valueRange = valueRange
+	)
+
+	Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+		HintText(stringResource(lowLabel))
+		HintText(stringResource(highLabel))
+	}
 }
 
 /**

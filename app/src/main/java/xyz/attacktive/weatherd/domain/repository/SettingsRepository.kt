@@ -15,6 +15,8 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
+import xyz.attacktive.weatherd.domain.model.CLOUD_COUNT_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.CLOUD_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
@@ -41,6 +43,8 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		val PRECIPITATION_INTENSITY_SCALE = floatPreferencesKey("precipitation_intensity_scale")
 		val WIND_INTENSITY_SCALE = floatPreferencesKey("wind_intensity_scale")
 		val CLOUD_INTENSITY_SCALE = floatPreferencesKey("cloud_intensity_scale")
+		val CLOUD_SIZE_SCALE = floatPreferencesKey("cloud_size_scale")
+		val CLOUD_COUNT_SCALE = floatPreferencesKey("cloud_count_scale")
 		val SUN_VISIBLE = booleanPreferencesKey("sun_visible")
 		val MOON_VISIBLE = booleanPreferencesKey("moon_visible")
 		val SUN_SIZE_SCALE = floatPreferencesKey("sun_size_scale")
@@ -70,6 +74,8 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			precipitationIntensityScale = preferences[Keys.PRECIPITATION_INTENSITY_SCALE] ?: DEFAULTS.precipitationIntensityScale,
 			windIntensityScale = preferences[Keys.WIND_INTENSITY_SCALE] ?: DEFAULTS.windIntensityScale,
 			cloudIntensityScale = preferences[Keys.CLOUD_INTENSITY_SCALE] ?: DEFAULTS.cloudIntensityScale,
+			cloudSizeScale = (preferences[Keys.CLOUD_SIZE_SCALE] ?: DEFAULTS.cloudSizeScale).coerceIn(CLOUD_SIZE_SCALE_RANGE.start, CLOUD_SIZE_SCALE_RANGE.endInclusive),
+			cloudCountScale = (preferences[Keys.CLOUD_COUNT_SCALE] ?: DEFAULTS.cloudCountScale).coerceIn(CLOUD_COUNT_SCALE_RANGE.start, CLOUD_COUNT_SCALE_RANGE.endInclusive),
 			sunVisible = preferences[Keys.SUN_VISIBLE] ?: DEFAULTS.sunVisible,
 			moonVisible = preferences[Keys.MOON_VISIBLE] ?: DEFAULTS.moonVisible,
 			sunSizeScale = (preferences[Keys.SUN_SIZE_SCALE] ?: DEFAULTS.sunSizeScale).coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive),
@@ -102,6 +108,8 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			preferences[Keys.PRECIPITATION_INTENSITY_SCALE] = settings.precipitationIntensityScale
 			preferences[Keys.WIND_INTENSITY_SCALE] = settings.windIntensityScale
 			preferences[Keys.CLOUD_INTENSITY_SCALE] = settings.cloudIntensityScale
+			preferences[Keys.CLOUD_SIZE_SCALE] = settings.cloudSizeScale.coerceIn(CLOUD_SIZE_SCALE_RANGE.start, CLOUD_SIZE_SCALE_RANGE.endInclusive)
+			preferences[Keys.CLOUD_COUNT_SCALE] = settings.cloudCountScale.coerceIn(CLOUD_COUNT_SCALE_RANGE.start, CLOUD_COUNT_SCALE_RANGE.endInclusive)
 			preferences[Keys.SUN_VISIBLE] = settings.sunVisible
 			preferences[Keys.MOON_VISIBLE] = settings.moonVisible
 			preferences[Keys.SUN_SIZE_SCALE] = settings.sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive)

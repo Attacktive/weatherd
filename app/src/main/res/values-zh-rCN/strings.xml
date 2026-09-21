@@ -66,6 +66,13 @@
 	<string name="section_precipitation_intensity">降水强度</string>
 	<string name="section_wind_intensity">风力强度</string>
 	<string name="section_cloud_opacity">云层不透明度</string>
+	<string name="section_cloud_size">云朵大小 · %1$d%%</string>
+	<string name="cloud_size_small">更小</string>
+	<string name="cloud_size_large">更大</string>
+	<string name="section_cloud_count">云量 · %1$d%%</string>
+	<string name="cloud_count_fewer">更少</string>
+	<string name="cloud_count_more">更多</string>
+	<string name="hint_cloud_composition">大小会改变晴朗天气下单个云朵的尺寸。云量会改变天空被云朵覆盖的程度；不透明度单独控制。</string>
 	<string name="intensity_subtle">微弱</string>
 	<string name="intensity_intense">强烈</string>
 	<string name="hint_intensity">根据实际天气调整降水强度、风力大小和云层的可见程度。</string>

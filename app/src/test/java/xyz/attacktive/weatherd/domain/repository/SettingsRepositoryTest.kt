@@ -177,12 +177,14 @@ class SettingsRepositoryTest {
 	fun `round-trips the intensity scales`() = runTest {
 		val repository = SettingsRepository(dataStore())
 
-		repository.save(AppSettings(precipitationIntensityScale = 0.4f, windIntensityScale = 1.8f, cloudIntensityScale = 0.6f))
+		repository.save(AppSettings(precipitationIntensityScale = 0.4f, windIntensityScale = 1.8f, cloudIntensityScale = 0.6f, cloudSizeScale = 1.7f, cloudCountScale = 0.7f))
 
 		val settings = repository.settings.first()
 		assertEquals(0.4f, settings.precipitationIntensityScale, 0.0001f)
 		assertEquals(1.8f, settings.windIntensityScale, 0.0001f)
 		assertEquals(0.6f, settings.cloudIntensityScale, 0.0001f)
+		assertEquals(1.7f, settings.cloudSizeScale, 0.0001f)
+		assertEquals(0.7f, settings.cloudCountScale, 0.0001f)
 	}
 
 	@Test
@@ -194,5 +196,7 @@ class SettingsRepositoryTest {
 		assertEquals(1f, settings.precipitationIntensityScale, 0.0001f)
 		assertEquals(1f, settings.windIntensityScale, 0.0001f)
 		assertEquals(1f, settings.cloudIntensityScale, 0.0001f)
+		assertEquals(1f, settings.cloudSizeScale, 0.0001f)
+		assertEquals(1f, settings.cloudCountScale, 0.0001f)
 	}
 }

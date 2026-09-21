@@ -16,6 +16,8 @@ data class AppSettings(
 	val precipitationIntensityScale: Float = 1f,
 	val windIntensityScale: Float = 1f,
 	val cloudIntensityScale: Float = 1f,
+	val cloudSizeScale: Float = 1f,
+	val cloudCountScale: Float = 1f,
 	val sunVisible: Boolean = true,
 	val moonVisible: Boolean = true,
 	val sunSizeScale: Float = 1f,
@@ -36,3 +38,7 @@ val UPDATE_INTERVAL_OPTIONS = listOf(15, 30, 60, 120, 180, 360)
  * The floor is deliberately above zero: a scale of 0 would silently erase rain the user can see out of the window, which reads as a broken wallpaper rather than a setting.
  */
 val INTENSITY_SCALE_RANGE = 0.1f..2f
+
+/** Bounds for fair-weather cloud body size and rendered cloud coverage. */
+val CLOUD_SIZE_SCALE_RANGE = 0.5f..2f
+val CLOUD_COUNT_SCALE_RANGE = 0.5f..2f

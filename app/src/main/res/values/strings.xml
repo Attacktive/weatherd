@@ -66,6 +66,13 @@
 	<string name="section_precipitation_intensity">Precipitation intensity</string>
 	<string name="section_wind_intensity">Wind intensity</string>
 	<string name="section_cloud_opacity">Cloud opacity</string>
+	<string name="section_cloud_size">Cloud size · %1$d%%</string>
+	<string name="cloud_size_small">Smaller</string>
+	<string name="cloud_size_large">Larger</string>
+	<string name="section_cloud_count">Cloud count · %1$d%%</string>
+	<string name="cloud_count_fewer">Fewer</string>
+	<string name="cloud_count_more">More</string>
+	<string name="hint_cloud_composition">Size changes individual fair-weather cloud bodies. Count changes how much of the sky is filled with clouds; opacity stays separate.</string>
 	<string name="intensity_subtle">Subtle</string>
 	<string name="intensity_intense">Intense</string>
 	<string name="hint_intensity">Scales how heavily precipitation falls, how hard the wind drives, and how visible the clouds are, relative to the observed weather.</string>
