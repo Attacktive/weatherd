@@ -14,6 +14,10 @@
 
 	<!-- Settings screen -->
 	<string name="settings_title">設定</string>
+	<string name="settings_tab_weather">天気</string>
+	<string name="settings_tab_appearance">外観</string>
+	<string name="settings_tab_wallpaper">壁紙</string>
+	<string name="settings_tab_advanced">詳細設定</string>
 	<string name="content_description_back">戻る</string>
 	<string name="content_description_search">検索</string>
 	<string name="content_description_clear_city">都市をクリア</string>

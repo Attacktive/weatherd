@@ -14,6 +14,10 @@
 
 	<!-- Settings screen -->
 	<string name="settings_title">Impostazioni</string>
+	<string name="settings_tab_weather">Meteo</string>
+	<string name="settings_tab_appearance">Aspetto</string>
+	<string name="settings_tab_wallpaper">Sfondo</string>
+	<string name="settings_tab_advanced">Avanzate</string>
 	<string name="content_description_back">Indietro</string>
 	<string name="content_description_search">Cerca</string>
 	<string name="content_description_clear_city">Cancella città</string>

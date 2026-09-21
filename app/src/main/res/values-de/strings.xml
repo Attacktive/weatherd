@@ -14,6 +14,10 @@
 
 	<!-- Settings screen -->
 	<string name="settings_title">Einstellungen</string>
+	<string name="settings_tab_weather">Wetter</string>
+	<string name="settings_tab_appearance">Darstellung</string>
+	<string name="settings_tab_wallpaper">Hintergrund</string>
+	<string name="settings_tab_advanced">Erweitert</string>
 	<string name="content_description_back">Zurück</string>
 	<string name="content_description_search">Suchen</string>
 	<string name="content_description_clear_city">Stadt löschen</string>
