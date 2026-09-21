@@ -2,7 +2,7 @@
 
 Instructions and architectural invariants for agents working in the Weatherd codebase.
 
-- Version: 1.3.1 (2026-09-20)
+- Version: 1.4.0 (2026-09-21)
 - Persona: Coding assistant pair-programming with the user on Weatherd.
 
 ## Tools and Environment
@@ -10,6 +10,17 @@ Instructions and architectural invariants for agents working in the Weatherd cod
 Agents use standard file inspection, editing tools, and Gradle tasks (`./gradlew check`).
 - The JDK is installed via SDKMAN.
 - Before Gradle tasks in non-interactive shells, source `"$HOME/.sdkman/bin/sdkman-init.sh"`.
+
+### Mandatory GitHub Write Gate
+
+- Before every GitHub mutation, first determine whether `Attacktive/agent-broker` supports that operation.
+- If the broker supports it, MUST use the broker and MUST NOT use the corresponding direct GitHub write action.
+	- This includes creating or updating issues, posting issue or pull-request comments, creating pull requests, and creating pending pull-request reviews.
+- After a broker write succeeds, verify that the resulting target-repository action is authored by `attacktive-gremlin[bot]`.
+- If the broker supports the operation but the broker request fails, STOP and report the failure.
+	- Never silently fall back to `Attacktive`'s personal account.
+- Direct GitHub writes are allowed only when the broker does not support the required operation.
+	- Read the broker's current `README.md` or implementation before deciding that an operation is unsupported; do not rely on memory.
 
 ### GitHub Actions Are Not a General-Purpose Remote Shell
 
