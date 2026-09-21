@@ -85,7 +85,6 @@ kotlin {
 
 detekt {
 	config.setFrom(rootProject.file("detekt.yml"))
-	buildUponDefaultConfig = true
 }
 
 dependencies {
