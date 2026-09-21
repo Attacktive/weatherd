@@ -7,6 +7,7 @@ plugins {
 	alias(libs.plugins.hilt.android)
 	alias(libs.plugins.ksp)
 	alias(libs.plugins.kotlin.serialization)
+	alias(libs.plugins.detekt)
 }
 
 val localProperties = Properties().apply {
@@ -80,6 +81,11 @@ kotlin {
 	compilerOptions {
 		jvmTarget = JvmTarget.JVM_17
 	}
+}
+
+detekt {
+	config.setFrom(rootProject.file("detekt.yml"))
+	buildUponDefaultConfig = true
 }
 
 dependencies {

@@ -1,6 +1,6 @@
 complexity:
   LongMethod:
     active: true
-    threshold: 100
+    allowedLines: 100
     ignoreAnnotated:
       - 'Composable'

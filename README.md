@@ -29,7 +29,7 @@ cd weatherd
 
 Debug builds need no secrets. Open-Meteo and MET Norway both work without API keys. `release.keystore` with `KEYSTORE_PASSWORD` are needed only for release signing.
 
-Run the unit tests with `./gradlew test`.
+Run the pull-request checks locally with `./gradlew test :app:lint :app:detekt`. Run instrumentation tests on a connected device or emulator with `./gradlew :app:connectedDebugAndroidTest`.
 
 ## Weather data attribution
 
