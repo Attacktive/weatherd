@@ -107,8 +107,8 @@ class SceneRenderer(resources: Resources) {
 	private val cloudDrawGeometry = CloudDrawGeometry()
 
 	/*
-	 * The clear-sky decks, ordered from fewest masses to most, matching CUMULUS_COVERAGE in scripts/generate-cloud-textures.py.
-	 * Each is decoded on first use and kept, so a sky that never leaves one coverage step never pays for the others.
+	 * The clear-sky placement profiles, ordered from fewest masses to most.
+	 * Each lazy layer owns a seeded daily layout while CloudLayer shares the decoded source sprites across all three profiles.
 	 */
 	private val cumulusSteps = listOf(
 		lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_sparse) },
@@ -1390,7 +1390,7 @@ class SceneRenderer(resources: Resources) {
 
 	/**
 	 * The clear-sky deck: fair-weather cumulus over blue, rather than a veil whose opacity stands in for how much cloud there is.
-	 * Coverage lives in the textures, as three cuts of one noise field, which is what frees the paint to stay near opaque so a sunlit crown can actually reach white.
+	 * Coverage lives in sparse, scattered and broken placement populations, while CloudLayer rotates through multiple morphology variants inside each population.
 	 * A far deck of smaller, hazier masses sits lower toward the horizon, and the near deck of full-size masses rides above it.
 	 */
 	private fun drawScatteredClouds(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {

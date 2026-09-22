@@ -29,7 +29,7 @@ internal const val CLOUD_TEXTURE_VIEWPORTS = 4f
 /**
  * Reuses decoded cloud pixels, sampling transforms, tint state, and seeded sprite layouts between frames.
  *
- * Fair-weather cumulus uses transparent sprites directly.
+ * Fair-weather cumulus uses transparent sprite compositions built from a small shared source set.
  * The far fair-weather plane uses dedicated flat veil assets, while overcast sheets are deterministic multi-scale textures generated once when the layer is first used.
  * Fog draws over those sheets.
  */
@@ -201,6 +201,39 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		}
 
 		private fun placementOpacityAt(placement: CumulusPlacement): Float {
+			if (cumulusKind == CumulusKind.FAR) {
+				return farPlacementOpacityAt(placement)
+			}
+
+			val variant = HERO_VARIANTS[placement.spriteIndex % HERO_VARIANTS.size]
+			val baseCenterX = positiveModulo(offset + period * placement.xFraction, period)
+			val baseCenterY = top - style.topOffset + height * placement.yFraction
+			val mirrorDirection = if (placement.mirror) -1f else 1f
+			var opacity = 0f
+			for (part in variant.parts) {
+				val sprite = cumulusBitmaps[part.spriteIndex]
+				val spriteHeight = style.baseHeight * placement.scale * style.scale.height * part.scale * part.heightScale
+				val spriteWidth = spriteHeight * sprite.width.toFloat() / sprite.height.toFloat() * style.scale.width * part.widthScale
+				val centerX = baseCenterX + mirrorDirection * part.offsetX * style.baseHeight * placement.scale
+				val centerY = baseCenterY + part.offsetY * style.baseHeight * placement.scale
+				val spriteAlpha = (compositionAlpha * style.scale.alpha * placement.alphaScale * part.alphaScale).toInt().coerceIn(0, 255)
+				if (spriteAlpha <= 0) {
+					continue
+				}
+
+				var partOpacity = 0f
+				for (shift in -1..1) {
+					val sourceOpacity = wrappedSpriteOpacity(sprite, placement.mirror, centerX + shift * period, centerY, spriteWidth, spriteHeight, spriteAlpha)
+					partOpacity = sourceOpacity + partOpacity * (1f - sourceOpacity)
+				}
+
+				opacity = partOpacity + opacity * (1f - partOpacity)
+			}
+
+			return opacity
+		}
+
+		private fun farPlacementOpacityAt(placement: CumulusPlacement): Float {
 			val sprite = cumulusBitmaps[placement.spriteIndex % cumulusBitmaps.size]
 			val spriteHeight = style.baseHeight * placement.scale * style.scale.height
 			val spriteWidth = spriteHeight * sprite.width.toFloat() / sprite.height.toFloat() * style.scale.width
@@ -213,7 +246,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 
 			var opacity = 0f
 			for (shift in -1..1) {
-				val sourceOpacity = wrappedSpriteOpacity(sprite, placement, centerX + shift * period, centerY, spriteWidth, spriteHeight, spriteAlpha)
+				val sourceOpacity = wrappedSpriteOpacity(sprite, placement.mirror, centerX + shift * period, centerY, spriteWidth, spriteHeight, spriteAlpha)
 				opacity = sourceOpacity + opacity * (1f - sourceOpacity)
 			}
 
@@ -222,7 +255,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 
 		private fun wrappedSpriteOpacity(
 			sprite: Bitmap,
-			placement: CumulusPlacement,
+			mirror: Boolean,
 			wrappedX: Float,
 			centerY: Float,
 			spriteWidth: Float,
@@ -236,7 +269,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 			}
 
 			var u = ((sampleX - left) / spriteWidth).coerceIn(0f, 1f)
-			if (placement.mirror) {
+			if (mirror) {
 				u = 1f - u
 			}
 
@@ -267,12 +300,68 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		val wrappedOffset = positiveModulo(geometry.offset, period)
 
 		for (placement in placements) {
-			val sprite = cumulusBitmaps[placement.spriteIndex % cumulusBitmaps.size]
-			val spriteHeight = style.baseHeight * placement.scale * style.scale.height
-			val spriteWidth = spriteHeight * sprite.width.toFloat() / sprite.height.toFloat() * style.scale.width
-			val centerY = geometry.top - style.topOffset + geometry.height * placement.yFraction
-			val centerX = positiveModulo(wrappedOffset + period * placement.xFraction, period)
-			val spriteAlpha = (compositionAlpha * style.scale.alpha * placement.alphaScale).toInt().coerceIn(0, 255)
+			if (kind == CumulusKind.FAR) {
+				drawFarPlacement(canvas, geometry, style, placement, compositionAlpha, wrappedOffset, period, shadow)
+			} else {
+				drawHeroPlacement(canvas, geometry, style, placement, compositionAlpha, wrappedOffset, period)
+			}
+		}
+	}
+
+	private fun drawFarPlacement(
+		canvas: Canvas,
+		geometry: CloudDrawGeometry,
+		style: CumulusStyle,
+		placement: CumulusPlacement,
+		compositionAlpha: Int,
+		wrappedOffset: Float,
+		period: Float,
+		shadow: CumulusShadow?
+	) {
+		val sprite = cumulusBitmaps[placement.spriteIndex % cumulusBitmaps.size]
+		val spriteHeight = style.baseHeight * placement.scale * style.scale.height
+		val spriteWidth = spriteHeight * sprite.width.toFloat() / sprite.height.toFloat() * style.scale.width
+		val centerY = geometry.top - style.topOffset + geometry.height * placement.yFraction
+		val centerX = positiveModulo(wrappedOffset + period * placement.xFraction, period)
+		val spriteAlpha = (compositionAlpha * style.scale.alpha * placement.alphaScale).toInt().coerceIn(0, 255)
+		if (spriteAlpha <= 0) {
+			return
+		}
+
+		paint.alpha = spriteAlpha
+		for (shift in -1..1) {
+			val wrappedX = centerX + shift * period
+			if (wrappedX + spriteWidth * 0.5f < 0f || wrappedX - spriteWidth * 0.5f > geometry.width) {
+				continue
+			}
+
+			updateColorFilter(cumulusTint(style.tint, CumulusKind.FAR, shadow, wrappedX, centerY))
+			spriteDest.set(wrappedX - spriteWidth * 0.5f, centerY - spriteHeight * 0.5f, wrappedX + spriteWidth * 0.5f, centerY + spriteHeight * 0.5f)
+			drawSprite(canvas, sprite, placement, wrappedX, centerY)
+		}
+	}
+
+	private fun drawHeroPlacement(
+		canvas: Canvas,
+		geometry: CloudDrawGeometry,
+		style: CumulusStyle,
+		placement: CumulusPlacement,
+		compositionAlpha: Int,
+		wrappedOffset: Float,
+		period: Float
+	) {
+		val variant = HERO_VARIANTS[placement.spriteIndex % HERO_VARIANTS.size]
+		val baseCenterX = positiveModulo(wrappedOffset + period * placement.xFraction, period)
+		val baseCenterY = geometry.top - style.topOffset + geometry.height * placement.yFraction
+		val mirrorDirection = if (placement.mirror) -1f else 1f
+		updateColorFilter(style.tint)
+		for (part in variant.parts) {
+			val sprite = cumulusBitmaps[part.spriteIndex]
+			val spriteHeight = style.baseHeight * placement.scale * style.scale.height * part.scale * part.heightScale
+			val spriteWidth = spriteHeight * sprite.width.toFloat() / sprite.height.toFloat() * style.scale.width * part.widthScale
+			val centerX = baseCenterX + mirrorDirection * part.offsetX * style.baseHeight * placement.scale
+			val centerY = baseCenterY + part.offsetY * style.baseHeight * placement.scale
+			val spriteAlpha = (compositionAlpha * style.scale.alpha * placement.alphaScale * part.alphaScale).toInt().coerceIn(0, 255)
 			if (spriteAlpha <= 0) {
 				continue
 			}
@@ -284,7 +373,6 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 					continue
 				}
 
-				updateColorFilter(cumulusTint(style.tint, kind, shadow, wrappedX, centerY))
 				spriteDest.set(wrappedX - spriteWidth * 0.5f, centerY - spriteHeight * 0.5f, wrappedX + spriteWidth * 0.5f, centerY + spriteHeight * 0.5f)
 				drawSprite(canvas, sprite, placement, wrappedX, centerY)
 			}
@@ -349,17 +437,8 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 			NEAR_PLACEMENT_TUNING,
 			anchors,
 			Random(layoutSeed(epochDay) xor seedSalt),
-			HERO_VARIANT_COUNT
-		).map { placement ->
-			if (placement.spriteIndex < SOFT_HERO_VARIANT_START) {
-				placement
-			} else {
-				placement.copy(
-					scale = placement.scale * SOFT_HERO_SCALE,
-					alphaScale = placement.alphaScale * SOFT_HERO_ALPHA_SCALE
-				)
-			}
-		}
+			HERO_VARIANTS.size
+		)
 
 		cachedNearEpochDay = epochDay
 		return cachedNearPlacements
@@ -532,10 +611,10 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		private const val BROKEN_LAYOUT_SEED_SALT = 0x7B19E5
 		private const val FAR_LAYOUT_SEED_SALT = 0x46A2D9
 
-		private const val HERO_VARIANT_COUNT = 4
-		private const val SOFT_HERO_VARIANT_START = 2
-		private const val SOFT_HERO_SCALE = 0.84f
-		private const val SOFT_HERO_ALPHA_SCALE = 0.82f
+		private const val HERO_BROAD = 0
+		private const val HERO_BROAD_ALT = 1
+		private const val HERO_SOFT_BROAD = 2
+		private const val HERO_SOFT_BROAD_ALT = 3
 		private const val FAR_VARIANT_COUNT = 2
 		private const val HERO_CUMULUS_ALPHA_SCALE = 0.92f
 		private const val FAR_CUMULUS_ALPHA_SCALE = 1.18f
@@ -575,6 +654,36 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 
 		private val NEAR_PLACEMENT_TUNING = PlacementTuning(0.035f, 0.045f, 0.10f, 0.06f, 0.16f, 0.64f)
 		private val FAR_PLACEMENT_TUNING = PlacementTuning(0.022f, 0.040f, 0.10f, 0.06f, 0.20f, 0.66f)
+
+		/*
+		 * Seven visual variants come from four source bitmaps.
+		 * The composites add genuinely different silhouettes without adding decoded bitmap memory: tall crowns, flat banks and torn fragments are assembled from the same repository-owned sprites.
+		 * Their order deliberately alternates morphology families because buildPlacements cycles through neighboring variants before repeating.
+		 */
+		private val HERO_VARIANTS = listOf(
+			HeroVariant(listOf(HeroPart(HERO_BROAD))),
+			HeroVariant(
+				listOf(
+					HeroPart(HERO_BROAD, offsetY = 0.06f, scale = 0.92f, widthScale = 0.96f, heightScale = 0.98f),
+					HeroPart(HERO_SOFT_BROAD, offsetX = -0.08f, offsetY = -0.30f, scale = 0.58f, widthScale = 0.84f, heightScale = 1.16f, alphaScale = 0.92f)
+				)
+			),
+			HeroVariant(listOf(HeroPart(HERO_SOFT_BROAD, scale = 0.84f, alphaScale = 0.82f))),
+			HeroVariant(
+				listOf(
+					HeroPart(HERO_BROAD_ALT, scale = 0.90f, widthScale = 1.24f, heightScale = 0.72f),
+					HeroPart(HERO_SOFT_BROAD_ALT, offsetX = 0.30f, offsetY = 0.08f, scale = 0.62f, widthScale = 1.16f, heightScale = 0.68f, alphaScale = 0.72f)
+				)
+			),
+			HeroVariant(listOf(HeroPart(HERO_BROAD_ALT))),
+			HeroVariant(
+				listOf(
+					HeroPart(HERO_SOFT_BROAD, offsetX = -0.20f, offsetY = 0.02f, scale = 0.70f, widthScale = 0.90f, heightScale = 0.86f, alphaScale = 0.78f),
+					HeroPart(HERO_SOFT_BROAD_ALT, offsetX = 0.24f, offsetY = -0.07f, scale = 0.64f, widthScale = 0.88f, heightScale = 0.82f, alphaScale = 0.74f)
+				)
+			),
+			HeroVariant(listOf(HeroPart(HERO_SOFT_BROAD_ALT, scale = 0.84f, alphaScale = 0.82f)))
+		)
 
 		private val SPARSE_ANCHORS = listOf(
 			CumulusAnchor(0.18f, 0.34f, 1.00f),
@@ -673,20 +782,23 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 	}
 }
 
-private fun buildPlacements(tuning: PlacementTuning, anchors: List<CumulusAnchor>, random: Random, variantCount: Int): List<CumulusPlacement> = anchors.map { base ->
-	val xDelta = random.nextFloat() * tuning.xJitter * 2f - tuning.xJitter
-	val yDelta = random.nextFloat() * tuning.yJitter * 2f - tuning.yJitter
-	val scaleDelta = 1f + random.nextFloat() * tuning.scaleJitter * 2f - tuning.scaleJitter
-	val alphaDelta = 1f - random.nextFloat() * tuning.alphaJitter
+private fun buildPlacements(tuning: PlacementTuning, anchors: List<CumulusAnchor>, random: Random, variantCount: Int): List<CumulusPlacement> {
+	val variantOffset = random.nextInt(variantCount)
+	return anchors.mapIndexed { index, base ->
+		val xDelta = random.nextFloat() * tuning.xJitter * 2f - tuning.xJitter
+		val yDelta = random.nextFloat() * tuning.yJitter * 2f - tuning.yJitter
+		val scaleDelta = 1f + random.nextFloat() * tuning.scaleJitter * 2f - tuning.scaleJitter
+		val alphaDelta = 1f - random.nextFloat() * tuning.alphaJitter
 
-	CumulusPlacement(
-		spriteIndex = random.nextInt(variantCount),
-		xFraction = wrapFraction(base.xFraction + xDelta),
-		yFraction = (base.yFraction + yDelta).coerceIn(tuning.minY, tuning.maxY),
-		scale = base.scale * scaleDelta,
-		mirror = random.nextBoolean(),
-		alphaScale = base.alphaScale * alphaDelta
-	)
+		CumulusPlacement(
+			spriteIndex = (variantOffset + index) % variantCount,
+			xFraction = wrapFraction(base.xFraction + xDelta),
+			yFraction = (base.yFraction + yDelta).coerceIn(tuning.minY, tuning.maxY),
+			scale = base.scale * scaleDelta,
+			mirror = random.nextBoolean(),
+			alphaScale = base.alphaScale * alphaDelta
+		)
+	}
 }
 
 private fun wrapFraction(value: Float): Float {
@@ -724,6 +836,18 @@ internal data class CumulusScale(val width: Float, val height: Float, val alpha:
 private data class CumulusAnchor(val xFraction: Float, val yFraction: Float, val scale: Float, val alphaScale: Float = 1f)
 
 internal data class CumulusPlacement(val spriteIndex: Int, val xFraction: Float, val yFraction: Float, val scale: Float, val mirror: Boolean, val alphaScale: Float)
+
+private data class HeroVariant(val parts: List<HeroPart>)
+
+private data class HeroPart(
+	val spriteIndex: Int,
+	val offsetX: Float = 0f,
+	val offsetY: Float = 0f,
+	val scale: Float = 1f,
+	val widthScale: Float = 1f,
+	val heightScale: Float = 1f,
+	val alphaScale: Float = 1f
+)
 
 private data class OvercastProfile(val noise: OvercastNoiseProfile, val density: OvercastDensityProfile, val lighting: OvercastLightingProfile)
 

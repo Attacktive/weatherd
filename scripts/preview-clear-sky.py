@@ -7,7 +7,7 @@
 # This is a design aid, not a test.
 # It re-implements just enough of SceneRenderer.drawScatteredClouds, CloudLayer fair-weather sprite geometry, and skyGradientFor to judge a cloud change in seconds instead of a build-and-install round trip.
 # Only the resting frame is drawn: wind is zero, so drift, bob and swell all sit at their timeSeconds = 0 values.
-# Placement jitter, mirroring, and sprite choice vary by epoch day on-device; this preview uses nominal anchor centers plus a fixed representative sprite layout because size/count tuning does not depend on that daily variation.
+# Placement jitter, mirroring, and morphology-variant choice vary by epoch day on-device; this preview uses nominal anchor centers plus a fixed representative variant layout because size/count tuning does not depend on that daily variation.
 # Whenever the cloud geometry, coverage ramp, alpha ramp, or cumulus tint changes in Kotlin, mirror it here, and treat any disagreement with the device as Kotlin being right.
 
 import argparse
@@ -38,9 +38,6 @@ NEAR_BASE_HEIGHT_TO_WIDTH = 0.22
 NEAR_BASE_HEIGHT_TO_DECK = 0.48
 NEAR_ALPHA = 248
 NEAR_ALPHA_SCALE = 0.92
-SOFT_HERO_VARIANT_START = 2
-SOFT_HERO_SCALE = 0.84
-SOFT_HERO_ALPHA_SCALE = 0.82
 NEAR_BLEND_START = 0.50
 FAR_BASE_HEIGHT_TO_WIDTH = 0.082
 FAR_BASE_HEIGHT_TO_DECK = 0.24
@@ -68,11 +65,11 @@ NEAR_SPRITES = (
 )
 FAR_SPRITES = ('cloud_cumulus_far_veil_broad.png', 'cloud_cumulus_far_veil_layered.png')
 
-# The preview intentionally pins representative near-sprite choices instead of reproducing daily runtime randomness.
-# Sparse includes both an original and a soft hero so low-coverage tuning exercises both families.
-REPRESENTATIVE_SPARSE_VARIANTS = (2, 0)
-REPRESENTATIVE_SCATTERED_VARIANTS = (1, 3, 0, 2, 1)
-REPRESENTATIVE_BROKEN_VARIANTS = (3, 0, 2, 1, 3, 2, 0, 1, 2)
+# The preview intentionally pins representative near-variant choices instead of reproducing daily runtime randomness.
+# Runtime cycles through neighboring morphology variants from a daily random offset; these fixed sequences exercise the same vocabulary in a stable preview.
+REPRESENTATIVE_SPARSE_VARIANTS = (0, 1)
+REPRESENTATIVE_SCATTERED_VARIANTS = (2, 3, 4, 5, 6)
+REPRESENTATIVE_BROKEN_VARIANTS = (5, 6, 0, 1, 2, 3, 4, 5, 6)
 
 # Nominal CloudLayer anchors before its small seeded day-to-day jitter.
 SPARSE_ANCHORS = (
@@ -128,6 +125,42 @@ class SpriteGeometry:
 	center_y: float
 	width: float
 	height: float
+
+
+@dataclass(frozen=True)
+class HeroPart:
+	sprite_index: int
+	offset_x: float = 0.0
+	offset_y: float = 0.0
+	scale: float = 1.0
+	width_scale: float = 1.0
+	height_scale: float = 1.0
+	alpha_scale: float = 1.0
+
+
+@dataclass(frozen=True)
+class HeroVariant:
+	parts: tuple[HeroPart, ...]
+
+
+HERO_VARIANTS = (
+	HeroVariant((HeroPart(0),)),
+	HeroVariant((
+		HeroPart(0, offset_y=0.06, scale=0.92, width_scale=0.96, height_scale=0.98),
+		HeroPart(2, offset_x=-0.08, offset_y=-0.30, scale=0.58, width_scale=0.84, height_scale=1.16, alpha_scale=0.92),
+	)),
+	HeroVariant((HeroPart(2, scale=0.84, alpha_scale=0.82),)),
+	HeroVariant((
+		HeroPart(1, scale=0.90, width_scale=1.24, height_scale=0.72),
+		HeroPart(3, offset_x=0.30, offset_y=0.08, scale=0.62, width_scale=1.16, height_scale=0.68, alpha_scale=0.72),
+	)),
+	HeroVariant((HeroPart(1),)),
+	HeroVariant((
+		HeroPart(2, offset_x=-0.20, offset_y=0.02, scale=0.70, width_scale=0.90, height_scale=0.86, alpha_scale=0.78),
+		HeroPart(3, offset_x=0.24, offset_y=-0.07, scale=0.64, width_scale=0.88, height_scale=0.82, alpha_scale=0.74),
+	)),
+	HeroVariant((HeroPart(3, scale=0.84, alpha_scale=0.82),)),
+)
 
 
 FAR_PROFILE = CumulusProfile('far', FAR_SPRITES, FAR_ANCHORS, FAR_VIEWPORTS)
@@ -240,24 +273,28 @@ def draw_cumulus(destination, profile, geometry, multiply, alpha):
 		else:
 			variant_index = profile.variant_indices[index]
 
-		sprite = sprites[variant_index]
-		if profile.kind != 'far' and variant_index >= SOFT_HERO_VARIANT_START:
-			placement_scale *= SOFT_HERO_SCALE
-			alpha_scale *= SOFT_HERO_ALPHA_SCALE
+		base_center_x = (wrapped_offset + period * x_fraction) % period
+		base_center_y = geometry.top - top_offset + geometry.deck_height * y_fraction
+		if profile.kind == 'far':
+			parts = (HeroPart(variant_index),)
+		else:
+			parts = HERO_VARIANTS[variant_index].parts
 
-		sprite_height = base_height * placement_scale * height_scale
-		sprite_width = sprite_height * sprite.width / sprite.height * width_scale
-		center_x = (wrapped_offset + period * x_fraction) % period
-		center_y = geometry.top - top_offset + geometry.deck_height * y_fraction
-		sprite_alpha = int(composition_alpha * style_alpha * alpha_scale)
+		for part in parts:
+			sprite = sprites[part.sprite_index]
+			sprite_height = base_height * placement_scale * height_scale * part.scale * part.height_scale
+			sprite_width = sprite_height * sprite.width / sprite.height * width_scale * part.width_scale
+			center_x = base_center_x + part.offset_x * base_height * placement_scale
+			center_y = base_center_y + part.offset_y * base_height * placement_scale
+			sprite_alpha = int(composition_alpha * style_alpha * alpha_scale * part.alpha_scale)
 
-		for shift in (-1, 0, 1):
-			wrapped_x = center_x + shift * period
-			if wrapped_x + sprite_width * 0.5 < 0 or wrapped_x - sprite_width * 0.5 > WIDTH:
-				continue
+			for shift in (-1, 0, 1):
+				wrapped_x = center_x + shift * period
+				if wrapped_x + sprite_width * 0.5 < 0 or wrapped_x - sprite_width * 0.5 > WIDTH:
+					continue
 
-			sprite_geometry = SpriteGeometry(wrapped_x, center_y, sprite_width, sprite_height)
-			composite_sprite(destination, sprite, sprite_geometry, multiply, sprite_alpha)
+				sprite_geometry = SpriteGeometry(wrapped_x, center_y, sprite_width, sprite_height)
+				composite_sprite(destination, sprite, sprite_geometry, multiply, sprite_alpha)
 
 
 def clear_sky(cloudiness, cloud_scale=1.0, cloud_size_scale=1.0, cloud_count_scale=1.0):
