@@ -38,6 +38,9 @@ NEAR_BASE_HEIGHT_TO_WIDTH = 0.22
 NEAR_BASE_HEIGHT_TO_DECK = 0.48
 NEAR_ALPHA = 248
 NEAR_ALPHA_SCALE = 0.92
+SOFT_HERO_VARIANT_START = 2
+SOFT_HERO_SCALE = 0.84
+SOFT_HERO_ALPHA_SCALE = 0.82
 NEAR_BLEND_START = 0.50
 FAR_BASE_HEIGHT_TO_WIDTH = 0.082
 FAR_BASE_HEIGHT_TO_DECK = 0.24
@@ -57,7 +60,12 @@ GRAY_FULL = 0.85
 # Mirrors SceneRenderer.cumulusTint(DAY): the textures carry their own shading, so daylight passes through untouched.
 CUMULUS_TINT = np.array([255, 255, 255], dtype=np.float32)
 
-NEAR_SPRITES = ('cloud_cumulus_hero_broad.webp', 'cloud_cumulus_hero_broad_alt.webp')
+NEAR_SPRITES = (
+	'cloud_cumulus_hero_broad.webp',
+	'cloud_cumulus_hero_broad_alt.webp',
+	'cloud_cumulus_hero_soft_broad.webp',
+	'cloud_cumulus_hero_soft_broad_alt.webp',
+)
 FAR_SPRITES = ('cloud_cumulus_far_veil_broad.png', 'cloud_cumulus_far_veil_layered.png')
 
 # Nominal CloudLayer anchors before its small seeded day-to-day jitter.
@@ -220,7 +228,12 @@ def draw_cumulus(destination, profile, geometry, multiply, alpha):
 	sprites = [Image.open(DRAWABLE / name).convert('RGBA') for name in profile.sprite_names]
 	wrapped_offset = geometry.offset % period
 	for index, (x_fraction, y_fraction, placement_scale, alpha_scale) in enumerate(profile.anchors):
-		sprite = sprites[index % len(sprites)]
+		variant_index = index % len(sprites)
+		sprite = sprites[variant_index]
+		if profile.kind != 'far' and variant_index >= SOFT_HERO_VARIANT_START:
+			placement_scale *= SOFT_HERO_SCALE
+			alpha_scale *= SOFT_HERO_ALPHA_SCALE
+
 		sprite_height = base_height * placement_scale * height_scale
 		sprite_width = sprite_height * sprite.width / sprite.height * width_scale
 		center_x = (wrapped_offset + period * x_fraction) % period

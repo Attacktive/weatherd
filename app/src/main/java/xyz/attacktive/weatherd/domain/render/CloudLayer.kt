@@ -345,7 +345,21 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 			CumulusKind.BROKEN -> BROKEN_LAYOUT_SEED_SALT
 		}
 
-		cachedNearPlacements = buildPlacements(NEAR_PLACEMENT_TUNING, anchors, Random(layoutSeed(epochDay) xor seedSalt), HERO_VARIANT_COUNT)
+		cachedNearPlacements = buildPlacements(
+			NEAR_PLACEMENT_TUNING,
+			anchors,
+			Random(layoutSeed(epochDay) xor seedSalt),
+			HERO_VARIANT_COUNT
+		).map { placement ->
+			if (placement.spriteIndex < SOFT_HERO_VARIANT_START) {
+				placement
+			} else {
+				placement.copy(
+					scale = placement.scale * SOFT_HERO_SCALE,
+					alphaScale = placement.alphaScale * SOFT_HERO_ALPHA_SCALE
+				)
+			}
+		}
 
 		cachedNearEpochDay = epochDay
 		return cachedNearPlacements
@@ -518,7 +532,10 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		private const val BROKEN_LAYOUT_SEED_SALT = 0x7B19E5
 		private const val FAR_LAYOUT_SEED_SALT = 0x46A2D9
 
-		private const val HERO_VARIANT_COUNT = 2
+		private const val HERO_VARIANT_COUNT = 4
+		private const val SOFT_HERO_VARIANT_START = 2
+		private const val SOFT_HERO_SCALE = 0.84f
+		private const val SOFT_HERO_ALPHA_SCALE = 0.82f
 		private const val FAR_VARIANT_COUNT = 2
 		private const val HERO_CUMULUS_ALPHA_SCALE = 0.92f
 		private const val FAR_CUMULUS_ALPHA_SCALE = 1.18f
@@ -606,7 +623,9 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 
 			return listOf(
 				decode(resources, R.drawable.cloud_cumulus_hero_broad),
-				decode(resources, R.drawable.cloud_cumulus_hero_broad_alt)
+				decode(resources, R.drawable.cloud_cumulus_hero_broad_alt),
+				decode(resources, R.drawable.cloud_cumulus_hero_soft_broad),
+				decode(resources, R.drawable.cloud_cumulus_hero_soft_broad_alt)
 			).also {
 				sharedHeroBitmaps = it
 			}

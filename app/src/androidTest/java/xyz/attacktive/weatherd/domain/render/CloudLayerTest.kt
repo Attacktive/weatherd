@@ -183,6 +183,16 @@ class CloudLayerTest {
 	}
 
 	@Test
+	fun heroCumulusSpritesKeepSolidHighlightsAndSoftEdges() {
+		for (texture in HERO_CUMULUS_TEXTURES) {
+			val alpha = alphaHistogram(texture)
+			assertTrue("${name(texture)} must keep near-opaque highlights", alpha.drop(250).sum() > 0)
+			assertTrue("${name(texture)} must keep a transparent background", alpha[0] > 0)
+			assertTrue("${name(texture)} must keep many partial alpha levels for soft edges", alpha.count { it > 0 } > 32)
+		}
+	}
+
+	@Test
 	fun coverageGrowsAcrossTheCumulusSteps() {
 		val covered = CUMULUS_COVERAGE_STEPS.map { texture ->
 			alphaHistogram(texture).drop(128).sum()
@@ -274,6 +284,12 @@ class CloudLayerTest {
 
 	private companion object {
 		val SHEET_TEXTURES = listOf(R.drawable.cloud_sheet_far, R.drawable.cloud_sheet_near)
+		val HERO_CUMULUS_TEXTURES = listOf(
+			R.drawable.cloud_cumulus_hero_broad,
+			R.drawable.cloud_cumulus_hero_broad_alt,
+			R.drawable.cloud_cumulus_hero_soft_broad,
+			R.drawable.cloud_cumulus_hero_soft_broad_alt
+		)
 
 		/** The near deck's coverage steps, in the order the renderer cross-fades them. */
 		val CUMULUS_COVERAGE_STEPS = listOf(R.drawable.cloud_cumulus_sparse, R.drawable.cloud_cumulus_scattered, R.drawable.cloud_cumulus_broken)
