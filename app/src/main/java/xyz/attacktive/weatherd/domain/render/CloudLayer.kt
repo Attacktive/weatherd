@@ -517,23 +517,14 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		val warpedX = wrapUnit(u + 0.055f * (noise.warpX.sample(u, v) - 0.5f))
 		val warpedY = (v + 0.075f * (noise.warpY.sample(u, v) - 0.5f)).coerceIn(0f, 1f)
 		val primaryBody = smoothstep(profile.morphology.bodyCut, profile.morphology.bodyFull, noise.body.sample(warpedX, warpedY))
-		val secondaryBody = smoothstep(
-			profile.morphology.bodyCut + OVERCAST_SECONDARY_BODY_CUT_OFFSET,
-			profile.morphology.bodyFull + OVERCAST_SECONDARY_BODY_CUT_OFFSET,
-			noise.secondaryBody.sample(
-				wrapUnit(warpedX + OVERCAST_SECONDARY_BODY_OFFSET_X),
-				(warpedY + OVERCAST_SECONDARY_BODY_OFFSET_Y).coerceIn(0f, 1f)
-			)
-		) * profile.morphology.secondaryBodyStrength
+		val secondaryBody = smoothstep(profile.morphology.bodyCut + OVERCAST_SECONDARY_BODY_CUT_OFFSET, profile.morphology.bodyFull + OVERCAST_SECONDARY_BODY_CUT_OFFSET, noise.secondaryBody.sample(wrapUnit(warpedX + OVERCAST_SECONDARY_BODY_OFFSET_X), (warpedY + OVERCAST_SECONDARY_BODY_OFFSET_Y).coerceIn(0f, 1f))) * profile.morphology.secondaryBodyStrength
 
 		val body = primaryBody + secondaryBody * (1f - primaryBody)
 		val billow = noise.billow.sample(warpedX, warpedY)
 		val billowShape = smoothstep(profile.morphology.billowCut, profile.morphology.billowFull, billow)
 		val fine = noise.fine.sample(warpedX, warpedY)
 		val bodyBase = 1f - profile.morphology.bodyBillowStrength
-		val structure = body * (bodyBase + profile.morphology.bodyBillowStrength * billowShape) +
-			profile.morphology.detachedBillowStrength * billowShape +
-			profile.morphology.fineStrength * (fine - 0.5f)
+		val structure = body * (bodyBase + profile.morphology.bodyBillowStrength * billowShape) + profile.morphology.detachedBillowStrength * billowShape + profile.morphology.fineStrength * (fine - 0.5f)
 
 		val bank = 0.76f + 0.24f * smoothstep(0.22f, 0.78f, noise.bank.sample(u, v))
 		val lowerEdge = v + 0.20f * (noise.bottom.sample(u, v) - 0.5f)
