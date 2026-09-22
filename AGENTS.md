@@ -2,7 +2,7 @@
 
 Instructions and architectural invariants for agents working in the Weatherd codebase.
 
-- Version: 1.4.0 (2026-09-21)
+- Version: 1.5.0 (2026-09-22)
 - Persona: Coding assistant pair-programming with the user on Weatherd.
 
 ## Tools and Environment
@@ -34,6 +34,43 @@ Agents use standard file inspection, editing tools, and Gradle tasks (`./gradlew
 	- Explain why an existing workflow cannot serve the purpose before proposing one.
 - Never create a temporary workflow with the intention of deleting it afterward.
 	- GitHub retains historical workflow identities and runs in the Actions UI even after the YAML file is removed.
+
+### Merge-and-Release Shorthand
+
+When the user gives a concise instruction whose clear intent is to both merge a pull request and release it, such as `merge the PR and 🚀 it`, `merge and release`, or `merge and ship it`, treat that as authorization for the complete merge-and-release sequence below.
+Do not ask what the shorthand means and do not re-research or rediscover Weatherd's release procedure in the normal path.
+
+- The shorthand authorizes both merging the indicated/current pull request and cutting the next beta release.
+- It does not authorize promotion from beta to production.
+- The Mandatory GitHub Write Gate above still applies before every mutation.
+	- "Do not research" here means do not rediscover release mechanics.
+	- Checking the broker's current capabilities is still mandatory.
+- Before merging, require the pull request's required checks to be green.
+- Merge by fast-forward only so the exact reviewed commit objects and their signatures survive unchanged.
+	- Refresh `main` and the pull-request head immediately before the merge.
+	- Move `main` to the pull-request head only when that move is a fast-forward.
+	- Never squash, rebase, or create a merge commit for this operation.
+	- Afterward, verify that GitHub reports the pull request merged, `main` points at the former pull-request head, and the merged commits still report valid verification.
+	- If a fast-forward is impossible, stop and report it rather than rewriting signed commits.
+- Release immediately after the merge:
+	1. Read `versionCode` and `versionName` from `app/build.gradle.kts`.
+	2. Unless the user specified a version or a different semantic-version bump, increment `versionCode` by one and increment the patch component of `versionName` by one.
+	3. Commit only that version bump directly to `main`, using the global version-bump exception to the pull-request rule.
+		- Use the broker's `commit_files` operation.
+		- Use the commit message `chore: bump version to <versionName>`.
+		- Include the active model's required `Co-authored-by` trailer.
+		- Verify the commit is authored by `attacktive-gremlin[bot]` and has a valid GitHub signature.
+	4. Create tag `<versionName>` at that exact signed version-bump commit.
+		- Apply the Mandatory GitHub Write Gate before creating the tag.
+		- Do not tag the feature pull-request head or any earlier commit.
+	5. The existing tag-triggered `Release` workflow is the release mechanism.
+		- In the normal path, do not inspect or re-research the workflow before using it.
+		- It builds the signed APK and AAB, creates the GitHub Release with generated notes, creates Play "What's new" text, and uploads the AAB to the Google Play beta track with completed status.
+	6. Watch the `Release` workflow through completion.
+		- On failure, inspect the failing job/logs and diagnose from that evidence.
+		- On success, report the released version/tag and that the GitHub Release and beta upload completed.
+- A request to only `merge` does not imply a release.
+- A request to only `release` does not imply merging unrelated pull requests.
 
 ## Architectural Invariants
 
