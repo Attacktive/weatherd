@@ -7,7 +7,7 @@
 # This is a design aid, not a test.
 # It re-implements just enough of SceneRenderer.drawScatteredClouds, CloudLayer fair-weather sprite geometry, and skyGradientFor to judge a cloud change in seconds instead of a build-and-install round trip.
 # Only the resting frame is drawn: wind is zero, so drift, bob and swell all sit at their timeSeconds = 0 values.
-# Placement jitter and mirroring vary by epoch day on-device; this preview uses the nominal anchor centers because size/count tuning does not depend on that daily variation.
+# Placement jitter, mirroring, and sprite choice vary by epoch day on-device; this preview uses nominal anchor centers plus a fixed representative sprite layout because size/count tuning does not depend on that daily variation.
 # Whenever the cloud geometry, coverage ramp, alpha ramp, or cumulus tint changes in Kotlin, mirror it here, and treat any disagreement with the device as Kotlin being right.
 
 import argparse
@@ -68,6 +68,12 @@ NEAR_SPRITES = (
 )
 FAR_SPRITES = ('cloud_cumulus_far_veil_broad.png', 'cloud_cumulus_far_veil_layered.png')
 
+# The preview intentionally pins representative near-sprite choices instead of reproducing daily runtime randomness.
+# Sparse includes both an original and a soft hero so low-coverage tuning exercises both families.
+REPRESENTATIVE_SPARSE_VARIANTS = (2, 0)
+REPRESENTATIVE_SCATTERED_VARIANTS = (1, 3, 0, 2, 1)
+REPRESENTATIVE_BROKEN_VARIANTS = (3, 0, 2, 1, 3, 2, 0, 1, 2)
+
 # Nominal CloudLayer anchors before its small seeded day-to-day jitter.
 SPARSE_ANCHORS = (
 	(0.18, 0.34, 1.00, 1.00),
@@ -105,6 +111,7 @@ class CumulusProfile:
 	sprite_names: tuple[str, ...]
 	anchors: tuple[tuple[float, float, float, float], ...]
 	viewports: float
+	variant_indices: tuple[int, ...] | None = None
 
 
 @dataclass(frozen=True)
@@ -125,9 +132,9 @@ class SpriteGeometry:
 
 FAR_PROFILE = CumulusProfile('far', FAR_SPRITES, FAR_ANCHORS, FAR_VIEWPORTS)
 COVERAGE_STEPS = (
-	CumulusProfile('sparse', NEAR_SPRITES, SPARSE_ANCHORS, NEAR_VIEWPORTS),
-	CumulusProfile('scattered', NEAR_SPRITES, SCATTERED_ANCHORS, NEAR_VIEWPORTS),
-	CumulusProfile('broken', NEAR_SPRITES, BROKEN_ANCHORS, NEAR_VIEWPORTS),
+	CumulusProfile('sparse', NEAR_SPRITES, SPARSE_ANCHORS, NEAR_VIEWPORTS, REPRESENTATIVE_SPARSE_VARIANTS),
+	CumulusProfile('scattered', NEAR_SPRITES, SCATTERED_ANCHORS, NEAR_VIEWPORTS, REPRESENTATIVE_SCATTERED_VARIANTS),
+	CumulusProfile('broken', NEAR_SPRITES, BROKEN_ANCHORS, NEAR_VIEWPORTS, REPRESENTATIVE_BROKEN_VARIANTS),
 )
 
 
@@ -228,7 +235,11 @@ def draw_cumulus(destination, profile, geometry, multiply, alpha):
 	sprites = [Image.open(DRAWABLE / name).convert('RGBA') for name in profile.sprite_names]
 	wrapped_offset = geometry.offset % period
 	for index, (x_fraction, y_fraction, placement_scale, alpha_scale) in enumerate(profile.anchors):
-		variant_index = index % len(sprites)
+		if profile.variant_indices is None:
+			variant_index = index % len(sprites)
+		else:
+			variant_index = profile.variant_indices[index]
+
 		sprite = sprites[variant_index]
 		if profile.kind != 'far' and variant_index >= SOFT_HERO_VARIANT_START:
 			placement_scale *= SOFT_HERO_SCALE
