@@ -308,16 +308,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		}
 	}
 
-	private fun drawFarPlacement(
-		canvas: Canvas,
-		geometry: CloudDrawGeometry,
-		style: CumulusStyle,
-		placement: CumulusPlacement,
-		compositionAlpha: Int,
-		wrappedOffset: Float,
-		period: Float,
-		shadow: CumulusShadow?
-	) {
+	private fun drawFarPlacement(canvas: Canvas, geometry: CloudDrawGeometry, style: CumulusStyle, placement: CumulusPlacement, compositionAlpha: Int, wrappedOffset: Float, period: Float, shadow: CumulusShadow?) {
 		val sprite = cumulusBitmaps[placement.spriteIndex % cumulusBitmaps.size]
 		val spriteHeight = style.baseHeight * placement.scale * style.scale.height
 		val spriteWidth = spriteHeight * sprite.width.toFloat() / sprite.height.toFloat() * style.scale.width
@@ -341,20 +332,14 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		}
 	}
 
-	private fun drawHeroPlacement(
-		canvas: Canvas,
-		geometry: CloudDrawGeometry,
-		style: CumulusStyle,
-		placement: CumulusPlacement,
-		compositionAlpha: Int,
-		wrappedOffset: Float,
-		period: Float
-	) {
+	private fun drawHeroPlacement(canvas: Canvas, geometry: CloudDrawGeometry, style: CumulusStyle, placement: CumulusPlacement, compositionAlpha: Int, wrappedOffset: Float, period: Float) {
 		val variant = HERO_VARIANTS[placement.spriteIndex % HERO_VARIANTS.size]
 		val baseCenterX = positiveModulo(wrappedOffset + period * placement.xFraction, period)
 		val baseCenterY = geometry.top - style.topOffset + geometry.height * placement.yFraction
-		val mirrorDirection = if (placement.mirror) -1f else 1f
+		val mirrorDirection = if (placement.mirror) { -1f } else { 1f }
+
 		updateColorFilter(style.tint)
+
 		for (part in variant.parts) {
 			val sprite = cumulusBitmaps[part.spriteIndex]
 			val spriteHeight = style.baseHeight * placement.scale * style.scale.height * part.scale * part.heightScale
