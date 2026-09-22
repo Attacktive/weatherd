@@ -651,7 +651,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 				detachedBillowStrength = 0.06f,
 				fineStrength = 0.03f
 			),
-			density = OvercastDensityProfile(0.26f, 0.74f, 1.55f),
+			density = OvercastDensityProfile(0.26f, 0.61f, 1.55f),
 			lighting = OvercastLightingProfile(0.26f, 0.34f, 0.61f, 0.014f, 0.028f, 0.08f)
 		)
 		private val NEAR_OVERCAST_PROFILE = OvercastProfile(
@@ -671,7 +671,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 				detachedBillowStrength = 0.10f,
 				fineStrength = 0.04f
 			),
-			density = OvercastDensityProfile(0.23f, 0.72f, 1.70f),
+			density = OvercastDensityProfile(0.23f, 0.56f, 1.70f),
 			lighting = OvercastLightingProfile(0.40f, 0.46f, 0.49f, 0.018f, 0.035f, 0.15f)
 		)
 
