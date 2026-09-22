@@ -516,14 +516,29 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 	private fun overcastPixel(u: Float, v: Float, profile: OvercastProfile, noise: OvercastNoise): Int {
 		val warpedX = wrapUnit(u + 0.055f * (noise.warpX.sample(u, v) - 0.5f))
 		val warpedY = (v + 0.075f * (noise.warpY.sample(u, v) - 0.5f)).coerceIn(0f, 1f)
-		val body = noise.body.sample(warpedX, warpedY)
+		val primaryBody = smoothstep(profile.morphology.bodyCut, profile.morphology.bodyFull, noise.body.sample(warpedX, warpedY))
+		val secondaryBody = smoothstep(
+			profile.morphology.bodyCut + OVERCAST_SECONDARY_BODY_CUT_OFFSET,
+			profile.morphology.bodyFull + OVERCAST_SECONDARY_BODY_CUT_OFFSET,
+			noise.secondaryBody.sample(
+				wrapUnit(warpedX + OVERCAST_SECONDARY_BODY_OFFSET_X),
+				(warpedY + OVERCAST_SECONDARY_BODY_OFFSET_Y).coerceIn(0f, 1f)
+			)
+		) * profile.morphology.secondaryBodyStrength
+
+		val body = primaryBody + secondaryBody * (1f - primaryBody)
 		val billow = noise.billow.sample(warpedX, warpedY)
+		val billowShape = smoothstep(profile.morphology.billowCut, profile.morphology.billowFull, billow)
 		val fine = noise.fine.sample(warpedX, warpedY)
-		val structure = 0.58f * body + 0.35f * billow + 0.07f * fine
+		val bodyBase = 1f - profile.morphology.bodyBillowStrength
+		val structure = body * (bodyBase + profile.morphology.bodyBillowStrength * billowShape) +
+			profile.morphology.detachedBillowStrength * billowShape +
+			profile.morphology.fineStrength * (fine - 0.5f)
+
 		val bank = 0.76f + 0.24f * smoothstep(0.22f, 0.78f, noise.bank.sample(u, v))
 		val lowerEdge = v + 0.20f * (noise.bottom.sample(u, v) - 0.5f)
 		val envelope = (1f - smoothstep(0.68f, 1.02f, lowerEdge)) * (1f - smoothstep(0.92f, 0.998f, v))
-		val density = smoothstep(profile.density.cut, 0.66f, structure) * bank * envelope
+		val density = smoothstep(profile.density.cut, profile.density.full, structure) * bank * envelope
 		val alpha = (density * profile.density.alphaGain).coerceIn(0f, 1f)
 		val upperLeft = noise.body.sample(wrapUnit(warpedX - profile.lighting.shiftX), (warpedY - profile.lighting.shiftY).coerceAtLeast(0f))
 		val lowerRight = noise.body.sample(wrapUnit(warpedX + profile.lighting.shiftX), (warpedY + profile.lighting.shiftY).coerceAtMost(1f))
@@ -615,6 +630,9 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		private const val OVERCAST_FIELD_HEIGHT = 120
 		private const val OVERCAST_TEXTURE_WIDTH = 720
 		private const val OVERCAST_TEXTURE_HEIGHT = 240
+		private const val OVERCAST_SECONDARY_BODY_OFFSET_X = 0.17f
+		private const val OVERCAST_SECONDARY_BODY_OFFSET_Y = 0.05f
+		private const val OVERCAST_SECONDARY_BODY_CUT_OFFSET = 0.02f
 
 		private val FAR_OVERCAST_PROFILE = OvercastProfile(
 			noise = OvercastNoiseProfile(
@@ -623,7 +641,17 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 				billow = NoiseSize(24, 11),
 				fine = NoiseSize(52, 23)
 			),
-			density = OvercastDensityProfile(0.39f, 1.58f),
+			morphology = OvercastMorphologyProfile(
+				bodyCut = 0.38f,
+				bodyFull = 0.74f,
+				secondaryBodyStrength = 0.52f,
+				billowCut = 0.30f,
+				billowFull = 0.78f,
+				bodyBillowStrength = 0.18f,
+				detachedBillowStrength = 0.06f,
+				fineStrength = 0.03f
+			),
+			density = OvercastDensityProfile(0.26f, 0.74f, 1.55f),
 			lighting = OvercastLightingProfile(0.26f, 0.34f, 0.61f, 0.014f, 0.028f, 0.08f)
 		)
 		private val NEAR_OVERCAST_PROFILE = OvercastProfile(
@@ -633,8 +661,18 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 				billow = NoiseSize(17, 8),
 				fine = NoiseSize(40, 18)
 			),
-			density = OvercastDensityProfile(0.38f, 1.78f),
-			lighting = OvercastLightingProfile(0.38f, 0.46f, 0.49f, 0.018f, 0.035f, 0.12f)
+			morphology = OvercastMorphologyProfile(
+				bodyCut = 0.40f,
+				bodyFull = 0.72f,
+				secondaryBodyStrength = 0.65f,
+				billowCut = 0.28f,
+				billowFull = 0.76f,
+				bodyBillowStrength = 0.24f,
+				detachedBillowStrength = 0.10f,
+				fineStrength = 0.04f
+			),
+			density = OvercastDensityProfile(0.23f, 0.72f, 1.70f),
+			lighting = OvercastLightingProfile(0.40f, 0.46f, 0.49f, 0.018f, 0.035f, 0.15f)
 		)
 
 		private val NEAR_PLACEMENT_TUNING = PlacementTuning(0.035f, 0.045f, 0.10f, 0.06f, 0.16f, 0.64f)
@@ -834,13 +872,24 @@ private data class HeroPart(
 	val alphaScale: Float = 1f
 )
 
-private data class OvercastProfile(val noise: OvercastNoiseProfile, val density: OvercastDensityProfile, val lighting: OvercastLightingProfile)
+private data class OvercastProfile(val noise: OvercastNoiseProfile, val morphology: OvercastMorphologyProfile, val density: OvercastDensityProfile, val lighting: OvercastLightingProfile)
 
 private data class OvercastNoiseProfile(val seed: Int, val body: NoiseSize, val billow: NoiseSize, val fine: NoiseSize)
 
 private data class NoiseSize(val columns: Int, val rows: Int)
 
-private data class OvercastDensityProfile(val cut: Float, val alphaGain: Float)
+private data class OvercastMorphologyProfile(
+	val bodyCut: Float,
+	val bodyFull: Float,
+	val secondaryBodyStrength: Float,
+	val billowCut: Float,
+	val billowFull: Float,
+	val bodyBillowStrength: Float,
+	val detachedBillowStrength: Float,
+	val fineStrength: Float
+)
+
+private data class OvercastDensityProfile(val cut: Float, val full: Float, val alphaGain: Float)
 
 private data class OvercastLightingProfile(
 	val shadowStrength: Float,
@@ -856,6 +905,7 @@ private class OvercastNoise(profile: OvercastProfile) {
 	val warpX = NoiseGrid(5, 4, noise.seed + 1)
 	val warpY = NoiseGrid(7, 5, noise.seed + 2)
 	val body = FractalNoise(noise.body.columns, noise.body.rows, 3, noise.seed + 100)
+	val secondaryBody = FractalNoise(maxOf(3, noise.body.columns - 2), maxOf(2, noise.body.rows - 1), 3, noise.seed + 150)
 	val billow = FractalNoise(noise.billow.columns, noise.billow.rows, 3, noise.seed + 200, billow = true)
 	val fine = FractalNoise(noise.fine.columns, noise.fine.rows, 2, noise.seed + 300)
 	val bank = NoiseGrid(4, 3, noise.seed + 400)
