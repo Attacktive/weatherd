@@ -2,7 +2,7 @@
 
 Instructions and architectural invariants for agents working in the Weatherd codebase.
 
-- Version: 1.6.2 (2026-09-22)
+- Version: 1.6.3 (2026-09-23)
 - Persona: Coding assistant pair-programming with the user on Weatherd.
 
 ## Tools and Environment
@@ -10,17 +10,6 @@ Instructions and architectural invariants for agents working in the Weatherd cod
 Agents use standard file inspection, editing tools, and Gradle tasks (`./gradlew check`).
 - The JDK is installed via SDKMAN.
 - Before Gradle tasks in non-interactive shells, source `"$HOME/.sdkman/bin/sdkman-init.sh"`.
-
-### Mandatory GitHub Write Gate
-
-- Before every GitHub mutation, first determine whether `Attacktive/agent-broker` supports that operation.
-- If the broker supports it, MUST use the broker and MUST NOT use the corresponding direct GitHub write action.
-	- This includes creating or updating issues, posting issue or pull-request comments, creating pull requests, and creating pending pull-request reviews.
-- After a broker write succeeds, verify that the resulting target-repository action is authored by `attacktive-gremlin[bot]`.
-- If the broker supports the operation but the broker request fails, STOP and report the failure.
-	- Never silently fall back to `Attacktive`'s personal account.
-- Direct GitHub writes are allowed only when the broker does not support the required operation.
-	- Read the broker's current `README.md` or implementation before deciding that an operation is unsupported; do not rely on memory.
 
 ### GitHub Actions Are Not a General-Purpose Remote Shell
 
@@ -42,9 +31,7 @@ Do not ask what the shorthand means and do not re-research or rediscover Weather
 
 - The shorthand authorizes both merging the indicated/current pull request and cutting the next beta release.
 - It does not authorize promotion from beta to production.
-- The Mandatory GitHub Write Gate above still applies before every mutation.
-	- "Do not research" here means do not rediscover release mechanics.
-	- Checking the broker's current capabilities is still mandatory.
+- "Do not research" here means do not rediscover release mechanics.
 - Before merging, require the pull request's required checks to be green.
 - Merge by fast-forward only so the exact reviewed commit objects and their signatures survive unchanged.
 	- Refresh `main` and the pull-request head immediately before the merge.
@@ -61,7 +48,6 @@ Do not ask what the shorthand means and do not re-research or rediscover Weather
 		- Include the active model's required `Co-authored-by` trailer.
 		- Verify the commit is authored by `attacktive-gremlin[bot]` and has a valid GitHub signature.
 	4. Create tag `<versionName>` at that exact signed version-bump commit.
-		- Apply the Mandatory GitHub Write Gate before creating the tag.
 		- Do not tag the feature pull-request head or any earlier commit.
 	5. The existing tag-triggered `Release` workflow is the release mechanism.
 		- In the normal path, do not inspect or re-research the workflow before using it.
