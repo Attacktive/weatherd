@@ -22,7 +22,7 @@ class CloudLayerTest {
 
 	@Test
 	fun negativeOffsetMatchesTheSamePositionAfterAFullWrap() {
-		val layer = CloudLayer(resources, R.drawable.cloud_sheet_near)
+		val layer = CloudLayer(resources, R.drawable.cloud_overcast_hero)
 		val before = render(layer, offset = -17.25f)
 		val after = render(layer, offset = 540f * CLOUD_TEXTURE_VIEWPORTS - 17.25f)
 		assertTrue("Crossing the texture boundary must not change the sampled cloud", before.sameAs(after))
@@ -31,18 +31,21 @@ class CloudLayerTest {
 	}
 
 	@Test
-	fun cloudSheetDissolvesBeforeItsLowerEdge() {
-		val layer = CloudLayer(resources, R.drawable.cloud_sheet_far)
-		val bitmap = render(layer)
-		val bottom = IntArray(bitmap.width)
-		bitmap.getPixels(bottom, 0, bitmap.width, 0, bitmap.height - 1, bitmap.width, 1)
-		assertTrue("The sheet must not end in a visible horizontal band", bottom.all { Color.alpha(it) == 0 })
-		bitmap.recycle()
+	fun overcastBankDissolvesAtBothEdges() {
+		for (texture in OVERCAST_TEXTURES) {
+			val bitmap = decode(texture)
+			val row = IntArray(bitmap.width)
+			bitmap.getPixels(row, 0, bitmap.width, 0, 0, bitmap.width, 1)
+			assertTrue("${name(texture)} must start effectively transparent", row.all { Color.alpha(it) <= OVERCAST_EDGE_ALPHA_MAX })
+			bitmap.getPixels(row, 0, bitmap.width, 0, bitmap.height - 1, bitmap.width, 1)
+			assertTrue("${name(texture)} must end effectively transparent", row.all { Color.alpha(it) <= OVERCAST_EDGE_ALPHA_MAX })
+			bitmap.recycle()
+		}
 	}
 
 	@Test
-	fun cloudSheetsRenderWithBroadInternalShading() {
-		for (texture in SHEET_TEXTURES) {
+	fun overcastBanksKeepBroadInternalShading() {
+		for (texture in OVERCAST_TEXTURES) {
 			val layer = CloudLayer(resources, texture)
 			var darkest = 255
 			var lightest = 0
@@ -68,18 +71,8 @@ class CloudLayerTest {
 	}
 
 	@Test
-	fun balancedOvercastBodiesCarveASeparationTrough() {
-		val isolated = CloudLayer.separatedOvercastBody(0.8f, 0f, 0.6f)
-		val balancedOverlap = CloudLayer.separatedOvercastBody(0.8f, 0.8f, 0.6f)
-		val unbalancedOverlap = CloudLayer.separatedOvercastBody(0.8f, 0.2f, 0.6f)
-
-		assertTrue("Similarly strong overcast bodies must carve a trough below the dominant mass", balancedOverlap < isolated)
-		assertEquals("A clearly dominant body must keep its full strength instead of being split", isolated, unbalancedOverlap, 0.0001f)
-	}
-
-	@Test
 	fun tintAndOpacityReturnToTheirPreviousAppearanceAfterAWeatherChange() {
-		val layer = CloudLayer(resources, R.drawable.cloud_sheet_near)
+		val layer = CloudLayer(resources, R.drawable.cloud_overcast_hero)
 		val day = render(layer, tint = Color.WHITE, alpha = 180)
 		val night = render(layer, tint = Color.rgb(64, 72, 90), alpha = 70)
 		val dayAgain = render(layer, tint = Color.WHITE, alpha = 180)
@@ -293,7 +286,13 @@ class CloudLayerTest {
 	}
 
 	private companion object {
-		val SHEET_TEXTURES = listOf(R.drawable.cloud_sheet_far, R.drawable.cloud_sheet_near)
+		const val OVERCAST_EDGE_ALPHA_MAX = 8
+
+		val OVERCAST_TEXTURES = listOf(
+			R.drawable.cloud_overcast_hero,
+			R.drawable.cloud_overcast_support,
+			R.drawable.cloud_overcast_veil
+		)
 		val HERO_CUMULUS_TEXTURES = listOf(
 			R.drawable.cloud_cumulus_hero_broad,
 			R.drawable.cloud_cumulus_hero_broad_alt,

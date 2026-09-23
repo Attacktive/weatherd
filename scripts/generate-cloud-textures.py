@@ -10,11 +10,7 @@ import numpy as np
 from PIL import Image
 from scipy.ndimage import map_coordinates
 
-SHEET_SIZE = (2160, 640)
-
-# The cumulus decks are deliberately smaller than the overcast sheets.
-# A decoded 2160x640 ARGB_8888 bitmap costs 5.3 MB of heap, and the clear-sky path needs four of these where the overcast path needs two, so the saving is what keeps the renderer's total bitmap footprint in the same range it already occupied.
-# The near deck magnifies its texture about 2.7 times, which a cloud edge survives because it is soft to begin with.
+# The generated fair-weather decks stay compact enough for several decoded variants to coexist without dominating bitmap heap.
 CUMULUS_SIZE = (1620, 480)
 
 OUTPUT = Path(__file__).resolve().parents[1] / 'app/src/main/res/drawable-nodpi'
@@ -77,39 +73,6 @@ def unit_grid(size):
 		np.arange(width, dtype=np.float32) / width,
 		np.arange(height, dtype=np.float32) / height,
 	)
-
-
-def cloud_texture(seed, distant):
-	"""Stretch turbulent density along the wind and feather the sheet into clear sky."""
-	width, height = SHEET_SIZE
-	x, y = unit_grid(SHEET_SIZE)
-
-	bend = noise(x, y, 7, 5, seed + 1) - 0.5
-	curl = noise(x, y, 19, 10, seed + 2) - 0.5
-	wind_x = x + 0.022 * bend
-	wind_y = y + 0.10 * bend + 0.025 * curl + 0.05 * np.sin(2 * np.pi * x)
-	strands = np.zeros_like(x)
-	for octave, weight in enumerate((0.52, 0.27, 0.14, 0.07)):
-		strands += weight * noise(wind_x, wind_y, 16 * 2 ** octave, 34 * 2 ** octave, seed + 10 + octave)
-
-	patches = 0.25 + 0.75 * smoothstep(0.26, 0.76, noise(x, y, 8, 4, seed + 20))
-	fine = noise(wind_x, wind_y, 210, 220, seed + 21)
-	filaments = smoothstep(0.32, 0.80, strands + (fine - 0.5) * 0.24) ** 1.1
-	veil = smoothstep(0.28, 0.85, noise(wind_x, wind_y, 13, 13, seed + 22))
-	envelope = 1 - smoothstep(0.45, 0.97, y + 0.18 * bend)
-	envelope *= 1 - smoothstep(0.80, 0.97, y)
-	envelope *= smoothstep(-0.08, 0.32, y)
-	if distant:
-		density = (0.35 * filaments + 0.65 * veil) * patches * envelope
-	else:
-		density = (0.88 * filaments + 0.12 * veil) * patches * envelope
-
-	alpha = np.clip(density * 1.6, 0, 1)
-	shade = np.clip(1 - 0.065 * smoothstep(0.30, 0.90, veil), 0, 1)
-	pixels = np.empty((height, width, 4), dtype=np.uint8)
-	pixels[:, :, :3] = (shade[:, :, None] * 255).astype(np.uint8)
-	pixels[:, :, 3] = (alpha * 255).astype(np.uint8)
-	return Image.fromarray(pixels)
 
 
 def cumulus_thickness(seed, coverage_cut, cells=(12, 4)):
@@ -181,12 +144,6 @@ def report(path, image):
 
 def main():
 	OUTPUT.mkdir(parents=True, exist_ok=True)
-	for name, seed, distant in (('cloud_sheet_far', 823, True), ('cloud_sheet_near', 1759, False)):
-		image = cloud_texture(seed, distant)
-		path = OUTPUT / f'{name}.png'
-		image.save(path, optimize=True)
-		report(path, image)
-
 	for name, coverage_cut in CUMULUS_COVERAGE:
 		image = cumulus_texture(CUMULUS_SEED, coverage_cut)
 		path = OUTPUT / f'{name}.png'
