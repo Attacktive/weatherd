@@ -19,17 +19,18 @@ class FogRenderingTest {
 
 	@Test
 	fun fogBackdropKeepsMoreAirInTheUpperSkyThanNearTheGround() {
-		val clear = renderBackdrop(fogDensity = 0f)
-		val fog = renderBackdrop(fogDensity = 1f)
-		val upperDifference = averageRgbDifference(clear, fog, 0, HEIGHT / 4)
-		val lowerDifference = averageRgbDifference(clear, fog, HEIGHT * 3 / 4, HEIGHT)
+		// Any positive fog density selects the same fog-weather sky palette and haze path, so this tiny positive baseline isolates the fog base itself.
+		val traceFog = renderBackdrop(fogDensity = 0.0001f)
+		val denseFog = renderBackdrop(fogDensity = 1f)
+		val upperDifference = averageRgbDifference(traceFog, denseFog, 0, HEIGHT / 4)
+		val lowerDifference = averageRgbDifference(traceFog, denseFog, HEIGHT * 3 / 4, HEIGHT)
 
 		assertTrue(
 			"Fog must stay restrained in the upper sky and become substantially denser near the ground, but upper difference was $upperDifference and lower difference was $lowerDifference",
 			lowerDifference > upperDifference * 2f
 		)
-		clear.recycle()
-		fog.recycle()
+		traceFog.recycle()
+		denseFog.recycle()
 	}
 
 	@Test
