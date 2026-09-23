@@ -50,7 +50,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 
 	private val bitmap = when {
 		cumulusKind != null -> null
-		sheetKind != null -> overcastTexture(sheetKind)
+		sheetKind != null -> overcastSource(resources, sheetKind)
 		else -> decode(resources, texture)
 	}
 
@@ -808,6 +808,11 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 				lift(Color.green(color)),
 				lift(Color.blue(color))
 			)
+		}
+
+		private fun overcastSource(resources: Resources, kind: SheetKind) = when (kind) {
+			SheetKind.FAR -> decode(resources, R.drawable.cloud_cumulus_far)
+			SheetKind.NEAR -> decode(resources, R.drawable.cloud_cumulus_broken)
 		}
 
 		private fun decode(resources: Resources, @DrawableRes texture: Int) = checkNotNull(BitmapFactory.decodeResource(resources, texture, BitmapFactory.Options().apply { inScaled = false }))
