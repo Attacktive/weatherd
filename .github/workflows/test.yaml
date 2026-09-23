@@ -32,8 +32,4 @@ jobs:
           api-level: 35
           target: 'google_apis'
           arch: 'x86_64'
-          script: |
-            if ! ./gradlew :app:connectedDebugAndroidTest; then
-              find app/build/outputs/androidTest-results/connected -type f -name '*.xml' -print -exec cat {} \;
-              exit 1
-            fi
+          script: "./gradlew :app:connectedDebugAndroidTest || { find app/build/outputs/androidTest-results/connected -type f -name '*.xml' -print0 | xargs -0 -r cat; exit 1; }"
