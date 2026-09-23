@@ -2761,11 +2761,11 @@ class SceneRenderer(resources: Resources) {
 		private const val OVERCAST_FAR_HEIGHT_SCALE = 1.10f
 		private const val OVERCAST_SUPPORT_HEIGHT_SCALE = 1.00f
 		private const val OVERCAST_HERO_HEIGHT_SCALE = 1.10f
-		private const val OVERCAST_BRIDGE_HEIGHT_SCALE = 0.90f
+		private const val OVERCAST_BRIDGE_HEIGHT_SCALE = 1.00f
 		private const val OVERCAST_FAR_TOP = -0.02f
 		private const val OVERCAST_SUPPORT_TOP = 0.17f
 		private const val OVERCAST_HERO_TOP = 0.30f
-		private const val OVERCAST_BRIDGE_TOP = 0.46f
+		private const val OVERCAST_BRIDGE_TOP = 0.47f
 
 		/** The upper deck is sampled slightly toward the sun and upward, projecting its cover onto the lower cloud plane. */
 		private const val CUMULUS_CAST_SHADOW_HORIZONTAL_PROJECTION = 0.18f
