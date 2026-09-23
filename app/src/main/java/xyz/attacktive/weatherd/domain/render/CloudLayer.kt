@@ -526,17 +526,8 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		val envelope = (1f - smoothstep(0.68f, 1.02f, lowerEdge)) * (1f - smoothstep(0.92f, 0.998f, v))
 		val density = smoothstep(profile.density.cut, profile.density.full, structure) * bank * envelope
 		val alpha = (density * profile.density.alphaGain).coerceIn(0f, 1f)
-		val upperLeft = overcastMergedBody(wrapUnit(warpedX - profile.lighting.shiftX), (warpedY - profile.lighting.shiftY).coerceIn(0f, 1f), profile, noise)
-		val lowerRight = overcastMergedBody(wrapUnit(warpedX + profile.lighting.shiftX), (warpedY + profile.lighting.shiftY).coerceIn(0f, 1f), profile, noise)
-		val directional = (upperLeft - lowerRight).coerceIn(-0.25f, 0.25f)
 		val core = smoothstep(0.16f, 0.72f, density)
-		var light = 1f - profile.lighting.shadowStrength * core + profile.lighting.directionalStrength * directional
-		light += profile.lighting.billowLight * (billow - 0.5f)
-		light += 0.045f * (fine - 0.5f)
-
-		// Thin edges stay skylit; only cloud with real optical depth carries the shadow field.
-		light = 1f - alpha * (1f - light)
-		light = light.coerceIn(profile.lighting.minimumLight, 0.96f)
+		val light = overcastLight(core, billow, fine, profile.lighting.shadowStrength, profile.lighting.minimumLight, profile.lighting.billowLight)
 		val gray = (light * 255f).roundToInt()
 		return Color.argb((alpha * 255f).roundToInt(), gray, gray, gray)
 	}
@@ -621,6 +612,13 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 			return body * (1f - strength * gap * (1f - coreProtection))
 		}
 
+		internal fun overcastLight(core: Float, billow: Float, fine: Float, shadowStrength: Float, minimumLight: Float, billowLight: Float): Float {
+			var light = OVERCAST_SKYLIGHT - shadowStrength * core
+			light += billowLight * (billow - 0.5f)
+			light += OVERCAST_FINE_LIGHT * (fine - 0.5f)
+			return light.coerceIn(minimumLight, OVERCAST_SKYLIGHT)
+		}
+
 		private const val MILLIS_PER_DAY = 86_400_000L
 		private const val NEAR_COMPOSITION_BLEND_START = 0.50f
 		private const val SPARSE_LAYOUT_SEED_SALT = 0x21A7F1
@@ -656,6 +654,8 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		private const val OVERCAST_GAP_FULL = 0.78f
 		private const val OVERCAST_GAP_CORE_CUT = 0.64f
 		private const val OVERCAST_GAP_CORE_FULL = 0.88f
+		private const val OVERCAST_SKYLIGHT = 0.92f
+		private const val OVERCAST_FINE_LIGHT = 0.025f
 
 		private val FAR_OVERCAST_PROFILE = OvercastProfile(
 			noise = OvercastNoiseProfile(
@@ -676,7 +676,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 				fineStrength = 0.03f
 			),
 			density = OvercastDensityProfile(0.26f, 0.61f, 1.55f),
-			lighting = OvercastLightingProfile(0.26f, 0.34f, 0.61f, 0.014f, 0.028f, 0.08f)
+			lighting = OvercastLightingProfile(0.26f, 0.61f, 0.08f)
 		)
 		private val NEAR_OVERCAST_PROFILE = OvercastProfile(
 			noise = OvercastNoiseProfile(
@@ -697,7 +697,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 				fineStrength = 0.04f
 			),
 			density = OvercastDensityProfile(0.23f, 0.56f, 1.70f),
-			lighting = OvercastLightingProfile(0.40f, 0.46f, 0.49f, 0.018f, 0.035f, 0.15f)
+			lighting = OvercastLightingProfile(0.40f, 0.49f, 0.15f)
 		)
 
 		private val NEAR_PLACEMENT_TUNING = PlacementTuning(0.035f, 0.045f, 0.10f, 0.06f, 0.16f, 0.64f)
@@ -917,14 +917,7 @@ private data class OvercastMorphologyProfile(
 
 private data class OvercastDensityProfile(val cut: Float, val full: Float, val alphaGain: Float)
 
-private data class OvercastLightingProfile(
-	val shadowStrength: Float,
-	val directionalStrength: Float,
-	val minimumLight: Float,
-	val shiftX: Float,
-	val shiftY: Float,
-	val billowLight: Float
-)
+private data class OvercastLightingProfile(val shadowStrength: Float, val minimumLight: Float, val billowLight: Float)
 
 private class OvercastNoise(profile: OvercastProfile) {
 	private val noise = profile.noise

@@ -85,6 +85,15 @@ class CloudLayerTest {
 	}
 
 	@Test
+	fun overcastLightingDoesNotEmbossOrWhitenCloudEdges() {
+		val shoulder = CloudLayer.overcastLight(0.10f, 0.5f, 0.5f, 0.40f, 0.49f, 0.15f)
+		val core = CloudLayer.overcastLight(0.80f, 0.5f, 0.5f, 0.40f, 0.49f, 0.15f)
+
+		assertEquals("A cloud shoulder must stay below white instead of turning into a halo", 0.88f, shoulder, 0.0001f)
+		assertTrue("Dense cloud cores must remain darker than their shoulders", core < shoulder)
+	}
+
+	@Test
 	fun tintAndOpacityReturnToTheirPreviousAppearanceAfterAWeatherChange() {
 		val layer = CloudLayer(resources, R.drawable.cloud_sheet_near)
 		val day = render(layer, tint = Color.WHITE, alpha = 180)
