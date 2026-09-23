@@ -41,7 +41,7 @@ import xyz.attacktive.weatherd.domain.weather.SEVERITY_STORM
 /**
  * Draws a weather scene onto a Canvas using procedural scenery and generated cloud textures.
  * Split into a static [renderBackdrop] (sky, overcast ceiling, fog base, haze, vignette — cache it) and an animated [renderForeground] (twinkling stars, a glowing sun/moon, the horizon scenery, drifting clouds/overcast/mist, precipitation, lightning) advanced by `timeSeconds`.
- * Cloud sheets are decoded once and sampled through repeating bitmap shaders; fog uses cached scrolling tiles, so neither regenerates textures per frame.
+ * Cloud sheets are decoded once and sampled through repeating bitmap shaders; fog uses cached scrolling veil tiles, so neither regenerates textures per frame.
  */
 class SceneRenderer(resources: Resources) {
 	private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG)
@@ -194,7 +194,7 @@ class SceneRenderer(resources: Resources) {
 		}
 
 		if (params.fogDensity > 0f) {
-			drawFogBase(canvas, w, h)
+			drawFogBase(canvas, w, h, params)
 		}
 
 		if (showsHaze(params)) {
@@ -254,7 +254,7 @@ class SceneRenderer(resources: Resources) {
 		}
 
 		if (params.fogDensity > 0f) {
-			drawFogDrift(canvas, w, h, timeSeconds)
+			drawFogDrift(canvas, w, h, params, timeSeconds)
 		}
 
 		if (params.thunder) {
@@ -1629,67 +1629,83 @@ class SceneRenderer(resources: Resources) {
 		return wrapOffset(timeSeconds * width * speed * params.windScale + drift * gust - width * phase, width * viewports)
 	}
 
-	/** Soft blurred blobs scattered across a tile — used for rolling fog. */
-	private fun buildMassTile(canvas: Canvas, width: Float, height: Float, color: Int, alpha: Int, blur: Float, count: Int, seed: Long) {
+	/** Cached low, elongated veils: fog texture without recognizable cloud silhouettes. */
+	private fun buildFogVeilTile(canvas: Canvas, width: Float, height: Float, color: Int, alpha: Int, seed: Long, near: Boolean) {
+		val blur = if (near) height * 0.055f else height * 0.075f
 		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
 		brush.style = Paint.Style.FILL
-		brush.color = withAlpha(color, alpha)
 		brush.maskFilter = BlurMaskFilter(blur, BlurMaskFilter.Blur.NORMAL)
-
+		val bounds = RectF()
 		val random = Random(seed)
+		val count = if (near) 10 else 13
+		val horizontalSpan = min(width, height * 1.6f)
 
 		repeat(count) {
-			val cx = random.nextFloat(width)
-			val cy = height * random.nextFloat(0.12f, 0.72f)
-			val rx = width * random.nextFloat(0.16f, 0.32f)
+			val centerX = random.nextFloat(width)
+			val centerY = if (near) height * random.nextFloat(0.42f, 0.90f) else height * random.nextFloat(0.10f, 0.64f)
+			val radiusX = if (near) horizontalSpan * random.nextFloat(0.18f, 0.34f) else horizontalSpan * random.nextFloat(0.14f, 0.28f)
+			val radiusY = if (near) height * random.nextFloat(0.04f, 0.085f) else height * random.nextFloat(0.03f, 0.07f)
+			brush.color = withAlpha(color, (alpha * random.nextFloat(0.55f, 1f)).roundToInt())
 
-			wrapX(width, cx, rx * 1.6f) { x ->
-				canvas.drawCircle(x, cy, rx, brush)
-				canvas.drawCircle(x + rx * 0.7f, cy + rx * 0.2f, rx * 0.75f, brush)
+			wrapX(width, centerX, radiusX + blur * 1.5f) { x ->
+				bounds.set(x - radiusX, centerY - radiusY, x + radiusX, centerY + radiusY)
+				canvas.drawOval(bounds, brush)
 			}
 		}
 	}
 
-	private fun drawFogBase(canvas: Canvas, width: Float, height: Float) {
-		// Denser toward the ground, so the fog has depth instead of being a flat wash.
+	private fun drawFogBase(canvas: Canvas, width: Float, height: Float, params: SceneParams) {
+		val density = params.fogDensity.coerceIn(0f, 1f)
+		val color = lighten(hazeColorFor(params.dayPhase), 0.10f)
 		paint.style = Paint.Style.FILL
-		paint.shader = LinearGradient(0f, 0f, 0f, height, Color.argb(45, 214, 218, 224), Color.argb(130, 206, 210, 216), Shader.TileMode.CLAMP)
+		paint.shader = LinearGradient(
+			0f,
+			0f,
+			0f,
+			height,
+			intArrayOf(
+				withAlpha(color, (12f * density).roundToInt()),
+				withAlpha(color, (40f * density).roundToInt()),
+				withAlpha(color, (105f * density).roundToInt())
+			),
+			floatArrayOf(0f, 0.48f, 1f),
+			Shader.TileMode.CLAMP
+		)
 		canvas.drawRect(0f, 0f, width, height, paint)
 
 		paint.shader = null
 	}
 
-	/** Two mist layers drifting at different speeds with a slow opacity breath, so the fog rolls instead of sitting there. */
-	private fun drawFogDrift(canvas: Canvas, width: Float, height: Float, timeSeconds: Float) {
+	/** Two broad veil fields share one prevailing drift with parallax, while opacity and height breathe slowly enough to read as rolling fog rather than counter-scrolling smoke. */
+	private fun drawFogDrift(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
+		val density = params.fogDensity.coerceIn(0f, 1f)
 		val tileWidth = (width / TILE_DOWNSCALE).toInt()
 		val tileHeight = (height / TILE_DOWNSCALE).toInt()
+		val baseColor = hazeColorFor(params.dayPhase)
 
 		val far = tile("fogFar", tileWidth, tileHeight) {
-			buildMassTile(it, tileWidth.toFloat(), tileHeight.toFloat(), Color.rgb(224, 228, 232), 90, tileWidth * 0.16f, 4, 30L)
+			buildFogVeilTile(it, tileWidth.toFloat(), tileHeight.toFloat(), lighten(baseColor, 0.12f), 84, 30L, near = false)
 		}
 
 		val near = tile("fogNear", tileWidth, tileHeight) {
-			buildMassTile(it, tileWidth.toFloat(), tileHeight.toFloat(), Color.rgb(232, 236, 240), 70, tileWidth * 0.12f, 5, 31L)
+			buildFogVeilTile(it, tileWidth.toFloat(), tileHeight.toFloat(), lighten(baseColor, 0.22f), 96, 31L, near = true)
 		}
 
-		/*
-		 * The two layers drift in opposite directions — by far the most legible motion cue for a texture this soft.
-		 * Counter-phased opacity breathing and a slow vertical roll on top, so banks of mist visibly slide past each other, thicken, and thin.
-		 */
 		val breath = 0.5f + 0.5f * (0.7f * sin(timeSeconds * 0.45f) + 0.3f * sin(timeSeconds * 1.13f))
-		val rollAmplitude = height * 0.03f
+		val rollAmplitude = height * 0.018f
 		val roll = rollAmplitude * (0.7f * sin(timeSeconds * 0.25f) + 0.3f * sin(timeSeconds * 0.73f))
-		val farOffset = (((timeSeconds * -22f) % width) + width) % width
-		val nearOffset = (timeSeconds * 32f) % width
+		val surge = width * 0.012f * gustFactor(timeSeconds, params.windFactor) * params.windScale
+		val farOffset = wrapOffset(timeSeconds * width * (0.003f + params.windFactor * 0.005f) * params.windScale + surge * 0.35f - width * 0.22f, width)
+		val nearOffset = wrapOffset(timeSeconds * width * (0.006f + params.windFactor * 0.010f) * params.windScale + surge * 0.75f - width * 0.63f, width)
 
-		// A very slow clearing envelope on top of the breath: the banks thin out for a stretch, then close back in.
-		val clearing = 0.82f + 0.18f * sin(timeSeconds * 0.043f)
-		val farAlpha = ((100f + 130f * breath) * clearing).roundToInt()
-		val nearAlpha = ((100f + 130f * (1f - breath)) * clearing).roundToInt()
+		// A slow clearing envelope changes how much mist is present without changing either layer's velocity.
+		val clearing = 0.90f + 0.10f * sin(timeSeconds * 0.043f)
+		val farAlpha = ((72f + 52f * breath) * clearing * density).roundToInt()
+		val nearAlpha = ((82f + 58f * (1f - breath)) * clearing * density).roundToInt()
 
-		// Both ends are overscanned by the roll amplitude, so the roll never wobbles a hard-clipped tile edge (or a bare gap) into view.
-		blitScrolled(canvas, far, farOffset, width, height + rollAmplitude * 2f, farAlpha, roll - rollAmplitude)
-		blitScrolled(canvas, near, nearOffset, width, height + rollAmplitude * 2f, nearAlpha, -roll - rollAmplitude)
+		// Both ends are overscanned by the roll amplitude, so the roll never exposes a hard tile edge or bare gap.
+		blitScrolled(canvas, far, farOffset, width, height + rollAmplitude * 2f, farAlpha, roll * 0.35f - rollAmplitude)
+		blitScrolled(canvas, near, nearOffset, width, height + rollAmplitude * 2f, nearAlpha, -roll * 0.70f - rollAmplitude)
 	}
 
 	/**
