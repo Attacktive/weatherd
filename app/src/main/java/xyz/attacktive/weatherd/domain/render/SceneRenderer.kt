@@ -1109,13 +1109,15 @@ class SceneRenderer(resources: Resources) {
 		}
 
 		drawSunLightShafts(canvas, sun, radius, core)
-		drawDirectSunGlow(canvas, sun, radius, core, halo, atmosphere)
 		if (sun.params.lensFlareEnabled) {
 			drawSunLensFlare(canvas, sun, radius, core)
 		}
 
+		val directRadius = radius * SUN_DIRECT_BODY_SCALE
+		drawDirectSunGlow(canvas, sun, directRadius, core, halo, atmosphere)
+
 		val disc = tile("sunDisc", SUN_SPRITE_SIZE, SUN_SPRITE_SIZE) { buildSunSprite(it, core) }
-		blitSprite(canvas, disc, sun.centerX, sun.centerY, radius / SUN_DISC_MARGIN * SUN_DIRECT_DISC_SCALE, sunAlpha(255f, sun.visibility))
+		blitSprite(canvas, disc, sun.centerX, sun.centerY, directRadius / SUN_DISC_MARGIN * SUN_DIRECT_DISC_SCALE, sunAlpha(255f, sun.visibility))
 	}
 
 	private fun drawVeiledSun(canvas: Canvas, sun: SunRenderContext, radius: Float, core: Int, atmosphere: Bitmap): Boolean {
@@ -1174,8 +1176,8 @@ class SceneRenderer(resources: Resources) {
 
 	private fun drawDirectSunGlow(canvas: Canvas, sun: SunRenderContext, radius: Float, core: Int, halo: Bitmap, atmosphere: Bitmap) {
 		blitGlow(canvas, atmosphere, sun.centerX, sun.centerY, radius * (SUN_BLOOM_FAR + 0.5f * sun.pulse), sunAlpha(SUN_BLOOM_FAR_ALPHA * (0.94f + 0.06f * sun.pulse), sun.visibility))
-		blitGlow(canvas, halo, sun.centerX, sun.centerY, radius * (SUN_BLOOM_NEAR + 0.25f * (1f - sun.pulse)), sunAlpha(SUN_BLOOM_NEAR_ALPHA * (0.94f + 0.06f * sun.pulse), sun.visibility))
 		drawSunCorona(canvas, sun, radius, core)
+		blitGlow(canvas, halo, sun.centerX, sun.centerY, radius * (SUN_BLOOM_NEAR + 0.25f * (1f - sun.pulse)), sunAlpha(SUN_BLOOM_NEAR_ALPHA * (0.94f + 0.06f * sun.pulse), sun.visibility))
 	}
 
 	private fun drawSunCorona(canvas: Canvas, sun: SunRenderContext, radius: Float, core: Int) {
@@ -2575,7 +2577,7 @@ class SceneRenderer(resources: Resources) {
 
 	/**
 	 * Cached deterministic starburst between the white disc and the broad atmospheric bloom.
-	 * The salvaged ColorOS reference uses broad warm points with a softer glow around each tip, so the rays stay slightly irregular without shrinking into fine photographic streaks.
+	 * Broad tapered lobes and heavy feathering keep the rays optically connected to the bloom instead of reading as pointed spokes around the disc.
 	 */
 	private fun buildSunCoronaSprite(canvas: Canvas, core: Int, warmth: Float) {
 		val size = SUN_CORONA_SPRITE_SIZE.toFloat()
@@ -2585,7 +2587,7 @@ class SceneRenderer(resources: Resources) {
 		val ray = Path()
 		val featherBlur = BlurMaskFilter(size * SUN_CORONA_FEATHER_BLUR_FRACTION, BlurMaskFilter.Blur.NORMAL)
 		val rayBlur = BlurMaskFilter(size * SUN_CORONA_BLUR_FRACTION, BlurMaskFilter.Blur.NORMAL)
-		val gold = Color.rgb(255, 201, 92)
+		val gold = Color.rgb(255, 193, 72)
 		val warm = lerpColor(core, gold, warmth)
 
 		brush.style = Paint.Style.FILL
@@ -2594,8 +2596,8 @@ class SceneRenderer(resources: Resources) {
 			center,
 			center,
 			center * SUN_CORONA_GLOW_REACH,
-			intArrayOf(withAlpha(warm, 232), withAlpha(warm, 178), withAlpha(warm, 88), withAlpha(warm, 0)),
-			floatArrayOf(0f, 0.30f, 0.64f, 1f),
+			intArrayOf(withAlpha(warm, 168), withAlpha(warm, 70), withAlpha(warm, 10), withAlpha(warm, 0)),
+			floatArrayOf(0f, 0.24f, 0.52f, 1f),
 			Shader.TileMode.CLAMP
 		)
 
@@ -2610,14 +2612,16 @@ class SceneRenderer(resources: Resources) {
 			val directionY = sin(angle)
 			val normalX = -directionY
 			val normalY = directionX
-			val innerRadius = center * random.nextFloat(0.18f, 0.24f)
-			val outerRadius = center * random.nextFloat(lerp(0.54f, 0.76f, emphasis), lerp(0.70f, 0.92f, emphasis))
-			val halfWidth = center * random.nextFloat(lerp(0.044f, 0.060f, emphasis), lerp(0.060f, 0.088f, emphasis))
-			val alpha = random.nextFloat(lerp(116f, 156f, emphasis), lerp(168f, 218f, emphasis)).roundToInt()
+			val innerRadius = center * random.nextFloat(0.14f, 0.20f)
+			val outerRadius = center * random.nextFloat(lerp(0.46f, 0.62f, emphasis), lerp(0.58f, 0.78f, emphasis))
+			val halfWidth = center * random.nextFloat(lerp(0.054f, 0.072f, emphasis), lerp(0.072f, 0.098f, emphasis))
+			val tipHalfWidth = halfWidth * random.nextFloat(0.18f, 0.30f)
+			val alpha = random.nextFloat(lerp(82f, 108f, emphasis), lerp(120f, 160f, emphasis)).roundToInt()
 
 			ray.rewind()
 			ray.moveTo(center + directionX * innerRadius + normalX * halfWidth, center + directionY * innerRadius + normalY * halfWidth)
-			ray.lineTo(center + directionX * outerRadius, center + directionY * outerRadius)
+			ray.lineTo(center + directionX * outerRadius + normalX * tipHalfWidth, center + directionY * outerRadius + normalY * tipHalfWidth)
+			ray.lineTo(center + directionX * outerRadius - normalX * tipHalfWidth, center + directionY * outerRadius - normalY * tipHalfWidth)
 			ray.lineTo(center + directionX * innerRadius - normalX * halfWidth, center + directionY * innerRadius - normalY * halfWidth)
 			ray.close()
 
@@ -2637,21 +2641,33 @@ class SceneRenderer(resources: Resources) {
 		else -> SUN_CORONA_SHORT_RAY_EMPHASIS
 	}
 
-	/** The huge, barely visible optical ring surrounding the direct sun in the latest reference. */
+	/** Broad lens haze around the direct sun, fading continuously so it never resolves into a visible circular ring. */
 	private fun buildLensHaloSprite(canvas: Canvas) {
 		val center = HALO_SPRITE_SIZE / 2f
+		val radius = center * SUN_LENS_HALO_RADIUS_FRACTION
+		val warm = Color.rgb(255, 238, 198)
 		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
-		brush.style = Paint.Style.STROKE
-		brush.strokeWidth = HALO_SPRITE_SIZE * SUN_LENS_HALO_STROKE_FRACTION
-		brush.color = withAlpha(Color.rgb(255, 238, 198), SUN_LENS_HALO_SPRITE_ALPHA)
-		brush.maskFilter = BlurMaskFilter(HALO_SPRITE_SIZE * SUN_LENS_HALO_BLUR_FRACTION, BlurMaskFilter.Blur.NORMAL)
-		canvas.drawCircle(center, center, center * SUN_LENS_HALO_RADIUS_FRACTION, brush)
+		brush.shader = RadialGradient(
+			center,
+			center,
+			radius,
+			intArrayOf(
+				withAlpha(warm, SUN_LENS_HALO_SPRITE_ALPHA),
+				withAlpha(warm, (SUN_LENS_HALO_SPRITE_ALPHA * SUN_LENS_HALO_MIDDLE_ALPHA_SCALE).roundToInt()),
+				withAlpha(warm, (SUN_LENS_HALO_SPRITE_ALPHA * SUN_LENS_HALO_OUTER_ALPHA_SCALE).roundToInt()),
+				withAlpha(warm, 0)
+			),
+			floatArrayOf(0f, SUN_LENS_HALO_MIDDLE_STOP, SUN_LENS_HALO_OUTER_STOP, 1f),
+			Shader.TileMode.CLAMP
+		)
+
+		canvas.drawCircle(center, center, radius, brush)
 	}
 
 	private fun lensHaloPhaseStrength(dayPhase: DayPhase) = when (dayPhase) {
-		DayPhase.DAY -> 0.72f
-		DayPhase.DAWN -> 0.32f
-		DayPhase.DUSK -> 0.12f
+		DayPhase.DAY -> 0.55f
+		DayPhase.DAWN -> 0.055f
+		DayPhase.DUSK -> 0.018f
 		DayPhase.NIGHT -> 0f
 	}
 
@@ -2680,7 +2696,7 @@ class SceneRenderer(resources: Resources) {
 		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
 		val softEdge = lighten(core, SUN_EDGE_LIFT)
 		val stops = intArrayOf(Color.WHITE, Color.WHITE, lighten(core, SUN_CORE_LIFT), softEdge, withAlpha(softEdge, SUN_EDGE_ALPHA), withAlpha(core, 0))
-		val positions = floatArrayOf(0f, 0.22f * SUN_DISC_MARGIN, 0.52f * SUN_DISC_MARGIN, 0.82f * SUN_DISC_MARGIN, 0.94f * SUN_DISC_MARGIN, 1f)
+		val positions = floatArrayOf(0f, 0.045f * SUN_DISC_MARGIN, 0.14f * SUN_DISC_MARGIN, 0.50f * SUN_DISC_MARGIN, 0.80f * SUN_DISC_MARGIN, 1f)
 
 		brush.shader = RadialGradient(center, center, center, stops, positions, Shader.TileMode.CLAMP)
 		canvas.drawCircle(center, center, center, brush)
@@ -2841,37 +2857,38 @@ class SceneRenderer(resources: Resources) {
 		private const val MOON_PHASE_STEPS = 64
 
 		/**
-		 * The sun's radius as a fraction of the shorter side, matching the restrained disc in the primary ColorOS reference.
-		 * Bloom carries the remaining apparent size without turning the body into a flat ball.
+		 * The sun's optical radius as a fraction of the shorter side.
+		 * The direct disc feathers well inside this field, so the nominal size can stay comparable to the moon without returning to a flat painted ball.
 		 */
-		private const val SUN_RADIUS_FRACTION = 0.052f
+		private const val SUN_RADIUS_FRACTION = 0.060f
 
 		/** Edge length of the pre-rendered sun disc sprite, matching the moon's so both discs upscale identically. */
 		private const val SUN_SPRITE_SIZE = 256
 
 		/** The sun disc fills this fraction of its sprite radius; the remainder carries the feathered atmospheric edge. */
 		private const val SUN_DISC_MARGIN = 0.84f
-		private const val SUN_DIRECT_DISC_SCALE = 0.60f
+		private const val SUN_DIRECT_BODY_SCALE = 1.30f
+		private const val SUN_DIRECT_DISC_SCALE = 1.08f
 
 		/** Cached corona geometry and on-screen reach around the smaller solar disc. */
 		private const val SUN_CORONA_SPRITE_SIZE = 512
 		private const val SUN_CORONA_RAY_COUNT = 16
-		private const val SUN_CORONA_REACH = 3.0f
-		private const val SUN_CORONA_ALPHA = 210f
-		private const val SUN_CORONA_BLUR_FRACTION = 0.018f
-		private const val SUN_CORONA_FEATHER_BLUR_FRACTION = 0.050f
-		private const val SUN_CORONA_FEATHER_ALPHA_SCALE = 0.42f
+		private const val SUN_CORONA_REACH = 2.85f
+		private const val SUN_CORONA_ALPHA = 212f
+		private const val SUN_CORONA_BLUR_FRACTION = 0.030f
+		private const val SUN_CORONA_FEATHER_BLUR_FRACTION = 0.090f
+		private const val SUN_CORONA_FEATHER_ALPHA_SCALE = 0.22f
 		private const val SUN_CORONA_ANGLE_JITTER = 0.15f
 		private const val SUN_CORONA_SECONDARY_RAY_EMPHASIS = 0.66f
 		private const val SUN_CORONA_SHORT_RAY_EMPHASIS = 0.28f
-		private const val SUN_CORONA_DAY_WARMTH = 0.68f
+		private const val SUN_CORONA_DAY_WARMTH = 0.92f
 		private const val SUN_CORONA_TWILIGHT_WARMTH = 0.72f
-		private const val SUN_CORONA_GLOW_REACH = 0.64f
+		private const val SUN_CORONA_GLOW_REACH = 0.52f
 		private const val SUN_CORONA_CLOUD_MIN_STRENGTH = 0.18f
 		private const val SUN_CORONA_DAWN_SCALE = 0.88f
-		private const val SUN_CORONA_DAWN_ALPHA = 0.72f
+		private const val SUN_CORONA_DAWN_ALPHA = 0.44f
 		private const val SUN_CORONA_DUSK_SCALE = 0.65f
-		private const val SUN_CORONA_DUSK_ALPHA = 0.72f
+		private const val SUN_CORONA_DUSK_ALPHA = 0.38f
 
 		/** Cloud-edge-driven volumetric rays. Sampling the moving silhouette makes the fan itself move with the clouds instead of only changing opacity. */
 		private const val SUN_SHAFT_PROFILE_SAMPLES = 33
@@ -2900,21 +2917,21 @@ class SceneRenderer(resources: Resources) {
 		private const val SUN_SHAFT_MIN_PEAK_GAP = 3
 
 		/** How far the inner shoulder is lifted toward white before easing into the cream-colored limb. */
-		private const val SUN_CORE_LIFT = 0.86f
+		private const val SUN_CORE_LIFT = 0.52f
 
 		/** How far the limb is lifted toward white to prevent a saturated yellow outline behind translucent clouds. */
-		private const val SUN_EDGE_LIFT = 0.58f
+		private const val SUN_EDGE_LIFT = 0.28f
 
 		/** Alpha at the nominal limb before the final transparent feather. */
-		private const val SUN_EDGE_ALPHA = 160
+		private const val SUN_EDGE_ALPHA = 60
 
 		/** Bloom reach as a multiple of the disc radius: an irregular atmospheric far pass and a radial near pass hugging the limb. */
-		private const val SUN_BLOOM_FAR = 4.8f
-		private const val SUN_BLOOM_NEAR = 2.4f
+		private const val SUN_BLOOM_FAR = 5.2f
+		private const val SUN_BLOOM_NEAR = 2.20f
 
 		/** Peak alpha of each bloom pass before the restrained breathing scales it. */
-		private const val SUN_BLOOM_FAR_ALPHA = 48f
-		private const val SUN_BLOOM_NEAR_ALPHA = 62f
+		private const val SUN_BLOOM_FAR_ALPHA = 40f
+		private const val SUN_BLOOM_NEAR_ALPHA = 104f
 
 		/** Broad irregular bloom used when cloud or fog transmits the sun; fog remains diffuse-only while overcast may retain a faint limb. */
 		private const val SUN_VEILED_BLOOM_REACH = 7.2f
@@ -2949,19 +2966,21 @@ class SceneRenderer(resources: Resources) {
 
 		/** Half-length of the streak as a multiple of the disc radius and its height relative to that half-length. */
 		private const val SUN_STREAK_REACH = 3.4f
-		private const val SUN_STREAK_ASPECT = 0.075f
+		private const val SUN_STREAK_ASPECT = 0.11f
 
 		/** Peak alpha of the streak before the restrained breathing scales it. */
-		private const val SUN_STREAK_ALPHA = 42f
+		private const val SUN_STREAK_ALPHA = 24f
 
-		/** Large reference-style optical halo around the direct sun; the sprite itself carries the soft ring profile. */
+		/** Large optical haze around the direct sun; its cached sprite is brightest inside and fades continuously through the outer atmosphere. */
 		private const val SUN_LENS_HALO_REACH = 7.4f
-		private const val SUN_LENS_HALO_ALPHA = 52f
+		private const val SUN_LENS_HALO_ALPHA = 30f
 		private const val SUN_LENS_HALO_AXIS_OFFSET = 0.18f
 		private const val SUN_LENS_HALO_RADIUS_FRACTION = 0.88f
-		private const val SUN_LENS_HALO_STROKE_FRACTION = 0.0045f
-		private const val SUN_LENS_HALO_BLUR_FRACTION = 0.0065f
-		private const val SUN_LENS_HALO_SPRITE_ALPHA = 54
+		private const val SUN_LENS_HALO_SPRITE_ALPHA = 52
+		private const val SUN_LENS_HALO_MIDDLE_ALPHA_SCALE = 0.62f
+		private const val SUN_LENS_HALO_OUTER_ALPHA_SCALE = 0.22f
+		private const val SUN_LENS_HALO_MIDDLE_STOP = 0.38f
+		private const val SUN_LENS_HALO_OUTER_STOP = 0.72f
 
 		/** Fraction of a soft-dot sprite's radius that is solid color before the fade to transparent begins. */
 		private const val DOT_CORE_STOP = 0.5f

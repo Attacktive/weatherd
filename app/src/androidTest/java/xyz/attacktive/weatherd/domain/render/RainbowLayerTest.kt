@@ -44,6 +44,7 @@ class RainbowLayerTest {
 		assertTrue("The halo must remain visible enough to measure its falloff, but peaked at $peak", peak >= 3)
 		assertTrue("The halo band should be broad, but its quarter-peak width was $quarterPeakWidth pixels", quarterPeakWidth >= span * 0.10f)
 		assertTrue("The halo band should feather away rather than wash the sky, but its quarter-peak width was $quarterPeakWidth pixels", quarterPeakWidth <= span * 0.36f)
+
 		pair.recycle()
 	}
 
@@ -63,6 +64,7 @@ class RainbowLayerTest {
 		val chroma = chroma(pixel)
 
 		assertTrue("The halo should blend into cloud and haze, but reached chroma $chroma at (${Color.red(pixel)}, ${Color.green(pixel)}, ${Color.blue(pixel)})", chroma <= 50)
+
 		bitmap.recycle()
 	}
 
@@ -72,6 +74,7 @@ class RainbowLayerTest {
 		val contrast = highestSkyDisplacement(bitmap)
 
 		assertTrue("A daytime halo should remain visible through cloudy haze, but only changed a channel by $contrast", contrast >= 4)
+
 		bitmap.recycle()
 	}
 
@@ -88,7 +91,25 @@ class RainbowLayerTest {
 
 		assertTrue("The inner halo edge should carry subtle warm dispersion, but its warm shift was $innerWarmShift", innerWarmShift >= 2)
 		assertTrue("The outer halo edge should carry subtle cool dispersion, but its cool shift was $outerCoolShift", outerCoolShift >= 2)
+
 		bitmap.recycle()
+	}
+
+	@Test
+	fun twilightHaloStepsBackFromDaylight() {
+		val dayBitmap = renderLayer(Color.TRANSPARENT, DayPhase.DAY)
+		val dawnBitmap = renderLayer(Color.TRANSPARENT, DayPhase.DAWN)
+		val duskBitmap = renderLayer(Color.TRANSPARENT, DayPhase.DUSK)
+		val day = highestAlpha(dayBitmap)
+		val dawn = highestAlpha(dawnBitmap)
+		val dusk = highestAlpha(duskBitmap)
+
+		assertTrue("Dawn halo should be materially quieter than daytime, but alpha only changed $day -> $dawn", dawn * 2 <= day)
+		assertTrue("Dusk halo should recede farther than dawn, but alpha changed $dawn -> $dusk", dusk < dawn)
+
+		dayBitmap.recycle()
+		dawnBitmap.recycle()
+		duskBitmap.recycle()
 	}
 
 	@Test
@@ -96,6 +117,7 @@ class RainbowLayerTest {
 		val bitmap = renderLayer(Color.TRANSPARENT, DayPhase.NIGHT)
 
 		assertTrue("The daytime-only halo must leave every night pixel transparent", pixels(bitmap).all { Color.alpha(it) == 0 })
+
 		bitmap.recycle()
 	}
 
@@ -104,6 +126,7 @@ class RainbowLayerTest {
 		val bitmap = renderInvisibleHalo()
 
 		assertTrue("A fully faded sun must leave no chromatic halo behind", pixels(bitmap).all { Color.alpha(it) == 0 })
+
 		bitmap.recycle()
 	}
 
@@ -124,6 +147,7 @@ class RainbowLayerTest {
 		val spread = peaks.maxOf { it.radius } - peaks.minOf { it.radius }
 
 		assertTrue("A circular halo should keep a stable radius around the sun, but varied by $spread pixels", spread <= span * CIRCULARITY_TOLERANCE_FRACTION)
+
 		bitmap.recycle()
 	}
 
