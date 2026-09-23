@@ -183,6 +183,9 @@ class SceneRenderer(resources: Resources) {
 
 	/** The static layers (sky, overcast ceiling, fog base, haze, vignette). Cache these — they don't animate frame-to-frame. */
 	fun renderBackdrop(canvas: Canvas, width: Int, height: Int, params: SceneParams) {
+		// Foreground drawing reuses this paint with translucent colors, so a phase-triggered backdrop rebuild must not inherit that alpha.
+		paint.alpha = 255
+
 		val w = width.toFloat()
 		val h = height.toFloat()
 
