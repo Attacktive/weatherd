@@ -68,13 +68,20 @@ class CloudLayerTest {
 	}
 
 	@Test
-	fun balancedOvercastBodiesCarveASeparationTrough() {
-		val isolated = CloudLayer.separatedOvercastBody(0.8f, 0f, 0.6f)
-		val balancedOverlap = CloudLayer.separatedOvercastBody(0.8f, 0.8f, 0.6f)
-		val unbalancedOverlap = CloudLayer.separatedOvercastBody(0.8f, 0.2f, 0.6f)
+	fun overlappingOvercastBodiesDoNotCarveAFieldHandoffTrough() {
+		val isolated = CloudLayer.mergeOvercastBodies(0.8f, 0f)
+		val balancedOverlap = CloudLayer.mergeOvercastBodies(0.8f, 0.8f)
 
-		assertTrue("Similarly strong overcast bodies must carve a trough below the dominant mass", balancedOverlap < isolated)
-		assertEquals("A clearly dominant body must keep its full strength instead of being split", isolated, unbalancedOverlap, 0.0001f)
+		assertTrue("Similarly strong overcast bodies must merge without cutting a contour-like trough", balancedOverlap >= isolated)
+	}
+
+	@Test
+	fun independentOvercastGapThinsShouldersWithoutCuttingDenseCores() {
+		val shoulder = CloudLayer.applyOvercastGap(0.55f, 1f, 0.40f)
+		val denseCore = CloudLayer.applyOvercastGap(0.95f, 1f, 0.40f)
+
+		assertTrue("The independent gap field must be able to thin a cloud shoulder", shoulder < 0.55f)
+		assertEquals("The independent gap field must preserve dense cloud cores", 0.95f, denseCore, 0.0001f)
 	}
 
 	@Test

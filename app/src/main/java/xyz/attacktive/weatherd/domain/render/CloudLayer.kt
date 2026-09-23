@@ -526,8 +526,8 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		val envelope = (1f - smoothstep(0.68f, 1.02f, lowerEdge)) * (1f - smoothstep(0.92f, 0.998f, v))
 		val density = smoothstep(profile.density.cut, profile.density.full, structure) * bank * envelope
 		val alpha = (density * profile.density.alphaGain).coerceIn(0f, 1f)
-		val upperLeft = overcastStructure(wrapUnit(warpedX - profile.lighting.shiftX), (warpedY - profile.lighting.shiftY).coerceIn(0f, 1f), profile, noise)
-		val lowerRight = overcastStructure(wrapUnit(warpedX + profile.lighting.shiftX), (warpedY + profile.lighting.shiftY).coerceIn(0f, 1f), profile, noise)
+		val upperLeft = overcastMergedBody(wrapUnit(warpedX - profile.lighting.shiftX), (warpedY - profile.lighting.shiftY).coerceIn(0f, 1f), profile, noise)
+		val lowerRight = overcastMergedBody(wrapUnit(warpedX + profile.lighting.shiftX), (warpedY + profile.lighting.shiftY).coerceIn(0f, 1f), profile, noise)
 		val directional = (upperLeft - lowerRight).coerceIn(-0.25f, 0.25f)
 		val core = smoothstep(0.16f, 0.72f, density)
 		var light = 1f - profile.lighting.shadowStrength * core + profile.lighting.directionalStrength * directional
@@ -548,15 +548,21 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 	}
 
 	private fun overcastStructure(u: Float, v: Float, profile: OvercastProfile, noise: OvercastNoise, billowShape: Float): Float {
-		val body = overcastBody(u, v, profile, noise, billowShape)
+		val body = overcastBody(u, v, profile, noise)
 		val bodyBase = 1f - profile.morphology.bodyBillowStrength
 		return body * (bodyBase + profile.morphology.bodyBillowStrength * billowShape) + profile.morphology.detachedBillowStrength * billowShape
 	}
 
-	private fun overcastBody(u: Float, v: Float, profile: OvercastProfile, noise: OvercastNoise, billowShape: Float): Float {
+	private fun overcastBody(u: Float, v: Float, profile: OvercastProfile, noise: OvercastNoise): Float {
+		val body = overcastMergedBody(u, v, profile, noise)
+		val gap = smoothstep(OVERCAST_GAP_CUT, OVERCAST_GAP_FULL, noise.gap.sample(wrapUnit(u + OVERCAST_GAP_OFFSET_X), (v + OVERCAST_GAP_OFFSET_Y).coerceIn(0f, 1f)))
+		return applyOvercastGap(body, gap, profile.morphology.gapStrength)
+	}
+
+	private fun overcastMergedBody(u: Float, v: Float, profile: OvercastProfile, noise: OvercastNoise): Float {
 		val primaryBody = smoothstep(profile.morphology.bodyCut, profile.morphology.bodyFull, noise.body.sample(u, v))
 		val secondaryBody = smoothstep(profile.morphology.bodyCut + OVERCAST_SECONDARY_BODY_CUT_OFFSET, profile.morphology.bodyFull + OVERCAST_SECONDARY_BODY_CUT_OFFSET, noise.secondaryBody.sample(wrapUnit(u + OVERCAST_SECONDARY_BODY_OFFSET_X), (v + OVERCAST_SECONDARY_BODY_OFFSET_Y).coerceIn(0f, 1f))) * profile.morphology.secondaryBodyStrength
-		return separatedOvercastBody(primaryBody, secondaryBody, billowShape)
+		return mergeOvercastBodies(primaryBody, secondaryBody)
 	}
 
 	private fun upscaleOvercastField(pixels: IntArray): Bitmap {
@@ -608,13 +614,11 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 	}
 
 	companion object {
-		internal fun separatedOvercastBody(primaryBody: Float, secondaryBody: Float, billowShape: Float): Float {
-			val dominantBody = maxOf(primaryBody, secondaryBody)
-			val overlap = minOf(primaryBody, secondaryBody)
-			val balance = 1f - smoothstep(OVERCAST_BODY_BALANCE_CUT, OVERCAST_BODY_BALANCE_FULL, abs(primaryBody - secondaryBody))
-			val separation = OVERCAST_BODY_SEPARATION_STRENGTH * overlap * balance * (OVERCAST_BODY_SEPARATION_BASE + OVERCAST_BODY_SEPARATION_BILLOW * billowShape)
+		internal fun mergeOvercastBodies(primaryBody: Float, secondaryBody: Float) = primaryBody + secondaryBody * (1f - primaryBody)
 
-			return (dominantBody - separation).coerceAtLeast(0f)
+		internal fun applyOvercastGap(body: Float, gap: Float, strength: Float): Float {
+			val coreProtection = smoothstep(OVERCAST_GAP_CORE_CUT, OVERCAST_GAP_CORE_FULL, body)
+			return body * (1f - strength * gap * (1f - coreProtection))
 		}
 
 		private const val MILLIS_PER_DAY = 86_400_000L
@@ -646,11 +650,12 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		private const val OVERCAST_SECONDARY_BODY_OFFSET_X = 0.17f
 		private const val OVERCAST_SECONDARY_BODY_OFFSET_Y = 0.05f
 		private const val OVERCAST_SECONDARY_BODY_CUT_OFFSET = 0.02f
-		private const val OVERCAST_BODY_BALANCE_CUT = 0.08f
-		private const val OVERCAST_BODY_BALANCE_FULL = 0.34f
-		private const val OVERCAST_BODY_SEPARATION_STRENGTH = 0.20f
-		private const val OVERCAST_BODY_SEPARATION_BASE = 0.55f
-		private const val OVERCAST_BODY_SEPARATION_BILLOW = 0.45f
+		private const val OVERCAST_GAP_OFFSET_X = 0.31f
+		private const val OVERCAST_GAP_OFFSET_Y = -0.07f
+		private const val OVERCAST_GAP_CUT = 0.58f
+		private const val OVERCAST_GAP_FULL = 0.78f
+		private const val OVERCAST_GAP_CORE_CUT = 0.64f
+		private const val OVERCAST_GAP_CORE_FULL = 0.88f
 
 		private val FAR_OVERCAST_PROFILE = OvercastProfile(
 			noise = OvercastNoiseProfile(
@@ -667,6 +672,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 				billowFull = 0.78f,
 				bodyBillowStrength = 0.18f,
 				detachedBillowStrength = 0.06f,
+				gapStrength = 0.24f,
 				fineStrength = 0.03f
 			),
 			density = OvercastDensityProfile(0.26f, 0.61f, 1.55f),
@@ -687,6 +693,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 				billowFull = 0.76f,
 				bodyBillowStrength = 0.24f,
 				detachedBillowStrength = 0.10f,
+				gapStrength = 0.40f,
 				fineStrength = 0.04f
 			),
 			density = OvercastDensityProfile(0.23f, 0.56f, 1.70f),
@@ -904,6 +911,7 @@ private data class OvercastMorphologyProfile(
 	val billowFull: Float,
 	val bodyBillowStrength: Float,
 	val detachedBillowStrength: Float,
+	val gapStrength: Float,
 	val fineStrength: Float
 )
 
@@ -924,6 +932,7 @@ private class OvercastNoise(profile: OvercastProfile) {
 	val warpY = NoiseGrid(7, 5, noise.seed + 2)
 	val body = FractalNoise(noise.body.columns, noise.body.rows, 3, noise.seed + 100)
 	val secondaryBody = FractalNoise(maxOf(3, noise.body.columns - 2), maxOf(2, noise.body.rows - 1), 3, noise.seed + 150)
+	val gap = FractalNoise(maxOf(4, noise.body.columns - 1), maxOf(3, noise.body.rows), 2, noise.seed + 175)
 	val billow = FractalNoise(noise.billow.columns, noise.billow.rows, 3, noise.seed + 200, billow = true)
 	val fine = FractalNoise(noise.fine.columns, noise.fine.rows, 2, noise.seed + 300)
 	val bank = NoiseGrid(4, 3, noise.seed + 400)

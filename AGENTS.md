@@ -2,7 +2,7 @@
 
 Instructions and architectural invariants for agents working in the Weatherd codebase.
 
-- Version: 1.6.3 (2026-09-23)
+- Version: 1.6.4 (2026-09-23)
 - Persona: Coding assistant pair-programming with the user on Weatherd.
 
 ## Tools and Environment
@@ -117,7 +117,7 @@ fun debugSceneParams(
 	- `cloud_sheet_far` / `cloud_sheet_near` identify the overcast and precipitation decks drawn by `drawCloudDrift`; `CloudLayer` procedurally builds each deck once on first use from deterministic multi-scale noise and reuses the resulting bitmap afterward.
 	- `cloud_cumulus_sparse` / `_scattered` / `_broken` select the near clear-sky placement profiles drawn by `drawScatteredClouds`, and `cloud_cumulus_far` selects the distant profile. The near profiles share the four `cloud_cumulus_hero_*` source sprites and synthesize additional morphology variants by scaling and composing them; the far profile shares the `cloud_cumulus_far_veil_*` sprites.
 - A cloud deck spans `CLOUD_TEXTURE_VIEWPORTS` viewport widths before repeating unless it passes its own `viewports`. A shorter span shrinks the apparent spacing and feature scale.
-- Overcast depth comes from three separate spatial scales: large cloud bodies define the silhouette, medium billows shape the volume, and fine turbulence only breaks up the surface. Large bodies combine two independently seeded, domain-warped fields by keeping the dominant mass and carving an irregular shallow trough where similarly strong bodies overlap; this preserves recognizable neighboring stratocumulus masses instead of soft-unioning them into one smear. Directional lighting samples that same combined body-and-billow structure so highlights and undersides follow the generated morphology. Do not derive overcast geometry from the old streak textures or paste fair-weather hero sprites into the deck; generation stays one-time and per-frame rendering remains a normal bitmap-shader draw.
+- Overcast depth comes from three separate spatial scales: large cloud bodies define the silhouette, medium billows shape the volume, and fine turbulence only breaks up the surface. The two large body fields merge smoothly; never carve a boundary from which field is dominant or from how similar their strengths are, because that exposes contour-like handoff seams. A separate low-frequency gap field may thin cloud shoulders while protecting dense cores, and directional lighting must stay broad enough that it does not outline those gaps. Do not derive overcast geometry from the old streak textures or paste fair-weather hero sprites into the deck; generation stays one-time and per-frame rendering remains a normal bitmap-shader draw.
 - Procedural overcast generation must never start from `renderForeground` / `drawCloudDrift`. Owners prewarm it on a background dispatcher; if the cache is not ready yet, the frame skips the animated sheet instead of blocking the render thread.
 
 ### Cloud Coverage Belongs to Placement, Never to Paint Alpha
