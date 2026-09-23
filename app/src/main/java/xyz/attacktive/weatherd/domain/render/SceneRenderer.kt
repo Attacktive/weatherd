@@ -99,10 +99,12 @@ class SceneRenderer(resources: Resources) {
 	private var sceneryGlyphPaths: List<SceneryLayerPath> = emptyList()
 	private var sceneryWindmill: SceneryWindmill? = null
 	private val tiles = HashMap<String, Bitmap>()
-	private val farCloudDeckDelegate = lazy { CloudLayer(resources, R.drawable.cloud_sheet_far) }
-	private val nearCloudDeckDelegate = lazy { CloudLayer(resources, R.drawable.cloud_sheet_near) }
-	private val farCloudDeck by farCloudDeckDelegate
-	private val nearCloudDeck by nearCloudDeckDelegate
+	private val farOvercastBankDelegate = lazy { CloudLayer(resources, R.drawable.cloud_cumulus_hero_soft_broad_alt) }
+	private val supportOvercastBankDelegate = lazy { CloudLayer(resources, R.drawable.cloud_cumulus_hero_broad_alt) }
+	private val heroOvercastBankDelegate = lazy { CloudLayer(resources, R.drawable.cloud_cumulus_hero_broad) }
+	private val farOvercastBank by farOvercastBankDelegate
+	private val supportOvercastBank by supportOvercastBankDelegate
+	private val heroOvercastBank by heroOvercastBankDelegate
 	private val farCumulusDeck by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_far) }
 	private val cloudDrawGeometry = CloudDrawGeometry()
 
@@ -174,8 +176,9 @@ class SceneRenderer(resources: Resources) {
 	 * Call this from a background dispatcher; [drawCloudDrift] deliberately refuses to initialize the lazy decks on a frame.
 	 */
 	fun prewarmOvercastClouds() {
-		farCloudDeckDelegate.value
-		nearCloudDeckDelegate.value
+		farOvercastBankDelegate.value
+		supportOvercastBankDelegate.value
+		heroOvercastBankDelegate.value
 	}
 
 	/** The static layers (sky, overcast ceiling, fog base, haze, vignette). Cache these — they don't animate frame-to-frame. */
@@ -237,7 +240,7 @@ class SceneRenderer(resources: Resources) {
 			drawScatteredClouds(canvas, w, h, params, timeSeconds)
 		}
 
-		if (effectiveCloudiness(params) > CLOUD_DECK_THRESHOLD || params.precipitation != null) {
+		if (shouldDrawOvercastBanks(effectiveCloudiness(params), params.fogDensity, params.precipitation != null)) {
 			drawCloudDrift(canvas, w, h, params, timeSeconds)
 		}
 
@@ -1298,34 +1301,43 @@ class SceneRenderer(resources: Resources) {
 	}
 
 	/**
-	 * Two textured cloud sheets drift over the overcast ceiling with subtle depth and opacity variation.
-	 * Storm decks stay darker and snow decks lighter, while the day-phase tint keeps night clouds dim.
+	 * Three broad cloud banks overlap into an overcast ceiling: a soft far veil, a middle support mass, and one screen-dominant hero mass.
+	 * Their short repeat spans keep each source cloud large enough to read as weather instead of a scatter of postcard-sized cumulus sprites.
 	 */
 	private fun drawCloudDrift(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
-		if (!farCloudDeckDelegate.isInitialized() || !nearCloudDeckDelegate.isInitialized()) {
+		if (!farOvercastBankDelegate.isInitialized() || !supportOvercastBankDelegate.isInitialized() || !heroOvercastBankDelegate.isInitialized()) {
 			return
 		}
 
-		val base = lerpColor(overcastCeiling(params.dayPhase), cloudTint(params.dayPhase), 0.7f)
+		val base = lerpColor(overcastCeiling(params.dayPhase), cumulusTint(params.dayPhase), 0.82f)
 		val color = when {
 			params.thunder -> darken(base, 0.72f)
 			params.precipitation?.kind == PrecipitationKind.SNOW -> lighten(base, 0.12f)
 			else -> base
 		}
 
-		val period = width * CLOUD_TEXTURE_VIEWPORTS
 		val surge = width * 0.006f * params.windFactor * params.windScale
 		val drift = surge * (0.6f * sin(timeSeconds * 0.19f) + 0.4f * sin(timeSeconds * 0.47f))
-		val backOffset = wrapOffset(timeSeconds * width * (0.006f + params.windFactor * 0.012f) * params.windScale + drift - width * 0.43f, period)
-		val frontOffset = wrapOffset(timeSeconds * width * (0.012f + params.windFactor * 0.025f) * params.windScale + drift * 1.8f - width * 1.3f, period)
 		val bobAmplitude = height * 0.006f * params.windScale
 		val bob = bobAmplitude * (0.65f * sin(timeSeconds * 0.4f) + 0.35f * sin(timeSeconds * 1.07f))
-		val swell = 0.9f + 0.1f * (0.7f * sin(timeSeconds * 0.55f) + 0.3f * sin(timeSeconds * 1.31f))
-		val backAlpha = (255f * 0.47f * params.cloudScale).roundToInt()
-		val frontAlpha = (255f * 0.68f * params.cloudScale * swell).roundToInt()
+		val swell = 0.94f + 0.06f * (0.7f * sin(timeSeconds * 0.55f) + 0.3f * sin(timeSeconds * 1.31f))
 
-		farCloudDeck.draw(canvas, cloudDrawGeometry.configure(width, height * 0.72f + bobAmplitude, backOffset, bob - bobAmplitude), darken(color, 0.94f), backAlpha)
-		nearCloudDeck.draw(canvas, cloudDrawGeometry.configure(width, height * 0.66f + bobAmplitude * 1.5f, frontOffset, -bob * 1.5f - bobAmplitude * 1.5f), color, frontAlpha)
+		val farPeriod = width * OVERCAST_FAR_VIEWPORTS
+		val supportPeriod = width * OVERCAST_SUPPORT_VIEWPORTS
+		val heroPeriod = width * OVERCAST_HERO_VIEWPORTS
+		val farOffset = wrapOffset(timeSeconds * width * (0.004f + params.windFactor * 0.008f) * params.windScale + drift * 0.45f - width * 0.31f, farPeriod)
+		val supportOffset = wrapOffset(timeSeconds * width * (0.007f + params.windFactor * 0.014f) * params.windScale + drift - width * 0.74f, supportPeriod)
+		val heroOffset = wrapOffset(timeSeconds * width * (0.010f + params.windFactor * 0.020f) * params.windScale + drift * 1.45f - width * 0.18f, heroPeriod)
+		val farHeight = width * OVERCAST_FAR_VIEWPORTS / OVERCAST_SOURCE_ASPECT * OVERCAST_FAR_HEIGHT_SCALE
+		val supportHeight = width * OVERCAST_SUPPORT_VIEWPORTS / OVERCAST_SOURCE_ASPECT * OVERCAST_SUPPORT_HEIGHT_SCALE
+		val heroHeight = width * OVERCAST_HERO_VIEWPORTS / OVERCAST_SOURCE_ASPECT * OVERCAST_HERO_HEIGHT_SCALE
+		val farAlpha = (255f * 0.52f * params.cloudScale).roundToInt()
+		val supportAlpha = (255f * 0.72f * params.cloudScale).roundToInt()
+		val heroAlpha = (255f * 0.90f * params.cloudScale * swell).roundToInt()
+
+		farOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, farHeight, farOffset, height * OVERCAST_FAR_TOP + bob * 0.35f, OVERCAST_FAR_VIEWPORTS), darken(color, 0.96f), farAlpha)
+		supportOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, supportHeight, supportOffset, height * OVERCAST_SUPPORT_TOP - bob * 0.45f, OVERCAST_SUPPORT_VIEWPORTS), darken(color, 0.94f), supportAlpha)
+		heroOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, heroHeight, heroOffset, height * OVERCAST_HERO_TOP - bob, OVERCAST_HERO_VIEWPORTS), color, heroAlpha)
 	}
 
 	/**
@@ -2657,6 +2669,9 @@ class SceneRenderer(resources: Resources) {
 	}
 
 	companion object {
+		internal fun shouldDrawOvercastBanks(cloudiness: Float, fogDensity: Float, hasPrecipitation: Boolean) =
+			(cloudiness > CLOUD_DECK_THRESHOLD || hasPrecipitation) && (fogDensity < DENSE_FOG_CLOUD_CUTOFF || hasPrecipitation)
+
 		private const val STAR_SEED = 1L
 		private const val PRECIP_SEED = 3L
 		private const val BOLT_SEED = 5L
@@ -2727,6 +2742,18 @@ class SceneRenderer(resources: Resources) {
 
 		/** Cross-fade weights below this draw nothing, so the common case stays at two deck draws rather than three. */
 		private const val CUMULUS_BLEND_FLOOR = 0.02f
+
+		private const val DENSE_FOG_CLOUD_CUTOFF = 0.8f
+		private const val OVERCAST_SOURCE_ASPECT = 3.375f
+		private const val OVERCAST_FAR_VIEWPORTS = 1.65f
+		private const val OVERCAST_SUPPORT_VIEWPORTS = 1.35f
+		private const val OVERCAST_HERO_VIEWPORTS = 1.12f
+		private const val OVERCAST_FAR_HEIGHT_SCALE = 1.00f
+		private const val OVERCAST_SUPPORT_HEIGHT_SCALE = 1.30f
+		private const val OVERCAST_HERO_HEIGHT_SCALE = 1.70f
+		private const val OVERCAST_FAR_TOP = 0.035f
+		private const val OVERCAST_SUPPORT_TOP = 0.14f
+		private const val OVERCAST_HERO_TOP = 0.27f
 
 		/** The upper deck is sampled slightly toward the sun and upward, projecting its cover onto the lower cloud plane. */
 		private const val CUMULUS_CAST_SHADOW_HORIZONTAL_PROJECTION = 0.18f

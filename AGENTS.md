@@ -2,7 +2,7 @@
 
 Instructions and architectural invariants for agents working in the Weatherd codebase.
 
-- Version: 1.6.4 (2026-09-23)
+- Version: 1.6.5 (2026-09-23)
 - Persona: Coding assistant pair-programming with the user on Weatherd.
 
 ## Tools and Environment
@@ -112,13 +112,13 @@ fun debugSceneParams(
 
 - `renderBackdrop(canvas, width, height, params)`: Static layers (sky gradient, overcast ceiling, fog base, haze, vignette). Cached into a `Bitmap` by `WeatherLiveWallpaperService` and `HomeScreen`; re-rasterized only when `backdropSignature(params)` changes.
 - `renderForeground(canvas, width, height, params, timeSeconds)`: Dynamic animated layers (stars, celestial body, birds, clouds, scenery, fog drift, precipitation, lightning, overlay text). Redrawn every frame.
-- Cloud decks use `CloudLayer`; fair-weather cumulus draws shared transparent source sprites, while overcast sheets are generated once per lazy layer. Their transforms, opacity, and day-phase tints change without rerasterizing the source pixels.
-- `scripts/generate-cloud-textures.py` reproducibly regenerates the procedural cloud textures it owns with `uv run scripts/generate-cloud-textures.py` and samples no third-party artwork. Runtime cloud rendering has two families:
-	- `cloud_sheet_far` / `cloud_sheet_near` identify the overcast and precipitation decks drawn by `drawCloudDrift`; `CloudLayer` procedurally builds each deck once on first use from deterministic multi-scale noise and reuses the resulting bitmap afterward.
+- Cloud decks use `CloudLayer`; fair-weather cumulus uses seeded placement populations, while overcast uses three dedicated composition slots: a far veil, a support bank, and one screen-dominant hero bank.
+- `scripts/generate-cloud-textures.py` reproducibly regenerates the procedural cloud textures it owns with `uv run scripts/generate-cloud-textures.py` and samples no third-party artwork. Runtime cloud rendering keeps fair-weather placement separate from the overcast bank composition.
 	- `cloud_cumulus_sparse` / `_scattered` / `_broken` select the near clear-sky placement profiles drawn by `drawScatteredClouds`, and `cloud_cumulus_far` selects the distant profile. The near profiles share the four `cloud_cumulus_hero_*` source sprites and synthesize additional morphology variants by scaling and composing them; the far profile shares the `cloud_cumulus_far_veil_*` sprites.
-- A cloud deck spans `CLOUD_TEXTURE_VIEWPORTS` viewport widths before repeating unless it passes its own `viewports`. A shorter span shrinks the apparent spacing and feature scale.
-- Overcast sheet selectors must draw full generated deck textures through the bitmap-shader path, not assemble giant fair-weather hero sprites or generate thresholded masks at runtime. The near selector currently reuses the repository-owned broken cumulus deck and the far selector reuses the repository-owned far cumulus deck as a stable first-party baseline while dedicated overcast textures are refined. Preserve their transparent top and bottom edges, broad internal shading, repeat-span behavior, and one-time background decoding.
-- Procedural overcast generation must never start from `renderForeground` / `drawCloudDrift`. Owners prewarm it on a background dispatcher; if the cache is not ready yet, the frame skips the animated sheet instead of blocking the render thread.
+	- `drawCloudDrift` uses broad first-party source sprites as overcast composition slots with short repeat spans. At least one visible bank must span most of a portrait viewport so overcast reads as an overlapping ceiling rather than scattered fair-weather puffs.
+- A cloud deck spans `CLOUD_TEXTURE_VIEWPORTS` viewport widths before repeating unless it passes its own `viewports`. Overcast banks deliberately use shorter spans so their source masses remain screen-dominant.
+- Dense fog without precipitation suppresses the animated overcast banks and relies on the fog base plus drifting fog tiles instead. Fog must not reuse the overcast or fair-weather cumulus vocabulary.
+- Overcast bank sources are decoded once during prewarm and then transformed, tinted, and alpha-scaled without rerasterizing their source pixels. Do not generate cloud masks from `renderForeground` / `drawCloudDrift`, and do not use artwork from the reference APK or third parties.
 
 ### Cloud Coverage Belongs to Placement, Never to Paint Alpha
 

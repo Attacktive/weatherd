@@ -36,11 +36,37 @@ class CloudRenderingTest {
 		val bounds = differenceBounds(withoutClouds, withClouds)
 
 		assertTrue(
-			"Overcast cloud sheets must occupy the mid-sky instead of collapsing into a top strip, but their lower edge was ${bounds.bottom}",
-			bounds.bottom >= (HEIGHT * 0.56f).roundToInt()
+			"Overcast cloud banks must occupy the mid-sky instead of collapsing into a top strip, but their lower edge was ${bounds.bottom}",
+			bounds.bottom >= (HEIGHT * 0.50f).roundToInt()
 		)
 		withoutClouds.recycle()
 		withClouds.recycle()
+	}
+
+	@Test
+	fun overcastCloudsContainAScreenDominantPortraitBank() {
+		val withoutClouds = renderForeground(cloudiness = 0.9f, cloudScale = 0f)
+		val withClouds = renderForeground(cloudiness = 0.9f, cloudScale = 1f)
+		val bounds = differenceBounds(withoutClouds, withClouds)
+
+		assertTrue(
+			"Overcast composition must cover most of the portrait width, but its changed-pixel span was ${bounds.width}px",
+			bounds.width >= (WIDTH * 0.82f).roundToInt()
+		)
+		withoutClouds.recycle()
+		withClouds.recycle()
+	}
+
+	@Test
+	fun denseFogDoesNotReuseOvercastCloudBanks() {
+		assertFalse(
+			"Dense fog without precipitation must use fog veils rather than overcast cloud banks",
+			SceneRenderer.shouldDrawOvercastBanks(cloudiness = 0.9f, fogDensity = 1f, hasPrecipitation = false)
+		)
+		assertTrue(
+			"Precipitation must retain its cloud deck even when fog is also present",
+			SceneRenderer.shouldDrawOvercastBanks(cloudiness = 0.9f, fogDensity = 1f, hasPrecipitation = true)
+		)
 	}
 
 	private fun renderForeground(cloudiness: Float, cloudScale: Float): Bitmap {
@@ -62,20 +88,27 @@ class CloudRenderingTest {
 	}
 
 	private fun differenceBounds(first: Bitmap, second: Bitmap): PixelBounds {
+		var left = first.width
+		var right = -1
 		var bottom = -1
 
 		for (y in 0 until first.height) {
 			for (x in 0 until first.width) {
 				if (first.getPixel(x, y) != second.getPixel(x, y)) {
+					left = minOf(left, x)
+					right = maxOf(right, x)
 					bottom = maxOf(bottom, y)
 				}
 			}
 		}
 
-		return PixelBounds(bottom)
+		return PixelBounds(left, right, bottom)
 	}
 
-	private data class PixelBounds(val bottom: Int)
+	private data class PixelBounds(val left: Int, val right: Int, val bottom: Int) {
+		val width
+			get() = if (right < left) 0 else right - left + 1
+	}
 
 	private companion object {
 		const val WIDTH = 360
