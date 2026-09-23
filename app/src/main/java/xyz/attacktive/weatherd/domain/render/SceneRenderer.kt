@@ -1330,10 +1330,10 @@ class SceneRenderer(resources: Resources) {
 		val supportOffset = wrapOffset(timeSeconds * width * (0.006f + params.windFactor * 0.011f) * params.windScale + drift * 0.75f - width * 0.67f, supportPeriod)
 		val heroOffset = wrapOffset(timeSeconds * width * (0.009f + params.windFactor * 0.017f) * params.windScale + drift * 1.25f - width * 0.16f, heroPeriod)
 		val bridgeOffset = wrapOffset(timeSeconds * width * (0.004f + params.windFactor * 0.008f) * params.windScale + drift * 0.55f - width * 0.91f, bridgePeriod)
-		val farHeight = width * OVERCAST_FAR_VIEWPORTS / OVERCAST_SOURCE_ASPECT * OVERCAST_FAR_HEIGHT_SCALE
-		val supportHeight = width * OVERCAST_SUPPORT_VIEWPORTS / OVERCAST_SOURCE_ASPECT * OVERCAST_SUPPORT_HEIGHT_SCALE
-		val heroHeight = width * OVERCAST_HERO_VIEWPORTS / OVERCAST_SOURCE_ASPECT * OVERCAST_HERO_HEIGHT_SCALE
-		val bridgeHeight = width * OVERCAST_BRIDGE_VIEWPORTS / OVERCAST_SOURCE_ASPECT * OVERCAST_BRIDGE_HEIGHT_SCALE
+		val farHeight = overcastBankHeight(width, height, OVERCAST_FAR_VIEWPORTS, OVERCAST_FAR_HEIGHT_SCALE)
+		val supportHeight = overcastBankHeight(width, height, OVERCAST_SUPPORT_VIEWPORTS, OVERCAST_SUPPORT_HEIGHT_SCALE)
+		val heroHeight = overcastBankHeight(width, height, OVERCAST_HERO_VIEWPORTS, OVERCAST_HERO_HEIGHT_SCALE)
+		val bridgeHeight = overcastBankHeight(width, height, OVERCAST_BRIDGE_VIEWPORTS, OVERCAST_BRIDGE_HEIGHT_SCALE)
 		val farAlpha = (255f * 0.46f * params.cloudScale).roundToInt()
 		val supportAlpha = (255f * 0.72f * params.cloudScale).roundToInt()
 		val heroAlpha = (255f * 0.88f * params.cloudScale * swell).roundToInt()
@@ -2677,6 +2677,9 @@ class SceneRenderer(resources: Resources) {
 		internal fun shouldDrawOvercastBanks(cloudiness: Float, fogDensity: Float, hasPrecipitation: Boolean) =
 			(cloudiness > CLOUD_DECK_THRESHOLD || hasPrecipitation) && (fogDensity < DENSE_FOG_CLOUD_CUTOFF || hasPrecipitation)
 
+		internal fun overcastBankHeight(width: Float, height: Float, viewports: Float, heightScale: Float) =
+			minOf(width * viewports / OVERCAST_SOURCE_ASPECT * heightScale, height * OVERCAST_MAX_BANK_HEIGHT_FRACTION)
+
 		private const val STAR_SEED = 1L
 		private const val PRECIP_SEED = 3L
 		private const val BOLT_SEED = 5L
@@ -2750,18 +2753,19 @@ class SceneRenderer(resources: Resources) {
 
 		private const val DENSE_FOG_CLOUD_CUTOFF = 0.8f
 		private const val OVERCAST_SOURCE_ASPECT = 3f
-		private const val OVERCAST_FAR_VIEWPORTS = 1.42f
-		private const val OVERCAST_SUPPORT_VIEWPORTS = 1.20f
-		private const val OVERCAST_HERO_VIEWPORTS = 1.04f
-		private const val OVERCAST_BRIDGE_VIEWPORTS = 1.30f
-		private const val OVERCAST_FAR_HEIGHT_SCALE = 1.45f
-		private const val OVERCAST_SUPPORT_HEIGHT_SCALE = 1.75f
-		private const val OVERCAST_HERO_HEIGHT_SCALE = 2.45f
-		private const val OVERCAST_BRIDGE_HEIGHT_SCALE = 1.60f
-		private const val OVERCAST_FAR_TOP = -0.035f
-		private const val OVERCAST_SUPPORT_TOP = 0.12f
-		private const val OVERCAST_HERO_TOP = 0.23f
-		private const val OVERCAST_BRIDGE_TOP = 0.47f
+		private const val OVERCAST_MAX_BANK_HEIGHT_FRACTION = 0.55f
+		private const val OVERCAST_FAR_VIEWPORTS = 1.35f
+		private const val OVERCAST_SUPPORT_VIEWPORTS = 1.15f
+		private const val OVERCAST_HERO_VIEWPORTS = 1.03f
+		private const val OVERCAST_BRIDGE_VIEWPORTS = 1.25f
+		private const val OVERCAST_FAR_HEIGHT_SCALE = 1.10f
+		private const val OVERCAST_SUPPORT_HEIGHT_SCALE = 1.00f
+		private const val OVERCAST_HERO_HEIGHT_SCALE = 1.10f
+		private const val OVERCAST_BRIDGE_HEIGHT_SCALE = 0.90f
+		private const val OVERCAST_FAR_TOP = -0.02f
+		private const val OVERCAST_SUPPORT_TOP = 0.17f
+		private const val OVERCAST_HERO_TOP = 0.30f
+		private const val OVERCAST_BRIDGE_TOP = 0.46f
 
 		/** The upper deck is sampled slightly toward the sun and upward, projecting its cover onto the lower cloud plane. */
 		private const val CUMULUS_CAST_SHADOW_HORIZONTAL_PROJECTION = 0.18f

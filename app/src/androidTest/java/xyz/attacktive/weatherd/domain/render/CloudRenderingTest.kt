@@ -58,6 +58,21 @@ class CloudRenderingTest {
 	}
 
 	@Test
+	fun overcastBankHeightStaysBoundedInLandscape() {
+		val bankHeight = SceneRenderer.overcastBankHeight(
+			width = 780f,
+			height = 360f,
+			viewports = 1.03f,
+			heightScale = 1.10f
+		)
+
+		assertTrue(
+			"An overcast bank must not grow taller than 55% of a landscape surface, but was $bankHeight",
+			bankHeight <= 360f * 0.55f
+		)
+	}
+
+	@Test
 	fun denseFogDoesNotReuseOvercastCloudBanks() {
 		assertFalse(
 			"Dense fog without precipitation must use fog veils rather than overcast cloud banks",

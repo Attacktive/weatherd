@@ -2,7 +2,7 @@
 
 Instructions and architectural invariants for agents working in the Weatherd codebase.
 
-- Version: 1.6.6 (2026-09-23)
+- Version: 1.6.7 (2026-09-23)
 - Persona: Coding assistant pair-programming with the user on Weatherd.
 
 ## Tools and Environment
@@ -115,7 +115,7 @@ fun debugSceneParams(
 - Cloud decks use `CloudLayer`; fair-weather cumulus uses seeded placement populations, while overcast uses the dedicated `cloud_overcast_hero`, `cloud_overcast_support`, and `cloud_overcast_veil` sources.
 - `scripts/generate-cloud-textures.py` reproducibly regenerates the procedural clear-sky cloud textures it owns with `uv run scripts/generate-cloud-textures.py` and samples no third-party artwork. The dedicated overcast sources are first-party authored assets and are not derived from the reference APK.
 	- `cloud_cumulus_sparse` / `_scattered` / `_broken` select the near clear-sky placement profiles drawn by `drawScatteredClouds`, and `cloud_cumulus_far` selects the distant profile. The near profiles share the four `cloud_cumulus_hero_*` source sprites and synthesize additional morphology variants by scaling and composing them; the far profile shares the `cloud_cumulus_far_veil_*` sprites.
-	- `drawCloudDrift` composes overcast from a far veil, a support bank, one screen-dominant hero bank, and a low bridge veil. At least one visible bank must span most of a portrait viewport, and the combined bank field must reach well into the mid-sky so overcast reads as a ceiling rather than floating fair-weather puffs.
+	- `drawCloudDrift` composes overcast from a far veil, a support bank, one screen-dominant hero bank, and a low bridge veil. At least one visible bank must span most of a portrait viewport, and the combined bank field must reach well into the mid-sky so overcast reads as a ceiling rather than floating fair-weather puffs. Preserve the dedicated assets' 3:1 proportions instead of vertically stretching them; bank height is capped to 55% of the surface in wide viewports.
 - A cloud deck spans `CLOUD_TEXTURE_VIEWPORTS` viewport widths before repeating unless it passes its own `viewports`. Overcast banks deliberately use shorter spans so their source masses remain screen-dominant.
 - Dense fog without precipitation suppresses the animated overcast banks and relies on the fog base plus drifting fog tiles instead. Fog must not reuse the overcast or fair-weather cumulus vocabulary.
 - Overcast bank sources are decoded once during prewarm and then transformed, tinted, and alpha-scaled without rerasterizing their source pixels. Do not generate cloud masks from `renderForeground` / `drawCloudDrift`, and do not use artwork from the reference APK or third parties.
