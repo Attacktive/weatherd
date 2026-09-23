@@ -37,7 +37,7 @@ class CloudRenderingTest {
 
 		assertTrue(
 			"Overcast cloud banks must occupy the mid-sky instead of collapsing into a top strip, but their lower edge was ${bounds.bottom}",
-			bounds.bottom >= (HEIGHT * 0.50f).roundToInt()
+			bounds.bottom >= (HEIGHT * 0.62f).roundToInt()
 		)
 		withoutClouds.recycle()
 		withClouds.recycle()
