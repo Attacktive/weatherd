@@ -1631,20 +1631,45 @@ class SceneRenderer(resources: Resources) {
 
 	/** Cached low, elongated veils: fog texture without recognizable cloud silhouettes. */
 	private fun buildFogVeilTile(canvas: Canvas, width: Float, height: Float, color: Int, alpha: Int, seed: Long, near: Boolean) {
-		val blur = if (near) height * 0.055f else height * 0.075f
+		val blur = if (near) {
+			height * 0.055f
+		} else {
+			height * 0.075f
+		}
+
 		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
 		brush.style = Paint.Style.FILL
 		brush.maskFilter = BlurMaskFilter(blur, BlurMaskFilter.Blur.NORMAL)
 		val bounds = RectF()
 		val random = Random(seed)
-		val count = if (near) 10 else 13
+		val count = if (near) {
+			10
+		} else {
+			13
+		}
+
 		val horizontalSpan = min(width, height * 1.6f)
 
 		repeat(count) {
 			val centerX = random.nextFloat(width)
-			val centerY = if (near) height * random.nextFloat(0.42f, 0.90f) else height * random.nextFloat(0.10f, 0.64f)
-			val radiusX = if (near) horizontalSpan * random.nextFloat(0.18f, 0.34f) else horizontalSpan * random.nextFloat(0.14f, 0.28f)
-			val radiusY = if (near) height * random.nextFloat(0.04f, 0.085f) else height * random.nextFloat(0.03f, 0.07f)
+			val centerY = if (near) {
+				height * random.nextFloat(0.42f, 0.90f)
+			} else {
+				height * random.nextFloat(0.10f, 0.64f)
+			}
+
+			val radiusX = if (near) {
+				horizontalSpan * random.nextFloat(0.18f, 0.34f)
+			} else {
+				horizontalSpan * random.nextFloat(0.14f, 0.28f)
+			}
+
+			val radiusY = if (near) {
+				height * random.nextFloat(0.04f, 0.085f)
+			} else {
+				height * random.nextFloat(0.03f, 0.07f)
+			}
+
 			brush.color = withAlpha(color, (alpha * random.nextFloat(0.55f, 1f)).roundToInt())
 
 			wrapX(width, centerX, radiusX + blur * 1.5f) { x ->
@@ -1671,8 +1696,8 @@ class SceneRenderer(resources: Resources) {
 			floatArrayOf(0f, 0.48f, 1f),
 			Shader.TileMode.CLAMP
 		)
-		canvas.drawRect(0f, 0f, width, height, paint)
 
+		canvas.drawRect(0f, 0f, width, height, paint)
 		paint.shader = null
 	}
 

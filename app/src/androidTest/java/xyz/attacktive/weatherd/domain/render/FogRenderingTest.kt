@@ -29,6 +29,7 @@ class FogRenderingTest {
 			"Fog must stay restrained in the upper sky and become substantially denser near the ground, but upper difference was $upperDifference and lower difference was $lowerDifference",
 			lowerDifference > upperDifference * 2f
 		)
+
 		traceFog.recycle()
 		denseFog.recycle()
 	}
@@ -43,10 +44,12 @@ class FogRenderingTest {
 			"Moving fog veils must span most of the portrait width, but their changed-pixel span was ${bounds.width}px",
 			bounds.width >= (WIDTH * 0.85f).roundToInt()
 		)
+
 		assertTrue(
 			"Moving fog veils must reach through the lower scene instead of hovering as one upper band, but their lower edge was ${bounds.bottom}",
 			bounds.bottom >= (HEIGHT * 0.75f).roundToInt()
 		)
+
 		first.recycle()
 		second.recycle()
 	}
@@ -113,7 +116,11 @@ class FogRenderingTest {
 
 	private data class PixelBounds(val left: Int, val right: Int, val bottom: Int) {
 		val width
-			get() = if (right < left) 0 else right - left + 1
+			get() = if (right < left) {
+				0
+			} else {
+				right - left + 1
+			}
 	}
 
 	private companion object {
