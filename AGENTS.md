@@ -2,7 +2,7 @@
 
 Instructions and architectural invariants for agents working in the Weatherd codebase.
 
-- Version: 1.6.6 (2026-09-23)
+- Version: 1.6.7 (2026-09-23)
 - Persona: Coding assistant pair-programming with the user on Weatherd.
 
 ## Tools and Environment
@@ -112,13 +112,13 @@ fun debugSceneParams(
 
 - `renderBackdrop(canvas, width, height, params)`: Static layers (sky gradient, overcast ceiling, fog base, haze, vignette). Cached into a `Bitmap` by `WeatherLiveWallpaperService` and `HomeScreen`; re-rasterized only when `backdropSignature(params)` changes.
 - `renderForeground(canvas, width, height, params, timeSeconds)`: Dynamic animated layers (stars, celestial body, birds, clouds, scenery, fog drift, precipitation, lightning, overlay text). Redrawn every frame.
-- Cloud decks use `CloudLayer`; fair-weather cumulus draws shared transparent source sprites, while overcast sheets are generated once per lazy layer. Their transforms, opacity, and day-phase tints change without rerasterizing the source pixels.
+- Cloud decks use `CloudLayer`; fair-weather and overcast profiles both draw shared transparent repository-owned source sprites. Their placements, transforms, opacity, and day-phase tints change without rerasterizing source pixels.
 - `scripts/generate-cloud-textures.py` reproducibly regenerates the procedural cloud textures it owns with `uv run scripts/generate-cloud-textures.py` and samples no third-party artwork. Runtime cloud rendering has two families:
-	- `cloud_sheet_far` / `cloud_sheet_near` identify the overcast and precipitation decks drawn by `drawCloudDrift`; `CloudLayer` procedurally builds each deck once on first use from deterministic multi-scale noise and reuses the resulting bitmap afterward.
+	- `cloud_sheet_far` / `cloud_sheet_near` act as selectors for dense overcast placement profiles drawn by `drawCloudDrift`; the far profile reuses the flatter veil sprites and the near profile reuses the hero morphology variants. Their selector drawable pixels are not sampled at runtime.
 	- `cloud_cumulus_sparse` / `_scattered` / `_broken` select the near clear-sky placement profiles drawn by `drawScatteredClouds`, and `cloud_cumulus_far` selects the distant profile. The near profiles share the four `cloud_cumulus_hero_*` source sprites and synthesize additional morphology variants by scaling and composing them; the far profile shares the `cloud_cumulus_far_veil_*` sprites.
 - A cloud deck spans `CLOUD_TEXTURE_VIEWPORTS` viewport widths before repeating unless it passes its own `viewports`. A shorter span shrinks the apparent spacing and feature scale.
-- Overcast depth comes from discrete deterministic stratocumulus masses, not from thresholding one continuous body-noise image. Each mass is a cluster of overlapping soft elliptical lobes; overlapping lobes and neighboring masses only add density, so the renderer never exposes a field-handoff contour. Medium billow noise shapes volume inside those bodies and fine turbulence only breaks up the surface. Overcast lighting is broad density-and-billow shading: do not subtract opposite offset samples or whiten low-alpha edges, because those operations behave like an emboss or edge-detection filter and produce bright contour halos. Do not paste fair-weather hero sprites into the deck; overcast generation stays first-party, deterministic, one-time, and per-frame rendering remains a normal bitmap-shader draw.
-- Procedural overcast generation must never start from `renderForeground` / `drawCloudDrift`. Owners prewarm it on a background dispatcher; if the cache is not ready yet, the frame skips the animated sheet instead of blocking the render thread.
+- Overcast is composed from dense overlapping sprite populations rather than a continuous thresholded noise field. The near deck uses the repository-owned hero morphology variants at staggered heights and scales; the far deck uses smaller, flatter veil sprites for atmospheric depth. Reuse the existing first-party sprite artwork, vary placement rather than drawing contour masks, and keep enough overlap that the ceiling reads as connected without outlining individual bodies. Never use assets from a reference APK or third-party cloud artwork.
+- Overcast sprite decoding must never start from `renderForeground` / `drawCloudDrift`. Owners prewarm the lazy layers on a background dispatcher; if they are not ready yet, the frame skips the animated deck instead of blocking the render thread.
 
 ### Cloud Coverage Belongs to Placement, Never to Paint Alpha
 

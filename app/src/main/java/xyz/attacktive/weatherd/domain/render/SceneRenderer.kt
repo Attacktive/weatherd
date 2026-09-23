@@ -170,7 +170,7 @@ class SceneRenderer(resources: Resources) {
 	}
 
 	/**
-	 * Builds the expensive procedural overcast sheets before the render loop needs them.
+	 * Decodes and prepares the shared overcast cloud sprites before the render loop needs them.
 	 * Call this from a background dispatcher; [drawCloudDrift] deliberately refuses to initialize the lazy decks on a frame.
 	 */
 	fun prewarmOvercastClouds() {
@@ -1298,7 +1298,7 @@ class SceneRenderer(resources: Resources) {
 	}
 
 	/**
-	 * Two textured cloud sheets drift over the overcast ceiling with subtle depth and opacity variation.
+	 * Two dense sprite populations drift over the overcast ceiling: smaller hazy bodies behind larger overlapping foreground masses.
 	 * Storm decks stay darker and snow decks lighter, while the day-phase tint keeps night clouds dim.
 	 */
 	private fun drawCloudDrift(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
@@ -1321,11 +1321,11 @@ class SceneRenderer(resources: Resources) {
 		val bobAmplitude = height * 0.006f * params.windScale
 		val bob = bobAmplitude * (0.65f * sin(timeSeconds * 0.4f) + 0.35f * sin(timeSeconds * 1.07f))
 		val swell = 0.9f + 0.1f * (0.7f * sin(timeSeconds * 0.55f) + 0.3f * sin(timeSeconds * 1.31f))
-		val backAlpha = (255f * 0.47f * params.cloudScale).roundToInt()
-		val frontAlpha = (255f * 0.68f * params.cloudScale * swell).roundToInt()
+		val backAlpha = (255f * 0.52f * params.cloudScale).roundToInt()
+		val frontAlpha = (255f * 0.74f * params.cloudScale * swell).roundToInt()
 
-		farCloudDeck.draw(canvas, cloudDrawGeometry.configure(width, height * 0.72f + bobAmplitude, backOffset, bob - bobAmplitude), darken(color, 0.94f), backAlpha)
-		nearCloudDeck.draw(canvas, cloudDrawGeometry.configure(width, height * 0.66f + bobAmplitude * 1.5f, frontOffset, -bob * 1.5f - bobAmplitude * 1.5f), color, frontAlpha)
+		farCloudDeck.draw(canvas, cloudDrawGeometry.configure(width, height * 0.82f + bobAmplitude, backOffset, bob - bobAmplitude), darken(color, 0.94f), backAlpha)
+		nearCloudDeck.draw(canvas, cloudDrawGeometry.configure(width, height * 0.76f + bobAmplitude * 1.5f, frontOffset, -bob * 1.5f - bobAmplitude * 1.5f), color, frontAlpha)
 	}
 
 	/**

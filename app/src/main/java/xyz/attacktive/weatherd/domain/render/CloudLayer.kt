@@ -1,7 +1,5 @@
 package xyz.attacktive.weatherd.domain.render
 
-import kotlin.math.abs
-import kotlin.math.floor
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.random.Random
@@ -17,9 +15,7 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Shader
 import androidx.annotation.DrawableRes
-import androidx.core.graphics.createBitmap
 import androidx.core.graphics.get
-import androidx.core.graphics.scale
 import androidx.core.graphics.withScale
 import xyz.attacktive.weatherd.R
 
@@ -29,9 +25,9 @@ internal const val CLOUD_TEXTURE_VIEWPORTS = 4f
 /**
  * Reuses decoded cloud pixels, sampling transforms, tint state, and seeded sprite layouts between frames.
  *
- * Fair-weather cumulus uses transparent sprite compositions built from a small shared source set.
- * The far fair-weather plane uses dedicated flat veil assets, while overcast sheets are deterministic multi-scale textures generated once when the layer is first used.
- * Fog draws over those sheets.
+ * Fair-weather and overcast clouds reuse transparent repository-owned sprite families with separate placement profiles.
+ * The far planes use flatter veil sprites while near clouds use the hero morphology variants.
+ * Fog draws over the cloud layers.
  */
 internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 	private val cumulusKind = when (texture) {
@@ -39,24 +35,19 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		R.drawable.cloud_cumulus_sparse -> CumulusKind.SPARSE
 		R.drawable.cloud_cumulus_scattered -> CumulusKind.SCATTERED
 		R.drawable.cloud_cumulus_broken -> CumulusKind.BROKEN
-		else -> null
-	}
-
-	private val sheetKind = when (texture) {
-		R.drawable.cloud_sheet_far -> SheetKind.FAR
-		R.drawable.cloud_sheet_near -> SheetKind.NEAR
+		R.drawable.cloud_sheet_far -> CumulusKind.OVERCAST_FAR
+		R.drawable.cloud_sheet_near -> CumulusKind.OVERCAST_NEAR
 		else -> null
 	}
 
 	private val bitmap = when {
 		cumulusKind != null -> null
-		sheetKind != null -> overcastTexture(sheetKind)
 		else -> decode(resources, texture)
 	}
 
 	private val cumulusBitmaps = when (cumulusKind) {
 		null -> emptyList()
-		CumulusKind.FAR -> farBitmaps(resources)
+		CumulusKind.FAR, CumulusKind.OVERCAST_FAR -> farBitmaps(resources)
 		else -> heroBitmaps(resources)
 	}
 
@@ -123,7 +114,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 			return null
 		}
 
-		val placements = if (kind == CumulusKind.FAR) farPlacementsFor() else nearPlacementsFor(kind)
+		val placements = if (isFarCumulus(kind)) farPlacementsFor(kind) else nearPlacementsFor(kind)
 		opacitySampler.configure(
 			width = width,
 			height = height,
@@ -285,8 +276,8 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		val style = cumulusStyle(kind, tint, geometry.width, geometry.height, geometry.sizeScale)
 		paint.shader = null
 
-		val placements = if (kind == CumulusKind.FAR) {
-			farPlacementsFor()
+		val placements = if (isFarCumulus(kind)) {
+			farPlacementsFor(kind)
 		} else {
 			nearPlacementsFor(kind)
 		}
@@ -300,7 +291,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		val wrappedOffset = positiveModulo(geometry.offset, period)
 
 		for (placement in placements) {
-			if (kind == CumulusKind.FAR) {
+			if (isFarCumulus(kind)) {
 				drawFarPlacement(canvas, geometry, style, placement, compositionAlpha, wrappedOffset, period, shadow)
 			} else {
 				drawHeroPlacement(canvas, geometry, style, placement, compositionAlpha, wrappedOffset, period)
@@ -364,6 +355,8 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		}
 	}
 
+	private fun isFarCumulus(kind: CumulusKind) = kind == CumulusKind.FAR || kind == CumulusKind.OVERCAST_FAR
+
 	private fun cumulusTint(tint: Int, kind: CumulusKind, shadow: CumulusShadow?, x: Float, y: Float): Int {
 		if (kind != CumulusKind.FAR || shadow == null) {
 			return tint
@@ -374,8 +367,8 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 	}
 
 	private fun cumulusStyle(kind: CumulusKind, tint: Int, width: Float, height: Float, sizeScale: Float): CumulusStyle {
-		if (kind == CumulusKind.FAR) {
-			return CumulusStyle(
+		return when (kind) {
+			CumulusKind.FAR -> CumulusStyle(
 				tint = liftTowardWhite(tint, FAR_CUMULUS_TINT_LIFT),
 				baseHeight = min(width * FAR_BASE_HEIGHT_TO_WIDTH, height * FAR_BASE_HEIGHT_TO_DECK) * sizeScale,
 				topOffset = height * FAR_CUMULUS_RISE,
@@ -385,18 +378,37 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 					alpha = FAR_CUMULUS_ALPHA_SCALE * FAR_VEIL_ALPHA_SCALE
 				)
 			)
-		}
-
-		return CumulusStyle(
-			tint = tint,
-			baseHeight = min(width * 0.22f, height * 0.48f) * sizeScale,
-			topOffset = 0f,
-			scale = CumulusScale(
-				width = 1f,
-				height = 1f,
-				alpha = HERO_CUMULUS_ALPHA_SCALE
+			CumulusKind.OVERCAST_FAR -> CumulusStyle(
+				tint = liftTowardWhite(tint, OVERCAST_FAR_TINT_LIFT),
+				baseHeight = min(width * OVERCAST_FAR_BASE_HEIGHT_TO_WIDTH, height * OVERCAST_FAR_BASE_HEIGHT_TO_DECK) * sizeScale,
+				topOffset = height * OVERCAST_FAR_RISE,
+				scale = CumulusScale(
+					width = OVERCAST_FAR_WIDTH_SCALE,
+					height = OVERCAST_FAR_HEIGHT_SCALE,
+					alpha = OVERCAST_FAR_ALPHA_SCALE
+				)
 			)
-		)
+			CumulusKind.OVERCAST_NEAR -> CumulusStyle(
+				tint = tint,
+				baseHeight = min(width * OVERCAST_NEAR_BASE_HEIGHT_TO_WIDTH, height * OVERCAST_NEAR_BASE_HEIGHT_TO_DECK) * sizeScale,
+				topOffset = height * OVERCAST_NEAR_RISE,
+				scale = CumulusScale(
+					width = OVERCAST_NEAR_WIDTH_SCALE,
+					height = OVERCAST_NEAR_HEIGHT_SCALE,
+					alpha = OVERCAST_NEAR_ALPHA_SCALE
+				)
+			)
+			else -> CumulusStyle(
+				tint = tint,
+				baseHeight = min(width * 0.22f, height * 0.48f) * sizeScale,
+				topOffset = 0f,
+				scale = CumulusScale(
+					width = 1f,
+					height = 1f,
+					alpha = HERO_CUMULUS_ALPHA_SCALE
+				)
+			)
+		}
 	}
 
 	private fun nearPlacementsFor(kind: CumulusKind): List<CumulusPlacement> {
@@ -409,17 +421,21 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 			CumulusKind.SPARSE -> SPARSE_ANCHORS
 			CumulusKind.SCATTERED -> SCATTERED_ANCHORS
 			CumulusKind.BROKEN -> BROKEN_ANCHORS
-			CumulusKind.FAR -> error("Far cumulus uses its own placement cache")
+			CumulusKind.OVERCAST_NEAR -> OVERCAST_NEAR_ANCHORS
+			CumulusKind.FAR, CumulusKind.OVERCAST_FAR -> error("Far cumulus uses its own placement cache")
 		}
 
 		val seedSalt = when (kind) {
 			CumulusKind.SPARSE -> SPARSE_LAYOUT_SEED_SALT
 			CumulusKind.SCATTERED -> SCATTERED_LAYOUT_SEED_SALT
 			CumulusKind.BROKEN -> BROKEN_LAYOUT_SEED_SALT
+			CumulusKind.OVERCAST_NEAR -> OVERCAST_NEAR_LAYOUT_SEED_SALT
+			CumulusKind.FAR, CumulusKind.OVERCAST_FAR -> error("Far cumulus uses its own placement seed")
 		}
+		val tuning = if (kind == CumulusKind.OVERCAST_NEAR) OVERCAST_NEAR_PLACEMENT_TUNING else NEAR_PLACEMENT_TUNING
 
 		cachedNearPlacements = buildPlacements(
-			NEAR_PLACEMENT_TUNING,
+			tuning,
 			anchors,
 			Random(layoutSeed(epochDay) xor seedSalt),
 			HERO_VARIANTS.size
@@ -429,13 +445,17 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		return cachedNearPlacements
 	}
 
-	private fun farPlacementsFor(): List<CumulusPlacement> {
+	private fun farPlacementsFor(kind: CumulusKind): List<CumulusPlacement> {
 		val epochDay = System.currentTimeMillis() / MILLIS_PER_DAY
 		if (cachedFarEpochDay == epochDay && cachedFarPlacements.isNotEmpty()) {
 			return cachedFarPlacements
 		}
 
-		cachedFarPlacements = buildPlacements(FAR_PLACEMENT_TUNING, FAR_ANCHORS, Random(layoutSeed(epochDay) xor FAR_LAYOUT_SEED_SALT), FAR_VARIANT_COUNT)
+		val anchors = if (kind == CumulusKind.OVERCAST_FAR) OVERCAST_FAR_ANCHORS else FAR_ANCHORS
+		val tuning = if (kind == CumulusKind.OVERCAST_FAR) OVERCAST_FAR_PLACEMENT_TUNING else FAR_PLACEMENT_TUNING
+		val seedSalt = if (kind == CumulusKind.OVERCAST_FAR) OVERCAST_FAR_LAYOUT_SEED_SALT else FAR_LAYOUT_SEED_SALT
+
+		cachedFarPlacements = buildPlacements(tuning, anchors, Random(layoutSeed(epochDay) xor seedSalt), FAR_VARIANT_COUNT)
 			.mapIndexed { index, placement ->
 				when (index) {
 					0 -> placement.copy(spriteIndex = 0)
@@ -449,7 +469,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 	}
 
 	private fun nearCompositionAlpha(kind: CumulusKind, alpha: Int): Int {
-		if (kind == CumulusKind.FAR || kind == CumulusKind.SPARSE) {
+		if (kind == CumulusKind.FAR || kind == CumulusKind.OVERCAST_FAR || kind == CumulusKind.SPARSE || kind == CumulusKind.OVERCAST_NEAR) {
 			return alpha
 		}
 
@@ -472,124 +492,6 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		}
 	}
 
-	private fun overcastTexture(kind: SheetKind): Bitmap = synchronized(OVERCAST_BITMAP_LOCK) {
-		val cached = cachedOvercastTexture(kind)
-		if (cached != null && !cached.isRecycled) {
-			return@synchronized cached
-		}
-
-		return@synchronized buildOvercastTexture(kind)
-			.also { cacheOvercastTexture(kind, it) }
-	}
-
-	private fun cachedOvercastTexture(kind: SheetKind) = when (kind) {
-		SheetKind.FAR -> sharedFarOvercastBitmap
-		SheetKind.NEAR -> sharedNearOvercastBitmap
-	}
-
-	private fun cacheOvercastTexture(kind: SheetKind, bitmap: Bitmap) {
-		when (kind) {
-			SheetKind.FAR -> sharedFarOvercastBitmap = bitmap
-			SheetKind.NEAR -> sharedNearOvercastBitmap = bitmap
-		}
-	}
-
-	private fun buildOvercastTexture(kind: SheetKind): Bitmap {
-		val profile = when (kind) {
-			SheetKind.FAR -> FAR_OVERCAST_PROFILE
-			SheetKind.NEAR -> NEAR_OVERCAST_PROFILE
-		}
-		val noise = OvercastNoise(profile)
-		val masses = buildOvercastMasses(profile)
-		val output = IntArray(OVERCAST_FIELD_WIDTH * OVERCAST_FIELD_HEIGHT)
-
-		for (y in 0 until OVERCAST_FIELD_HEIGHT) {
-			val v = y.toFloat() / (OVERCAST_FIELD_HEIGHT - 1)
-			for (x in 0 until OVERCAST_FIELD_WIDTH) {
-				val u = x.toFloat() / OVERCAST_FIELD_WIDTH
-				output[y * OVERCAST_FIELD_WIDTH + x] = overcastPixel(u, v, profile, noise, masses)
-			}
-		}
-
-		return upscaleOvercastField(output)
-	}
-
-	private fun overcastPixel(u: Float, v: Float, profile: OvercastProfile, noise: OvercastNoise, masses: List<OvercastMass>): Int {
-		val warpedX = wrapUnit(u + OVERCAST_WARP_X * (noise.warpX.sample(u, v) - 0.5f))
-		val warpedY = (v + OVERCAST_WARP_Y * (noise.warpY.sample(u, v) - 0.5f)).coerceIn(0f, 1f)
-		val body = overcastMassField(warpedX, warpedY, masses, profile.morphology.edgeSoftness)
-		val billow = noise.billow.sample(warpedX, warpedY)
-		val billowShape = smoothstep(profile.morphology.billowCut, profile.morphology.billowFull, billow)
-		val fine = noise.fine.sample(warpedX, warpedY)
-		val bodyBase = 1f - profile.morphology.bodyBillowStrength
-		val structure = body * (bodyBase + profile.morphology.bodyBillowStrength * billowShape) + profile.morphology.detachedBillowStrength * billowShape + profile.morphology.fineStrength * (fine - 0.5f)
-
-		val bank = 0.76f + 0.24f * smoothstep(0.22f, 0.78f, noise.bank.sample(u, v))
-		val lowerEdge = v + 0.20f * (noise.bottom.sample(u, v) - 0.5f)
-		val envelope = (1f - smoothstep(0.68f, 1.02f, lowerEdge)) * (1f - smoothstep(0.92f, 0.998f, v))
-		val density = smoothstep(profile.density.cut, profile.density.full, structure) * bank * envelope
-		val alpha = (density * profile.density.alphaGain).coerceIn(0f, 1f)
-		val core = smoothstep(0.16f, 0.72f, density)
-		val light = overcastLight(core, billow, fine, profile.lighting.shadowStrength, profile.lighting.minimumLight, profile.lighting.billowLight)
-		val gray = (light * 255f).roundToInt()
-		return Color.argb((alpha * 255f).roundToInt(), gray, gray, gray)
-	}
-
-	private fun buildOvercastMasses(profile: OvercastProfile): List<OvercastMass> {
-		val random = Random(profile.noise.seed + OVERCAST_MASS_SEED_OFFSET)
-		return List(profile.morphology.massCount) { index ->
-			val centerX = (index + random.nextFloat()) / profile.morphology.massCount
-			val centerY = profile.morphology.massMinY + random.nextFloat() * (profile.morphology.massMaxY - profile.morphology.massMinY)
-			val scale = 1f + (random.nextFloat() * 2f - 1f) * profile.morphology.massScaleJitter
-			val lobes = List(OVERCAST_LOBES_PER_MASS) { lobeIndex ->
-				val angle = OVERCAST_TWO_PI * (lobeIndex.toFloat() / OVERCAST_LOBES_PER_MASS + random.nextFloat() * OVERCAST_LOBE_ANGLE_JITTER)
-				val distance = random.nextFloat() * profile.morphology.lobeSpread
-				val lobeScale = 1f + (random.nextFloat() * 2f - 1f) * OVERCAST_LOBE_SCALE_JITTER
-				OvercastLobe(
-					offsetX = kotlin.math.cos(angle) * distance,
-					offsetY = kotlin.math.sin(angle) * distance * OVERCAST_LOBE_VERTICAL_SQUASH,
-					radiusX = profile.morphology.massRadiusX * scale * lobeScale,
-					radiusY = profile.morphology.massRadiusY * scale * lobeScale
-				)
-			}
-
-			OvercastMass(centerX, centerY, lobes)
-		}
-	}
-
-	private fun overcastMassField(u: Float, v: Float, masses: List<OvercastMass>, edgeSoftness: Float): Float {
-		var field = 0f
-		for (mass in masses) {
-			var massDensity = 0f
-			for (lobe in mass.lobes) {
-				val lobeCenterX = wrapUnit(mass.centerX + lobe.offsetX)
-				val lobeCenterY = mass.centerY + lobe.offsetY
-				val dx = wrappedUnitDistance(u, lobeCenterX) / lobe.radiusX
-				val dy = (v - lobeCenterY) / lobe.radiusY
-				val distance = kotlin.math.sqrt(dx * dx + dy * dy)
-				val lobeDensity = overcastLobeDensity(distance, edgeSoftness)
-				massDensity = mergeOvercastBodies(massDensity, lobeDensity)
-			}
-
-			field = mergeOvercastBodies(field, massDensity)
-		}
-
-		return field
-	}
-
-	private fun upscaleOvercastField(pixels: IntArray): Bitmap {
-		val field = createBitmap(OVERCAST_FIELD_WIDTH, OVERCAST_FIELD_HEIGHT).apply {
-			setPixels(pixels, 0, OVERCAST_FIELD_WIDTH, 0, 0, OVERCAST_FIELD_WIDTH, OVERCAST_FIELD_HEIGHT)
-		}
-
-		val texture = field.scale(OVERCAST_TEXTURE_WIDTH, OVERCAST_TEXTURE_HEIGHT)
-		if (texture !== field) {
-			field.recycle()
-		}
-
-		return texture
-	}
-
 	private fun updateColorFilter(multiplyColor: Int) {
 		if (multiplyColor != previousMultiply) {
 			paint.colorFilter = if (multiplyColor == Color.WHITE) {
@@ -606,12 +508,9 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		FAR,
 		SPARSE,
 		SCATTERED,
-		BROKEN
-	}
-
-	private enum class SheetKind {
-		FAR,
-		NEAR
+		BROKEN,
+		OVERCAST_FAR,
+		OVERCAST_NEAR
 	}
 
 	class CumulusShadow(private val lower: OpacitySampler?, private val upper: OpacitySampler?, private val sourceOffsetX: Float, private val sourceOffsetY: Float, val strength: Float) {
@@ -626,23 +525,14 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 	}
 
 	companion object {
-		internal fun mergeOvercastBodies(primaryBody: Float, secondaryBody: Float) = primaryBody + secondaryBody * (1f - primaryBody)
-
-		internal fun overcastLobeDensity(distance: Float, edgeSoftness: Float) = smoothstep(0f, edgeSoftness, 1f - distance)
-
-		internal fun overcastLight(core: Float, billow: Float, fine: Float, shadowStrength: Float, minimumLight: Float, billowLight: Float): Float {
-			var light = OVERCAST_SKYLIGHT - shadowStrength * core
-			light += billowLight * (billow - 0.5f)
-			light += OVERCAST_FINE_LIGHT * (fine - 0.5f)
-			return light.coerceIn(minimumLight, OVERCAST_SKYLIGHT)
-		}
-
 		private const val MILLIS_PER_DAY = 86_400_000L
 		private const val NEAR_COMPOSITION_BLEND_START = 0.50f
 		private const val SPARSE_LAYOUT_SEED_SALT = 0x21A7F1
 		private const val SCATTERED_LAYOUT_SEED_SALT = 0x53C4D2
 		private const val BROKEN_LAYOUT_SEED_SALT = 0x7B19E5
 		private const val FAR_LAYOUT_SEED_SALT = 0x46A2D9
+		private const val OVERCAST_NEAR_LAYOUT_SEED_SALT = 0x69D4B3
+		private const val OVERCAST_FAR_LAYOUT_SEED_SALT = 0x12E8C7
 
 		private const val HERO_BROAD = 0
 		private const val HERO_BROAD_ALT = 1
@@ -659,74 +549,24 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		private const val FAR_BASE_HEIGHT_TO_WIDTH = 0.082f
 		private const val FAR_BASE_HEIGHT_TO_DECK = 0.24f
 
-		private const val OVERCAST_FIELD_WIDTH = 360
-		private const val OVERCAST_FIELD_HEIGHT = 120
-		private const val OVERCAST_TEXTURE_WIDTH = 720
-		private const val OVERCAST_TEXTURE_HEIGHT = 240
-		private const val OVERCAST_WARP_X = 0.035f
-		private const val OVERCAST_WARP_Y = 0.050f
-		private const val OVERCAST_MASS_SEED_OFFSET = 600
-		private const val OVERCAST_LOBES_PER_MASS = 6
-		private const val OVERCAST_TWO_PI = 6.2831855f
-		private const val OVERCAST_LOBE_ANGLE_JITTER = 0.08f
-		private const val OVERCAST_LOBE_SCALE_JITTER = 0.22f
-		private const val OVERCAST_LOBE_VERTICAL_SQUASH = 0.72f
-		private const val OVERCAST_SKYLIGHT = 0.92f
-		private const val OVERCAST_FINE_LIGHT = 0.025f
-
-		private val FAR_OVERCAST_PROFILE = OvercastProfile(
-			noise = OvercastNoiseProfile(
-				seed = 823,
-				body = NoiseSize(10, 5),
-				billow = NoiseSize(24, 11),
-				fine = NoiseSize(52, 23)
-			),
-			morphology = OvercastMorphologyProfile(
-				massCount = 11,
-				massRadiusX = 0.085f,
-				massRadiusY = 0.22f,
-				massScaleJitter = 0.22f,
-				massMinY = 0.16f,
-				massMaxY = 0.58f,
-				lobeSpread = 0.050f,
-				edgeSoftness = 0.34f,
-				billowCut = 0.30f,
-				billowFull = 0.78f,
-				bodyBillowStrength = 0.18f,
-				detachedBillowStrength = 0.04f,
-				fineStrength = 0.02f
-			),
-			density = OvercastDensityProfile(0.26f, 0.61f, 1.55f),
-			lighting = OvercastLightingProfile(0.26f, 0.61f, 0.08f)
-		)
-		private val NEAR_OVERCAST_PROFILE = OvercastProfile(
-			noise = OvercastNoiseProfile(
-				seed = 1759,
-				body = NoiseSize(7, 4),
-				billow = NoiseSize(17, 8),
-				fine = NoiseSize(40, 18)
-			),
-			morphology = OvercastMorphologyProfile(
-				massCount = 8,
-				massRadiusX = 0.120f,
-				massRadiusY = 0.28f,
-				massScaleJitter = 0.28f,
-				massMinY = 0.10f,
-				massMaxY = 0.56f,
-				lobeSpread = 0.070f,
-				edgeSoftness = 0.30f,
-				billowCut = 0.28f,
-				billowFull = 0.76f,
-				bodyBillowStrength = 0.22f,
-				detachedBillowStrength = 0.05f,
-				fineStrength = 0.025f
-			),
-			density = OvercastDensityProfile(0.23f, 0.56f, 1.70f),
-			lighting = OvercastLightingProfile(0.40f, 0.49f, 0.15f)
-		)
+		private const val OVERCAST_NEAR_BASE_HEIGHT_TO_WIDTH = 0.16f
+		private const val OVERCAST_NEAR_BASE_HEIGHT_TO_DECK = 0.34f
+		private const val OVERCAST_NEAR_WIDTH_SCALE = 1.12f
+		private const val OVERCAST_NEAR_HEIGHT_SCALE = 0.92f
+		private const val OVERCAST_NEAR_ALPHA_SCALE = 0.98f
+		private const val OVERCAST_NEAR_RISE = 0.03f
+		private const val OVERCAST_FAR_BASE_HEIGHT_TO_WIDTH = 0.12f
+		private const val OVERCAST_FAR_BASE_HEIGHT_TO_DECK = 0.28f
+		private const val OVERCAST_FAR_WIDTH_SCALE = 1.32f
+		private const val OVERCAST_FAR_HEIGHT_SCALE = 0.72f
+		private const val OVERCAST_FAR_ALPHA_SCALE = 0.92f
+		private const val OVERCAST_FAR_TINT_LIFT = 0.08f
+		private const val OVERCAST_FAR_RISE = 0.06f
 
 		private val NEAR_PLACEMENT_TUNING = PlacementTuning(0.035f, 0.045f, 0.10f, 0.06f, 0.16f, 0.64f)
 		private val FAR_PLACEMENT_TUNING = PlacementTuning(0.022f, 0.040f, 0.10f, 0.06f, 0.20f, 0.66f)
+		private val OVERCAST_NEAR_PLACEMENT_TUNING = PlacementTuning(0.012f, 0.028f, 0.12f, 0.08f, 0.10f, 0.68f)
+		private val OVERCAST_FAR_PLACEMENT_TUNING = PlacementTuning(0.010f, 0.024f, 0.10f, 0.08f, 0.14f, 0.72f)
 
 		/*
 		 * Seven visual variants come from four source bitmaps.
@@ -783,6 +623,53 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 			CumulusAnchor(0.98f, 0.41f, 0.80f, alphaScale = 0.92f)
 		)
 
+		private val OVERCAST_NEAR_ANCHORS = listOf(
+			CumulusAnchor(0.02f, 0.20f, 1.08f),
+			CumulusAnchor(0.08f, 0.43f, 0.86f, alphaScale = 0.94f),
+			CumulusAnchor(0.14f, 0.12f, 0.94f),
+			CumulusAnchor(0.20f, 0.54f, 0.80f, alphaScale = 0.92f),
+			CumulusAnchor(0.26f, 0.31f, 1.02f),
+			CumulusAnchor(0.32f, 0.62f, 0.76f, alphaScale = 0.90f),
+			CumulusAnchor(0.38f, 0.18f, 0.90f),
+			CumulusAnchor(0.44f, 0.47f, 0.98f),
+			CumulusAnchor(0.50f, 0.27f, 0.82f, alphaScale = 0.95f),
+			CumulusAnchor(0.56f, 0.58f, 0.88f),
+			CumulusAnchor(0.62f, 0.14f, 1.00f),
+			CumulusAnchor(0.68f, 0.40f, 0.78f, alphaScale = 0.92f),
+			CumulusAnchor(0.74f, 0.64f, 0.84f, alphaScale = 0.90f),
+			CumulusAnchor(0.80f, 0.24f, 0.95f),
+			CumulusAnchor(0.86f, 0.51f, 0.81f, alphaScale = 0.93f),
+			CumulusAnchor(0.92f, 0.16f, 0.89f),
+			CumulusAnchor(0.97f, 0.38f, 0.92f)
+		)
+
+		private val OVERCAST_FAR_ANCHORS = listOf(
+			CumulusAnchor(0.01f, 0.30f, 0.90f),
+			CumulusAnchor(0.05f, 0.56f, 0.76f),
+			CumulusAnchor(0.09f, 0.18f, 0.84f),
+			CumulusAnchor(0.13f, 0.42f, 0.94f),
+			CumulusAnchor(0.17f, 0.66f, 0.72f),
+			CumulusAnchor(0.21f, 0.27f, 0.82f),
+			CumulusAnchor(0.25f, 0.51f, 0.88f),
+			CumulusAnchor(0.29f, 0.16f, 0.78f),
+			CumulusAnchor(0.33f, 0.38f, 0.96f),
+			CumulusAnchor(0.37f, 0.61f, 0.74f),
+			CumulusAnchor(0.41f, 0.23f, 0.86f),
+			CumulusAnchor(0.45f, 0.48f, 0.80f),
+			CumulusAnchor(0.49f, 0.69f, 0.72f),
+			CumulusAnchor(0.53f, 0.31f, 0.92f),
+			CumulusAnchor(0.57f, 0.55f, 0.78f),
+			CumulusAnchor(0.61f, 0.19f, 0.84f),
+			CumulusAnchor(0.65f, 0.43f, 0.90f),
+			CumulusAnchor(0.69f, 0.65f, 0.74f),
+			CumulusAnchor(0.73f, 0.26f, 0.82f),
+			CumulusAnchor(0.77f, 0.50f, 0.88f),
+			CumulusAnchor(0.81f, 0.15f, 0.76f),
+			CumulusAnchor(0.85f, 0.37f, 0.94f),
+			CumulusAnchor(0.90f, 0.60f, 0.78f),
+			CumulusAnchor(0.95f, 0.29f, 0.86f)
+		)
+
 		private val FAR_ANCHORS = listOf(
 			CumulusAnchor(0.06f, 0.38f, 0.92f, alphaScale = 0.94f),
 			CumulusAnchor(0.23f, 0.56f, 0.78f, alphaScale = 0.88f),
@@ -792,9 +679,6 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 			CumulusAnchor(0.95f, 0.27f, 0.70f, alphaScale = 0.84f)
 		)
 
-		private val OVERCAST_BITMAP_LOCK = Any()
-		private var sharedFarOvercastBitmap: Bitmap? = null
-		private var sharedNearOvercastBitmap: Bitmap? = null
 		private var sharedHeroBitmaps: List<Bitmap>? = null
 		private var sharedFarBitmaps: List<Bitmap>? = null
 
@@ -921,132 +805,3 @@ private data class HeroPart(
 	val heightScale: Float = 1f,
 	val alphaScale: Float = 1f
 )
-
-private data class OvercastMass(val centerX: Float, val centerY: Float, val lobes: List<OvercastLobe>)
-
-private data class OvercastLobe(val offsetX: Float, val offsetY: Float, val radiusX: Float, val radiusY: Float)
-
-private data class OvercastProfile(val noise: OvercastNoiseProfile, val morphology: OvercastMorphologyProfile, val density: OvercastDensityProfile, val lighting: OvercastLightingProfile)
-
-private data class OvercastNoiseProfile(val seed: Int, val body: NoiseSize, val billow: NoiseSize, val fine: NoiseSize)
-
-private data class NoiseSize(val columns: Int, val rows: Int)
-
-private data class OvercastMorphologyProfile(
-	val massCount: Int,
-	val massRadiusX: Float,
-	val massRadiusY: Float,
-	val massScaleJitter: Float,
-	val massMinY: Float,
-	val massMaxY: Float,
-	val lobeSpread: Float,
-	val edgeSoftness: Float,
-	val billowCut: Float,
-	val billowFull: Float,
-	val bodyBillowStrength: Float,
-	val detachedBillowStrength: Float,
-	val fineStrength: Float
-)
-
-private data class OvercastDensityProfile(val cut: Float, val full: Float, val alphaGain: Float)
-
-private data class OvercastLightingProfile(val shadowStrength: Float, val minimumLight: Float, val billowLight: Float)
-
-private class OvercastNoise(profile: OvercastProfile) {
-	private val noise = profile.noise
-	val warpX = NoiseGrid(5, 4, noise.seed + 1)
-	val warpY = NoiseGrid(7, 5, noise.seed + 2)
-	val billow = FractalNoise(noise.billow.columns, noise.billow.rows, 3, noise.seed + 200, billow = true)
-	val fine = FractalNoise(noise.fine.columns, noise.fine.rows, 2, noise.seed + 300)
-	val bank = NoiseGrid(4, 3, noise.seed + 400)
-	val bottom = NoiseGrid(5, 3, noise.seed + 500)
-}
-
-private class NoiseGrid(private val columns: Int, private val rows: Int, seed: Int) {
-	private val values = FloatArray(columns * rows)
-	private val random = Random(seed)
-
-	init {
-		for (index in values.indices) {
-			values[index] = random.nextFloat()
-		}
-	}
-
-	fun sample(x: Float, y: Float): Float {
-		val wrappedX = wrapUnit(x)
-		val gridX = wrappedX * columns
-		val xFloor = floor(gridX).toInt()
-		val x0 = positiveModuloInt(xFloor, columns)
-		val x1 = (x0 + 1) % columns
-		val xAmount = smoothCurve(gridX - floor(gridX))
-
-		val gridY = y.coerceIn(0f, 1f) * (rows - 1)
-		val y0 = floor(gridY).toInt().coerceIn(0, rows - 1)
-		val y1 = minOf(y0 + 1, rows - 1)
-		val yAmount = smoothCurve(gridY - floor(gridY))
-
-		val upper = lerpNoise(values[y0 * columns + x0], values[y0 * columns + x1], xAmount)
-		val lower = lerpNoise(values[y1 * columns + x0], values[y1 * columns + x1], xAmount)
-		return lerpNoise(upper, lower, yAmount)
-	}
-}
-
-private class FractalNoise(columns: Int, rows: Int, octaves: Int, seed: Int, private val billow: Boolean = false) {
-	private val layers = List(octaves) { octave ->
-		NoiseGrid(columns shl octave, rows shl octave, seed + octave * 31)
-	}
-
-	fun sample(x: Float, y: Float): Float {
-		var total = 0f
-		var amplitude = 1f
-		var norm = 0f
-		for (layer in layers) {
-			var value = layer.sample(x, y)
-			if (billow) {
-				value = 1f - abs(2f * value - 1f)
-			}
-
-			total += value * amplitude
-			norm += amplitude
-			amplitude *= 0.5f
-		}
-
-		return total / norm
-	}
-}
-
-private fun wrapUnit(value: Float): Float {
-	val wrapped = value - floor(value)
-	return when {
-		wrapped >= 1f -> 0f
-		else -> wrapped
-	}
-}
-
-private fun wrappedUnitDistance(first: Float, second: Float): Float {
-	val direct = first - second
-	return when {
-		direct > 0.5f -> direct - 1f
-		direct < -0.5f -> direct + 1f
-		else -> direct
-	}
-}
-
-private fun positiveModuloInt(value: Int, modulo: Int): Int {
-	val result = value % modulo
-	return when {
-		result < 0 -> result + modulo
-		else -> result
-	}
-}
-
-private fun smoothCurve(value: Float): Float {
-	val amount = value.coerceIn(0f, 1f)
-	return amount * amount * (3f - 2f * amount)
-}
-
-private fun smoothstep(low: Float, high: Float, value: Float): Float {
-	return smoothCurve((value - low) / (high - low))
-}
-
-private fun lerpNoise(from: Float, to: Float, fraction: Float) = from + (to - from) * fraction

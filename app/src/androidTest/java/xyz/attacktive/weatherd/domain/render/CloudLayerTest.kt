@@ -68,34 +68,6 @@ class CloudLayerTest {
 	}
 
 	@Test
-	fun overcastLobeDensityFallsFromCoreToEdgeWithoutAContourRidge() {
-		val core = CloudLayer.overcastLobeDensity(0f, 0.30f)
-		val shoulder = CloudLayer.overcastLobeDensity(0.85f, 0.30f)
-		val outside = CloudLayer.overcastLobeDensity(1.10f, 0.30f)
-
-		assertEquals("A lobe center must be fully dense", 1f, core, 0.0001f)
-		assertTrue("A lobe shoulder must fade below the core", shoulder in 0f..<core)
-		assertEquals("A point outside a lobe must be empty", 0f, outside, 0.0001f)
-	}
-
-	@Test
-	fun overlappingOvercastLobesBuildUpInsteadOfCuttingASeam() {
-		val isolated = CloudLayer.mergeOvercastBodies(0.65f, 0f)
-		val overlap = CloudLayer.mergeOvercastBodies(0.65f, 0.65f)
-
-		assertTrue("Overlapping cloud lobes must become denser instead of carving a handoff seam", overlap > isolated)
-	}
-
-	@Test
-	fun overcastLightingDoesNotEmbossOrWhitenCloudEdges() {
-		val shoulder = CloudLayer.overcastLight(0.10f, 0.5f, 0.5f, 0.40f, 0.49f, 0.15f)
-		val core = CloudLayer.overcastLight(0.80f, 0.5f, 0.5f, 0.40f, 0.49f, 0.15f)
-
-		assertEquals("A cloud shoulder must stay below white instead of turning into a halo", 0.88f, shoulder, 0.0001f)
-		assertTrue("Dense cloud cores must remain darker than their shoulders", core < shoulder)
-	}
-
-	@Test
 	fun tintAndOpacityReturnToTheirPreviousAppearanceAfterAWeatherChange() {
 		val layer = CloudLayer(resources, R.drawable.cloud_sheet_near)
 		val day = render(layer, tint = Color.WHITE, alpha = 180)
