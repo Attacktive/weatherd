@@ -68,6 +68,16 @@ class CloudLayerTest {
 	}
 
 	@Test
+	fun balancedOvercastBodiesCarveASeparationTrough() {
+		val isolated = CloudLayer.separatedOvercastBody(0.8f, 0f, 0.6f)
+		val balancedOverlap = CloudLayer.separatedOvercastBody(0.8f, 0.8f, 0.6f)
+		val unbalancedOverlap = CloudLayer.separatedOvercastBody(0.8f, 0.2f, 0.6f)
+
+		assertTrue("Similarly strong overcast bodies must carve a trough below the dominant mass", balancedOverlap < isolated)
+		assertEquals("A clearly dominant body must keep its full strength instead of being split", isolated, unbalancedOverlap, 0.0001f)
+	}
+
+	@Test
 	fun tintAndOpacityReturnToTheirPreviousAppearanceAfterAWeatherChange() {
 		val layer = CloudLayer(resources, R.drawable.cloud_sheet_near)
 		val day = render(layer, tint = Color.WHITE, alpha = 180)
