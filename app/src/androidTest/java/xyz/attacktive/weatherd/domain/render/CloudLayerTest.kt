@@ -68,20 +68,22 @@ class CloudLayerTest {
 	}
 
 	@Test
-	fun overlappingOvercastBodiesDoNotCarveAFieldHandoffTrough() {
-		val isolated = CloudLayer.mergeOvercastBodies(0.8f, 0f)
-		val balancedOverlap = CloudLayer.mergeOvercastBodies(0.8f, 0.8f)
+	fun overcastLobeDensityFallsFromCoreToEdgeWithoutAContourRidge() {
+		val core = CloudLayer.overcastLobeDensity(0f, 0.30f)
+		val shoulder = CloudLayer.overcastLobeDensity(0.85f, 0.30f)
+		val outside = CloudLayer.overcastLobeDensity(1.10f, 0.30f)
 
-		assertTrue("Similarly strong overcast bodies must merge without cutting a contour-like trough", balancedOverlap >= isolated)
+		assertEquals("A lobe center must be fully dense", 1f, core, 0.0001f)
+		assertTrue("A lobe shoulder must fade below the core", shoulder in 0f..<core)
+		assertEquals("A point outside a lobe must be empty", 0f, outside, 0.0001f)
 	}
 
 	@Test
-	fun independentOvercastGapThinsShouldersWithoutCuttingDenseCores() {
-		val shoulder = CloudLayer.applyOvercastGap(0.55f, 1f, 0.40f)
-		val denseCore = CloudLayer.applyOvercastGap(0.95f, 1f, 0.40f)
+	fun overlappingOvercastLobesBuildUpInsteadOfCuttingASeam() {
+		val isolated = CloudLayer.mergeOvercastBodies(0.65f, 0f)
+		val overlap = CloudLayer.mergeOvercastBodies(0.65f, 0.65f)
 
-		assertTrue("The independent gap field must be able to thin a cloud shoulder", shoulder < 0.55f)
-		assertEquals("The independent gap field must preserve dense cloud cores", 0.95f, denseCore, 0.0001f)
+		assertTrue("Overlapping cloud lobes must become denser instead of carving a handoff seam", overlap > isolated)
 	}
 
 	@Test
