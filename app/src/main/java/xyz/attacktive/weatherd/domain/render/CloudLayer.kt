@@ -182,11 +182,12 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 				return farPlacementOpacityAt(placement)
 			}
 
-			val variant = HERO_VARIANTS[placement.spriteIndex % HERO_VARIANTS.size]
 			val baseCenterX = positiveModulo(offset + period * placement.xFraction, period)
 			val baseCenterY = top - style.topOffset + height * placement.yFraction
 			val mirrorDirection = if (placement.mirror) -1f else 1f
 			var opacity = 0f
+
+			val variant = HERO_VARIANTS[placement.spriteIndex % HERO_VARIANTS.size]
 			for (part in variant.parts) {
 				val sprite = cumulusBitmaps[part.spriteIndex]
 				val spriteHeight = style.baseHeight * placement.scale * style.scale.height * part.scale * part.heightScale
@@ -574,7 +575,8 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 				decode(resources, R.drawable.cloud_cumulus_hero_broad_alt),
 				decode(resources, R.drawable.cloud_cumulus_hero_soft_broad),
 				decode(resources, R.drawable.cloud_cumulus_hero_soft_broad_alt)
-			).also {
+			)
+			.also {
 				sharedHeroBitmaps = it
 			}
 		}
@@ -623,6 +625,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 
 private fun buildPlacements(tuning: PlacementTuning, anchors: List<CumulusAnchor>, random: Random, variantCount: Int): List<CumulusPlacement> {
 	val variantOffset = random.nextInt(variantCount)
+
 	return anchors.mapIndexed { index, base ->
 		val xDelta = random.nextFloat() * tuning.xJitter * 2f - tuning.xJitter
 		val yDelta = random.nextFloat() * tuning.yJitter * 2f - tuning.yJitter
