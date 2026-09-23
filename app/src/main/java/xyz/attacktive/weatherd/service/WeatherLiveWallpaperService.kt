@@ -19,6 +19,7 @@ import xyz.attacktive.weatherd.domain.render.SceneParams
 import xyz.attacktive.weatherd.domain.render.SceneRenderer
 import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
 import xyz.attacktive.weatherd.domain.render.backdropSignature
+import xyz.attacktive.weatherd.domain.render.sceneAnimationTimeSeconds
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
 import xyz.attacktive.weatherd.platform.currentHomeLauncher
@@ -110,8 +111,8 @@ class WeatherLiveWallpaperService: WallpaperService() {
 				return
 			}
 
-			// Use the shared monotonic frame clock so independently-created wallpaper engines render the same animation phase.
-			drawFrame(wallpaperAnimationTimeSeconds(frameTimeNanos))
+			// Use the shared monotonic frame clock so every scene surface renders the same animation phase.
+			drawFrame(sceneAnimationTimeSeconds(frameTimeNanos))
 			scheduleNextFrame()
 		}
 
@@ -252,15 +253,6 @@ class WeatherLiveWallpaperService: WallpaperService() {
 
 		private fun nowEpochSeconds() = System.currentTimeMillis() / 1000L
 	}
-}
-
-/** Six hours: long enough that the wrap's one discontinuous frame is rare, short enough that timeSeconds never loses sub-frame float precision. */
-private const val CLOCK_WRAP_NANOS = 21_600L * 1_000_000_000L
-
-internal fun wallpaperAnimationTimeSeconds(frameTimeNanos: Long): Float {
-	val wrappedNanos = Math.floorMod(frameTimeNanos, CLOCK_WRAP_NANOS)
-
-	return wrappedNanos / 1_000_000_000f
 }
 
 /** How long a scene flip takes to crossfade — long enough to read as weather moving in, short enough to never lag a glance at the screen. */

@@ -62,6 +62,7 @@ import xyz.attacktive.weatherd.domain.render.SCENE_PRESETS
 import xyz.attacktive.weatherd.domain.render.SceneRenderer
 import xyz.attacktive.weatherd.domain.render.backdropSignature
 import xyz.attacktive.weatherd.domain.render.debugSceneParams
+import xyz.attacktive.weatherd.domain.render.sceneAnimationTimeSeconds
 import xyz.attacktive.weatherd.service.WeatherLiveWallpaperService
 import android.graphics.Canvas as AndroidCanvas
 
@@ -138,11 +139,9 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	}
 
 	LaunchedEffect(Unit) {
-		val startNanos = withFrameNanos { it }
-
 		while (true) {
 			withFrameNanos { frameNanos ->
-				timeSeconds = (frameNanos - startNanos) / 1_000_000_000f
+				timeSeconds = sceneAnimationTimeSeconds(frameNanos)
 			}
 
 			// Waiting before asking for the next frame is what idles the frame clock; gating the draw alone would still wake the compositor every vsync.
