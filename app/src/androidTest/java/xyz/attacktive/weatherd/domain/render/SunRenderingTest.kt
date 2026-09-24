@@ -573,7 +573,7 @@ class SunRenderingTest {
 		const val SUN_RADIUS_FRACTION = 0.060f
 		const val LENS_HALO_REACH = 6.6f
 		const val LENS_HALO_AXIS_OFFSET = 0.18f
-		const val LENS_HALO_RADIUS_FRACTION = 0.88f
+		const val LENS_HALO_RADIUS_FRACTION = 0.76f
 		const val LENS_HALO_INNER_START = 0.20f
 		const val LENS_HALO_INNER_END = 0.45f
 		const val LENS_HALO_MIDDLE_END = 0.70f
