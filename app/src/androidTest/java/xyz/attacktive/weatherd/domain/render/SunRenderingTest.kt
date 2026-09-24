@@ -119,6 +119,22 @@ class SunRenderingTest {
 	}
 
 	@Test
+	fun lensHaloRemainsReadableAgainstDaySky() {
+		val enabledParams = clearParams()
+		val enabled = renderScene(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams)
+		val disabled = renderScene(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams.copy(lensFlareEnabled = false))
+		val center = lensHaloCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT)
+		val radius = lensHaloRadius(PORTRAIT_WIDTH, PORTRAIT_HEIGHT)
+		val sample = PixelPoint(center.x, (center.y + radius * LENS_HALO_DAY_SKY_SAMPLE_OFFSET).roundToInt())
+		val contrast = averageColorDistance(enabled, disabled, sample, radius * LENS_HALO_DAY_SKY_SAMPLE_RADIUS)
+
+		assertTrue("The daytime lens halo should remain visibly distinct from the rendered blue sky, but average channel contrast was only $contrast", contrast >= MIN_LENS_HALO_DAY_SKY_CONTRAST)
+
+		enabled.recycle()
+		disabled.recycle()
+	}
+
+	@Test
 	fun lensFlareGhostsRenderAsFilledDotsRatherThanHollowRings() {
 		val enabledParams = clearParams()
 		val enabled = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams)
@@ -562,6 +578,8 @@ class SunRenderingTest {
 		const val LENS_HALO_INNER_END = 0.45f
 		const val LENS_HALO_MIDDLE_END = 0.70f
 		const val LENS_HALO_OUTER_END = 0.92f
+		const val LENS_HALO_DAY_SKY_SAMPLE_OFFSET = 0.42f
+		const val LENS_HALO_DAY_SKY_SAMPLE_RADIUS = 0.06f
 		const val LENS_GHOST_TEST_DISTANCE = 0.76f
 		const val LENS_GHOST_TEST_SCALE = 0.72f
 		const val LENS_GHOST_EDGE_SAMPLE_FRACTION = 0.8f
@@ -572,6 +590,7 @@ class SunRenderingTest {
 		const val MIN_DEFAULT_SUN_TO_MOON_RADIUS_RATIO = 1.00f
 		const val SUN_APPARENT_EDGE_SAMPLE_HALF_WIDTH = 1.5f
 		const val MIN_DEFAULT_SUN_EDGE_ALPHA = 64f
+		const val MIN_LENS_HALO_DAY_SKY_CONTRAST = 5f
 		const val MIN_LENS_GHOST_CENTER_LIFT = 6
 		const val MIN_LENS_GHOST_CENTER_EDGE_DELTA = 3
 		const val MIN_LENS_GHOST_DAY_SKY_CONTRAST = 12f
