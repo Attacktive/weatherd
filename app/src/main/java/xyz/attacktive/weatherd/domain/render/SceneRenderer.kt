@@ -2719,7 +2719,7 @@ class SceneRenderer(resources: Resources) {
 		DayPhase.NIGHT -> 0f
 	}
 
-	/** A compact optical reflection with a filled core and soft edge, keeping each ghost readable as a discrete dot instead of another ring. */
+	/** A filled optical reflection with a broad translucent shoulder, so the ghost survives SCREEN compositing against a bright daytime sky without becoming a hollow ring. */
 	private fun buildLensGhostSprite(canvas: Canvas, tint: Int) {
 		val center = HALO_SPRITE_SIZE / 2f
 		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -2727,8 +2727,8 @@ class SceneRenderer(resources: Resources) {
 			center,
 			center,
 			center,
-			intArrayOf(tint, withAlpha(tint, 110), withAlpha(tint, 0)),
-			floatArrayOf(0f, 0.32f, 1f),
+			intArrayOf(tint, withAlpha(tint, 220), withAlpha(tint, 150), withAlpha(tint, 60), withAlpha(tint, 0)),
+			floatArrayOf(0f, 0.22f, 0.52f, 0.82f, 1f),
 			Shader.TileMode.CLAMP
 		)
 
@@ -3330,10 +3330,10 @@ private data class LensGhost(val distance: Float, val scale: Float, val strength
  * They stay subtle at ordinary brightness, but remain intentionally readable against a clear daytime sky.
  */
 private val LENS_GHOSTS = listOf(
-	LensGhost(-0.72f, 0.82f, 0.050f, Color.rgb(255, 238, 204)),
-	LensGhost(0.76f, 0.72f, 0.080f, Color.rgb(255, 232, 202)),
-	LensGhost(1.34f, 0.62f, 0.060f, Color.rgb(196, 228, 248)),
-	LensGhost(1.82f, 1.24f, 0.045f, Color.rgb(214, 232, 215))
+	LensGhost(-0.72f, 0.82f, 0.10f, Color.rgb(255, 238, 204)),
+	LensGhost(0.76f, 0.72f, 0.16f, Color.rgb(255, 232, 202)),
+	LensGhost(1.34f, 0.62f, 0.12f, Color.rgb(196, 228, 248)),
+	LensGhost(1.82f, 1.24f, 0.08f, Color.rgb(214, 232, 215))
 )
 
 internal fun darken(color: Int, factor: Float) =

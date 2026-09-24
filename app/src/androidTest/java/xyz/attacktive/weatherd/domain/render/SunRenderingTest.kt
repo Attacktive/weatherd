@@ -137,6 +137,21 @@ class SunRenderingTest {
 	}
 
 	@Test
+	fun lensFlareGhostRemainsReadableAgainstDaySky() {
+		val enabledParams = clearParams()
+		val enabled = renderScene(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams)
+		val disabled = renderScene(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams.copy(lensFlareEnabled = false))
+		val center = lensGhostCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, LENS_GHOST_TEST_DISTANCE)
+		val radius = minOf(PORTRAIT_WIDTH, PORTRAIT_HEIGHT) * SUN_RADIUS_FRACTION * LENS_GHOST_TEST_SCALE * LENS_GHOST_DAY_SKY_SAMPLE_RADIUS
+		val contrast = averageColorDistance(enabled, disabled, center, radius)
+
+		assertTrue("A daytime lens ghost should remain visibly distinct from the rendered blue sky, but average channel contrast was only $contrast", contrast >= MIN_LENS_GHOST_DAY_SKY_CONTRAST)
+
+		enabled.recycle()
+		disabled.recycle()
+	}
+
+	@Test
 	fun duskSunFadesAwayAsItDescends() {
 		val earlyProgress = SUNSET_FADE_START
 		val middleProgress = 0.65f
@@ -483,6 +498,15 @@ class SunRenderingTest {
 		return bitmap
 	}
 
+	private fun renderScene(width: Int, height: Int, params: SceneParams, timeSeconds: Float = 0f): Bitmap {
+		val bitmap = createBitmap(width, height)
+
+		SceneRenderer(resources)
+			.render(Canvas(bitmap), width, height, params, timeSeconds)
+
+		return bitmap
+	}
+
 	private fun pixels(bitmap: Bitmap): IntArray {
 		return IntArray(bitmap.width * bitmap.height).also {
 			bitmap.getPixels(it, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
@@ -541,6 +565,7 @@ class SunRenderingTest {
 		const val LENS_GHOST_TEST_DISTANCE = 0.76f
 		const val LENS_GHOST_TEST_SCALE = 0.72f
 		const val LENS_GHOST_EDGE_SAMPLE_FRACTION = 0.8f
+		const val LENS_GHOST_DAY_SKY_SAMPLE_RADIUS = 0.45f
 		const val OPAQUE_ALPHA_THRESHOLD = 245
 		const val MIN_SHOULDER_WARMTH_DELTA = 6
 		const val MIN_CORONA_ALPHA_SPREAD = 2
@@ -549,6 +574,7 @@ class SunRenderingTest {
 		const val MIN_DEFAULT_SUN_EDGE_ALPHA = 64f
 		const val MIN_LENS_GHOST_CENTER_LIFT = 6
 		const val MIN_LENS_GHOST_CENTER_EDGE_DELTA = 3
+		const val MIN_LENS_GHOST_DAY_SKY_CONTRAST = 12f
 		const val POSITION_TOLERANCE_PIXELS = 2
 		const val MIN_CLOUD_ATTENUATION = 2f
 		const val MIN_VEILED_DISPLACEMENT = 1.5f
