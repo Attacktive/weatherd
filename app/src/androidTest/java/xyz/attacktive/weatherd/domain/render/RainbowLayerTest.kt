@@ -41,7 +41,7 @@ class RainbowLayerTest {
 		val peak = profile.maxOrNull() ?: 0
 		val quarterPeakWidth = profile.count { it >= peak / 4 }
 
-		assertTrue("The halo must remain visible enough to measure its falloff, but peaked at $peak", peak >= 3)
+		assertTrue("The halo must remain visible enough to measure its falloff, but peaked at $peak", peak >= 5)
 		assertTrue("The halo band should be broad, but its quarter-peak width was $quarterPeakWidth pixels", quarterPeakWidth >= span * 0.10f)
 		assertTrue("The halo band should feather away rather than wash the sky, but its quarter-peak width was $quarterPeakWidth pixels", quarterPeakWidth <= span * 0.36f)
 
@@ -73,7 +73,7 @@ class RainbowLayerTest {
 		val bitmap = renderLayer(cloudySky)
 		val contrast = highestSkyDisplacement(bitmap)
 
-		assertTrue("A daytime halo should remain visible through cloudy haze, but only changed a channel by $contrast", contrast >= 4)
+		assertTrue("A daytime halo should remain visible through cloudy haze, but only changed a channel by $contrast", contrast >= 6)
 
 		bitmap.recycle()
 	}
@@ -140,7 +140,7 @@ class RainbowLayerTest {
 		}
 
 		for (peak in peaks) {
-			assertTrue("The halo should be visible around the sun, but its strongest alpha was ${peak.strength}", peak.strength >= 8)
+			assertTrue("The halo should be visible around the sun, but its strongest alpha was ${peak.strength}", peak.strength >= 12)
 			assertTrue("The halo radius should follow the shorter side near $expectedRadius pixels, but was ${peak.radius}", abs(peak.radius - expectedRadius) <= span * RADIUS_TOLERANCE_FRACTION)
 		}
 

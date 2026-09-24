@@ -2738,14 +2738,16 @@ class SceneRenderer(resources: Resources) {
 
 	/**
 	 * The sun disc rasterized once per scene, the moon's counterpart.
-	 * Its white center eases through a pale cream shoulder before the alpha feather, so translucent clouds reveal softened light instead of a saturated yellow ring.
+	 * Its warm cream center eases through a warmer shoulder before the alpha feather, so the source stays luminous without resolving into a neutral white spot.
 	 */
 	private fun buildSunSprite(canvas: Canvas, core: Int) {
 		val center = SUN_SPRITE_SIZE / 2f
 		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
+		val hotCore = lighten(core, SUN_CORE_LIFT)
+		val innerShoulder = lighten(core, SUN_INNER_LIFT)
 		val softEdge = lighten(core, SUN_EDGE_LIFT)
-		val stops = intArrayOf(Color.WHITE, Color.WHITE, lighten(core, SUN_CORE_LIFT), softEdge, withAlpha(softEdge, SUN_EDGE_ALPHA), withAlpha(core, 0))
-		val positions = floatArrayOf(0f, 0.045f * SUN_DISC_MARGIN, 0.14f * SUN_DISC_MARGIN, 0.50f * SUN_DISC_MARGIN, 0.80f * SUN_DISC_MARGIN, 1f)
+		val stops = intArrayOf(hotCore, innerShoulder, softEdge, withAlpha(softEdge, SUN_EDGE_ALPHA), withAlpha(core, 0))
+		val positions = floatArrayOf(0f, 0.18f * SUN_DISC_MARGIN, 0.50f * SUN_DISC_MARGIN, 0.80f * SUN_DISC_MARGIN, 1f)
 
 		brush.shader = RadialGradient(center, center, center, stops, positions, Shader.TileMode.CLAMP)
 		canvas.drawCircle(center, center, center, brush)
@@ -2976,11 +2978,14 @@ class SceneRenderer(resources: Resources) {
 		private const val SUN_SHAFT_MAX_RAYS = 6
 		private const val SUN_SHAFT_MIN_PEAK_GAP = 3
 
-		/** How far the inner shoulder is lifted toward white before easing into the cream-colored limb. */
-		private const val SUN_CORE_LIFT = 0.52f
+		/** How far the center is lifted toward white while keeping the natural sun visibly warm. */
+		private const val SUN_CORE_LIFT = 0.42f
+
+		/** How far the inner shoulder is lifted toward white before easing into the warmer limb. */
+		private const val SUN_INNER_LIFT = 0.26f
 
 		/** How far the limb is lifted toward white to prevent a saturated yellow outline behind translucent clouds. */
-		private const val SUN_EDGE_LIFT = 0.28f
+		private const val SUN_EDGE_LIFT = 0.18f
 
 		/** Alpha at the nominal limb before the final transparent feather. */
 		private const val SUN_EDGE_ALPHA = 60

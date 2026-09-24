@@ -24,26 +24,27 @@ class SunRenderingTest {
 	private val resources = InstrumentationRegistry.getInstrumentation().targetContext.resources
 
 	@Test
-	fun daytimeSunIsVisibleAsAWarmWhiteLightSource() {
+	fun daytimeSunIsVisibleAsAWarmCreamLightSource() {
 		val bitmap = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams())
 		val center = celestialCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, DayPhase.DAY)
 		val pixel = bitmap.getPixel(center.x, center.y)
+		val warmth = Color.red(pixel) - Color.blue(pixel)
 
 		assertTrue("The daytime sun core should remain fully visible, but alpha was ${Color.alpha(pixel)}", Color.alpha(pixel) >= 250)
-		assertTrue("The daytime sun core should remain warm white, but was (${Color.red(pixel)}, ${Color.green(pixel)}, ${Color.blue(pixel)})", minOf(Color.red(pixel), Color.green(pixel), Color.blue(pixel)) >= 245 && Color.red(pixel) >= Color.blue(pixel))
+		assertTrue("The daytime sun core should stay luminous without returning to a neutral white spot, but was (${Color.red(pixel)}, ${Color.green(pixel)}, ${Color.blue(pixel)})", Color.red(pixel) >= 250 && Color.green(pixel) >= 245 && Color.blue(pixel) < 245 && warmth >= MIN_CORE_WARMTH)
 
 		bitmap.recycle()
 	}
 
 	@Test
-	fun daytimeSunTransitionsFromWhiteCoreIntoWarmShoulder() {
+	fun daytimeSunTransitionsFromWarmCoreIntoWarmerShoulder() {
 		val bitmap = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams().copy(lensFlareEnabled = false))
 		val center = celestialCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, DayPhase.DAY)
 		val centerPixel = bitmap.getPixel(center.x, center.y)
 		val centerWarmth = Color.red(centerPixel) - Color.blue(centerPixel)
 		val shoulder = shoulderWarmth(bitmap, DayPhase.DAY)
 
-		assertTrue("The direct sun should move from its white-hot center into a warmer shoulder, but warmth only changed $centerWarmth -> $shoulder", shoulder - centerWarmth >= MIN_SHOULDER_WARMTH_DELTA)
+		assertTrue("The direct sun should move from its warm center into a warmer shoulder, but warmth only changed $centerWarmth -> $shoulder", shoulder - centerWarmth >= MIN_SHOULDER_WARMTH_DELTA)
 
 		bitmap.recycle()
 	}
@@ -284,7 +285,7 @@ class SunRenderingTest {
 		val apparentEdgeAlpha = averageAlphaInAnnulus(bitmap, expectedCenter, apparentRadius - SUN_APPARENT_EDGE_SAMPLE_HALF_WIDTH, apparentRadius + SUN_APPARENT_EDGE_SAMPLE_HALF_WIDTH)
 
 		assertTrue("The sun should remain centered at $expectedCenter in ${width}x$height, but opaque bounds were $bounds", abs(bounds.centerX - expectedCenter.x) <= POSITION_TOLERANCE_PIXELS && abs(bounds.centerY - expectedCenter.y) <= POSITION_TOLERANCE_PIXELS)
-		assertTrue("The white-hot sun core radius should remain within $SUN_OPAQUE_CORE_RADIUS_RANGE in ${width}x$height, but measured $opaqueRadiusFraction", opaqueRadiusFraction in SUN_OPAQUE_CORE_RADIUS_RANGE)
+		assertTrue("The opaque sun body radius should remain within $SUN_OPAQUE_CORE_RADIUS_RANGE in ${width}x$height, but measured $opaqueRadiusFraction", opaqueRadiusFraction in SUN_OPAQUE_CORE_RADIUS_RANGE)
 		assertTrue("A 100% sun should still carry substantial light near the full-moon radius instead of reading much smaller, but average alpha there was only $apparentEdgeAlpha", apparentEdgeAlpha >= MIN_DEFAULT_SUN_EDGE_ALPHA)
 
 		bitmap.recycle()
@@ -585,6 +586,7 @@ class SunRenderingTest {
 		const val LENS_GHOST_EDGE_SAMPLE_FRACTION = 0.8f
 		const val LENS_GHOST_DAY_SKY_SAMPLE_RADIUS = 0.45f
 		const val OPAQUE_ALPHA_THRESHOLD = 245
+		const val MIN_CORE_WARMTH = 12
 		const val MIN_SHOULDER_WARMTH_DELTA = 6
 		const val MIN_CORONA_ALPHA_SPREAD = 2
 		const val MIN_DEFAULT_SUN_TO_MOON_RADIUS_RATIO = 1.00f
