@@ -26,7 +26,7 @@ data class ScenePreset(
 val SCENE_PRESETS = listOf(
 	ScenePreset("CLEAR", cloudiness = 0.05f),
 	ScenePreset("MOSTLY CLEAR", cloudiness = 0.2f),
-	ScenePreset("PARTLY CLOUDY", cloudiness = 0.4f),
+	ScenePreset("PARTLY CLOUDY", cloudiness = 0.55f),
 	ScenePreset("OVERCAST", cloudiness = 0.85f),
 	ScenePreset("FOG", cloudiness = 0.85f, fogDensity = 1f),
 	ScenePreset("DRIZZLE", cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.RAIN, SEVERITY_DRIZZLE, observed = 0.35f), windFactor = 0.45f),
