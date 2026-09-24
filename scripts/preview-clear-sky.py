@@ -68,8 +68,8 @@ FAR_SPRITES = ('cloud_cumulus_far_veil_broad.png', 'cloud_cumulus_far_veil_layer
 # The preview intentionally pins representative near-variant choices instead of reproducing daily runtime randomness.
 # Runtime cycles through neighboring morphology variants from a daily random offset; these fixed sequences exercise the same vocabulary in a stable preview.
 REPRESENTATIVE_SPARSE_VARIANTS = (0, 1)
-REPRESENTATIVE_SCATTERED_VARIANTS = (2, 3, 4, 5, 6)
-REPRESENTATIVE_BROKEN_VARIANTS = (5, 6, 0, 1, 2, 3, 4, 5, 6)
+REPRESENTATIVE_SCATTERED_VARIANTS = (2, 3, 4, 5, 6, 0, 1, 2, 3, 4)
+REPRESENTATIVE_BROKEN_VARIANTS = (5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6)
 
 # Nominal CloudLayer anchors before its small seeded day-to-day jitter.
 SPARSE_ANCHORS = (
