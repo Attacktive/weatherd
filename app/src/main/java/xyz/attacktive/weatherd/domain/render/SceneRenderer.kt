@@ -1413,8 +1413,8 @@ class SceneRenderer(resources: Resources) {
 
 	/**
 	 * The clear-sky deck: fair-weather cumulus over blue, rather than a veil whose opacity stands in for how much cloud there is.
-	 * Coverage lives in sparse, scattered and broken placement populations, while CloudLayer rotates through multiple morphology variants inside each population.
-	 * A far deck of smaller, hazier masses sits lower toward the horizon, and the near deck of full-size masses rides above it.
+	 * Coverage lives in sparse, scattered, partly cloudy and broken placement populations, while CloudLayer rotates through multiple morphology variants inside each population.
+	 * A far deck of smaller, hazier masses sits lower toward the horizon, one broad support bank bridges the cloudier clear-sky range, and the near deck of full-size masses rides above it.
 	 */
 	private fun drawScatteredClouds(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
 		val coverage = ((effectiveCloudiness(params) - SCATTERED_CLOUD_FLOOR) / (CLOUD_DECK_THRESHOLD - SCATTERED_CLOUD_FLOOR)).coerceIn(0f, 1f)
@@ -1424,6 +1424,7 @@ class SceneRenderer(resources: Resources) {
 
 		drawSunVeil(canvas, width, height, params)
 		drawFarCumulus(canvas, width, height, params, timeSeconds, coverage, cloudTop, castShadow)
+		drawPartlyCloudBank(canvas, width, height, params, timeSeconds, coverage)
 		drawNearCumulus(canvas, width, params, cloudTop, nearState)
 	}
 
@@ -1477,7 +1478,7 @@ class SceneRenderer(resources: Resources) {
 			height * 0.40f
 		}
 
-		val step = coverage * (cumulusSteps.size - 1)
+		val step = nearCumulusStep(coverage)
 		val lower = step.toInt().coerceAtMost(cumulusSteps.size - 1)
 		val upper = lower + 1
 		val blend = step - lower
@@ -1496,6 +1497,20 @@ class SceneRenderer(resources: Resources) {
 			alpha = alpha,
 			growth = growth
 		)
+	}
+
+	private fun nearCumulusStep(coverage: Float): Float {
+		val partlyIndex = CUMULUS_PARTLY_INDEX.toFloat()
+		val linearStep = coverage * (cumulusSteps.size - 1)
+		if (linearStep <= partlyIndex) {
+			return linearStep
+		}
+
+		if (coverage <= CUMULUS_BROKEN_BLEND_START) {
+			return partlyIndex
+		}
+
+		return partlyIndex + unlerp(CUMULUS_BROKEN_BLEND_START, 1f, coverage)
 	}
 
 	/**
@@ -1604,6 +1619,33 @@ class SceneRenderer(resources: Resources) {
 		)
 
 		farCumulusDeck.draw(canvas, geometry, tint, alpha, castShadow)
+	}
+
+	/** One broad support bank replaces several detached puffs near the partly-cloudy end of the clear-sky range without enabling the overcast ceiling. */
+	private fun drawPartlyCloudBank(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float, coverage: Float) {
+		if (!supportOvercastBankDelegate.isInitialized()) {
+			return
+		}
+
+		val weight = unlerp(PARTLY_BANK_START_COVERAGE, PARTLY_BANK_FULL_COVERAGE, coverage)
+		if (weight <= 0f) {
+			return
+		}
+
+		val period = width * PARTLY_BANK_VIEWPORTS
+		val surge = width * 0.004f * params.windFactor * params.windScale
+		val drift = surge * (0.6f * sin(timeSeconds * 0.19f) + 0.4f * sin(timeSeconds * 0.47f))
+		val offset = wrapOffset(timeSeconds * width * (0.0045f + params.windFactor * 0.009f) * params.windScale + drift * 0.60f - width * PARTLY_BANK_PHASE, period)
+		val bankHeight = overcastBankHeight(width, height, PARTLY_BANK_VIEWPORTS, PARTLY_BANK_HEIGHT_SCALE)
+		val tint = lerpColor(cumulusTint(params.dayPhase), skyGradientFor(params).topColor, PARTLY_BANK_HAZE)
+		val alpha = (255f * PARTLY_BANK_ALPHA * weight * params.cloudScale).roundToInt().coerceIn(0, 255)
+
+		supportOvercastBank.draw(
+			canvas,
+			cloudDrawGeometry.configure(width, bankHeight, offset, height * PARTLY_BANK_TOP, PARTLY_BANK_VIEWPORTS),
+			tint,
+			alpha
+		)
 	}
 
 	/**
@@ -2813,6 +2855,17 @@ class SceneRenderer(resources: Resources) {
 
 		/** Cross-fade weights below this draw nothing, so the common case stays at two deck draws rather than three. */
 		private const val CUMULUS_BLEND_FLOOR = 0.02f
+		private const val CUMULUS_PARTLY_INDEX = 2
+		private const val CUMULUS_BROKEN_BLEND_START = 0.90f
+
+		private const val PARTLY_BANK_START_COVERAGE = 0.72f
+		private const val PARTLY_BANK_FULL_COVERAGE = 0.90f
+		private const val PARTLY_BANK_VIEWPORTS = 1.80f
+		private const val PARTLY_BANK_HEIGHT_SCALE = 0.78f
+		private const val PARTLY_BANK_TOP = 0.23f
+		private const val PARTLY_BANK_PHASE = 0.52f
+		private const val PARTLY_BANK_HAZE = 0.18f
+		private const val PARTLY_BANK_ALPHA = 0.40f
 
 		private const val DENSE_FOG_CLOUD_CUTOFF = 0.8f
 		private const val OVERCAST_SOURCE_ASPECT = 3f

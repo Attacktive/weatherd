@@ -64,12 +64,22 @@ NEAR_SPRITES = (
 	'cloud_cumulus_hero_soft_broad_alt.webp',
 )
 FAR_SPRITES = ('cloud_cumulus_far_veil_broad.png', 'cloud_cumulus_far_veil_layered.png')
+PARTLY_BANK_SPRITE = 'cloud_overcast_support.webp'
+PARTLY_BANK_START_COVERAGE = 0.72
+PARTLY_BANK_FULL_COVERAGE = 0.90
+PARTLY_BANK_VIEWPORTS = 1.80
+PARTLY_BANK_HEIGHT_SCALE = 0.78
+PARTLY_BANK_TOP = 0.23
+PARTLY_BANK_PHASE = 0.52
+PARTLY_BANK_HAZE = 0.18
+PARTLY_BANK_ALPHA = 0.40
+BROKEN_BLEND_START = 0.90
 
 # The preview intentionally pins representative near-variant choices instead of reproducing daily runtime randomness.
 # Runtime cycles through neighboring morphology variants from a daily random offset; these fixed sequences exercise the same vocabulary in a stable preview.
 REPRESENTATIVE_SPARSE_VARIANTS = (0, 1)
 REPRESENTATIVE_SCATTERED_VARIANTS = (2, 3, 4, 5, 6, 0, 1, 2, 3, 4)
-REPRESENTATIVE_PARTLY_VARIANTS = (4, 5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3)
+REPRESENTATIVE_PARTLY_VARIANTS = (4, 5, 6, 0, 1, 2, 3, 4, 5, 6)
 REPRESENTATIVE_BROKEN_VARIANTS = (5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6)
 
 # Nominal CloudLayer anchors before its small seeded day-to-day jitter.
@@ -90,20 +100,16 @@ SCATTERED_ANCHORS = (
 	(0.99, 0.27, 0.68, 0.90),
 )
 PARTLY_ANCHORS = (
-	(0.01, 0.28, 0.76, 0.94),
-	(0.08, 0.53, 0.88, 1.00),
-	(0.15, 0.71, 0.66, 0.82),
-	(0.23, 0.35, 0.92, 1.00),
-	(0.31, 0.61, 0.76, 0.90),
-	(0.39, 0.20, 0.70, 0.92),
-	(0.47, 0.74, 0.64, 0.80),
-	(0.55, 0.44, 0.90, 1.00),
-	(0.63, 0.64, 0.72, 0.88),
-	(0.71, 0.29, 0.80, 0.94),
-	(0.79, 0.55, 0.86, 1.00),
-	(0.87, 0.72, 0.66, 0.82),
-	(0.94, 0.39, 0.74, 0.92),
-	(0.995, 0.58, 0.70, 0.88),
+	(0.02, 0.30, 0.94, 0.96),
+	(0.13, 0.56, 0.96, 1.00),
+	(0.25, 0.70, 0.82, 0.88),
+	(0.38, 0.37, 1.02, 1.00),
+	(0.50, 0.62, 0.90, 0.92),
+	(0.62, 0.22, 0.84, 0.94),
+	(0.74, 0.69, 0.80, 0.86),
+	(0.85, 0.47, 0.98, 1.00),
+	(0.94, 0.31, 0.88, 0.94),
+	(0.995, 0.58, 0.84, 0.90),
 )
 BROKEN_ANCHORS = (
 	(0.02, 0.42, 0.86, 1.00),
@@ -220,6 +226,18 @@ def effective_cloudiness(cloudiness, cloud_count_scale):
 	return float(np.clip(cloudiness * clamped_scale, 0, 1))
 
 
+def near_cumulus_step(coverage):
+	partly_index = 2.0
+	linear_step = coverage * (len(COVERAGE_STEPS) - 1)
+	if linear_step <= partly_index:
+		return linear_step
+
+	if coverage <= BROKEN_BLEND_START:
+		return partly_index
+
+	return partly_index + float(np.clip((coverage - BROKEN_BLEND_START) / (1.0 - BROKEN_BLEND_START), 0, 1))
+
+
 def sky(cloudiness):
 	"""Mirrors skyGradientFor for a dry, fogless day."""
 	overcast = float(np.clip((cloudiness - GRAY_FLOOR) / (GRAY_FULL - GRAY_FLOOR), 0, 1))
@@ -273,6 +291,20 @@ def composite_sprite(destination, source, geometry, multiply, alpha):
 	patch_rgb = rgb[src_top:src_bottom, src_left:src_right]
 	patch_opacity = opacity[src_top:src_bottom, src_left:src_right]
 	destination[dst_top:dst_bottom, dst_left:dst_right] = patch_rgb * patch_opacity + destination[dst_top:dst_bottom, dst_left:dst_right] * (1 - patch_opacity)
+
+
+def draw_bank(destination, sprite_name, viewports, bank_height, offset, top, multiply, alpha):
+	period = WIDTH * viewports
+	wrapped_offset = offset % period
+	sprite = Image.open(DRAWABLE / sprite_name).convert('RGBA')
+	for shift in (-1, 0, 1):
+		left = wrapped_offset + shift * period
+		center_x = left + period * 0.5
+		if left >= WIDTH or left + period <= 0:
+			continue
+
+		geometry = SpriteGeometry(center_x, top + bank_height * 0.5, period, bank_height)
+		composite_sprite(destination, sprite, geometry, multiply, alpha)
 
 
 def draw_cumulus(destination, profile, geometry, multiply, alpha):
@@ -335,7 +367,7 @@ def clear_sky(cloudiness, cloud_scale=1.0, cloud_size_scale=1.0, cloud_count_sca
 	canvas, top, _ = sky(effective)
 	coverage = float(np.clip((effective - SCATTERED_FLOOR) / (DECK_THRESHOLD - SCATTERED_FLOOR), 0, 1))
 	size_scale = float(np.clip(cloud_size_scale, CLOUD_SIZE_SCALE_MIN, CLOUD_SIZE_SCALE_MAX))
-	step = coverage * (len(COVERAGE_STEPS) - 1)
+	step = near_cumulus_step(coverage)
 	lower = int(np.floor(step))
 	blend = step - lower
 	near_color = CUMULUS_TINT
@@ -352,6 +384,22 @@ def clear_sky(cloudiness, cloud_scale=1.0, cloud_size_scale=1.0, cloud_count_sca
 
 	far_geometry = CumulusGeometry(far_height, -WIDTH * 0.34, far_top, size_scale)
 	draw_cumulus(canvas, FAR_PROFILE, far_geometry, far_color, far_alpha)
+
+	partly_bank_weight = float(np.clip((coverage - PARTLY_BANK_START_COVERAGE) / (PARTLY_BANK_FULL_COVERAGE - PARTLY_BANK_START_COVERAGE), 0, 1))
+	if partly_bank_weight > 0:
+		partly_bank_height = min(WIDTH * PARTLY_BANK_VIEWPORTS / 3.0 * PARTLY_BANK_HEIGHT_SCALE, HEIGHT * 0.55)
+		partly_bank_color = lerp(CUMULUS_TINT, top, PARTLY_BANK_HAZE)
+		partly_bank_alpha = kotlin_round(255 * PARTLY_BANK_ALPHA * partly_bank_weight * cloud_scale)
+		draw_bank(
+			canvas,
+			PARTLY_BANK_SPRITE,
+			PARTLY_BANK_VIEWPORTS,
+			partly_bank_height,
+			-WIDTH * PARTLY_BANK_PHASE,
+			HEIGHT * PARTLY_BANK_TOP,
+			partly_bank_color,
+			partly_bank_alpha,
+		)
 
 	for index, weight in ((lower, 1.0), (lower + 1, blend)):
 		if index >= len(COVERAGE_STEPS) or weight < 0.02:
