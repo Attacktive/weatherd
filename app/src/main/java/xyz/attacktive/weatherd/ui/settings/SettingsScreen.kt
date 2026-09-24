@@ -98,6 +98,7 @@ import xyz.attacktive.weatherd.domain.model.GeoPlace
 import xyz.attacktive.weatherd.domain.model.INTENSITY_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.PhotoBucket
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
@@ -389,6 +390,10 @@ private fun IntensitySection(settings: AppSettings, onSave: (AppSettings) -> Uni
 
 @Composable
 private fun SkyAppearanceSection(settings: AppSettings, onSave: (AppSettings) -> Unit) {
+	SkyColorPicker(settings = settings, onSave = onSave)
+
+	Spacer(modifier = Modifier.height(12.dp))
+
 	PercentageSlider(
 		label = R.string.section_sky_brightness,
 		value = settings.skyBrightnessScale,
@@ -408,6 +413,41 @@ private fun SkyAppearanceSection(settings: AppSettings, onSave: (AppSettings) ->
 	)
 
 	HintText(stringResource(R.string.hint_sky_appearance))
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SkyColorPicker(settings: AppSettings, onSave: (AppSettings) -> Unit) {
+	var expanded by remember { mutableStateOf(false) }
+
+	SectionLabel(stringResource(R.string.label_sky_color))
+
+	ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+		OutlinedTextField(
+			value = formatSkyColor(settings.skyColorPreset),
+			onValueChange = {},
+			readOnly = true,
+			trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+			modifier = Modifier
+				.fillMaxWidth()
+				.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+		)
+
+		ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+			SkyColorPreset.entries.forEach { preset ->
+				DropdownMenuItem(
+					text = { Text(formatSkyColor(preset)) },
+					onClick = {
+						if (preset != settings.skyColorPreset) {
+							onSave(settings.copy(skyColorPreset = preset))
+						}
+
+						expanded = false
+					}
+				)
+			}
+		}
+	}
 }
 
 @Composable
@@ -1060,6 +1100,14 @@ private fun formatFrameRate(cap: FrameRateCap) = when (cap) {
 	FrameRateCap.FPS_30 -> stringResource(R.string.frame_rate_30)
 	FrameRateCap.FPS_15 -> stringResource(R.string.frame_rate_15)
 	FrameRateCap.FPS_10 -> stringResource(R.string.frame_rate_10)
+}
+
+@Composable
+private fun formatSkyColor(preset: SkyColorPreset) = when (preset) {
+	SkyColorPreset.NATURAL -> stringResource(R.string.sky_color_natural)
+	SkyColorPreset.WARM -> stringResource(R.string.sky_color_warm)
+	SkyColorPreset.PASTEL -> stringResource(R.string.sky_color_pastel)
+	SkyColorPreset.CYBERPUNK -> stringResource(R.string.sky_color_cyberpunk)
 }
 
 @Composable

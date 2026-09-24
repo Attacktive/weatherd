@@ -67,6 +67,11 @@ class HomeViewModel @Inject constructor(
 		.map { it.skySaturationScale }
 		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().skySaturationScale)
 
+	/** The user's sky palette, so debug mode matches the live wallpaper. */
+	val skyColorPreset = settingsRepository.settings
+		.map { it.skyColorPreset }
+		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().skyColorPreset)
+
 	/** The user's cloud shading contrast multiplier, so debug mode matches the live wallpaper. */
 	val cloudContrastScale = settingsRepository.settings
 		.map { it.cloudContrastScale }
