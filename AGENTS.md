@@ -71,7 +71,7 @@ The scene simulator on `HomeScreen` has two modes:
 It pins meteorological conditions (cloud cover, precipitation kind/severity, fog, thunder, wind) and celestial timing while preserving all user-configured display settings:
 
 - Intensity sliders (precipitation, wind, cloud intensity)
-- Sky brightness/saturation and cloud contrast appearance controls
+- Phase-aware sky palette presets plus sky brightness/saturation and cloud contrast appearance controls
 - Scenery / backdrop selections (none, metropolis, beach, mountains, countryside, photos)
 - Frame rate caps
 - Photo background assignments and revisions
@@ -136,6 +136,12 @@ The corollaries:
 - The hero sprites bake their own sunlit-to-shadow ramp, so `cumulusTint(DayPhase.DAY)` is pure white. Tinting daylight applies the shading twice and grays the crowns.
 - Cloud contrast adjusts RGB around mid-gray after tinting while preserving the source alpha mask exactly; it must never become another opacity or coverage control.
 - A dry sky keeps its full clear-day blue until `OVERCAST_GRAY_FLOOR`, where the overcast ceiling starts drawing. Graying earlier leaves white clouds with nothing to read against.
+
+### Sky Appearance Stays Weather-Aware
+
+- `SkyColorPreset.NATURAL` is the compatibility baseline and must reproduce the existing phase gradients exactly.
+- Warm, pastel, and cyberpunk palettes are phase-aware clear-sky bases, not post-processing filters.
+- Sky preset, brightness, and saturation apply before overcast gray and storm darkening so weather remains visually authoritative.
 
 ### Preview Cloud Work Before Building
 

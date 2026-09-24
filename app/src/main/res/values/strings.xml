@@ -70,6 +70,11 @@
 	<string name="section_precipitation_intensity">Precipitation intensity</string>
 	<string name="section_wind_intensity">Wind intensity</string>
 	<string name="section_cloud_opacity">Cloud opacity</string>
+	<string name="label_sky_color">Sky palette</string>
+	<string name="sky_color_natural">Natural</string>
+	<string name="sky_color_warm">Warm</string>
+	<string name="sky_color_pastel">Pastel</string>
+	<string name="sky_color_cyberpunk">Cyberpunk</string>
 	<string name="section_sky_brightness">Sky brightness · %1$d%%</string>
 	<string name="sky_brightness_dim">Dimmer</string>
 	<string name="sky_brightness_bright">Brighter</string>

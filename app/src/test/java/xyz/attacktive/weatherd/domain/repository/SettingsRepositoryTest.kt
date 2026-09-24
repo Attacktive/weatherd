@@ -20,6 +20,7 @@ import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
+import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
@@ -177,7 +178,7 @@ class SettingsRepositoryTest {
 	fun `round-trips the intensity scales`() = runTest {
 		val repository = SettingsRepository(dataStore())
 
-		repository.save(AppSettings(precipitationIntensityScale = 0.4f, windIntensityScale = 1.8f, cloudIntensityScale = 0.6f, cloudSizeScale = 1.7f, cloudCountScale = 0.7f, skyBrightnessScale = 1.3f, skySaturationScale = 0.7f, cloudContrastScale = 1.4f))
+		repository.save(AppSettings(precipitationIntensityScale = 0.4f, windIntensityScale = 1.8f, cloudIntensityScale = 0.6f, cloudSizeScale = 1.7f, cloudCountScale = 0.7f, skyBrightnessScale = 1.3f, skySaturationScale = 0.7f, skyColorPreset = SkyColorPreset.CYBERPUNK, cloudContrastScale = 1.4f))
 
 		val settings = repository.settings.first()
 		assertEquals(0.4f, settings.precipitationIntensityScale, 0.0001f)
@@ -187,6 +188,7 @@ class SettingsRepositoryTest {
 		assertEquals(0.7f, settings.cloudCountScale, 0.0001f)
 		assertEquals(1.3f, settings.skyBrightnessScale, 0.0001f)
 		assertEquals(0.7f, settings.skySaturationScale, 0.0001f)
+		assertEquals(SkyColorPreset.CYBERPUNK, settings.skyColorPreset)
 		assertEquals(1.4f, settings.cloudContrastScale, 0.0001f)
 	}
 

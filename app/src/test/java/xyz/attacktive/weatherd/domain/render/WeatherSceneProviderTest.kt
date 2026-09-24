@@ -18,6 +18,7 @@ import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.GeoLocation
+import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
@@ -400,7 +401,7 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `appearance settings reach scene params even when the refresh is throttled`() = runTest {
-		val device = AppSettings(useDeviceLocation = true, cloudSizeScale = 1.5f, cloudCountScale = 0.75f, skyBrightnessScale = 1.3f, skySaturationScale = 0.7f, cloudContrastScale = 1.4f)
+		val device = AppSettings(useDeviceLocation = true, cloudSizeScale = 1.5f, cloudCountScale = 0.75f, skyBrightnessScale = 1.3f, skySaturationScale = 0.7f, skyColorPreset = SkyColorPreset.WARM, cloudContrastScale = 1.4f)
 		every { settingsRepository.settings } returns flowOf(device)
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 3))
@@ -412,9 +413,10 @@ class WeatherSceneProviderTest {
 		assertEquals(0.75f, initialParams.cloudCountScale, 0.0001f)
 		assertEquals(1.3f, initialParams.skyBrightnessScale, 0.0001f)
 		assertEquals(0.7f, initialParams.skySaturationScale, 0.0001f)
+		assertEquals(SkyColorPreset.WARM, initialParams.skyColorPreset)
 		assertEquals(1.4f, initialParams.cloudContrastScale, 0.0001f)
 
-		every { settingsRepository.settings } returns flowOf(device.copy(cloudSizeScale = 0.6f, cloudCountScale = 1.8f, skyBrightnessScale = 0.8f, skySaturationScale = 1.4f, cloudContrastScale = 0.6f))
+		every { settingsRepository.settings } returns flowOf(device.copy(cloudSizeScale = 0.6f, cloudCountScale = 1.8f, skyBrightnessScale = 0.8f, skySaturationScale = 1.4f, skyColorPreset = SkyColorPreset.PASTEL, cloudContrastScale = 0.6f))
 		provider.refresh(1_000_060L)
 
 		val throttledParams = provider.paramsFor(1_000_090L)
@@ -422,6 +424,7 @@ class WeatherSceneProviderTest {
 		assertEquals(1.8f, throttledParams.cloudCountScale, 0.0001f)
 		assertEquals(0.8f, throttledParams.skyBrightnessScale, 0.0001f)
 		assertEquals(1.4f, throttledParams.skySaturationScale, 0.0001f)
+		assertEquals(SkyColorPreset.PASTEL, throttledParams.skyColorPreset)
 		assertEquals(0.6f, throttledParams.cloudContrastScale, 0.0001f)
 		coVerify(exactly = 1) { weatherRepository.current(52.52, 13.40) }
 	}

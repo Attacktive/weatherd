@@ -8,6 +8,7 @@ import org.junit.Test
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
+import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_STORM
 
 class ScenePaletteTest {
@@ -100,6 +101,19 @@ class ScenePaletteTest {
 
 		// Cumulus darken a sky by covering it, so the gaps between them stay as blue as an empty sky does.
 		assertEquals("scattered cloud must not drain the sky's blue", clear, scattered)
+	}
+
+	@Test
+	fun `sky presets change clear phase colors but preserve weather gray`() {
+		val natural = skyGradientFor(clearParams(DayPhase.DAY))
+		for (preset in SkyColorPreset.entries.drop(1)) {
+			val styled = skyGradientFor(clearParams(DayPhase.DAY).copy(skyColorPreset = preset))
+			assertNotEquals("$preset must visibly change a clear day", natural, styled)
+
+			val styledOvercast = skyGradientFor(clearParams(DayPhase.DAY).copy(cloudiness = 0.85f, skyColorPreset = preset))
+			val naturalOvercast = skyGradientFor(clearParams(DayPhase.DAY).copy(cloudiness = 0.85f))
+			assertEquals("$preset must still yield to fully overcast weather", naturalOvercast, styledOvercast)
+		}
 	}
 
 	@Test

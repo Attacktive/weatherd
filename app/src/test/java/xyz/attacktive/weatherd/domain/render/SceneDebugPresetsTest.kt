@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import xyz.attacktive.weatherd.domain.model.DayPhase
+import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 
 class SceneDebugPresetsTest {
@@ -57,13 +58,14 @@ class SceneDebugPresetsTest {
 	@Test
 	fun `appearance preferences reach debug scene params without mutating observed cloudiness`() {
 		val preset = SCENE_PRESETS.first { it.name == "PARTLY CLOUDY" }
-		val params = debugSceneParams(preset, DayPhase.DAY, cloudSizeScale = 1.8f, cloudCountScale = 0.6f, skyBrightnessScale = 1.3f, skySaturationScale = 0.7f, cloudContrastScale = 1.4f)
+		val params = debugSceneParams(preset, DayPhase.DAY, cloudSizeScale = 1.8f, cloudCountScale = 0.6f, skyBrightnessScale = 1.3f, skySaturationScale = 0.7f, skyColorPreset = SkyColorPreset.PASTEL, cloudContrastScale = 1.4f)
 
 		assertEquals(preset.cloudiness, params.cloudiness, 0.0001f)
 		assertEquals(1.8f, params.cloudSizeScale, 0.0001f)
 		assertEquals(0.6f, params.cloudCountScale, 0.0001f)
 		assertEquals(1.3f, params.skyBrightnessScale, 0.0001f)
 		assertEquals(0.7f, params.skySaturationScale, 0.0001f)
+		assertEquals(SkyColorPreset.PASTEL, params.skyColorPreset)
 		assertEquals(1.4f, params.cloudContrastScale, 0.0001f)
 	}
 
