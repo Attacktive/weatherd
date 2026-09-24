@@ -57,6 +57,21 @@ class HomeViewModel @Inject constructor(
 		.map { it.cloudCountScale }
 		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().cloudCountScale)
 
+	/** The user's sky brightness multiplier, so debug mode matches the live wallpaper. */
+	val skyBrightnessScale = settingsRepository.settings
+		.map { it.skyBrightnessScale }
+		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().skyBrightnessScale)
+
+	/** The user's sky saturation multiplier, so debug mode matches the live wallpaper. */
+	val skySaturationScale = settingsRepository.settings
+		.map { it.skySaturationScale }
+		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().skySaturationScale)
+
+	/** The user's cloud shading contrast multiplier, so debug mode matches the live wallpaper. */
+	val cloudContrastScale = settingsRepository.settings
+		.map { it.cloudContrastScale }
+		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().cloudContrastScale)
+
 	/** Whether the sun is rendered, so debug mode matches the live wallpaper. */
 	val sunVisible = settingsRepository.settings
 		.map { it.sunVisible }
