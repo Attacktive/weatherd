@@ -2808,7 +2808,7 @@ class SceneRenderer(resources: Resources) {
 		private const val CUMULUS_FAR_HAZE = 0.35f
 
 		/** The far deck's opacity at the scattered-cloud floor, and how much more it gains by the overcast threshold. */
-		private const val CUMULUS_FAR_MIN_ALPHA = 70f
+		private const val CUMULUS_FAR_MIN_ALPHA = 60f
 		private const val CUMULUS_FAR_ALPHA_RANGE = 120f
 
 		/** Cross-fade weights below this draw nothing, so the common case stays at two deck draws rather than three. */

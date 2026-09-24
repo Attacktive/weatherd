@@ -348,7 +348,7 @@ def clear_sky(cloudiness, cloud_scale=1.0, cloud_size_scale=1.0, cloud_count_sca
 	near_height = HEIGHT * 0.46
 	near_alpha = min(max(kotlin_round(NEAR_ALPHA * cloud_scale), 0), 255)
 	far_coverage = coverage * coverage
-	far_alpha = min(max(kotlin_round((70 + 120 * far_coverage) * cloud_scale), 0), 255)
+	far_alpha = min(max(kotlin_round((60 + 120 * far_coverage) * cloud_scale), 0), 255)
 
 	far_geometry = CumulusGeometry(far_height, -WIDTH * 0.34, far_top, size_scale)
 	draw_cumulus(canvas, FAR_PROFILE, far_geometry, far_color, far_alpha)
