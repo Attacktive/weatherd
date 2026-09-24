@@ -3031,7 +3031,7 @@ class SceneRenderer(resources: Resources) {
 		private const val SUN_STREAK_ALPHA = 36f
 
 		/** Large optical haze around the direct sun; its cached sprite is brightest inside and fades continuously through the outer atmosphere. */
-		private const val SUN_LENS_HALO_REACH = 7.4f
+		private const val SUN_LENS_HALO_REACH = 6.6f
 		private const val SUN_LENS_HALO_ALPHA = 128f
 		private const val SUN_LENS_HALO_AXIS_OFFSET = 0.18f
 		private const val SUN_LENS_HALO_RADIUS_FRACTION = 0.88f
