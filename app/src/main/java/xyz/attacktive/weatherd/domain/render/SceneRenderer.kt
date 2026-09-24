@@ -3037,7 +3037,7 @@ class SceneRenderer(resources: Resources) {
 		private const val SUN_LENS_HALO_RADIUS_FRACTION = 0.76f
 		private const val SUN_LENS_HALO_SPRITE_ALPHA = 52
 		private const val SUN_LENS_HALO_MIDDLE_ALPHA_SCALE = 0.62f
-		private const val SUN_LENS_HALO_OUTER_ALPHA_SCALE = 0.22f
+		private const val SUN_LENS_HALO_OUTER_ALPHA_SCALE = 0.10f
 		private const val SUN_LENS_HALO_MIDDLE_STOP = 0.48f
 		private const val SUN_LENS_HALO_OUTER_STOP = 0.72f
 
