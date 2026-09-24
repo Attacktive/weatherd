@@ -67,19 +67,19 @@ FAR_SPRITES = ('cloud_cumulus_far_veil_broad.png', 'cloud_cumulus_far_veil_layer
 PARTLY_BANK_SPRITE = 'cloud_overcast_support.webp'
 PARTLY_BANK_START_COVERAGE = 0.72
 PARTLY_BANK_FULL_COVERAGE = 0.90
-PARTLY_BANK_VIEWPORTS = 1.80
-PARTLY_BANK_HEIGHT_SCALE = 0.78
-PARTLY_BANK_TOP = 0.23
-PARTLY_BANK_PHASE = 0.52
-PARTLY_BANK_HAZE = 0.18
-PARTLY_BANK_ALPHA = 0.40
+PARTLY_BANK_VIEWPORTS = 1.65
+PARTLY_BANK_HEIGHT_SCALE = 0.82
+PARTLY_BANK_TOP = 0.30
+PARTLY_BANK_PHASE = 0.42
+PARTLY_BANK_HAZE = 0.20
+PARTLY_BANK_ALPHA = 0.50
 BROKEN_BLEND_START = 0.90
 
 # The preview intentionally pins representative near-variant choices instead of reproducing daily runtime randomness.
 # Runtime cycles through neighboring morphology variants from a daily random offset; these fixed sequences exercise the same vocabulary in a stable preview.
 REPRESENTATIVE_SPARSE_VARIANTS = (0, 1)
 REPRESENTATIVE_SCATTERED_VARIANTS = (2, 3, 4, 5, 6, 0, 1, 2, 3, 4)
-REPRESENTATIVE_PARTLY_VARIANTS = (4, 5, 6, 0, 1, 2, 3, 4, 5, 6)
+REPRESENTATIVE_PARTLY_VARIANTS = (4, 5, 6, 0, 1, 2, 3, 4)
 REPRESENTATIVE_BROKEN_VARIANTS = (5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6)
 
 # Nominal CloudLayer anchors before its small seeded day-to-day jitter.
@@ -100,16 +100,14 @@ SCATTERED_ANCHORS = (
 	(0.99, 0.27, 0.68, 0.90),
 )
 PARTLY_ANCHORS = (
-	(0.02, 0.30, 0.94, 0.96),
-	(0.13, 0.56, 0.96, 1.00),
-	(0.25, 0.70, 0.82, 0.88),
-	(0.38, 0.37, 1.02, 1.00),
-	(0.50, 0.62, 0.90, 0.92),
-	(0.62, 0.22, 0.84, 0.94),
-	(0.74, 0.69, 0.80, 0.86),
-	(0.85, 0.47, 0.98, 1.00),
-	(0.94, 0.31, 0.88, 0.94),
-	(0.995, 0.58, 0.84, 0.90),
+	(0.03, 0.29, 0.88, 0.94),
+	(0.17, 0.55, 0.92, 1.00),
+	(0.31, 0.73, 0.78, 0.86),
+	(0.46, 0.38, 0.96, 1.00),
+	(0.60, 0.64, 0.84, 0.90),
+	(0.73, 0.24, 0.80, 0.92),
+	(0.86, 0.49, 0.92, 1.00),
+	(0.985, 0.70, 0.80, 0.88),
 )
 BROKEN_ANCHORS = (
 	(0.02, 0.42, 0.86, 1.00),

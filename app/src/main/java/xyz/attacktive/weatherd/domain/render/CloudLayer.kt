@@ -562,16 +562,14 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 		)
 
 		private val PARTLY_ANCHORS = listOf(
-			CumulusAnchor(0.02f, 0.30f, 0.94f, alphaScale = 0.96f),
-			CumulusAnchor(0.13f, 0.56f, 0.96f),
-			CumulusAnchor(0.25f, 0.70f, 0.82f, alphaScale = 0.88f),
-			CumulusAnchor(0.38f, 0.37f, 1.02f),
-			CumulusAnchor(0.50f, 0.62f, 0.90f, alphaScale = 0.92f),
-			CumulusAnchor(0.62f, 0.22f, 0.84f, alphaScale = 0.94f),
-			CumulusAnchor(0.74f, 0.69f, 0.80f, alphaScale = 0.86f),
-			CumulusAnchor(0.85f, 0.47f, 0.98f),
-			CumulusAnchor(0.94f, 0.31f, 0.88f, alphaScale = 0.94f),
-			CumulusAnchor(0.995f, 0.58f, 0.84f, alphaScale = 0.90f)
+			CumulusAnchor(0.03f, 0.29f, 0.88f, alphaScale = 0.94f),
+			CumulusAnchor(0.17f, 0.55f, 0.92f),
+			CumulusAnchor(0.31f, 0.73f, 0.78f, alphaScale = 0.86f),
+			CumulusAnchor(0.46f, 0.38f, 0.96f),
+			CumulusAnchor(0.60f, 0.64f, 0.84f, alphaScale = 0.90f),
+			CumulusAnchor(0.73f, 0.24f, 0.80f, alphaScale = 0.92f),
+			CumulusAnchor(0.86f, 0.49f, 0.92f),
+			CumulusAnchor(0.985f, 0.70f, 0.80f, alphaScale = 0.88f)
 		)
 
 		private val BROKEN_ANCHORS = listOf(

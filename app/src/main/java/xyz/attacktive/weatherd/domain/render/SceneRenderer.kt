@@ -2860,12 +2860,12 @@ class SceneRenderer(resources: Resources) {
 
 		private const val PARTLY_BANK_START_COVERAGE = 0.72f
 		private const val PARTLY_BANK_FULL_COVERAGE = 0.90f
-		private const val PARTLY_BANK_VIEWPORTS = 1.80f
-		private const val PARTLY_BANK_HEIGHT_SCALE = 0.78f
-		private const val PARTLY_BANK_TOP = 0.23f
-		private const val PARTLY_BANK_PHASE = 0.52f
-		private const val PARTLY_BANK_HAZE = 0.18f
-		private const val PARTLY_BANK_ALPHA = 0.40f
+		private const val PARTLY_BANK_VIEWPORTS = 1.65f
+		private const val PARTLY_BANK_HEIGHT_SCALE = 0.82f
+		private const val PARTLY_BANK_TOP = 0.30f
+		private const val PARTLY_BANK_PHASE = 0.42f
+		private const val PARTLY_BANK_HAZE = 0.20f
+		private const val PARTLY_BANK_ALPHA = 0.50f
 
 		private const val DENSE_FOG_CLOUD_CUTOFF = 0.8f
 		private const val OVERCAST_SOURCE_ASPECT = 3f
