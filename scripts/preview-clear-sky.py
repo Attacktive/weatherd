@@ -69,6 +69,7 @@ FAR_SPRITES = ('cloud_cumulus_far_veil_broad.png', 'cloud_cumulus_far_veil_layer
 # Runtime cycles through neighboring morphology variants from a daily random offset; these fixed sequences exercise the same vocabulary in a stable preview.
 REPRESENTATIVE_SPARSE_VARIANTS = (0, 1)
 REPRESENTATIVE_SCATTERED_VARIANTS = (2, 3, 4, 5, 6, 0, 1, 2, 3, 4)
+REPRESENTATIVE_PARTLY_VARIANTS = (4, 5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3)
 REPRESENTATIVE_BROKEN_VARIANTS = (5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6)
 
 # Nominal CloudLayer anchors before its small seeded day-to-day jitter.
@@ -87,6 +88,22 @@ SCATTERED_ANCHORS = (
 	(0.80, 0.32, 0.76, 0.94),
 	(0.91, 0.47, 0.82, 0.92),
 	(0.99, 0.27, 0.68, 0.90),
+)
+PARTLY_ANCHORS = (
+	(0.01, 0.28, 0.76, 0.94),
+	(0.08, 0.53, 0.88, 1.00),
+	(0.15, 0.71, 0.66, 0.82),
+	(0.23, 0.35, 0.92, 1.00),
+	(0.31, 0.61, 0.76, 0.90),
+	(0.39, 0.20, 0.70, 0.92),
+	(0.47, 0.74, 0.64, 0.80),
+	(0.55, 0.44, 0.90, 1.00),
+	(0.63, 0.64, 0.72, 0.88),
+	(0.71, 0.29, 0.80, 0.94),
+	(0.79, 0.55, 0.86, 1.00),
+	(0.87, 0.72, 0.66, 0.82),
+	(0.94, 0.39, 0.74, 0.92),
+	(0.995, 0.58, 0.70, 0.88),
 )
 BROKEN_ANCHORS = (
 	(0.02, 0.42, 0.86, 1.00),
@@ -108,9 +125,11 @@ BROKEN_ANCHORS = (
 )
 FAR_ANCHORS = (
 	(0.06, 0.38, 0.92, 0.94),
+	(0.14, 0.51, 0.72, 0.78),
 	(0.23, 0.56, 0.78, 0.88),
 	(0.42, 0.30, 0.84, 0.92),
 	(0.61, 0.61, 0.74, 0.86),
+	(0.70, 0.54, 0.70, 0.80),
 	(0.79, 0.43, 0.90, 0.94),
 	(0.95, 0.27, 0.70, 0.84),
 )
@@ -179,6 +198,7 @@ FAR_PROFILE = CumulusProfile('far', FAR_SPRITES, FAR_ANCHORS, FAR_VIEWPORTS)
 COVERAGE_STEPS = (
 	CumulusProfile('sparse', NEAR_SPRITES, SPARSE_ANCHORS, NEAR_VIEWPORTS, REPRESENTATIVE_SPARSE_VARIANTS),
 	CumulusProfile('scattered', NEAR_SPRITES, SCATTERED_ANCHORS, NEAR_VIEWPORTS, REPRESENTATIVE_SCATTERED_VARIANTS),
+	CumulusProfile('partly', NEAR_SPRITES, PARTLY_ANCHORS, NEAR_VIEWPORTS, REPRESENTATIVE_PARTLY_VARIANTS),
 	CumulusProfile('broken', NEAR_SPRITES, BROKEN_ANCHORS, NEAR_VIEWPORTS, REPRESENTATIVE_BROKEN_VARIANTS),
 )
 
@@ -327,7 +347,8 @@ def clear_sky(cloudiness, cloud_scale=1.0, cloud_size_scale=1.0, cloud_count_sca
 	far_height = HEIGHT * 0.34
 	near_height = HEIGHT * 0.46
 	near_alpha = min(max(kotlin_round(NEAR_ALPHA * cloud_scale), 0), 255)
-	far_alpha = min(max(kotlin_round((70 + 90 * coverage) * cloud_scale), 0), 255)
+	far_coverage = coverage * coverage
+	far_alpha = min(max(kotlin_round((70 + 120 * far_coverage) * cloud_scale), 0), 255)
 
 	far_geometry = CumulusGeometry(far_height, -WIDTH * 0.34, far_top, size_scale)
 	draw_cumulus(canvas, FAR_PROFILE, far_geometry, far_color, far_alpha)
@@ -356,7 +377,7 @@ def main():
 
 	strip = np.concatenate([
 		clear_sky(cloudiness, cloud_size_scale=args.cloud_size, cloud_count_scale=args.cloud_count)
-		for cloudiness in (0.15, 0.3, 0.45, 0.6, 0.75)
+		for cloudiness in (0.2, 0.4, 0.55, 0.7, 0.75)
 	], axis=1)
 	image = Image.fromarray(np.clip(strip, 0, 255).astype(np.uint8))
 	image = image.resize((image.width // 5, image.height // 5), Image.Resampling.LANCZOS)

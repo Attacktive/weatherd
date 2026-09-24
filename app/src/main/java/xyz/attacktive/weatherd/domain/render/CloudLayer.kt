@@ -29,14 +29,8 @@ internal const val CLOUD_TEXTURE_VIEWPORTS = 4f
  * Other cloud layers, including dedicated overcast banks, are decoded once and sampled through a repeating bitmap shader.
  * Fog renders through its own path in SceneRenderer.
  */
-internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
-	private val cumulusKind = when (texture) {
-		R.drawable.cloud_cumulus_far -> CumulusKind.FAR
-		R.drawable.cloud_cumulus_sparse -> CumulusKind.SPARSE
-		R.drawable.cloud_cumulus_scattered -> CumulusKind.SCATTERED
-		R.drawable.cloud_cumulus_broken -> CumulusKind.BROKEN
-		else -> null
-	}
+internal class CloudLayer private constructor(resources: Resources, @DrawableRes texture: Int, private val cumulusKind: CumulusKind?) {
+	constructor(resources: Resources, @DrawableRes texture: Int) : this(resources, texture, cumulusKindFor(texture))
 
 	private val bitmap = if (cumulusKind == null) decode(resources, texture) else null
 
@@ -378,6 +372,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		val anchors = when (kind) {
 			CumulusKind.SPARSE -> SPARSE_ANCHORS
 			CumulusKind.SCATTERED -> SCATTERED_ANCHORS
+			CumulusKind.PARTLY -> PARTLY_ANCHORS
 			CumulusKind.BROKEN -> BROKEN_ANCHORS
 			CumulusKind.FAR -> error("Far cumulus uses its own placement cache")
 		}
@@ -385,11 +380,18 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		val seedSalt = when (kind) {
 			CumulusKind.SPARSE -> SPARSE_LAYOUT_SEED_SALT
 			CumulusKind.SCATTERED -> SCATTERED_LAYOUT_SEED_SALT
+			CumulusKind.PARTLY -> PARTLY_LAYOUT_SEED_SALT
 			CumulusKind.BROKEN -> BROKEN_LAYOUT_SEED_SALT
 		}
 
+		val tuning = if (kind == CumulusKind.PARTLY) {
+			PARTLY_PLACEMENT_TUNING
+		} else {
+			NEAR_PLACEMENT_TUNING
+		}
+
 		cachedNearPlacements = buildPlacements(
-			NEAR_PLACEMENT_TUNING,
+			tuning,
 			anchors,
 			Random(layoutSeed(epochDay) xor seedSalt),
 			HERO_VARIANTS.size
@@ -458,6 +460,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		FAR,
 		SPARSE,
 		SCATTERED,
+		PARTLY,
 		BROKEN
 	}
 
@@ -473,10 +476,21 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 	}
 
 	companion object {
+		fun partlyCumulus(resources: Resources) = CloudLayer(resources, R.drawable.cloud_cumulus_scattered, CumulusKind.PARTLY)
+
+		private fun cumulusKindFor(@DrawableRes texture: Int) = when (texture) {
+			R.drawable.cloud_cumulus_far -> CumulusKind.FAR
+			R.drawable.cloud_cumulus_sparse -> CumulusKind.SPARSE
+			R.drawable.cloud_cumulus_scattered -> CumulusKind.SCATTERED
+			R.drawable.cloud_cumulus_broken -> CumulusKind.BROKEN
+			else -> null
+		}
+
 		private const val MILLIS_PER_DAY = 86_400_000L
 		private const val NEAR_COMPOSITION_BLEND_START = 0.50f
 		private const val SPARSE_LAYOUT_SEED_SALT = 0x21A7F1
 		private const val SCATTERED_LAYOUT_SEED_SALT = 0x53C4D2
+		private const val PARTLY_LAYOUT_SEED_SALT = 0x6D28B4
 		private const val BROKEN_LAYOUT_SEED_SALT = 0x7B19E5
 		private const val FAR_LAYOUT_SEED_SALT = 0x46A2D9
 
@@ -496,6 +510,7 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 		private const val FAR_BASE_HEIGHT_TO_DECK = 0.24f
 
 		private val NEAR_PLACEMENT_TUNING = PlacementTuning(0.035f, 0.045f, 0.10f, 0.06f, 0.16f, 0.64f)
+		private val PARTLY_PLACEMENT_TUNING = PlacementTuning(0.030f, 0.040f, 0.09f, 0.05f, 0.14f, 0.78f)
 		private val FAR_PLACEMENT_TUNING = PlacementTuning(0.022f, 0.040f, 0.10f, 0.06f, 0.20f, 0.66f)
 
 		/*
@@ -546,6 +561,23 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 			CumulusAnchor(0.99f, 0.27f, 0.68f, alphaScale = 0.90f)
 		)
 
+		private val PARTLY_ANCHORS = listOf(
+			CumulusAnchor(0.01f, 0.28f, 0.76f, alphaScale = 0.94f),
+			CumulusAnchor(0.08f, 0.53f, 0.88f),
+			CumulusAnchor(0.15f, 0.71f, 0.66f, alphaScale = 0.82f),
+			CumulusAnchor(0.23f, 0.35f, 0.92f),
+			CumulusAnchor(0.31f, 0.61f, 0.76f, alphaScale = 0.90f),
+			CumulusAnchor(0.39f, 0.20f, 0.70f, alphaScale = 0.92f),
+			CumulusAnchor(0.47f, 0.74f, 0.64f, alphaScale = 0.80f),
+			CumulusAnchor(0.55f, 0.44f, 0.90f),
+			CumulusAnchor(0.63f, 0.64f, 0.72f, alphaScale = 0.88f),
+			CumulusAnchor(0.71f, 0.29f, 0.80f, alphaScale = 0.94f),
+			CumulusAnchor(0.79f, 0.55f, 0.86f),
+			CumulusAnchor(0.87f, 0.72f, 0.66f, alphaScale = 0.82f),
+			CumulusAnchor(0.94f, 0.39f, 0.74f, alphaScale = 0.92f),
+			CumulusAnchor(0.995f, 0.58f, 0.70f, alphaScale = 0.88f)
+		)
+
 		private val BROKEN_ANCHORS = listOf(
 			CumulusAnchor(0.02f, 0.42f, 0.86f),
 			CumulusAnchor(0.08f, 0.23f, 0.68f, alphaScale = 0.96f),
@@ -567,9 +599,11 @@ internal class CloudLayer(resources: Resources, @DrawableRes texture: Int) {
 
 		private val FAR_ANCHORS = listOf(
 			CumulusAnchor(0.06f, 0.38f, 0.92f, alphaScale = 0.94f),
+			CumulusAnchor(0.14f, 0.51f, 0.72f, alphaScale = 0.78f),
 			CumulusAnchor(0.23f, 0.56f, 0.78f, alphaScale = 0.88f),
 			CumulusAnchor(0.42f, 0.30f, 0.84f, alphaScale = 0.92f),
 			CumulusAnchor(0.61f, 0.61f, 0.74f, alphaScale = 0.86f),
+			CumulusAnchor(0.70f, 0.54f, 0.70f, alphaScale = 0.80f),
 			CumulusAnchor(0.79f, 0.43f, 0.90f, alphaScale = 0.94f),
 			CumulusAnchor(0.95f, 0.27f, 0.70f, alphaScale = 0.84f)
 		)

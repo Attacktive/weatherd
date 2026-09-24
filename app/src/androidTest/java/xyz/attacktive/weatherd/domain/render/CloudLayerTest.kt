@@ -129,6 +129,22 @@ class CloudLayerTest {
 	}
 
 	@Test
+	fun partlyCumulusPopulatesMoreOfTheLowerSkyThanScattered() {
+		val scattered = render(CloudLayer(resources, R.drawable.cloud_cumulus_scattered), viewports = 1f)
+		val partly = render(CloudLayer.partlyCumulus(resources), viewports = 1f)
+		val scatteredLowerArea = opaqueAreaBelow(scattered, 0.55f)
+		val partlyLowerArea = opaqueAreaBelow(partly, 0.55f)
+
+		assertTrue(
+			"The partly-cloudy profile must add meaningful mid/lower-sky cloud area, saw $scatteredLowerArea scattered pixels and $partlyLowerArea partly pixels",
+			partlyLowerArea > scatteredLowerArea
+		)
+
+		scattered.recycle()
+		partly.recycle()
+	}
+
+	@Test
 	fun cumulusShadowDarkensCloudsWithoutChangingTheirAlphaMask() {
 		val destination = CloudLayer(resources, R.drawable.cloud_cumulus_far)
 		val blocker = CloudLayer(resources, R.drawable.cloud_cumulus_far)
@@ -230,6 +246,18 @@ class CloudLayerTest {
 	private fun opaqueArea(bitmap: Bitmap): Int {
 		val pixels = IntArray(bitmap.width * bitmap.height)
 		bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+		return pixels.count { Color.alpha(it) > 0 }
+	}
+
+	private fun opaqueAreaBelow(bitmap: Bitmap, topFraction: Float): Int {
+		val top = (bitmap.height * topFraction).toInt().coerceIn(0, bitmap.height)
+		val height = bitmap.height - top
+		if (height <= 0) {
+			return 0
+		}
+
+		val pixels = IntArray(bitmap.width * height)
+		bitmap.getPixels(pixels, 0, bitmap.width, 0, top, bitmap.width, height)
 		return pixels.count { Color.alpha(it) > 0 }
 	}
 

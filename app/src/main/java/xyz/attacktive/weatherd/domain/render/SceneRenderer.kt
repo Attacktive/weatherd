@@ -110,11 +110,12 @@ class SceneRenderer(resources: Resources) {
 
 	/*
 	 * The clear-sky placement profiles, ordered from fewest masses to most.
-	 * Each lazy layer owns a seeded daily layout while CloudLayer shares the decoded source sprites across all three profiles.
+	 * Each lazy layer owns a seeded daily layout while CloudLayer shares the decoded source sprites across all four profiles.
 	 */
 	private val cumulusSteps = listOf(
 		lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_sparse) },
 		lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_scattered) },
+		lazy(LazyThreadSafetyMode.NONE) { CloudLayer.partlyCumulus(resources) },
 		lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_broken) }
 	)
 
@@ -1564,7 +1565,8 @@ class SceneRenderer(resources: Resources) {
 
 	/**
 	 * The distant deck: one texture at a shorter repeat span, so its masses come out smaller, sitting lower and closer to the horizon.
-	 * Distance is carried by haze and size rather than by coverage, while projected opacity from the upper deck selectively shades clouds that sit in its light path.
+	 * Distance is carried by haze and size, while far-cloud opacity stays subdued in sparse skies and strengthens toward the cloudier end of the clear-sky range.
+	 * Projected opacity from the upper deck selectively shades clouds that sit in its light path.
 	 */
 	private fun drawFarCumulus(
 		canvas: Canvas,
@@ -1578,7 +1580,8 @@ class SceneRenderer(resources: Resources) {
 	) {
 		val isPortrait = width < height
 		val tint = lerpColor(cumulusTint(params.dayPhase), skyGradientFor(params).topColor, CUMULUS_FAR_HAZE)
-		val alpha = ((CUMULUS_FAR_MIN_ALPHA + CUMULUS_FAR_ALPHA_RANGE * coverage) * params.cloudScale).roundToInt().coerceIn(0, 255)
+		val farCoverage = coverage * coverage
+		val alpha = ((CUMULUS_FAR_MIN_ALPHA + CUMULUS_FAR_ALPHA_RANGE * farCoverage) * params.cloudScale).roundToInt().coerceIn(0, 255)
 		val drop = if (isPortrait) {
 			height * 0.22f
 		} else {
@@ -2806,7 +2809,7 @@ class SceneRenderer(resources: Resources) {
 
 		/** The far deck's opacity at the scattered-cloud floor, and how much more it gains by the overcast threshold. */
 		private const val CUMULUS_FAR_MIN_ALPHA = 70f
-		private const val CUMULUS_FAR_ALPHA_RANGE = 90f
+		private const val CUMULUS_FAR_ALPHA_RANGE = 120f
 
 		/** Cross-fade weights below this draw nothing, so the common case stays at two deck draws rather than three. */
 		private const val CUMULUS_BLEND_FLOOR = 0.02f
