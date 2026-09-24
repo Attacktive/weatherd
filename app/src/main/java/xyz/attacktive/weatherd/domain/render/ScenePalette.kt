@@ -6,6 +6,7 @@ import xyz.attacktive.weatherd.domain.model.SKY_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SKY_SATURATION_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
+import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_STEADY
 
 /** A vertical sky gradient as two ARGB colors. */
@@ -16,7 +17,7 @@ data class SkyGradient(val topColor: Int, val bottomColor: Int)
  * Pure ARGB maths so it unit-tests without Android.
  */
 fun skyGradientFor(params: SceneParams): SkyGradient {
-	val base = tuneSkyGradient(basePhaseGradient(params.dayPhase), params.skyBrightnessScale, params.skySaturationScale)
+	val base = tuneSkyGradient(basePhaseGradient(params.dayPhase, params.skyColorPreset), params.skyBrightnessScale, params.skySaturationScale)
 	val gray = if (params.precipitation?.kind == PrecipitationKind.SNOW) {
 		snowGray(params.dayPhase)
 	} else {
@@ -129,11 +130,31 @@ private fun tuneSkyColor(color: Int, brightness: Float, saturation: Float): Int 
 	)
 }
 
-private fun basePhaseGradient(dayPhase: DayPhase) = when (dayPhase) {
-	DayPhase.DAY -> SkyGradient(rgb(74, 144, 217), rgb(169, 214, 245))
-	DayPhase.DAWN -> SkyGradient(rgb(52, 64, 107), rgb(246, 169, 132))
-	DayPhase.DUSK -> SkyGradient(rgb(38, 49, 79), rgb(232, 130, 91))
-	DayPhase.NIGHT -> SkyGradient(rgb(11, 16, 38), rgb(27, 36, 80))
+private fun basePhaseGradient(dayPhase: DayPhase, preset: SkyColorPreset) = when (preset) {
+	SkyColorPreset.NATURAL -> when (dayPhase) {
+		DayPhase.DAY -> SkyGradient(rgb(74, 144, 217), rgb(169, 214, 245))
+		DayPhase.DAWN -> SkyGradient(rgb(52, 64, 107), rgb(246, 169, 132))
+		DayPhase.DUSK -> SkyGradient(rgb(38, 49, 79), rgb(232, 130, 91))
+		DayPhase.NIGHT -> SkyGradient(rgb(11, 16, 38), rgb(27, 36, 80))
+	}
+	SkyColorPreset.WARM -> when (dayPhase) {
+		DayPhase.DAY -> SkyGradient(rgb(94, 148, 210), rgb(226, 207, 190))
+		DayPhase.DAWN -> SkyGradient(rgb(75, 62, 102), rgb(250, 175, 120))
+		DayPhase.DUSK -> SkyGradient(rgb(52, 45, 75), rgb(244, 139, 80))
+		DayPhase.NIGHT -> SkyGradient(rgb(17, 17, 40), rgb(45, 39, 76))
+	}
+	SkyColorPreset.PASTEL -> when (dayPhase) {
+		DayPhase.DAY -> SkyGradient(rgb(126, 173, 224), rgb(207, 224, 245))
+		DayPhase.DAWN -> SkyGradient(rgb(105, 105, 154), rgb(246, 192, 178))
+		DayPhase.DUSK -> SkyGradient(rgb(92, 87, 132), rgb(236, 166, 150))
+		DayPhase.NIGHT -> SkyGradient(rgb(29, 31, 57), rgb(61, 65, 105))
+	}
+	SkyColorPreset.CYBERPUNK -> when (dayPhase) {
+		DayPhase.DAY -> SkyGradient(rgb(87, 82, 211), rgb(88, 221, 236))
+		DayPhase.DAWN -> SkyGradient(rgb(89, 42, 141), rgb(255, 113, 181))
+		DayPhase.DUSK -> SkyGradient(rgb(64, 34, 121), rgb(255, 76, 154))
+		DayPhase.NIGHT -> SkyGradient(rgb(9, 12, 51), rgb(75, 22, 113))
+	}
 }
 
 private fun phaseGray(dayPhase: DayPhase) = when (dayPhase) {

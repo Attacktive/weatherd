@@ -20,6 +20,7 @@ data class AppSettings(
 	val cloudCountScale: Float = 1f,
 	val skyBrightnessScale: Float = 1f,
 	val skySaturationScale: Float = 1f,
+	val skyColorPreset: SkyColorPreset = SkyColorPreset.NATURAL,
 	val cloudContrastScale: Float = 1f,
 	val sunVisible: Boolean = true,
 	val moonVisible: Boolean = true,

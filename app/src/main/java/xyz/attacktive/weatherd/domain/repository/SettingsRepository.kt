@@ -23,6 +23,7 @@ import xyz.attacktive.weatherd.domain.model.SKY_SATURATION_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
@@ -50,6 +51,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		val CLOUD_COUNT_SCALE = floatPreferencesKey("cloud_count_scale")
 		val SKY_BRIGHTNESS_SCALE = floatPreferencesKey("sky_brightness_scale")
 		val SKY_SATURATION_SCALE = floatPreferencesKey("sky_saturation_scale")
+		val SKY_COLOR_PRESET = stringPreferencesKey("sky_color_preset")
 		val CLOUD_CONTRAST_SCALE = floatPreferencesKey("cloud_contrast_scale")
 		val SUN_VISIBLE = booleanPreferencesKey("sun_visible")
 		val MOON_VISIBLE = booleanPreferencesKey("moon_visible")
@@ -84,6 +86,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			cloudCountScale = (preferences[Keys.CLOUD_COUNT_SCALE] ?: DEFAULTS.cloudCountScale).coerceIn(CLOUD_COUNT_SCALE_RANGE.start, CLOUD_COUNT_SCALE_RANGE.endInclusive),
 			skyBrightnessScale = (preferences[Keys.SKY_BRIGHTNESS_SCALE] ?: DEFAULTS.skyBrightnessScale).coerceIn(SKY_BRIGHTNESS_SCALE_RANGE.start, SKY_BRIGHTNESS_SCALE_RANGE.endInclusive),
 			skySaturationScale = (preferences[Keys.SKY_SATURATION_SCALE] ?: DEFAULTS.skySaturationScale).coerceIn(SKY_SATURATION_SCALE_RANGE.start, SKY_SATURATION_SCALE_RANGE.endInclusive),
+			skyColorPreset = SkyColorPreset.fromName(preferences[Keys.SKY_COLOR_PRESET]),
 			cloudContrastScale = (preferences[Keys.CLOUD_CONTRAST_SCALE] ?: DEFAULTS.cloudContrastScale).coerceIn(CLOUD_CONTRAST_SCALE_RANGE.start, CLOUD_CONTRAST_SCALE_RANGE.endInclusive),
 			sunVisible = preferences[Keys.SUN_VISIBLE] ?: DEFAULTS.sunVisible,
 			moonVisible = preferences[Keys.MOON_VISIBLE] ?: DEFAULTS.moonVisible,
@@ -121,6 +124,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			preferences[Keys.CLOUD_COUNT_SCALE] = settings.cloudCountScale.coerceIn(CLOUD_COUNT_SCALE_RANGE.start, CLOUD_COUNT_SCALE_RANGE.endInclusive)
 			preferences[Keys.SKY_BRIGHTNESS_SCALE] = settings.skyBrightnessScale.coerceIn(SKY_BRIGHTNESS_SCALE_RANGE.start, SKY_BRIGHTNESS_SCALE_RANGE.endInclusive)
 			preferences[Keys.SKY_SATURATION_SCALE] = settings.skySaturationScale.coerceIn(SKY_SATURATION_SCALE_RANGE.start, SKY_SATURATION_SCALE_RANGE.endInclusive)
+			preferences[Keys.SKY_COLOR_PRESET] = settings.skyColorPreset.name
 			preferences[Keys.CLOUD_CONTRAST_SCALE] = settings.cloudContrastScale.coerceIn(CLOUD_CONTRAST_SCALE_RANGE.start, CLOUD_CONTRAST_SCALE_RANGE.endInclusive)
 			preferences[Keys.SUN_VISIBLE] = settings.sunVisible
 			preferences[Keys.MOON_VISIBLE] = settings.moonVisible

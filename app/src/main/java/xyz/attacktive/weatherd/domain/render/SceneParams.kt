@@ -10,6 +10,7 @@ import xyz.attacktive.weatherd.domain.model.SKY_SATURATION_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
 import xyz.attacktive.weatherd.domain.weather.dayPhaseFor
@@ -28,7 +29,7 @@ import xyz.attacktive.weatherd.domain.weather.precipitationIntensity
  * [windScale] is the user's preference rather than an observation, so it rides alongside [windFactor] instead of being folded into it: the renderer applies it past its own floors, where it actually moves visible wind effects.
  * [cloudScale] is the user's preference rather than an observation, so it rides alongside [cloudiness] instead of being folded into it: the renderer applies it past its own floors, where it scales cloud opacity.
  * [cloudSizeScale] changes individual fair-weather cloud body geometry, while [cloudCountScale] scales rendered cloud coverage without mutating the observed [cloudiness].
- * [skyBrightnessScale] and [skySaturationScale] tune the clear phase palette before weather grays or darkens it, while [cloudContrastScale] changes cloud RGB shading without changing cloud alpha.
+ * [skyColorPreset] chooses the phase-aware clear palette, [skyBrightnessScale] and [skySaturationScale] tune it before weather grays or darkens it, while [cloudContrastScale] changes cloud RGB shading without changing cloud alpha.
  * [sunVisible], [moonVisible], [sunSizeScale] and [sunColorPreset] customize the celestial bodies without changing the time-of-day lighting.
  * [lensFlareEnabled] is a display preference for camera-style streaks and optical ghosts around the sun; it does not disable the physical corona or atmospheric light shafts.
  */
@@ -46,6 +47,7 @@ data class SceneParams(
 	val cloudCountScale: Float = 1f,
 	val skyBrightnessScale: Float = 1f,
 	val skySaturationScale: Float = 1f,
+	val skyColorPreset: SkyColorPreset = SkyColorPreset.NATURAL,
 	val cloudContrastScale: Float = 1f,
 	val moonPhase: Float = 0.5f,
 	val celestialProgress: Float = 0.5f,
@@ -88,6 +90,7 @@ fun sceneParamsFor(
 	cloudCountScale: Float = 1f,
 	skyBrightnessScale: Float = 1f,
 	skySaturationScale: Float = 1f,
+	skyColorPreset: SkyColorPreset = SkyColorPreset.NATURAL,
 	cloudContrastScale: Float = 1f,
 	sunVisible: Boolean = true,
 	moonVisible: Boolean = true,
@@ -120,6 +123,7 @@ fun sceneParamsFor(
 		cloudCountScale = cloudCountScale.coerceIn(CLOUD_COUNT_SCALE_RANGE.start, CLOUD_COUNT_SCALE_RANGE.endInclusive),
 		skyBrightnessScale = skyBrightnessScale.coerceIn(SKY_BRIGHTNESS_SCALE_RANGE.start, SKY_BRIGHTNESS_SCALE_RANGE.endInclusive),
 		skySaturationScale = skySaturationScale.coerceIn(SKY_SATURATION_SCALE_RANGE.start, SKY_SATURATION_SCALE_RANGE.endInclusive),
+		skyColorPreset = skyColorPreset,
 		cloudContrastScale = cloudContrastScale.coerceIn(CLOUD_CONTRAST_SCALE_RANGE.start, CLOUD_CONTRAST_SCALE_RANGE.endInclusive),
 		sunVisible = sunVisible,
 		moonVisible = moonVisible,
