@@ -153,14 +153,6 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 		) {
 			when (SettingsTab.entries[selectedTabIndex]) {
 				SettingsTab.WEATHER -> SettingsTabContent(weatherScrollState) {
-					WeatherProviderSection(settings = settings, onSave = viewModel::save)
-
-					Spacer(modifier = Modifier.height(24.dp))
-
-					RefreshIntervalSection(settings = settings, onSave = viewModel::save)
-
-					Spacer(modifier = Modifier.height(24.dp))
-
 					LocationSection(
 						settings = settings,
 						citySearch = citySearch,
@@ -171,25 +163,17 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 						onSelectPlace = viewModel::selectPlace,
 						onClearManualLocation = viewModel::clearManualLocation
 					)
+
+					Spacer(modifier = Modifier.height(24.dp))
+
+					WeatherProviderSection(settings = settings, onSave = viewModel::save)
+
+					Spacer(modifier = Modifier.height(24.dp))
+
+					RefreshIntervalSection(settings = settings, onSave = viewModel::save)
 				}
 
 				SettingsTab.APPEARANCE -> SettingsTabContent(appearanceScrollState) {
-					IntensitySection(settings = settings, onSave = viewModel::save)
-
-					Spacer(modifier = Modifier.height(24.dp))
-
-					SkyAppearanceSection(settings = settings, onSave = viewModel::save)
-
-					Spacer(modifier = Modifier.height(24.dp))
-
-					CloudAppearanceSection(settings = settings, onSave = viewModel::save)
-
-					Spacer(modifier = Modifier.height(24.dp))
-
-					SunEffectsSection(settings = settings, onSave = viewModel::save)
-
-					Spacer(modifier = Modifier.height(24.dp))
-
 					BackdropSection(settings = settings, onSave = viewModel::save)
 
 					AnimatedVisibility(visible = settings.backdropScene == BackdropScene.PHOTO) {
@@ -209,15 +193,31 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 
 					Spacer(modifier = Modifier.height(24.dp))
 
+					SkyAppearanceSection(settings = settings, onSave = viewModel::save)
+
+					Spacer(modifier = Modifier.height(24.dp))
+
+					CloudAppearanceSection(settings = settings, onSave = viewModel::save)
+
+					Spacer(modifier = Modifier.height(24.dp))
+
+					SunEffectsSection(settings = settings, onSave = viewModel::save)
+
+					Spacer(modifier = Modifier.height(24.dp))
+
+					IntensitySection(settings = settings, onSave = viewModel::save)
+
+					Spacer(modifier = Modifier.height(24.dp))
+
 					LabelsSection(settings = settings, onSave = viewModel::save)
 				}
 
 				SettingsTab.WALLPAPER -> SettingsTabContent(wallpaperScrollState) {
-					FrameRateSection(settings = settings, onSave = viewModel::save)
+					WallpaperMotionSection(settings = settings, onSave = viewModel::save)
 
 					Spacer(modifier = Modifier.height(24.dp))
 
-					WallpaperMotionSection(settings = settings, onSave = viewModel::save)
+					FrameRateSection(settings = settings, onSave = viewModel::save)
 				}
 
 				SettingsTab.ADVANCED -> SettingsTabContent(advancedScrollState) {
@@ -244,6 +244,15 @@ private enum class SettingsTab(@StringRes val label: Int) {
 	WALLPAPER(R.string.settings_tab_wallpaper),
 	ADVANCED(R.string.settings_tab_advanced)
 }
+
+private val BACKDROP_SCENE_DISPLAY_ORDER = listOf(
+	BackdropScene.NONE,
+	BackdropScene.PHOTO,
+	BackdropScene.METROPOLIS,
+	BackdropScene.BEACH,
+	BackdropScene.MOUNTAINS,
+	BackdropScene.COUNTRYSIDE
+)
 
 @Composable
 private fun SettingsTabContent(scrollState: ScrollState, content: @Composable ColumnScope.() -> Unit) {
@@ -683,7 +692,7 @@ private fun BackdropSection(settings: AppSettings, onSave: (AppSettings) -> Unit
 		)
 
 		ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-			BackdropScene.entries.forEach { scene ->
+			BACKDROP_SCENE_DISPLAY_ORDER.forEach { scene ->
 				DropdownMenuItem(
 					text = { Text(formatBackdrop(scene)) },
 					onClick = {
