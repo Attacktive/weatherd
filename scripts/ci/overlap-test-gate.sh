@@ -1,21 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-static_log="${RUNNER_TEMP:?}/weatherd-static-gate.log"
-static_pid_file="${RUNNER_TEMP:?}/weatherd-static-gate.pid"
-static_status_file="${RUNNER_TEMP:?}/weatherd-static-gate.status"
+static_temp="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
+static_log="$static_temp/weatherd-static-gate.log"
+static_pid_file="$static_temp/weatherd-static-gate.pid"
+static_status_file="$static_temp/weatherd-static-gate.status"
+
+run_static_gate() {
+	local status
+	if ./gradlew test :app:lint :app:detekt; then
+		status=0
+	else
+		status=$?
+	fi
+
+	printf '%s\n' "$status" > "$static_status_file.tmp"
+	mv "$static_status_file.tmp" "$static_status_file"
+	return "$status"
+}
 
 start_static_gate() {
-	rm -f "$static_log" "$static_pid_file" "$static_status_file"
+	rm -f "$static_log" "$static_pid_file" "$static_status_file" "$static_status_file.tmp"
 
-	nohup bash -c '
-		set +e
-		./gradlew test :app:lint :app:detekt
-		status=$?
-		printf "%s\n" "$status" > "$1.tmp"
-		mv "$1.tmp" "$1"
-		exit "$status"
-	' _ "$static_status_file" > "$static_log" 2>&1 &
+	nohup bash "$0" run-static > "$static_log" 2>&1 &
 
 	printf '%s\n' "$!" > "$static_pid_file"
 	echo "Static gate started as PID $(cat "$static_pid_file")."
@@ -55,7 +62,7 @@ run_instrumentation() {
 		return
 	fi
 
-	find app/build/outputs/androidTest-results/connected -type f -name '*.xml' -print0 | xargs -0 -r cat
+	find app/build/outputs/androidTest-results/connected -type f -name '*.xml' -exec cat {} +
 	return 1
 }
 
@@ -63,12 +70,15 @@ case "${1:-}" in
 	start)
 		start_static_gate
 		;;
+	run-static)
+		run_static_gate
+		;;
 	instrumentation)
 		wait_for_static_gate
 		run_instrumentation
 		;;
 	*)
-		echo "Usage: $0 {start|instrumentation}" >&2
+		echo "Usage: $0 {start|run-static|instrumentation}" >&2
 		exit 2
 		;;
 esac
