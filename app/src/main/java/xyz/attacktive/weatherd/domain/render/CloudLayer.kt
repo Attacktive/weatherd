@@ -79,6 +79,7 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 
 		val period = geometry.width * geometry.viewports
 		val wrappedOffset = positiveModulo(geometry.offset, period)
+
 		transform.setScale(period / source.width, geometry.height / source.height)
 		transform.postTranslate(wrappedOffset, geometry.top)
 		shader.setLocalMatrix(transform)
@@ -104,6 +105,7 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 		}
 
 		val placements = if (kind == CumulusKind.FAR) farPlacementsFor() else nearPlacementsFor(kind)
+
 		opacitySampler.configure(
 			width = width,
 			height = height,
@@ -241,6 +243,7 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 			val pixelX = (u * (sprite.width - 1)).roundToInt().coerceIn(0, sprite.width - 1)
 			val pixelY = (v * (sprite.height - 1)).roundToInt().coerceIn(0, sprite.height - 1)
 			val sourceAlpha = Color.alpha(sprite[pixelX, pixelY]) / 255f
+
 			return sourceAlpha * (spriteAlpha / 255f)
 		}
 	}
@@ -334,6 +337,7 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 		}
 
 		val shadowAmount = (shadow.opacityAt(x, y) * shadow.strength).coerceIn(0f, 1f)
+
 		return darken(tint, 1f - shadowAmount)
 	}
 
@@ -398,6 +402,7 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 		)
 
 		cachedNearEpochDay = epochDay
+
 		return cachedNearPlacements
 	}
 
@@ -417,6 +422,7 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 			}
 
 		cachedFarEpochDay = epochDay
+
 		return cachedFarPlacements
 	}
 
@@ -629,7 +635,8 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 			return listOf(
 				decode(resources, R.drawable.cloud_cumulus_far_veil_broad),
 				decode(resources, R.drawable.cloud_cumulus_far_veil_layered)
-			).also {
+			)
+			.also {
 				sharedFarBitmaps = it
 			}
 		}
@@ -654,6 +661,7 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 
 		private fun positiveModulo(value: Float, modulo: Float): Float {
 			val result = value % modulo
+
 			return if (result < 0f) {
 				result + modulo
 			} else {

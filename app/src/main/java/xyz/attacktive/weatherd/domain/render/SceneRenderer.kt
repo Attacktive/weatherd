@@ -3256,6 +3256,7 @@ private fun sunVisibility(dayPhase: DayPhase, progress: Float): Float {
 
 	val fade = unlerp(SUNSET_FADE_START, 1f, progress)
 	val eased = fade * fade
+
 	return 1f - eased
 }
 
