@@ -81,7 +81,7 @@
 	<string name="section_sky_saturation">Saturation du ciel · %1$d%%</string>
 	<string name="sky_saturation_muted">Atténuée</string>
 	<string name="sky_saturation_vivid">Vive</string>
-	<string name="hint_sky_appearance">La palette modifie le ciel peint. La luminosité et la saturation sont appliquées avant les effets météo, donc les ciels couverts et les orages continuent de griser et d'assombrir la scène.</string>
+	<string name="hint_sky_appearance">La palette modifie le ciel peint. La luminosité et la saturation sont appliquées avant les effets météo, donc les ciels couverts et les orages continuent de griser et d\'assombrir la scène.</string>
 	<string name="section_cloud_size">Taille des nuages · %1$d%%</string>
 	<string name="cloud_size_small">Plus petits</string>
 	<string name="cloud_size_large">Plus grands</string>

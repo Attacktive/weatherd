@@ -92,7 +92,7 @@
 	<string name="section_cloud_contrast">Contrasto delle nuvole · %1$d%%</string>
 	<string name="cloud_contrast_softer">Più morbido</string>
 	<string name="cloud_contrast_stronger">Più marcato</string>
-	<string name="hint_cloud_contrast">Modifica la separazione tra luci e ombre nelle nuvole senza cambiarne l'opacità.</string>
+	<string name="hint_cloud_contrast">Modifica la separazione tra luci e ombre nelle nuvole senza cambiarne l\'opacità.</string>
 	<string name="intensity_subtle">Lieve</string>
 	<string name="intensity_intense">Intenso</string>
 	<string name="hint_intensity">Regola l\'intensità delle precipitazioni, la forza del vento e la visibilità delle nuvole rispetto al meteo osservato.</string>
