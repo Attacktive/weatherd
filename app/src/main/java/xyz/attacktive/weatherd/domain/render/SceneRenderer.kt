@@ -3038,7 +3038,7 @@ class SceneRenderer(resources: Resources) {
 		private const val SUN_LENS_HALO_SPRITE_ALPHA = 52
 		private const val SUN_LENS_HALO_MIDDLE_ALPHA_SCALE = 0.62f
 		private const val SUN_LENS_HALO_OUTER_ALPHA_SCALE = 0.22f
-		private const val SUN_LENS_HALO_MIDDLE_STOP = 0.38f
+		private const val SUN_LENS_HALO_MIDDLE_STOP = 0.48f
 		private const val SUN_LENS_HALO_OUTER_STOP = 0.72f
 
 		/** Fraction of a soft-dot sprite's radius that is solid color before the fade to transparent begins. */
