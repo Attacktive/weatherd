@@ -539,7 +539,7 @@ class SunRenderingTest {
 		const val LENS_HALO_MIDDLE_END = 0.70f
 		const val LENS_HALO_OUTER_END = 0.92f
 		const val LENS_GHOST_TEST_DISTANCE = 0.76f
-		const val LENS_GHOST_TEST_SCALE = 0.34f
+		const val LENS_GHOST_TEST_SCALE = 0.72f
 		const val LENS_GHOST_EDGE_SAMPLE_FRACTION = 0.8f
 		const val OPAQUE_ALPHA_THRESHOLD = 245
 		const val MIN_SHOULDER_WARMTH_DELTA = 6
