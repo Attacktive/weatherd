@@ -1623,7 +1623,7 @@ class SceneRenderer(resources: Resources) {
 
 	/** One broad support bank replaces several detached puffs near the partly-cloudy end of the clear-sky range without enabling the overcast ceiling. */
 	private fun drawPartlyCloudBank(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float, coverage: Float) {
-		if (!supportOvercastBankDelegate.isInitialized()) {
+		if (!heroOvercastBankDelegate.isInitialized()) {
 			return
 		}
 
@@ -1640,7 +1640,7 @@ class SceneRenderer(resources: Resources) {
 		val tint = lerpColor(cumulusTint(params.dayPhase), skyGradientFor(params).topColor, PARTLY_BANK_HAZE)
 		val alpha = (255f * PARTLY_BANK_ALPHA * weight * params.cloudScale).roundToInt().coerceIn(0, 255)
 
-		supportOvercastBank.draw(
+		heroOvercastBank.draw(
 			canvas,
 			cloudDrawGeometry.configure(width, bankHeight, offset, height * PARTLY_BANK_TOP, PARTLY_BANK_VIEWPORTS),
 			tint,
@@ -2858,14 +2858,14 @@ class SceneRenderer(resources: Resources) {
 		private const val CUMULUS_PARTLY_INDEX = 2
 		private const val CUMULUS_BROKEN_BLEND_START = 0.90f
 
-		private const val PARTLY_BANK_START_COVERAGE = 0.72f
-		private const val PARTLY_BANK_FULL_COVERAGE = 0.90f
-		private const val PARTLY_BANK_VIEWPORTS = 1.65f
-		private const val PARTLY_BANK_HEIGHT_SCALE = 0.82f
-		private const val PARTLY_BANK_TOP = 0.30f
-		private const val PARTLY_BANK_PHASE = 0.42f
-		private const val PARTLY_BANK_HAZE = 0.20f
-		private const val PARTLY_BANK_ALPHA = 0.50f
+		private const val PARTLY_BANK_START_COVERAGE = 0.70f
+		private const val PARTLY_BANK_FULL_COVERAGE = 0.95f
+		private const val PARTLY_BANK_VIEWPORTS = 1.72f
+		private const val PARTLY_BANK_HEIGHT_SCALE = 0.78f
+		private const val PARTLY_BANK_TOP = 0.31f
+		private const val PARTLY_BANK_PHASE = 0.34f
+		private const val PARTLY_BANK_HAZE = 0.28f
+		private const val PARTLY_BANK_ALPHA = 0.36f
 
 		private const val DENSE_FOG_CLOUD_CUTOFF = 0.8f
 		private const val OVERCAST_SOURCE_ASPECT = 3f

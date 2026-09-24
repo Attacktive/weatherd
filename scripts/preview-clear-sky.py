@@ -64,15 +64,15 @@ NEAR_SPRITES = (
 	'cloud_cumulus_hero_soft_broad_alt.webp',
 )
 FAR_SPRITES = ('cloud_cumulus_far_veil_broad.png', 'cloud_cumulus_far_veil_layered.png')
-PARTLY_BANK_SPRITE = 'cloud_overcast_support.webp'
-PARTLY_BANK_START_COVERAGE = 0.72
-PARTLY_BANK_FULL_COVERAGE = 0.90
-PARTLY_BANK_VIEWPORTS = 1.65
-PARTLY_BANK_HEIGHT_SCALE = 0.82
-PARTLY_BANK_TOP = 0.30
-PARTLY_BANK_PHASE = 0.42
-PARTLY_BANK_HAZE = 0.20
-PARTLY_BANK_ALPHA = 0.50
+PARTLY_BANK_SPRITE = 'cloud_overcast_hero.webp'
+PARTLY_BANK_START_COVERAGE = 0.70
+PARTLY_BANK_FULL_COVERAGE = 0.95
+PARTLY_BANK_VIEWPORTS = 1.72
+PARTLY_BANK_HEIGHT_SCALE = 0.78
+PARTLY_BANK_TOP = 0.31
+PARTLY_BANK_PHASE = 0.34
+PARTLY_BANK_HAZE = 0.28
+PARTLY_BANK_ALPHA = 0.36
 BROKEN_BLEND_START = 0.90
 
 # The preview intentionally pins representative near-variant choices instead of reproducing daily runtime randomness.
