@@ -2,6 +2,8 @@ package xyz.attacktive.weatherd.domain.render
 
 import kotlin.math.roundToInt
 import xyz.attacktive.weatherd.domain.model.DayPhase
+import xyz.attacktive.weatherd.domain.model.SKY_BRIGHTNESS_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.SKY_SATURATION_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_STEADY
@@ -14,7 +16,7 @@ data class SkyGradient(val topColor: Int, val bottomColor: Int)
  * Pure ARGB maths so it unit-tests without Android.
  */
 fun skyGradientFor(params: SceneParams): SkyGradient {
-	val base = basePhaseGradient(params.dayPhase)
+	val base = tuneSkyGradient(basePhaseGradient(params.dayPhase), params.skyBrightnessScale, params.skySaturationScale)
 	val gray = if (params.precipitation?.kind == PrecipitationKind.SNOW) {
 		snowGray(params.dayPhase)
 	} else {
@@ -102,6 +104,29 @@ private fun atmosphereAmount(params: SceneParams, plane: SceneryPlane): Float {
 	)
 
 	return lerp((base + depth).coerceAtMost(1f), 1f, weather)
+}
+
+private fun tuneSkyGradient(gradient: SkyGradient, brightnessScale: Float, saturationScale: Float): SkyGradient {
+	val brightness = brightnessScale.coerceIn(SKY_BRIGHTNESS_SCALE_RANGE.start, SKY_BRIGHTNESS_SCALE_RANGE.endInclusive)
+	val saturation = saturationScale.coerceIn(SKY_SATURATION_SCALE_RANGE.start, SKY_SATURATION_SCALE_RANGE.endInclusive)
+
+	return SkyGradient(
+		tuneSkyColor(gradient.topColor, brightness, saturation),
+		tuneSkyColor(gradient.bottomColor, brightness, saturation)
+	)
+}
+
+private fun tuneSkyColor(color: Int, brightness: Float, saturation: Float): Int {
+	val red = color ushr 16 and 0xFF
+	val green = color ushr 8 and 0xFF
+	val blue = color and 0xFF
+	val luminance = red * 0.2126f + green * 0.7152f + blue * 0.0722f
+
+	return rgb(
+		((luminance + (red - luminance) * saturation) * brightness).roundToInt().coerceIn(0, 255),
+		((luminance + (green - luminance) * saturation) * brightness).roundToInt().coerceIn(0, 255),
+		((luminance + (blue - luminance) * saturation) * brightness).roundToInt().coerceIn(0, 255)
+	)
 }
 
 private fun basePhaseGradient(dayPhase: DayPhase) = when (dayPhase) {

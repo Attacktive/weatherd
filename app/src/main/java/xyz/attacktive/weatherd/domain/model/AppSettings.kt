@@ -18,6 +18,9 @@ data class AppSettings(
 	val cloudIntensityScale: Float = 1f,
 	val cloudSizeScale: Float = 1f,
 	val cloudCountScale: Float = 1f,
+	val skyBrightnessScale: Float = 1f,
+	val skySaturationScale: Float = 1f,
+	val cloudContrastScale: Float = 1f,
 	val sunVisible: Boolean = true,
 	val moonVisible: Boolean = true,
 	val sunSizeScale: Float = 1f,
@@ -42,3 +45,8 @@ val INTENSITY_SCALE_RANGE = 0.1f..2f
 /** Bounds for fair-weather cloud body size and rendered cloud coverage. */
 val CLOUD_SIZE_SCALE_RANGE = 0.5f..2f
 val CLOUD_COUNT_SCALE_RANGE = 0.5f..2f
+
+/** Bounds for user-adjusted sky color and cloud shading controls. */
+val SKY_BRIGHTNESS_SCALE_RANGE = 0.6f..1.4f
+val SKY_SATURATION_SCALE_RANGE = 0.5f..1.5f
+val CLOUD_CONTRAST_SCALE_RANGE = 0.5f..1.5f

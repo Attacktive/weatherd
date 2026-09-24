@@ -9,7 +9,7 @@ import android.graphics.BitmapFactory
 import android.graphics.BitmapShader
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.LightingColorFilter
+import android.graphics.ColorMatrixColorFilter
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.RectF
@@ -18,6 +18,7 @@ import androidx.annotation.DrawableRes
 import androidx.core.graphics.get
 import androidx.core.graphics.withScale
 import xyz.attacktive.weatherd.R
+import xyz.attacktive.weatherd.domain.model.CLOUD_CONTRAST_SCALE_RANGE
 
 /** How many viewport widths a texture covers before repeating, unless a deck asks for its own span. */
 internal const val CLOUD_TEXTURE_VIEWPORTS = 4f
@@ -53,6 +54,7 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 	private val opacitySampler = OpacitySampler()
 
 	private var previousMultiply = Color.WHITE
+	private var previousContrast = 1f
 	private var cachedNearEpochDay = Long.MIN_VALUE
 	private var cachedFarEpochDay = Long.MIN_VALUE
 	private var cachedNearPlacements: List<CumulusPlacement> = emptyList()
@@ -63,14 +65,14 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 	private var cachedOpacityStyleSizeScale = Float.NaN
 	private var cachedOpacityStyle: CumulusStyle? = null
 
-	fun draw(canvas: Canvas, geometry: CloudDrawGeometry, tint: Int, alpha: Int, shadow: CumulusShadow? = null) {
+	fun draw(canvas: Canvas, geometry: CloudDrawGeometry, tint: Int, alpha: Int, shadow: CumulusShadow? = null, contrast: Float = 1f) {
 		if (geometry.width <= 0f || geometry.height <= 0f || alpha <= 0) {
 			return
 		}
 
 		val kind = cumulusKind
 		if (kind != null) {
-			drawCumulus(canvas, geometry, tint, alpha, kind, shadow)
+			drawCumulus(canvas, geometry, tint, alpha, kind, shadow, contrast)
 			return
 		}
 
@@ -83,7 +85,7 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 		transform.postTranslate(wrappedOffset, geometry.top)
 		shader.setLocalMatrix(transform)
 		paint.shader = shader
-		updateColorFilter(tint)
+		updateColorFilter(tint, contrast)
 		paint.alpha = alpha.coerceIn(0, 255)
 		canvas.drawRect(0f, geometry.top, geometry.width, geometry.top + geometry.height, paint)
 	}
@@ -245,7 +247,7 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 		}
 	}
 
-	private fun drawCumulus(canvas: Canvas, geometry: CloudDrawGeometry, tint: Int, alpha: Int, kind: CumulusKind, shadow: CumulusShadow?) {
+	private fun drawCumulus(canvas: Canvas, geometry: CloudDrawGeometry, tint: Int, alpha: Int, kind: CumulusKind, shadow: CumulusShadow?, contrast: Float) {
 		val style = cumulusStyle(kind, tint, geometry.width, geometry.height, geometry.sizeScale)
 		paint.shader = null
 
@@ -265,14 +267,14 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 
 		for (placement in placements) {
 			if (kind == CumulusKind.FAR) {
-				drawFarPlacement(canvas, geometry, style, placement, compositionAlpha, wrappedOffset, period, shadow)
+				drawFarPlacement(canvas, geometry, style, placement, compositionAlpha, wrappedOffset, period, shadow, contrast)
 			} else {
-				drawHeroPlacement(canvas, geometry, style, placement, compositionAlpha, wrappedOffset, period)
+				drawHeroPlacement(canvas, geometry, style, placement, compositionAlpha, wrappedOffset, period, contrast)
 			}
 		}
 	}
 
-	private fun drawFarPlacement(canvas: Canvas, geometry: CloudDrawGeometry, style: CumulusStyle, placement: CumulusPlacement, compositionAlpha: Int, wrappedOffset: Float, period: Float, shadow: CumulusShadow?) {
+	private fun drawFarPlacement(canvas: Canvas, geometry: CloudDrawGeometry, style: CumulusStyle, placement: CumulusPlacement, compositionAlpha: Int, wrappedOffset: Float, period: Float, shadow: CumulusShadow?, contrast: Float) {
 		val sprite = cumulusBitmaps[placement.spriteIndex % cumulusBitmaps.size]
 		val spriteHeight = style.baseHeight * placement.scale * style.scale.height
 		val spriteWidth = spriteHeight * sprite.width.toFloat() / sprite.height.toFloat() * style.scale.width
@@ -290,19 +292,19 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 				continue
 			}
 
-			updateColorFilter(cumulusTint(style.tint, CumulusKind.FAR, shadow, wrappedX, centerY))
+			updateColorFilter(cumulusTint(style.tint, CumulusKind.FAR, shadow, wrappedX, centerY), contrast)
 			spriteDest.set(wrappedX - spriteWidth * 0.5f, centerY - spriteHeight * 0.5f, wrappedX + spriteWidth * 0.5f, centerY + spriteHeight * 0.5f)
 			drawSprite(canvas, sprite, placement, wrappedX, centerY)
 		}
 	}
 
-	private fun drawHeroPlacement(canvas: Canvas, geometry: CloudDrawGeometry, style: CumulusStyle, placement: CumulusPlacement, compositionAlpha: Int, wrappedOffset: Float, period: Float) {
+	private fun drawHeroPlacement(canvas: Canvas, geometry: CloudDrawGeometry, style: CumulusStyle, placement: CumulusPlacement, compositionAlpha: Int, wrappedOffset: Float, period: Float, contrast: Float) {
 		val variant = HERO_VARIANTS[placement.spriteIndex % HERO_VARIANTS.size]
 		val baseCenterX = positiveModulo(wrappedOffset + period * placement.xFraction, period)
 		val baseCenterY = geometry.top - style.topOffset + geometry.height * placement.yFraction
 		val mirrorDirection = if (placement.mirror) { -1f } else { 1f }
 
-		updateColorFilter(style.tint)
+		updateColorFilter(style.tint, contrast)
 
 		for (part in variant.parts) {
 			val sprite = cumulusBitmaps[part.spriteIndex]
@@ -444,16 +446,32 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 		}
 	}
 
-	private fun updateColorFilter(multiplyColor: Int) {
-		if (multiplyColor != previousMultiply) {
-			paint.colorFilter = if (multiplyColor == Color.WHITE) {
-				null
-			} else {
-				LightingColorFilter(multiplyColor, Color.BLACK)
-			}
-
-			previousMultiply = multiplyColor
+	private fun updateColorFilter(multiplyColor: Int, contrast: Float) {
+		val clampedContrast = contrast.coerceIn(CLOUD_CONTRAST_SCALE_RANGE.start, CLOUD_CONTRAST_SCALE_RANGE.endInclusive)
+		if (multiplyColor == previousMultiply && clampedContrast == previousContrast) {
+			return
 		}
+
+		paint.colorFilter = if (multiplyColor == Color.WHITE && clampedContrast == 1f) {
+			null
+		} else {
+			val redScale = Color.red(multiplyColor) / 255f
+			val greenScale = Color.green(multiplyColor) / 255f
+			val blueScale = Color.blue(multiplyColor) / 255f
+			val offset = 128f * (1f - clampedContrast)
+
+			ColorMatrixColorFilter(
+				floatArrayOf(
+					clampedContrast * redScale, 0f, 0f, 0f, offset * redScale,
+					0f, clampedContrast * greenScale, 0f, 0f, offset * greenScale,
+					0f, 0f, clampedContrast * blueScale, 0f, offset * blueScale,
+					0f, 0f, 0f, 1f, 0f
+				)
+			)
+		}
+
+		previousMultiply = multiplyColor
+		previousContrast = clampedContrast
 	}
 
 	private enum class CumulusKind {
