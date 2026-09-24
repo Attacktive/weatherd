@@ -88,8 +88,11 @@ import xyz.attacktive.weatherd.BuildConfig
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
+import xyz.attacktive.weatherd.domain.model.CLOUD_CONTRAST_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_COUNT_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_SIZE_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.SKY_BRIGHTNESS_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.SKY_SATURATION_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
 import xyz.attacktive.weatherd.domain.model.GeoPlace
 import xyz.attacktive.weatherd.domain.model.INTENSITY_SCALE_RANGE
@@ -171,6 +174,10 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 
 				SettingsTab.APPEARANCE -> SettingsTabContent(appearanceScrollState) {
 					IntensitySection(settings = settings, onSave = viewModel::save)
+
+					Spacer(modifier = Modifier.height(24.dp))
+
+					SkyAppearanceSection(settings = settings, onSave = viewModel::save)
 
 					Spacer(modifier = Modifier.height(24.dp))
 
@@ -381,6 +388,29 @@ private fun IntensitySection(settings: AppSettings, onSave: (AppSettings) -> Uni
 }
 
 @Composable
+private fun SkyAppearanceSection(settings: AppSettings, onSave: (AppSettings) -> Unit) {
+	PercentageSlider(
+		label = R.string.section_sky_brightness,
+		value = settings.skyBrightnessScale,
+		valueRange = SKY_BRIGHTNESS_SCALE_RANGE,
+		lowLabel = R.string.sky_brightness_dim,
+		highLabel = R.string.sky_brightness_bright,
+		onCommit = { onSave(settings.copy(skyBrightnessScale = it)) }
+	)
+
+	PercentageSlider(
+		label = R.string.section_sky_saturation,
+		value = settings.skySaturationScale,
+		valueRange = SKY_SATURATION_SCALE_RANGE,
+		lowLabel = R.string.sky_saturation_muted,
+		highLabel = R.string.sky_saturation_vivid,
+		onCommit = { onSave(settings.copy(skySaturationScale = it)) }
+	)
+
+	HintText(stringResource(R.string.hint_sky_appearance))
+}
+
+@Composable
 private fun CloudAppearanceSection(settings: AppSettings, onSave: (AppSettings) -> Unit) {
 	PercentageSlider(
 		label = R.string.section_cloud_size,
@@ -398,6 +428,15 @@ private fun CloudAppearanceSection(settings: AppSettings, onSave: (AppSettings) 
 		lowLabel = R.string.cloud_count_fewer,
 		highLabel = R.string.cloud_count_more,
 		onCommit = { onSave(settings.copy(cloudCountScale = it)) }
+	)
+
+	PercentageSlider(
+		label = R.string.section_cloud_contrast,
+		value = settings.cloudContrastScale,
+		valueRange = CLOUD_CONTRAST_SCALE_RANGE,
+		lowLabel = R.string.cloud_contrast_soft,
+		highLabel = R.string.cloud_contrast_dramatic,
+		onCommit = { onSave(settings.copy(cloudContrastScale = it)) }
 	)
 
 	HintText(stringResource(R.string.hint_cloud_composition))
