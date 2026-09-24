@@ -11,6 +11,7 @@ import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
+import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
 import xyz.attacktive.weatherd.domain.render.OverlayLabels
@@ -180,6 +181,26 @@ class SceneParamsTest {
 	}
 
 	@Test
+	fun `sky and cloud appearance preferences ride through without changing weather`() {
+		val snapshot = snapshot(weatherCode = 2, precipitationMillimeters = 0.0, windSpeedKilometersPerHour = 12.0, cloudCoverPercent = 40)
+
+		val params = sceneParamsFor(
+			snapshot,
+			NOW,
+			cloudContrastScale = 1.4f,
+			skyBrightnessScale = 0.8f,
+			skySaturationScale = 1.2f,
+			skyColorPreset = SkyColorPreset.CYBERPUNK
+		)
+
+		assertEquals(0.4f, params.cloudiness, 0.0001f)
+		assertEquals(1.4f, params.cloudContrastScale, 0.0001f)
+		assertEquals(0.8f, params.skyBrightnessScale, 0.0001f)
+		assertEquals(1.2f, params.skySaturationScale, 0.0001f)
+		assertEquals(SkyColorPreset.CYBERPUNK, params.skyColorPreset)
+	}
+
+	@Test
 	fun `the scales leave a dry calm snapshot alone`() {
 		val snapshot = snapshot(weatherCode = 2, precipitationMillimeters = 0.0, windSpeedKilometersPerHour = 0.0, cloudCoverPercent = 40)
 
@@ -219,6 +240,7 @@ class SceneParamsTest {
 				moonPhase = params.moonPhase,
 				celestialProgress = params.celestialProgress,
 				overlayLabels = params.overlayLabels,
+				cloudContrastScale = params.cloudContrastScale,
 			)
 		)
 	}
@@ -288,6 +310,9 @@ class SceneParamsTest {
 			"precipitationScale" to params.copy(precipitationScale = 2f),
 			"windScale" to params.copy(windScale = 2f),
 			"cloudScale" to params.copy(cloudScale = 2f),
+			"skyBrightnessScale" to params.copy(skyBrightnessScale = 0.8f),
+			"skySaturationScale" to params.copy(skySaturationScale = 1.2f),
+			"skyColorPreset" to params.copy(skyColorPreset = SkyColorPreset.WARM),
 			"backdropScene" to params.copy(backdropScene = BackdropScene.NONE),
 			"photoRevision" to params.copy(photoRevision = params.photoRevision + 1),
 		)
@@ -308,6 +333,10 @@ class SceneParamsTest {
 		precipitationScale = 1.5f,
 		windScale = 0.5f,
 		cloudScale = 0.7f,
+		cloudContrastScale = 1.3f,
+		skyBrightnessScale = 0.8f,
+		skySaturationScale = 1.2f,
+		skyColorPreset = SkyColorPreset.PASTEL,
 		moonPhase = 0.17f,
 		celestialProgress = 0.62f,
 		backdropScene = BackdropScene.PHOTO,

@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import xyz.attacktive.weatherd.domain.model.DayPhase
+import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 
 class SceneDebugPresetsTest {
@@ -19,6 +20,10 @@ class SceneDebugPresetsTest {
 			assertEquals(1f, params.cloudScale, 0.0001f)
 			assertEquals(1f, params.cloudSizeScale, 0.0001f)
 			assertEquals(1f, params.cloudCountScale, 0.0001f)
+			assertEquals(1f, params.cloudContrastScale, 0.0001f)
+			assertEquals(1f, params.skyBrightnessScale, 0.0001f)
+			assertEquals(1f, params.skySaturationScale, 0.0001f)
+			assertEquals(SkyColorPreset.NATURAL, params.skyColorPreset)
 			assertTrue(params.sunVisible)
 			assertTrue(params.moonVisible)
 			assertEquals(1f, params.sunSizeScale, 0.0001f)
@@ -62,6 +67,24 @@ class SceneDebugPresetsTest {
 		assertEquals(preset.cloudiness, params.cloudiness, 0.0001f)
 		assertEquals(1.8f, params.cloudSizeScale, 0.0001f)
 		assertEquals(0.6f, params.cloudCountScale, 0.0001f)
+	}
+
+	@Test
+	fun `sky and cloud appearance preferences reach debug scene params`() {
+		val preset = SCENE_PRESETS.first { it.name == "PARTLY CLOUDY" }
+		val params = debugSceneParams(
+			preset,
+			DayPhase.DAY,
+			cloudContrastScale = 1.4f,
+			skyBrightnessScale = 0.8f,
+			skySaturationScale = 1.2f,
+			skyColorPreset = SkyColorPreset.CYBERPUNK
+		)
+
+		assertEquals(1.4f, params.cloudContrastScale, 0.0001f)
+		assertEquals(0.8f, params.skyBrightnessScale, 0.0001f)
+		assertEquals(1.2f, params.skySaturationScale, 0.0001f)
+		assertEquals(SkyColorPreset.CYBERPUNK, params.skyColorPreset)
 	}
 
 	@Test

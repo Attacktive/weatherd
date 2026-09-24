@@ -8,6 +8,7 @@ import org.junit.Test
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
+import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_STORM
 
 class ScenePaletteTest {
@@ -94,6 +95,34 @@ class ScenePaletteTest {
 	}
 
 	@Test
+	fun `natural default preserves the established day gradient`() {
+		val gradient = skyGradientFor(clearParams(DayPhase.DAY))
+
+		assertEquals(0xFF4A90D9.toInt(), gradient.topColor)
+		assertEquals(0xFFA9D6F5.toInt(), gradient.bottomColor)
+	}
+
+	@Test
+	fun `sky brightness and saturation tune the clear palette`() {
+		val natural = skyGradientFor(clearParams(DayPhase.DAY))
+		val dim = skyGradientFor(clearParams(DayPhase.DAY).copy(skyBrightnessScale = 0.7f))
+		val muted = skyGradientFor(clearParams(DayPhase.DAY).copy(skySaturationScale = 0.5f))
+
+		assertTrue("lower brightness must darken the top color", channelSum(dim.topColor) < channelSum(natural.topColor))
+		assertTrue("lower saturation must narrow channel separation", channelSpread(muted.topColor) < channelSpread(natural.topColor))
+	}
+
+	@Test
+	fun `sky presets stay phase aware and weather can still gray them out`() {
+		val natural = skyGradientFor(clearParams(DayPhase.DUSK))
+		val cyberpunk = skyGradientFor(clearParams(DayPhase.DUSK).copy(skyColorPreset = SkyColorPreset.CYBERPUNK))
+		val overcast = skyGradientFor(clearParams(DayPhase.DUSK).copy(skyColorPreset = SkyColorPreset.CYBERPUNK, cloudiness = 0.85f))
+
+		assertNotEquals(natural, cyberpunk)
+		assertEquals("full overcast must still flatten a stylized sky to weather gray", overcast.topColor, overcast.bottomColor)
+	}
+
+	@Test
 	fun `a scattered sky keeps the clear day blue`() {
 		val clear = skyGradientFor(clearParams(DayPhase.DAY))
 		val scattered = skyGradientFor(clearParams(DayPhase.DAY).copy(cloudiness = 0.5f))
@@ -152,6 +181,13 @@ class ScenePaletteTest {
 	private fun green(color: Int) = color ushr 8 and 0xFF
 
 	private fun blue(color: Int) = color and 0xFF
+
+	private fun channelSum(color: Int) = red(color) + green(color) + blue(color)
+
+	private fun channelSpread(color: Int): Int {
+		val channels = listOf(red(color), green(color), blue(color))
+		return channels.max() - channels.min()
+	}
 
 	private fun channelDistance(a: Int, b: Int) = abs(red(a) - red(b)) + abs(green(a) - green(b)) + abs(blue(a) - blue(b))
 }

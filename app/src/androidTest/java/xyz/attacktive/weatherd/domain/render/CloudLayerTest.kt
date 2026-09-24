@@ -84,6 +84,29 @@ class CloudLayerTest {
 	}
 
 	@Test
+	fun contrastChangesCloudRgbWithoutChangingItsAlphaMask() {
+		val layer = CloudLayer(resources, R.drawable.cloud_cumulus_sparse)
+		val soft = render(layer, contrast = 0.5f)
+		val strong = render(layer, contrast = 1.5f)
+		val before = IntArray(soft.width * soft.height)
+		val after = IntArray(strong.width * strong.height)
+		soft.getPixels(before, 0, soft.width, 0, 0, soft.width, soft.height)
+		strong.getPixels(after, 0, strong.width, 0, 0, strong.width, strong.height)
+		var changedCloudPixels = 0
+		for (index in before.indices) {
+			assertEquals("Cloud contrast must preserve alpha exactly", Color.alpha(before[index]), Color.alpha(after[index]))
+			if (Color.alpha(before[index]) > 0 && before[index] != after[index]) {
+				changedCloudPixels++
+			}
+		}
+
+		assertTrue("Cloud contrast must change visible cloud shading", changedCloudPixels > 0)
+		assertTrue("Higher contrast must widen the visible RGB range", luminanceSpread(strong) > luminanceSpread(soft))
+		soft.recycle()
+		strong.recycle()
+	}
+
+	@Test
 	fun aDeckWrapsOnItsOwnRepeatSpan() {
 		val layer = CloudLayer(resources, R.drawable.cloud_cumulus_far)
 		val before = render(layer, offset = -17.25f, viewports = 2f)
@@ -281,6 +304,30 @@ class CloudLayerTest {
 	private fun name(@DrawableRes texture: Int) = resources.getResourceEntryName(texture)
 
 	/** Mean absolute difference between horizontally adjacent pixels: higher means the deck is resolving smaller features. */
+	private fun luminanceSpread(bitmap: Bitmap): Int {
+		val pixels = IntArray(bitmap.width * bitmap.height)
+		bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+		var minimum = 255
+		var maximum = 0
+		var found = false
+		for (pixel in pixels) {
+			if (Color.alpha(pixel) < 64) {
+				continue
+			}
+
+			val luminance = (Color.red(pixel) * 2126 + Color.green(pixel) * 7152 + Color.blue(pixel) * 722) / 10_000
+			minimum = minOf(minimum, luminance)
+			maximum = maxOf(maximum, luminance)
+			found = true
+		}
+
+		return if (found) {
+			maximum - minimum
+		} else {
+			0
+		}
+	}
+
 	private fun horizontalDetail(bitmap: Bitmap): Double {
 		val pixels = IntArray(bitmap.width * bitmap.height)
 		bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
@@ -304,11 +351,12 @@ class CloudLayerTest {
 		alpha: Int = 255,
 		viewports: Float = CLOUD_TEXTURE_VIEWPORTS,
 		shadow: CloudLayer.CumulusShadow? = null,
-		sizeScale: Float = 1f
+		sizeScale: Float = 1f,
+		contrast: Float = 1f
 	): Bitmap {
 		val bitmap = createBitmap(540, 320)
 		val geometry = CloudDrawGeometry().configure(bitmap.width.toFloat(), bitmap.height.toFloat(), offset, viewports = viewports, sizeScale = sizeScale)
-		layer.draw(Canvas(bitmap), geometry, tint, alpha, shadow)
+		layer.draw(Canvas(bitmap), geometry, tint, alpha, shadow, contrast)
 
 		return bitmap
 	}

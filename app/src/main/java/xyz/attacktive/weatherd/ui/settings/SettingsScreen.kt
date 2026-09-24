@@ -88,13 +88,17 @@ import xyz.attacktive.weatherd.BuildConfig
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
+import xyz.attacktive.weatherd.domain.model.CLOUD_CONTRAST_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_COUNT_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
 import xyz.attacktive.weatherd.domain.model.GeoPlace
 import xyz.attacktive.weatherd.domain.model.INTENSITY_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.SKY_BRIGHTNESS_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.SKY_SATURATION_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.PhotoBucket
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
@@ -171,6 +175,10 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 
 				SettingsTab.APPEARANCE -> SettingsTabContent(appearanceScrollState) {
 					IntensitySection(settings = settings, onSave = viewModel::save)
+
+					Spacer(modifier = Modifier.height(24.dp))
+
+					SkyAppearanceSection(settings = settings, onSave = viewModel::save)
 
 					Spacer(modifier = Modifier.height(24.dp))
 
@@ -381,6 +389,70 @@ private fun IntensitySection(settings: AppSettings, onSave: (AppSettings) -> Uni
 }
 
 @Composable
+private fun SkyAppearanceSection(settings: AppSettings, onSave: (AppSettings) -> Unit) {
+	SkyColorPicker(settings = settings, onSave = onSave)
+
+	Spacer(modifier = Modifier.height(12.dp))
+
+	PercentageSlider(
+		label = R.string.section_sky_brightness,
+		value = settings.skyBrightnessScale,
+		valueRange = SKY_BRIGHTNESS_SCALE_RANGE,
+		lowLabel = R.string.sky_brightness_darker,
+		highLabel = R.string.sky_brightness_brighter,
+		onCommit = { onSave(settings.copy(skyBrightnessScale = it)) }
+	)
+
+	Spacer(modifier = Modifier.height(12.dp))
+
+	PercentageSlider(
+		label = R.string.section_sky_saturation,
+		value = settings.skySaturationScale,
+		valueRange = SKY_SATURATION_SCALE_RANGE,
+		lowLabel = R.string.sky_saturation_muted,
+		highLabel = R.string.sky_saturation_vivid,
+		onCommit = { onSave(settings.copy(skySaturationScale = it)) }
+	)
+
+	HintText(stringResource(R.string.hint_sky_appearance))
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SkyColorPicker(settings: AppSettings, onSave: (AppSettings) -> Unit) {
+	var expanded by remember { mutableStateOf(false) }
+
+	SectionLabel(stringResource(R.string.section_sky_palette))
+
+	ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+		OutlinedTextField(
+			value = formatSkyColor(settings.skyColorPreset),
+			onValueChange = {},
+			readOnly = true,
+			trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+			modifier = Modifier
+				.fillMaxWidth()
+				.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+		)
+
+		ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+			SkyColorPreset.entries.forEach { preset ->
+				DropdownMenuItem(
+					text = { Text(formatSkyColor(preset)) },
+					onClick = {
+						if (preset != settings.skyColorPreset) {
+							onSave(settings.copy(skyColorPreset = preset))
+						}
+
+						expanded = false
+					}
+				)
+			}
+		}
+	}
+}
+
+@Composable
 private fun CloudAppearanceSection(settings: AppSettings, onSave: (AppSettings) -> Unit) {
 	PercentageSlider(
 		label = R.string.section_cloud_size,
@@ -401,6 +473,19 @@ private fun CloudAppearanceSection(settings: AppSettings, onSave: (AppSettings) 
 	)
 
 	HintText(stringResource(R.string.hint_cloud_composition))
+
+	Spacer(modifier = Modifier.height(12.dp))
+
+	PercentageSlider(
+		label = R.string.section_cloud_contrast,
+		value = settings.cloudContrastScale,
+		valueRange = CLOUD_CONTRAST_SCALE_RANGE,
+		lowLabel = R.string.cloud_contrast_softer,
+		highLabel = R.string.cloud_contrast_stronger,
+		onCommit = { onSave(settings.copy(cloudContrastScale = it)) }
+	)
+
+	HintText(stringResource(R.string.hint_cloud_contrast))
 }
 
 @Composable
@@ -1021,6 +1106,14 @@ private fun formatFrameRate(cap: FrameRateCap) = when (cap) {
 	FrameRateCap.FPS_30 -> stringResource(R.string.frame_rate_30)
 	FrameRateCap.FPS_15 -> stringResource(R.string.frame_rate_15)
 	FrameRateCap.FPS_10 -> stringResource(R.string.frame_rate_10)
+}
+
+@Composable
+private fun formatSkyColor(preset: SkyColorPreset) = when (preset) {
+	SkyColorPreset.NATURAL -> stringResource(R.string.sky_color_natural)
+	SkyColorPreset.WARM -> stringResource(R.string.sky_color_warm)
+	SkyColorPreset.PASTEL -> stringResource(R.string.sky_color_pastel)
+	SkyColorPreset.CYBERPUNK -> stringResource(R.string.sky_color_cyberpunk)
 }
 
 @Composable
