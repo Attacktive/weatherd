@@ -103,6 +103,17 @@ class ScenePaletteTest {
 	}
 
 	@Test
+	fun `sky brightness and saturation tune clear colors before weather gray`() {
+		val natural = skyGradientFor(clearParams(DayPhase.DAY))
+		val tuned = skyGradientFor(clearParams(DayPhase.DAY).copy(skyBrightnessScale = 1.2f, skySaturationScale = 0.6f))
+		val tunedOvercast = skyGradientFor(clearParams(DayPhase.DAY).copy(cloudiness = 0.85f, skyBrightnessScale = 1.2f, skySaturationScale = 0.6f))
+		val naturalOvercast = skyGradientFor(clearParams(DayPhase.DAY).copy(cloudiness = 0.85f))
+
+		assertNotEquals("clear sky tuning must affect the phase palette", natural, tuned)
+		assertEquals("fully overcast weather must still own the final gray palette", naturalOvercast, tunedOvercast)
+	}
+
+	@Test
 	fun `the sky starts graying where the overcast ceiling starts drawing`() {
 		val clear = skyGradientFor(clearParams(DayPhase.DAY))
 		val atThreshold = skyGradientFor(clearParams(DayPhase.DAY).copy(cloudiness = 0.55f))

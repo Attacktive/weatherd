@@ -84,6 +84,29 @@ class CloudLayerTest {
 	}
 
 	@Test
+	fun cloudContrastChangesRgbWithoutChangingAlpha() {
+		val layer = CloudLayer(resources, R.drawable.cloud_overcast_hero)
+		val soft = render(layer, contrast = 0.5f)
+		val dramatic = render(layer, contrast = 1.5f)
+		val softPixels = IntArray(soft.width * soft.height)
+		val dramaticPixels = IntArray(dramatic.width * dramatic.height)
+		soft.getPixels(softPixels, 0, soft.width, 0, 0, soft.width, soft.height)
+		dramatic.getPixels(dramaticPixels, 0, dramatic.width, 0, 0, dramatic.width, dramatic.height)
+		var changedRgb = 0
+
+		for (index in softPixels.indices) {
+			assertEquals("Cloud contrast must preserve the alpha mask", Color.alpha(softPixels[index]), Color.alpha(dramaticPixels[index]))
+			if (Color.alpha(softPixels[index]) > 0 && softPixels[index] != dramaticPixels[index]) {
+				changedRgb++
+			}
+		}
+
+		assertTrue("Cloud contrast must change visible cloud shading", changedRgb > 0)
+		soft.recycle()
+		dramatic.recycle()
+	}
+
+	@Test
 	fun aDeckWrapsOnItsOwnRepeatSpan() {
 		val layer = CloudLayer(resources, R.drawable.cloud_cumulus_far)
 		val before = render(layer, offset = -17.25f, viewports = 2f)
@@ -304,11 +327,12 @@ class CloudLayerTest {
 		alpha: Int = 255,
 		viewports: Float = CLOUD_TEXTURE_VIEWPORTS,
 		shadow: CloudLayer.CumulusShadow? = null,
-		sizeScale: Float = 1f
+		sizeScale: Float = 1f,
+		contrast: Float = 1f
 	): Bitmap {
 		val bitmap = createBitmap(540, 320)
 		val geometry = CloudDrawGeometry().configure(bitmap.width.toFloat(), bitmap.height.toFloat(), offset, viewports = viewports, sizeScale = sizeScale)
-		layer.draw(Canvas(bitmap), geometry, tint, alpha, shadow)
+		layer.draw(Canvas(bitmap), geometry, tint, alpha, shadow, contrast)
 
 		return bitmap
 	}

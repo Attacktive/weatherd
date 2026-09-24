@@ -399,8 +399,8 @@ class WeatherSceneProviderTest {
 	}
 
 	@Test
-	fun `cloud composition settings reach scene params even when the refresh is throttled`() = runTest {
-		val device = AppSettings(useDeviceLocation = true, cloudSizeScale = 1.5f, cloudCountScale = 0.75f)
+	fun `appearance settings reach scene params even when the refresh is throttled`() = runTest {
+		val device = AppSettings(useDeviceLocation = true, cloudSizeScale = 1.5f, cloudCountScale = 0.75f, skyBrightnessScale = 1.3f, skySaturationScale = 0.7f, cloudContrastScale = 1.4f)
 		every { settingsRepository.settings } returns flowOf(device)
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 3))
@@ -410,13 +410,19 @@ class WeatherSceneProviderTest {
 		val initialParams = provider.paramsFor(1_000_030L)
 		assertEquals(1.5f, initialParams.cloudSizeScale, 0.0001f)
 		assertEquals(0.75f, initialParams.cloudCountScale, 0.0001f)
+		assertEquals(1.3f, initialParams.skyBrightnessScale, 0.0001f)
+		assertEquals(0.7f, initialParams.skySaturationScale, 0.0001f)
+		assertEquals(1.4f, initialParams.cloudContrastScale, 0.0001f)
 
-		every { settingsRepository.settings } returns flowOf(device.copy(cloudSizeScale = 0.6f, cloudCountScale = 1.8f))
+		every { settingsRepository.settings } returns flowOf(device.copy(cloudSizeScale = 0.6f, cloudCountScale = 1.8f, skyBrightnessScale = 0.8f, skySaturationScale = 1.4f, cloudContrastScale = 0.6f))
 		provider.refresh(1_000_060L)
 
 		val throttledParams = provider.paramsFor(1_000_090L)
 		assertEquals(0.6f, throttledParams.cloudSizeScale, 0.0001f)
 		assertEquals(1.8f, throttledParams.cloudCountScale, 0.0001f)
+		assertEquals(0.8f, throttledParams.skyBrightnessScale, 0.0001f)
+		assertEquals(1.4f, throttledParams.skySaturationScale, 0.0001f)
+		assertEquals(0.6f, throttledParams.cloudContrastScale, 0.0001f)
 		coVerify(exactly = 1) { weatherRepository.current(52.52, 13.40) }
 	}
 
