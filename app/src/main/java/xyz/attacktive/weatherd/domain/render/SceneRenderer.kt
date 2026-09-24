@@ -1345,10 +1345,10 @@ class SceneRenderer(resources: Resources) {
 		val heroAlpha = (255f * 0.88f * params.cloudScale * swell).roundToInt()
 		val bridgeAlpha = (255f * 0.50f * params.cloudScale).roundToInt()
 
-		farOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, farHeight, farOffset, height * OVERCAST_FAR_TOP + bob * 0.25f, OVERCAST_FAR_VIEWPORTS), darken(color, 0.96f), farAlpha)
-		supportOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, supportHeight, supportOffset, height * OVERCAST_SUPPORT_TOP - bob * 0.35f, OVERCAST_SUPPORT_VIEWPORTS), darken(color, 0.94f), supportAlpha)
-		heroOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, heroHeight, heroOffset, height * OVERCAST_HERO_TOP - bob, OVERCAST_HERO_VIEWPORTS), color, heroAlpha)
-		farOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, bridgeHeight, bridgeOffset, height * OVERCAST_BRIDGE_TOP + bob * 0.45f, OVERCAST_BRIDGE_VIEWPORTS), darken(color, 0.91f), bridgeAlpha)
+		farOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, farHeight, farOffset, height * OVERCAST_FAR_TOP + bob * 0.25f, OVERCAST_FAR_VIEWPORTS), darken(color, 0.96f), farAlpha, contrast = params.cloudContrastScale)
+		supportOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, supportHeight, supportOffset, height * OVERCAST_SUPPORT_TOP - bob * 0.35f, OVERCAST_SUPPORT_VIEWPORTS), darken(color, 0.94f), supportAlpha, contrast = params.cloudContrastScale)
+		heroOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, heroHeight, heroOffset, height * OVERCAST_HERO_TOP - bob, OVERCAST_HERO_VIEWPORTS), color, heroAlpha, contrast = params.cloudContrastScale)
+		farOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, bridgeHeight, bridgeOffset, height * OVERCAST_BRIDGE_TOP + bob * 0.45f, OVERCAST_BRIDGE_VIEWPORTS), darken(color, 0.91f), bridgeAlpha, contrast = params.cloudContrastScale)
 	}
 
 	/**
@@ -1618,7 +1618,7 @@ class SceneRenderer(resources: Resources) {
 			cloudSizeScale(params)
 		)
 
-		farCumulusDeck.draw(canvas, geometry, tint, alpha, castShadow)
+		farCumulusDeck.draw(canvas, geometry, tint, alpha, shadow = castShadow, contrast = params.cloudContrastScale)
 	}
 
 	/** One broad support bank replaces several detached puffs near the partly-cloudy end of the clear-sky range without enabling the overcast ceiling. */
@@ -1644,7 +1644,8 @@ class SceneRenderer(resources: Resources) {
 			canvas,
 			cloudDrawGeometry.configure(width, bankHeight, offset, height * PARTLY_BANK_TOP, PARTLY_BANK_VIEWPORTS),
 			tint,
-			alpha
+			alpha,
+			contrast = params.cloudContrastScale
 		)
 	}
 
@@ -1655,10 +1656,10 @@ class SceneRenderer(resources: Resources) {
 	private fun drawNearCumulus(canvas: Canvas, width: Float, params: SceneParams, cloudTop: Float, state: NearCumulusState) {
 		val tint = cumulusTint(params.dayPhase)
 		val geometry = cloudDrawGeometry.configure(width, state.deckHeight, state.offset, cloudTop, sizeScale = cloudSizeScale(params))
-		cumulusSteps[state.lower].value.draw(canvas, geometry, tint, state.alpha)
+		cumulusSteps[state.lower].value.draw(canvas, geometry, tint, state.alpha, contrast = params.cloudContrastScale)
 
 		if (state.upper < cumulusSteps.size && state.growth > 0) {
-			cumulusSteps[state.upper].value.draw(canvas, geometry, tint, state.growth)
+			cumulusSteps[state.upper].value.draw(canvas, geometry, tint, state.growth, contrast = params.cloudContrastScale)
 		}
 	}
 

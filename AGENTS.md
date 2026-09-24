@@ -71,6 +71,7 @@ The scene simulator on `HomeScreen` has two modes:
 It pins meteorological conditions (cloud cover, precipitation kind/severity, fog, thunder, wind) and celestial timing while preserving all user-configured display settings:
 
 - Intensity sliders (precipitation, wind, cloud intensity)
+- Sky palette/brightness/saturation and cloud contrast
 - Scenery / backdrop selections (none, metropolis, beach, mountains, countryside, photos)
 - Frame rate caps
 - Photo background assignments and revisions
@@ -133,6 +134,8 @@ The corollaries:
 - Sparse, scattered, partly cloudy, and broken describe placement populations. Cross-fading draws the lower population at full alpha and grows the next population above the blend floor; do not replace that with a single population whose alpha tracks cloudiness.
 - The far deck is the exception because distance is carried by haze, size, and a dedicated pair of veil sprites; it also thickens with coverage.
 - The hero sprites bake their own sunlit-to-shadow ramp, so `cumulusTint(DayPhase.DAY)` is pure white. Tinting daylight applies the shading twice and grays the crowns.
+- Cloud contrast is an RGB-only post-transform on cloud artwork. It must preserve the source alpha mask exactly and stay independent of cloud opacity/coverage.
+- Sky palette, brightness, and saturation customize the clear phase gradient before overcast grayness and storm darkening. `NATURAL` at 100% brightness/saturation must preserve the established rendering exactly, and stylized palettes must still yield to weather transforms.
 - A dry sky keeps its full clear-day blue until `OVERCAST_GRAY_FLOOR`, where the overcast ceiling starts drawing. Graying earlier leaves white clouds with nothing to read against.
 
 ### Preview Cloud Work Before Building

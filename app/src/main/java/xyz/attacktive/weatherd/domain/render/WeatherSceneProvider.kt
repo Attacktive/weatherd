@@ -10,6 +10,7 @@ import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.GeoLocation
+import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
@@ -44,6 +45,10 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	@Volatile private var cloudIntensityScale = 1f
 	@Volatile private var cloudSizeScale = 1f
 	@Volatile private var cloudCountScale = 1f
+	@Volatile private var cloudContrastScale = 1f
+	@Volatile private var skyBrightnessScale = 1f
+	@Volatile private var skySaturationScale = 1f
+	@Volatile private var skyColorPreset = SkyColorPreset.NATURAL
 	@Volatile private var sunVisible = true
 	@Volatile private var moonVisible = true
 	@Volatile private var sunSizeScale = 1f
@@ -76,6 +81,10 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			cloudScale = cloudIntensityScale,
 			cloudSizeScale = cloudSizeScale,
 			cloudCountScale = cloudCountScale,
+			cloudContrastScale = cloudContrastScale,
+			skyBrightnessScale = skyBrightnessScale,
+			skySaturationScale = skySaturationScale,
+			skyColorPreset = skyColorPreset,
 			sunVisible = sunVisible,
 			moonVisible = moonVisible,
 			sunSizeScale = sunSizeScale,
@@ -111,6 +120,10 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		cloudIntensityScale = settings.cloudIntensityScale
 		cloudSizeScale = settings.cloudSizeScale
 		cloudCountScale = settings.cloudCountScale
+		cloudContrastScale = settings.cloudContrastScale
+		skyBrightnessScale = settings.skyBrightnessScale
+		skySaturationScale = settings.skySaturationScale
+		skyColorPreset = settings.skyColorPreset
 		sunVisible = settings.sunVisible
 		moonVisible = settings.moonVisible
 		sunSizeScale = settings.sunSizeScale
@@ -173,6 +186,10 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		cloudScale = cloudIntensityScale,
 		cloudSizeScale = cloudSizeScale,
 		cloudCountScale = cloudCountScale,
+		cloudContrastScale = cloudContrastScale,
+		skyBrightnessScale = skyBrightnessScale,
+		skySaturationScale = skySaturationScale,
+		skyColorPreset = skyColorPreset,
 		sunVisible = sunVisible,
 		moonVisible = moonVisible,
 		sunSizeScale = sunSizeScale,
@@ -292,6 +309,10 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			cloudScale = cloudIntensityScale,
 			cloudSizeScale = cloudSizeScale,
 			cloudCountScale = cloudCountScale,
+			cloudContrastScale = cloudContrastScale,
+			skyBrightnessScale = skyBrightnessScale,
+			skySaturationScale = skySaturationScale,
+			skyColorPreset = skyColorPreset,
 			sunVisible = sunVisible,
 			moonVisible = moonVisible,
 			sunSizeScale = sunSizeScale,

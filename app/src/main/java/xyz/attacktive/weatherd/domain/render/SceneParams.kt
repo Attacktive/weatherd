@@ -2,11 +2,15 @@ package xyz.attacktive.weatherd.domain.render
 
 import kotlin.math.pow
 import xyz.attacktive.weatherd.domain.model.BackdropScene
+import xyz.attacktive.weatherd.domain.model.CLOUD_CONTRAST_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_COUNT_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
+import xyz.attacktive.weatherd.domain.model.SKY_BRIGHTNESS_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.SKY_SATURATION_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
 import xyz.attacktive.weatherd.domain.weather.dayPhaseFor
@@ -24,7 +28,8 @@ import xyz.attacktive.weatherd.domain.weather.precipitationIntensity
  * [precipitationScale] is the user's preference rather than an observation, so it rides alongside [precipitation] instead of being folded into it: the renderer applies it past its own visibility floor, where it is the drop count the user actually sees.
  * [windScale] is the user's preference rather than an observation, so it rides alongside [windFactor] instead of being folded into it: the renderer applies it past its own floors, where it actually moves visible wind effects.
  * [cloudScale] is the user's preference rather than an observation, so it rides alongside [cloudiness] instead of being folded into it: the renderer applies it past its own floors, where it scales cloud opacity.
- * [cloudSizeScale] changes individual fair-weather cloud body geometry, while [cloudCountScale] scales rendered cloud coverage without mutating the observed [cloudiness].
+ * [cloudSizeScale] changes individual fair-weather cloud body geometry, [cloudCountScale] scales rendered cloud coverage, and [cloudContrastScale] changes RGB separation inside cloud artwork without touching its alpha mask.
+ * [skyBrightnessScale], [skySaturationScale] and [skyColorPreset] customize the painted phase gradient before weather grayness and storm darkening are applied.
  * [sunVisible], [moonVisible], [sunSizeScale] and [sunColorPreset] customize the celestial bodies without changing the time-of-day lighting.
  * [lensFlareEnabled] is a display preference for camera-style streaks and optical ghosts around the sun; it does not disable the physical corona or atmospheric light shafts.
  */
@@ -40,6 +45,10 @@ data class SceneParams(
 	val cloudScale: Float = 1f,
 	val cloudSizeScale: Float = 1f,
 	val cloudCountScale: Float = 1f,
+	val cloudContrastScale: Float = 1f,
+	val skyBrightnessScale: Float = 1f,
+	val skySaturationScale: Float = 1f,
+	val skyColorPreset: SkyColorPreset = SkyColorPreset.NATURAL,
 	val moonPhase: Float = 0.5f,
 	val celestialProgress: Float = 0.5f,
 	val backdropScene: BackdropScene = BackdropScene.NONE,
@@ -62,7 +71,7 @@ data class OverlayLabels(val weather: String?, val location: String?)
  * Every other field is carried through untouched, so a field added later stays backdrop-relevant until someone lists it here.
  * Both the wallpaper's backdrop cache and the in-app preview's remembered backdrop key on this, which is what keeps them redrawing on exactly the same changes.
  */
-fun backdropSignature(params: SceneParams) = params.copy(moonPhase = 0f, celestialProgress = 0f, overlayLabels = null, cloudSizeScale = 1f, sunVisible = true, moonVisible = true, sunSizeScale = 1f, sunColorPreset = SunColorPreset.NATURAL, lensFlareEnabled = true)
+fun backdropSignature(params: SceneParams) = params.copy(moonPhase = 0f, celestialProgress = 0f, overlayLabels = null, cloudSizeScale = 1f, cloudContrastScale = 1f, sunVisible = true, moonVisible = true, sunSizeScale = 1f, sunColorPreset = SunColorPreset.NATURAL, lensFlareEnabled = true)
 
 /** User-adjusted rendered cloud coverage while preserving the provider's raw observation in [SceneParams.cloudiness]. */
 internal fun effectiveCloudiness(params: SceneParams) = (params.cloudiness * params.cloudCountScale.coerceIn(CLOUD_COUNT_SCALE_RANGE.start, CLOUD_COUNT_SCALE_RANGE.endInclusive)).coerceIn(0f, 1f)
@@ -79,6 +88,10 @@ fun sceneParamsFor(
 	cloudScale: Float = 1f,
 	cloudSizeScale: Float = 1f,
 	cloudCountScale: Float = 1f,
+	cloudContrastScale: Float = 1f,
+	skyBrightnessScale: Float = 1f,
+	skySaturationScale: Float = 1f,
+	skyColorPreset: SkyColorPreset = SkyColorPreset.NATURAL,
 	sunVisible: Boolean = true,
 	moonVisible: Boolean = true,
 	sunSizeScale: Float = 1f,
@@ -108,6 +121,10 @@ fun sceneParamsFor(
 		cloudScale = cloudScale,
 		cloudSizeScale = cloudSizeScale.coerceIn(CLOUD_SIZE_SCALE_RANGE.start, CLOUD_SIZE_SCALE_RANGE.endInclusive),
 		cloudCountScale = cloudCountScale.coerceIn(CLOUD_COUNT_SCALE_RANGE.start, CLOUD_COUNT_SCALE_RANGE.endInclusive),
+		cloudContrastScale = cloudContrastScale.coerceIn(CLOUD_CONTRAST_SCALE_RANGE.start, CLOUD_CONTRAST_SCALE_RANGE.endInclusive),
+		skyBrightnessScale = skyBrightnessScale.coerceIn(SKY_BRIGHTNESS_SCALE_RANGE.start, SKY_BRIGHTNESS_SCALE_RANGE.endInclusive),
+		skySaturationScale = skySaturationScale.coerceIn(SKY_SATURATION_SCALE_RANGE.start, SKY_SATURATION_SCALE_RANGE.endInclusive),
+		skyColorPreset = skyColorPreset,
 		sunVisible = sunVisible,
 		moonVisible = moonVisible,
 		sunSizeScale = sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive),
