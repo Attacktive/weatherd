@@ -2713,7 +2713,7 @@ class SceneRenderer(resources: Resources) {
 	}
 
 	private fun lensHaloPhaseStrength(dayPhase: DayPhase) = when (dayPhase) {
-		DayPhase.DAY -> 0.55f
+		DayPhase.DAY -> 0.72f
 		DayPhase.DAWN -> 0.055f
 		DayPhase.DUSK -> 0.018f
 		DayPhase.NIGHT -> 0f
@@ -3028,11 +3028,11 @@ class SceneRenderer(resources: Resources) {
 		private const val SUN_STREAK_ASPECT = 0.11f
 
 		/** Peak alpha of the streak before the restrained breathing scales it. */
-		private const val SUN_STREAK_ALPHA = 24f
+		private const val SUN_STREAK_ALPHA = 36f
 
 		/** Large optical haze around the direct sun; its cached sprite is brightest inside and fades continuously through the outer atmosphere. */
 		private const val SUN_LENS_HALO_REACH = 7.4f
-		private const val SUN_LENS_HALO_ALPHA = 30f
+		private const val SUN_LENS_HALO_ALPHA = 42f
 		private const val SUN_LENS_HALO_AXIS_OFFSET = 0.18f
 		private const val SUN_LENS_HALO_RADIUS_FRACTION = 0.88f
 		private const val SUN_LENS_HALO_SPRITE_ALPHA = 52
@@ -3327,13 +3327,13 @@ private data class LensGhost(val distance: Float, val scale: Float, val strength
 
 /**
  * The ghosts, ordered along the optical axis away from the sun.
- * They stay barely visible at ordinary brightness, reading as optical residue only after the eye notices them.
+ * They stay subtle at ordinary brightness, but remain intentionally readable against a clear daytime sky.
  */
 private val LENS_GHOSTS = listOf(
-	LensGhost(-0.72f, 0.18f, 0.035f, Color.rgb(255, 238, 204)),
-	LensGhost(0.76f, 0.34f, 0.055f, Color.rgb(255, 232, 202)),
-	LensGhost(1.34f, 0.24f, 0.040f, Color.rgb(196, 228, 248)),
-	LensGhost(1.82f, 0.16f, 0.030f, Color.rgb(214, 232, 215))
+	LensGhost(-0.72f, 0.18f, 0.050f, Color.rgb(255, 238, 204)),
+	LensGhost(0.76f, 0.34f, 0.080f, Color.rgb(255, 232, 202)),
+	LensGhost(1.34f, 0.24f, 0.060f, Color.rgb(196, 228, 248)),
+	LensGhost(1.82f, 0.16f, 0.045f, Color.rgb(214, 232, 215))
 )
 
 internal fun darken(color: Int, factor: Float) =
