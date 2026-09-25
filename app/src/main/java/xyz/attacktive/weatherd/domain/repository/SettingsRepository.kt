@@ -99,9 +99,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			sceneSimulatorEnabled = preferences[Keys.SCENE_SIMULATOR_ENABLED] ?: defaults.sceneSimulatorEnabled,
 			sceneSimulatorActive = preferences[Keys.SCENE_SIMULATOR_ACTIVE] ?: defaults.sceneSimulatorActive,
 			sceneSimulatorPresetIndex = (preferences[Keys.SCENE_SIMULATOR_PRESET_INDEX] ?: defaults.sceneSimulatorPresetIndex).coerceAtLeast(0),
-			sceneSimulatorDayPhase = preferences[Keys.SCENE_SIMULATOR_DAY_PHASE]
-				?.let { stored -> DayPhase.entries.firstOrNull { it.name == stored } }
-				?: defaults.sceneSimulatorDayPhase,
+			sceneSimulatorDayPhase = enumOrDefault(preferences[Keys.SCENE_SIMULATOR_DAY_PHASE], DayPhase.entries, defaults.sceneSimulatorDayPhase),
 			sceneSimulatorCelestialProgress = (preferences[Keys.SCENE_SIMULATOR_CELESTIAL_PROGRESS] ?: defaults.sceneSimulatorCelestialProgress).coerceIn(0f, 1f),
 		)
 	}
@@ -143,11 +141,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 	}
 }
 
-private fun <T : Enum<T>> enumOrDefault(
-	name: String?,
-	values: Iterable<T>,
-	default: T
-) = values.firstOrNull { it.name == name } ?: default
+private fun <T : Enum<T>> enumOrDefault(name: String?, values: Iterable<T>, default: T) = values.firstOrNull { it.name == name } ?: default
 
 /** Writes [value] under [key], or clears the key when [value] is null, so cleared settings revert to their default on read. */
 private fun <T> MutablePreferences.putOrRemove(key: Preferences.Key<T>, value: T?) {

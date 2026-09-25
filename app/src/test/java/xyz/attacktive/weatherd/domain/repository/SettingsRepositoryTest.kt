@@ -149,7 +149,7 @@ class SettingsRepositoryTest {
 	}
 
 	@Test
-	fun `an unrecognized stored temperature unit falls back to celsius`() = runTest {
+	fun `an unrecognized stored temperature unit falls back to default`() = runTest {
 		val dataStore = dataStore()
 		val repository = SettingsRepository(dataStore)
 		dataStore.edit { it[stringPreferencesKey("temperature_unit")] = "KELVIN" }
