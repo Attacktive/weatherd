@@ -2937,8 +2937,8 @@ class SceneRenderer(resources: Resources) {
 		private const val SUN_CORONA_RAY_COUNT = 16
 		private const val SUN_CORONA_REACH = 2.85f
 		private const val SUN_CORONA_ALPHA = 212f
-		private const val SUN_CORONA_BLUR_FRACTION = 0.030f
-		private const val SUN_CORONA_FEATHER_BLUR_FRACTION = 0.090f
+		private const val SUN_CORONA_BLUR_FRACTION = 0.021f
+		private const val SUN_CORONA_FEATHER_BLUR_FRACTION = 0.063f
 		private const val SUN_CORONA_FEATHER_ALPHA_SCALE = 0.22f
 		private const val SUN_CORONA_ANGLE_JITTER = 0.15f
 		private const val SUN_CORONA_SECONDARY_RAY_EMPHASIS = 0.66f
