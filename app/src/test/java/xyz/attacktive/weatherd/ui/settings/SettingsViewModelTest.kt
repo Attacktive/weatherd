@@ -5,6 +5,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -31,6 +32,7 @@ import org.junit.Test
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.GeoPlace
 import xyz.attacktive.weatherd.domain.model.PhotoBucket
+import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.repository.GeocodingRepository
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
@@ -47,6 +49,7 @@ class SettingsViewModelTest {
 
 	@Before
 	fun stubRepositories() {
+		every { settingsRepository.defaults } returns AppSettings()
 		every { settingsRepository.settings } returns flowOf(AppSettings())
 		every { photoBackgroundRepository.available } returns MutableStateFlow(emptySet())
 		every { photoBackgroundRepository.revision } returns MutableStateFlow(0)
@@ -75,6 +78,24 @@ class SettingsViewModelTest {
 		).also {
 			testScheduler.runCurrent()
 		}
+	}
+
+
+	@Test
+	fun `regional defaults survive a save before persisted settings emit`() = runTest {
+		val delayedSettings = MutableSharedFlow<AppSettings>()
+		val defaults = AppSettings(temperatureUnit = TemperatureUnit.FAHRENHEIT)
+		every { settingsRepository.defaults } returns defaults
+		every { settingsRepository.settings } returns delayedSettings
+		coEvery { settingsRepository.save(any()) } returns Unit
+		val viewModel = viewModel()
+
+		assertEquals(defaults, viewModel.settings.value)
+
+		viewModel.save(viewModel.settings.value.copy(showWeatherLabel = true))
+		runCurrent()
+
+		coVerify(exactly = 1) { settingsRepository.save(defaults.copy(showWeatherLabel = true)) }
 	}
 
 	@Test

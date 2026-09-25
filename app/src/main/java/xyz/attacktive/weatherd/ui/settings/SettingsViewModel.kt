@@ -62,8 +62,9 @@ class SettingsViewModel @Inject constructor(
 	private val photoBackgroundRepository: PhotoBackgroundRepository,
 	@ApplicationScope private val applicationScope: CoroutineScope
 ): AndroidViewModel(application) {
+	val defaults = settingsRepository.defaults
 	val settings = settingsRepository.settings
-		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings())
+		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), defaults)
 
 	/**
 	 * The buckets that currently hold one of the user's photos, already a hot [kotlinx.coroutines.flow.StateFlow] on the repository and so exposed as it stands.

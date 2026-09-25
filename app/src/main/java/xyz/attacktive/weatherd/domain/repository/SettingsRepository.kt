@@ -29,10 +29,10 @@ import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.defaultAppSettings
 
-/** Persists [AppSettings] to a DataStore; absent keys fall back to [defaultAppSettings] on read. */
+/** Persists [AppSettings] to a DataStore; defaults are resolved once when the repository is created and reused for absent keys. */
 @Singleton
 class SettingsRepository @Inject constructor(private val dataStore: DataStore<Preferences>) {
-	private val defaults = defaultAppSettings()
+	val defaults = defaultAppSettings()
 
 	private object Keys {
 		val WEATHER_PROVIDER = stringPreferencesKey("weather_provider")
