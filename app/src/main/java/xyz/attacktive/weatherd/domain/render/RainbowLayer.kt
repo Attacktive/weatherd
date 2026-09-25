@@ -4,6 +4,8 @@ import android.content.res.Resources
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
 import android.graphics.LightingColorFilter
 import android.graphics.Matrix
 import android.graphics.Paint
@@ -16,7 +18,8 @@ internal class RainbowLayer(resources: Resources, @DrawableRes texture: Int) {
 	private val bitmap = checkNotNull(BitmapFactory.decodeResource(resources, texture, BitmapFactory.Options().apply { inScaled = false }))
 	private val transform = Matrix()
 	private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
-	private var previousTint = Color.WHITE
+	private val daytimeColorFilter = ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(DAY_SATURATION) })
+	private var previousTint: Int? = null
 
 	fun draw(canvas: Canvas, centerX: Float, centerY: Float, dayPhase: DayPhase, visibility: Float = 1f) {
 		if (canvas.width <= 0 || canvas.height <= 0 || dayPhase == DayPhase.NIGHT) {
@@ -37,7 +40,7 @@ internal class RainbowLayer(resources: Resources, @DrawableRes texture: Int) {
 		val tint = rainbowTint(dayPhase)
 		if (tint != previousTint) {
 			paint.colorFilter = if (tint == Color.WHITE) {
-				null
+				daytimeColorFilter
 			} else {
 				LightingColorFilter(tint, Color.BLACK)
 			}
@@ -51,9 +54,10 @@ internal class RainbowLayer(resources: Resources, @DrawableRes texture: Int) {
 	companion object {
 		private const val HALO_RADIUS_FRACTION = 0.34f
 		private const val TEXTURE_HALO_RADIUS_FRACTION = 0.34f
+		private const val DAY_SATURATION = 1.25f
 
 		private fun haloStrength(dayPhase: DayPhase) = when (dayPhase) {
-			DayPhase.DAY -> 0.52f
+			DayPhase.DAY -> 0.39f
 			DayPhase.DAWN -> 0.09f
 			DayPhase.DUSK -> 0.036f
 			DayPhase.NIGHT -> 0f
