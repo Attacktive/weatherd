@@ -2729,7 +2729,7 @@ class SceneRenderer(resources: Resources) {
 			center,
 			center,
 			intArrayOf(tint, withAlpha(tint, 220), withAlpha(tint, 150), withAlpha(tint, 60), withAlpha(tint, 0)),
-			floatArrayOf(0f, 0.12f, 0.34f, 0.62f, 1f),
+			floatArrayOf(0f, 0.12f, 0.30f, 0.54f, 1f),
 			Shader.TileMode.CLAMP
 		)
 
