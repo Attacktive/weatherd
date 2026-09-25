@@ -57,7 +57,7 @@ internal class RainbowLayer(resources: Resources, @DrawableRes texture: Int) {
 		private const val DAY_SATURATION = 1.75f
 
 		private fun haloStrength(dayPhase: DayPhase) = when (dayPhase) {
-			DayPhase.DAY -> 0.39f
+			DayPhase.DAY -> 0.52f
 			DayPhase.DAWN -> 0.09f
 			DayPhase.DUSK -> 0.036f
 			DayPhase.NIGHT -> 0f

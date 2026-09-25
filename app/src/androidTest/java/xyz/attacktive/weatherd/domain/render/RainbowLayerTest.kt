@@ -53,7 +53,7 @@ class RainbowLayerTest {
 		val bitmap = renderLayer(Color.TRANSPARENT)
 		val alpha = highestAlpha(bitmap)
 
-		assertTrue("An optical halo should remain atmospheric, but reached alpha $alpha", alpha <= 24)
+		assertTrue("An optical halo should remain atmospheric, but reached alpha $alpha", alpha <= 32)
 		bitmap.recycle()
 	}
 
