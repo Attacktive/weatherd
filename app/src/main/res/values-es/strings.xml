@@ -21,6 +21,8 @@
 	<string name="content_description_back">Atrás</string>
 	<string name="content_description_search">Buscar</string>
 	<string name="content_description_clear_city">Borrar ciudad</string>
+	<string name="content_description_reset_to_default">Restablecer %1$s al valor predeterminado</string>
+	<string name="reset_to_default">Restablecer</string>
 	<string name="section_weather_provider">Proveedor meteorológico</string>
 	<string name="hint_weather_provider">Elige el servicio que usa Weatherd para los datos meteorológicos. Ambas opciones funcionan sin clave de API.</string>
 	<string name="provider_open_meteo">Open-Meteo</string>
@@ -51,6 +53,7 @@
 	<string name="label_lens_flare">Destello de lente</string>
 	<string name="subtitle_lens_flare">Destellos y reflejos de cámara alrededor del sol</string>
 	<string name="section_labels">Etiquetas</string>
+	<string name="section_temperature_unit">Unidad de temperatura</string>
 	<string name="section_location">Ubicación</string>
 	<string name="section_preview_tools">Herramientas de vista previa</string>
 	<string name="label_scene_simulator">Simulador de escenas</string>

@@ -21,6 +21,8 @@
 	<string name="content_description_back">返回</string>
 	<string name="content_description_search">搜索</string>
 	<string name="content_description_clear_city">清除城市</string>
+	<string name="content_description_reset_to_default">将%1$s重置为默认值</string>
+	<string name="reset_to_default">重置</string>
 	<string name="section_weather_provider">天气提供商</string>
 	<string name="hint_weather_provider">选择 Weatherd 获取天气数据所使用的服务。两种选项都无需 API 密钥。</string>
 	<string name="provider_open_meteo">Open-Meteo</string>
@@ -51,6 +53,7 @@
 	<string name="label_lens_flare">镜头光晕</string>
 	<string name="subtitle_lens_flare">太阳周围的相机风格光带和反射</string>
 	<string name="section_labels">标签</string>
+	<string name="section_temperature_unit">温度单位</string>
 	<string name="section_location">位置</string>
 	<string name="section_preview_tools">预览工具</string>
 	<string name="label_scene_simulator">场景模拟器</string>

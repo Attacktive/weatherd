@@ -71,7 +71,7 @@
 	<string name="city_search_failed">Search failed</string>
 	<string name="hint_frame_rate">Fewer frames means less drawing work, which helps on slower phones. The scene still moves at the same speed, just less smoothly.</string>
 	<string name="section_precipitation_intensity">Precipitation intensity</string>
-	<string name="setting_with_percentage">%1$s · %2$d%%</string>
+	<string name="setting_with_percentage" translatable="false">%1$s · %2$d%%</string>
 	<string name="section_wind_intensity">Wind intensity</string>
 	<string name="section_cloud_opacity">Cloud opacity</string>
 	<string name="section_sky_palette">Sky palette</string>

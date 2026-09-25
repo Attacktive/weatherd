@@ -21,6 +21,8 @@
 	<string name="content_description_back">戻る</string>
 	<string name="content_description_search">検索</string>
 	<string name="content_description_clear_city">都市をクリア</string>
+	<string name="content_description_reset_to_default">%1$sをデフォルトに戻す</string>
+	<string name="reset_to_default">リセット</string>
 	<string name="section_weather_provider">天気プロバイダー</string>
 	<string name="hint_weather_provider">Weatherd が天気データに使用するサービスを選択します。どちらも API キーなしで利用できます。</string>
 	<string name="provider_open_meteo">Open-Meteo</string>
@@ -51,6 +53,7 @@
 	<string name="label_lens_flare">レンズフレア</string>
 	<string name="subtitle_lens_flare">太陽の周囲にカメラ風の光条と反射を表示</string>
 	<string name="section_labels">ラベル</string>
+	<string name="section_temperature_unit">温度単位</string>
 	<string name="section_location">位置情報</string>
 	<string name="section_preview_tools">プレビューツール</string>
 	<string name="label_scene_simulator">シーンシミュレーター</string>
