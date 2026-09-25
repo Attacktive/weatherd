@@ -29,7 +29,7 @@ import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.defaultAppSettings
 
-/** Persists [AppSettings] to a DataStore; absent keys fall back to the [AppSettings] defaults on read. */
+/** Persists [AppSettings] to a DataStore; absent keys fall back to [defaultAppSettings] on read. */
 @Singleton
 class SettingsRepository @Inject constructor(private val dataStore: DataStore<Preferences>) {
 	private val defaults = defaultAppSettings()
@@ -141,7 +141,6 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			preferences[Keys.SCENE_SIMULATOR_CELESTIAL_PROGRESS] = settings.sceneSimulatorCelestialProgress.coerceIn(0f, 1f)
 		}
 	}
-
 }
 
 private fun <T : Enum<T>> enumOrDefault(

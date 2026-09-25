@@ -562,7 +562,7 @@ private fun PercentageSlider(
 }
 
 /**
- * A labeled multiplier slider that shows words rather than numbers.
+ * A labeled multiplier slider that shows the current percentage above qualitative endpoints.
  * The drag position is local state and only commits on release: a DataStore write per pixel would hammer the settings file and restart the scene mid-gesture.
  */
 @Composable
@@ -931,12 +931,12 @@ private fun LabelsSection(settings: AppSettings, onSave: (AppSettings) -> Unit) 
 			Spacer(modifier = Modifier.height(8.dp))
 
 			ResettableSectionLabel(
-			text = stringResource(R.string.section_temperature_unit),
-			isDefault = settings.temperatureUnit == SETTINGS_DEFAULTS.temperatureUnit,
-			onReset = { onSave(settings.copy(temperatureUnit = SETTINGS_DEFAULTS.temperatureUnit)) }
-		)
+				text = stringResource(R.string.section_temperature_unit),
+				isDefault = settings.temperatureUnit == SETTINGS_DEFAULTS.temperatureUnit,
+				onReset = { onSave(settings.copy(temperatureUnit = SETTINGS_DEFAULTS.temperatureUnit)) }
+			)
 
-		SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+			SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
 				TemperatureUnit.entries.forEachIndexed { index, unit ->
 					SegmentedButton(
 						selected = settings.temperatureUnit == unit,
