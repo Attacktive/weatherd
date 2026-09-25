@@ -1,5 +1,6 @@
 package xyz.attacktive.weatherd.domain.model
 
+import java.util.Locale
 import kotlin.math.roundToInt
 
 /** The unit the wallpaper's temperature label is displayed in; the weather API always reports Celsius. */
@@ -20,5 +21,14 @@ enum class TemperatureUnit {
 	companion object {
 		/** The unit stored under [name], or [CELSIUS] when the value is absent or unrecognized (e.g. read by an older build after a downgrade). */
 		fun fromName(name: String?) = entries.firstOrNull { it.name == name } ?: CELSIUS
+
+		/** Uses CLDR's weather-unit regions so a fresh install follows the user's regional temperature convention. */
+		fun defaultForLocale(locale: Locale) = if (locale.country in FAHRENHEIT_WEATHER_REGIONS) {
+			FAHRENHEIT
+		} else {
+			CELSIUS
+		}
 	}
 }
+
+private val FAHRENHEIT_WEATHER_REGIONS = setOf("BS", "BZ", "KY", "PR", "PW", "US")

@@ -21,6 +21,8 @@
 	<string name="content_description_back">Back</string>
 	<string name="content_description_search">Search</string>
 	<string name="content_description_clear_city">Clear city</string>
+	<string name="content_description_reset_to_default">Reset %1$s to default</string>
+	<string name="reset_to_default">Reset</string>
 	<string name="section_weather_provider">Weather provider</string>
 	<string name="hint_weather_provider">Choose the service Weatherd uses for weather data. Both options work without an API key.</string>
 	<string name="provider_open_meteo">Open-Meteo</string>
@@ -51,6 +53,7 @@
 	<string name="label_lens_flare">Lens flare</string>
 	<string name="subtitle_lens_flare">Camera-style streak and reflections around the sun</string>
 	<string name="section_labels">Labels</string>
+	<string name="section_temperature_unit">Temperature unit</string>
 	<string name="section_location">Location</string>
 	<string name="section_preview_tools">Preview tools</string>
 	<string name="label_scene_simulator">Scene simulator</string>
@@ -68,6 +71,7 @@
 	<string name="city_search_failed">Search failed</string>
 	<string name="hint_frame_rate">Fewer frames means less drawing work, which helps on slower phones. The scene still moves at the same speed, just less smoothly.</string>
 	<string name="section_precipitation_intensity">Precipitation intensity</string>
+	<string name="setting_with_percentage">%1$s · %2$d%%</string>
 	<string name="section_wind_intensity">Wind intensity</string>
 	<string name="section_cloud_opacity">Cloud opacity</string>
 	<string name="section_sky_palette">Sky palette</string>

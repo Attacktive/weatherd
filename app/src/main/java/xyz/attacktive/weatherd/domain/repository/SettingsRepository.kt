@@ -27,10 +27,13 @@ import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
+import xyz.attacktive.weatherd.domain.model.defaultAppSettings
 
 /** Persists [AppSettings] to a DataStore; absent keys fall back to the [AppSettings] defaults on read. */
 @Singleton
 class SettingsRepository @Inject constructor(private val dataStore: DataStore<Preferences>) {
+	private val defaults = defaultAppSettings()
+
 	private object Keys {
 		val WEATHER_PROVIDER = stringPreferencesKey("weather_provider")
 		val UPDATE_INTERVAL_MINUTES = intPreferencesKey("update_interval_minutes")
@@ -67,39 +70,39 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 
 	val settings: Flow<AppSettings> = dataStore.data.map { preferences ->
 		AppSettings(
-			weatherProvider = WeatherProviderType.fromName(preferences[Keys.WEATHER_PROVIDER]),
-			updateIntervalMinutes = preferences[Keys.UPDATE_INTERVAL_MINUTES] ?: DEFAULTS.updateIntervalMinutes,
-			useDeviceLocation = preferences[Keys.USE_DEVICE_LOCATION] ?: DEFAULTS.useDeviceLocation,
+			weatherProvider = enumOrDefault(preferences[Keys.WEATHER_PROVIDER], WeatherProviderType.entries, defaults.weatherProvider),
+			updateIntervalMinutes = preferences[Keys.UPDATE_INTERVAL_MINUTES] ?: defaults.updateIntervalMinutes,
+			useDeviceLocation = preferences[Keys.USE_DEVICE_LOCATION] ?: defaults.useDeviceLocation,
 			manualLatitude = preferences[Keys.MANUAL_LATITUDE],
 			manualLongitude = preferences[Keys.MANUAL_LONGITUDE],
 			manualLocationLabel = preferences[Keys.MANUAL_LOCATION_LABEL],
-			backdropScene = BackdropScene.fromName(preferences[Keys.BACKDROP_SCENE]),
-			showWeatherLabel = preferences[Keys.SHOW_WEATHER_LABEL] ?: DEFAULTS.showWeatherLabel,
-			showLocationLabel = preferences[Keys.SHOW_LOCATION_LABEL] ?: DEFAULTS.showLocationLabel,
-			temperatureUnit = TemperatureUnit.fromName(preferences[Keys.TEMPERATURE_UNIT]),
-			frameRateCap = FrameRateCap.fromName(preferences[Keys.FRAME_RATE_CAP]),
-			wallpaperScrollingEnabled = preferences[Keys.WALLPAPER_SCROLLING_ENABLED] ?: DEFAULTS.wallpaperScrollingEnabled,
-			precipitationIntensityScale = preferences[Keys.PRECIPITATION_INTENSITY_SCALE] ?: DEFAULTS.precipitationIntensityScale,
-			windIntensityScale = preferences[Keys.WIND_INTENSITY_SCALE] ?: DEFAULTS.windIntensityScale,
-			cloudIntensityScale = preferences[Keys.CLOUD_INTENSITY_SCALE] ?: DEFAULTS.cloudIntensityScale,
-			cloudSizeScale = (preferences[Keys.CLOUD_SIZE_SCALE] ?: DEFAULTS.cloudSizeScale).coerceIn(CLOUD_SIZE_SCALE_RANGE.start, CLOUD_SIZE_SCALE_RANGE.endInclusive),
-			cloudCountScale = (preferences[Keys.CLOUD_COUNT_SCALE] ?: DEFAULTS.cloudCountScale).coerceIn(CLOUD_COUNT_SCALE_RANGE.start, CLOUD_COUNT_SCALE_RANGE.endInclusive),
-			cloudContrastScale = (preferences[Keys.CLOUD_CONTRAST_SCALE] ?: DEFAULTS.cloudContrastScale).coerceIn(CLOUD_CONTRAST_SCALE_RANGE.start, CLOUD_CONTRAST_SCALE_RANGE.endInclusive),
-			skyBrightnessScale = (preferences[Keys.SKY_BRIGHTNESS_SCALE] ?: DEFAULTS.skyBrightnessScale).coerceIn(SKY_BRIGHTNESS_SCALE_RANGE.start, SKY_BRIGHTNESS_SCALE_RANGE.endInclusive),
-			skySaturationScale = (preferences[Keys.SKY_SATURATION_SCALE] ?: DEFAULTS.skySaturationScale).coerceIn(SKY_SATURATION_SCALE_RANGE.start, SKY_SATURATION_SCALE_RANGE.endInclusive),
-			skyColorPreset = SkyColorPreset.fromName(preferences[Keys.SKY_COLOR_PRESET]),
-			sunVisible = preferences[Keys.SUN_VISIBLE] ?: DEFAULTS.sunVisible,
-			moonVisible = preferences[Keys.MOON_VISIBLE] ?: DEFAULTS.moonVisible,
-			sunSizeScale = (preferences[Keys.SUN_SIZE_SCALE] ?: DEFAULTS.sunSizeScale).coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive),
-			sunColorPreset = SunColorPreset.fromName(preferences[Keys.SUN_COLOR_PRESET]),
-			lensFlareEnabled = preferences[Keys.LENS_FLARE_ENABLED] ?: DEFAULTS.lensFlareEnabled,
-			sceneSimulatorEnabled = preferences[Keys.SCENE_SIMULATOR_ENABLED] ?: DEFAULTS.sceneSimulatorEnabled,
-			sceneSimulatorActive = preferences[Keys.SCENE_SIMULATOR_ACTIVE] ?: DEFAULTS.sceneSimulatorActive,
-			sceneSimulatorPresetIndex = (preferences[Keys.SCENE_SIMULATOR_PRESET_INDEX] ?: DEFAULTS.sceneSimulatorPresetIndex).coerceAtLeast(0),
+			backdropScene = enumOrDefault(preferences[Keys.BACKDROP_SCENE], BackdropScene.entries, defaults.backdropScene),
+			showWeatherLabel = preferences[Keys.SHOW_WEATHER_LABEL] ?: defaults.showWeatherLabel,
+			showLocationLabel = preferences[Keys.SHOW_LOCATION_LABEL] ?: defaults.showLocationLabel,
+			temperatureUnit = enumOrDefault(preferences[Keys.TEMPERATURE_UNIT], TemperatureUnit.entries, defaults.temperatureUnit),
+			frameRateCap = enumOrDefault(preferences[Keys.FRAME_RATE_CAP], FrameRateCap.entries, defaults.frameRateCap),
+			wallpaperScrollingEnabled = preferences[Keys.WALLPAPER_SCROLLING_ENABLED] ?: defaults.wallpaperScrollingEnabled,
+			precipitationIntensityScale = preferences[Keys.PRECIPITATION_INTENSITY_SCALE] ?: defaults.precipitationIntensityScale,
+			windIntensityScale = preferences[Keys.WIND_INTENSITY_SCALE] ?: defaults.windIntensityScale,
+			cloudIntensityScale = preferences[Keys.CLOUD_INTENSITY_SCALE] ?: defaults.cloudIntensityScale,
+			cloudSizeScale = (preferences[Keys.CLOUD_SIZE_SCALE] ?: defaults.cloudSizeScale).coerceIn(CLOUD_SIZE_SCALE_RANGE.start, CLOUD_SIZE_SCALE_RANGE.endInclusive),
+			cloudCountScale = (preferences[Keys.CLOUD_COUNT_SCALE] ?: defaults.cloudCountScale).coerceIn(CLOUD_COUNT_SCALE_RANGE.start, CLOUD_COUNT_SCALE_RANGE.endInclusive),
+			cloudContrastScale = (preferences[Keys.CLOUD_CONTRAST_SCALE] ?: defaults.cloudContrastScale).coerceIn(CLOUD_CONTRAST_SCALE_RANGE.start, CLOUD_CONTRAST_SCALE_RANGE.endInclusive),
+			skyBrightnessScale = (preferences[Keys.SKY_BRIGHTNESS_SCALE] ?: defaults.skyBrightnessScale).coerceIn(SKY_BRIGHTNESS_SCALE_RANGE.start, SKY_BRIGHTNESS_SCALE_RANGE.endInclusive),
+			skySaturationScale = (preferences[Keys.SKY_SATURATION_SCALE] ?: defaults.skySaturationScale).coerceIn(SKY_SATURATION_SCALE_RANGE.start, SKY_SATURATION_SCALE_RANGE.endInclusive),
+			skyColorPreset = enumOrDefault(preferences[Keys.SKY_COLOR_PRESET], SkyColorPreset.entries, defaults.skyColorPreset),
+			sunVisible = preferences[Keys.SUN_VISIBLE] ?: defaults.sunVisible,
+			moonVisible = preferences[Keys.MOON_VISIBLE] ?: defaults.moonVisible,
+			sunSizeScale = (preferences[Keys.SUN_SIZE_SCALE] ?: defaults.sunSizeScale).coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive),
+			sunColorPreset = enumOrDefault(preferences[Keys.SUN_COLOR_PRESET], SunColorPreset.entries, defaults.sunColorPreset),
+			lensFlareEnabled = preferences[Keys.LENS_FLARE_ENABLED] ?: defaults.lensFlareEnabled,
+			sceneSimulatorEnabled = preferences[Keys.SCENE_SIMULATOR_ENABLED] ?: defaults.sceneSimulatorEnabled,
+			sceneSimulatorActive = preferences[Keys.SCENE_SIMULATOR_ACTIVE] ?: defaults.sceneSimulatorActive,
+			sceneSimulatorPresetIndex = (preferences[Keys.SCENE_SIMULATOR_PRESET_INDEX] ?: defaults.sceneSimulatorPresetIndex).coerceAtLeast(0),
 			sceneSimulatorDayPhase = preferences[Keys.SCENE_SIMULATOR_DAY_PHASE]
 				?.let { stored -> DayPhase.entries.firstOrNull { it.name == stored } }
-				?: DEFAULTS.sceneSimulatorDayPhase,
-			sceneSimulatorCelestialProgress = (preferences[Keys.SCENE_SIMULATOR_CELESTIAL_PROGRESS] ?: DEFAULTS.sceneSimulatorCelestialProgress).coerceIn(0f, 1f),
+				?: defaults.sceneSimulatorDayPhase,
+			sceneSimulatorCelestialProgress = (preferences[Keys.SCENE_SIMULATOR_CELESTIAL_PROGRESS] ?: defaults.sceneSimulatorCelestialProgress).coerceIn(0f, 1f),
 		)
 	}
 
@@ -139,10 +142,13 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		}
 	}
 
-	companion object {
-		private val DEFAULTS = AppSettings()
-	}
 }
+
+private fun <T : Enum<T>> enumOrDefault(
+	name: String?,
+	values: Iterable<T>,
+	default: T
+) = values.firstOrNull { it.name == name } ?: default
 
 /** Writes [value] under [key], or clears the key when [value] is null, so cleared settings revert to their default on read. */
 private fun <T> MutablePreferences.putOrRemove(key: Preferences.Key<T>, value: T?) {

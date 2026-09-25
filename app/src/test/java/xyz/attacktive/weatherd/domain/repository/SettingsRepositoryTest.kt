@@ -1,5 +1,6 @@
 package xyz.attacktive.weatherd.domain.repository
 
+import java.util.Locale
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
@@ -24,6 +25,7 @@ import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
+import xyz.attacktive.weatherd.domain.model.defaultAppSettings
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsRepositoryTest {
@@ -38,7 +40,15 @@ class SettingsRepositoryTest {
 	fun `defaults are returned before anything is saved`() = runTest {
 		val repository = SettingsRepository(dataStore())
 
-		assertEquals(AppSettings(), repository.settings.first())
+		assertEquals(defaultAppSettings(), repository.settings.first())
+	}
+
+	@Test
+	fun `temperature defaults follow the regional weather convention`() {
+		assertEquals(TemperatureUnit.FAHRENHEIT, defaultAppSettings(Locale.US).temperatureUnit)
+		assertEquals(TemperatureUnit.FAHRENHEIT, defaultAppSettings(Locale("es", "PR")).temperatureUnit)
+		assertEquals(TemperatureUnit.CELSIUS, defaultAppSettings(Locale.KOREA).temperatureUnit)
+		assertEquals(TemperatureUnit.CELSIUS, defaultAppSettings(Locale.UK).temperatureUnit)
 	}
 
 	@Test
@@ -126,7 +136,7 @@ class SettingsRepositoryTest {
 		val repository = SettingsRepository(dataStore)
 		dataStore.edit { it[stringPreferencesKey("weather_provider")] = "WEATHER_9000" }
 
-		assertEquals(WeatherProviderType.OPEN_METEO, repository.settings.first().weatherProvider)
+		assertEquals(defaultAppSettings().weatherProvider, repository.settings.first().weatherProvider)
 	}
 
 	@Test
@@ -135,7 +145,7 @@ class SettingsRepositoryTest {
 		val repository = SettingsRepository(dataStore)
 		dataStore.edit { it[stringPreferencesKey("backdrop_scene")] = "DISCOTHEQUE" }
 
-		assertEquals(BackdropScene.NONE, repository.settings.first().backdropScene)
+		assertEquals(defaultAppSettings().backdropScene, repository.settings.first().backdropScene)
 	}
 
 	@Test
@@ -144,7 +154,7 @@ class SettingsRepositoryTest {
 		val repository = SettingsRepository(dataStore)
 		dataStore.edit { it[stringPreferencesKey("temperature_unit")] = "KELVIN" }
 
-		assertEquals(TemperatureUnit.CELSIUS, repository.settings.first().temperatureUnit)
+		assertEquals(defaultAppSettings().temperatureUnit, repository.settings.first().temperatureUnit)
 	}
 
 	@Test
@@ -153,7 +163,7 @@ class SettingsRepositoryTest {
 		val repository = SettingsRepository(dataStore)
 		dataStore.edit { it[stringPreferencesKey("frame_rate_cap")] = "FPS_240" }
 
-		assertEquals(FrameRateCap.UNCAPPED, repository.settings.first().frameRateCap)
+		assertEquals(defaultAppSettings().frameRateCap, repository.settings.first().frameRateCap)
 	}
 
 	@Test
@@ -171,7 +181,7 @@ class SettingsRepositoryTest {
 		val repository = SettingsRepository(dataStore)
 		dataStore.edit { it[stringPreferencesKey("sky_color_preset")] = "RADIOACTIVE" }
 
-		assertEquals(SkyColorPreset.NATURAL, repository.settings.first().skyColorPreset)
+		assertEquals(defaultAppSettings().skyColorPreset, repository.settings.first().skyColorPreset)
 	}
 
 	@Test

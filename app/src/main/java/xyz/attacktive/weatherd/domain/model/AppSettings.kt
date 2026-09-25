@@ -1,5 +1,7 @@
 package xyz.attacktive.weatherd.domain.model
 
+import java.util.Locale
+
 data class AppSettings(
 	val weatherProvider: WeatherProviderType = WeatherProviderType.OPEN_METEO,
 	val updateIntervalMinutes: Int = 30,
@@ -32,6 +34,11 @@ data class AppSettings(
 	val sceneSimulatorPresetIndex: Int = 0,
 	val sceneSimulatorDayPhase: DayPhase = DayPhase.DAY,
 	val sceneSimulatorCelestialProgress: Float = 0.5f,
+)
+
+/** Fresh-install settings, with region-sensitive choices resolved before persistence supplies any overrides. */
+fun defaultAppSettings(locale: Locale = Locale.getDefault(Locale.Category.FORMAT)) = AppSettings(
+	temperatureUnit = TemperatureUnit.defaultForLocale(locale)
 )
 
 /** Selectable weather-refresh intervals in minutes, offered in Settings. */

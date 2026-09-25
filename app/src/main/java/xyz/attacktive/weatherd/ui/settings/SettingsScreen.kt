@@ -76,6 +76,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -103,6 +105,7 @@ import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.UPDATE_INTERVAL_OPTIONS
+import xyz.attacktive.weatherd.domain.model.defaultAppSettings
 import xyz.attacktive.weatherd.domain.model.drawsScenery
 import xyz.attacktive.weatherd.platform.HomeLauncher
 import xyz.attacktive.weatherd.platform.currentHomeLauncher
@@ -245,6 +248,8 @@ private enum class SettingsTab(@StringRes val label: Int) {
 	ADVANCED(R.string.settings_tab_advanced)
 }
 
+private val SETTINGS_DEFAULTS = defaultAppSettings()
+
 private val BACKDROP_SCENE_DISPLAY_ORDER = listOf(
 	BackdropScene.NONE,
 	BackdropScene.PHOTO,
@@ -270,7 +275,11 @@ private fun SettingsTabContent(scrollState: ScrollState, content: @Composable Co
 private fun WeatherProviderSection(settings: AppSettings, onSave: (AppSettings) -> Unit) {
 	var expanded by remember { mutableStateOf(false) }
 
-	SectionLabel(stringResource(R.string.section_weather_provider))
+	ResettableSectionLabel(
+		text = stringResource(R.string.section_weather_provider),
+		isDefault = settings.weatherProvider == SETTINGS_DEFAULTS.weatherProvider,
+		onReset = { onSave(settings.copy(weatherProvider = SETTINGS_DEFAULTS.weatherProvider)) }
+	)
 
 	ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
 		OutlinedTextField(
@@ -307,7 +316,11 @@ private fun WeatherProviderSection(settings: AppSettings, onSave: (AppSettings) 
 private fun RefreshIntervalSection(settings: AppSettings, onSave: (AppSettings) -> Unit) {
 	var expanded by remember { mutableStateOf(false) }
 
-	SectionLabel(stringResource(R.string.section_refresh_interval))
+	ResettableSectionLabel(
+		text = stringResource(R.string.section_refresh_interval),
+		isDefault = settings.updateIntervalMinutes == SETTINGS_DEFAULTS.updateIntervalMinutes,
+		onReset = { onSave(settings.copy(updateIntervalMinutes = SETTINGS_DEFAULTS.updateIntervalMinutes)) }
+	)
 
 	ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
 		OutlinedTextField(
@@ -342,7 +355,11 @@ private fun RefreshIntervalSection(settings: AppSettings, onSave: (AppSettings) 
 private fun FrameRateSection(settings: AppSettings, onSave: (AppSettings) -> Unit) {
 	var expanded by remember { mutableStateOf(false) }
 
-	SectionLabel(stringResource(R.string.section_frame_rate))
+	ResettableSectionLabel(
+		text = stringResource(R.string.section_frame_rate),
+		isDefault = settings.frameRateCap == SETTINGS_DEFAULTS.frameRateCap,
+		onReset = { onSave(settings.copy(frameRateCap = SETTINGS_DEFAULTS.frameRateCap)) }
+	)
 
 	ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
 		OutlinedTextField(
@@ -379,18 +396,21 @@ private fun IntensitySection(settings: AppSettings, onSave: (AppSettings) -> Uni
 	IntensitySlider(
 		label = stringResource(R.string.section_precipitation_intensity),
 		value = settings.precipitationIntensityScale,
+		defaultValue = SETTINGS_DEFAULTS.precipitationIntensityScale,
 		onCommit = { onSave(settings.copy(precipitationIntensityScale = it)) }
 	)
 
 	IntensitySlider(
 		label = stringResource(R.string.section_wind_intensity),
 		value = settings.windIntensityScale,
+		defaultValue = SETTINGS_DEFAULTS.windIntensityScale,
 		onCommit = { onSave(settings.copy(windIntensityScale = it)) }
 	)
 
 	IntensitySlider(
 		label = stringResource(R.string.section_cloud_opacity),
 		value = settings.cloudIntensityScale,
+		defaultValue = SETTINGS_DEFAULTS.cloudIntensityScale,
 		onCommit = { onSave(settings.copy(cloudIntensityScale = it)) }
 	)
 
@@ -406,6 +426,7 @@ private fun SkyAppearanceSection(settings: AppSettings, onSave: (AppSettings) ->
 	PercentageSlider(
 		label = R.string.section_sky_brightness,
 		value = settings.skyBrightnessScale,
+		defaultValue = SETTINGS_DEFAULTS.skyBrightnessScale,
 		valueRange = SKY_BRIGHTNESS_SCALE_RANGE,
 		lowLabel = R.string.sky_brightness_darker,
 		highLabel = R.string.sky_brightness_brighter,
@@ -417,6 +438,7 @@ private fun SkyAppearanceSection(settings: AppSettings, onSave: (AppSettings) ->
 	PercentageSlider(
 		label = R.string.section_sky_saturation,
 		value = settings.skySaturationScale,
+		defaultValue = SETTINGS_DEFAULTS.skySaturationScale,
 		valueRange = SKY_SATURATION_SCALE_RANGE,
 		lowLabel = R.string.sky_saturation_muted,
 		highLabel = R.string.sky_saturation_vivid,
@@ -431,7 +453,11 @@ private fun SkyAppearanceSection(settings: AppSettings, onSave: (AppSettings) ->
 private fun SkyColorPicker(settings: AppSettings, onSave: (AppSettings) -> Unit) {
 	var expanded by remember { mutableStateOf(false) }
 
-	SectionLabel(stringResource(R.string.section_sky_palette))
+	ResettableSectionLabel(
+		text = stringResource(R.string.section_sky_palette),
+		isDefault = settings.skyColorPreset == SETTINGS_DEFAULTS.skyColorPreset,
+		onReset = { onSave(settings.copy(skyColorPreset = SETTINGS_DEFAULTS.skyColorPreset)) }
+	)
 
 	ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
 		OutlinedTextField(
@@ -466,6 +492,7 @@ private fun CloudAppearanceSection(settings: AppSettings, onSave: (AppSettings) 
 	PercentageSlider(
 		label = R.string.section_cloud_size,
 		value = settings.cloudSizeScale,
+		defaultValue = SETTINGS_DEFAULTS.cloudSizeScale,
 		valueRange = CLOUD_SIZE_SCALE_RANGE,
 		lowLabel = R.string.cloud_size_small,
 		highLabel = R.string.cloud_size_large,
@@ -475,6 +502,7 @@ private fun CloudAppearanceSection(settings: AppSettings, onSave: (AppSettings) 
 	PercentageSlider(
 		label = R.string.section_cloud_count,
 		value = settings.cloudCountScale,
+		defaultValue = SETTINGS_DEFAULTS.cloudCountScale,
 		valueRange = CLOUD_COUNT_SCALE_RANGE,
 		lowLabel = R.string.cloud_count_fewer,
 		highLabel = R.string.cloud_count_more,
@@ -488,6 +516,7 @@ private fun CloudAppearanceSection(settings: AppSettings, onSave: (AppSettings) 
 	PercentageSlider(
 		label = R.string.section_cloud_contrast,
 		value = settings.cloudContrastScale,
+		defaultValue = SETTINGS_DEFAULTS.cloudContrastScale,
 		valueRange = CLOUD_CONTRAST_SCALE_RANGE,
 		lowLabel = R.string.cloud_contrast_softer,
 		highLabel = R.string.cloud_contrast_stronger,
@@ -498,10 +527,26 @@ private fun CloudAppearanceSection(settings: AppSettings, onSave: (AppSettings) 
 }
 
 @Composable
-private fun PercentageSlider(label: Int, value: Float, valueRange: ClosedFloatingPointRange<Float>, lowLabel: Int, highLabel: Int, onCommit: (Float) -> Unit) {
+private fun PercentageSlider(
+	label: Int,
+	value: Float,
+	defaultValue: Float,
+	valueRange: ClosedFloatingPointRange<Float>,
+	lowLabel: Int,
+	highLabel: Int,
+	onCommit: (Float) -> Unit
+) {
 	var position by remember(value) { mutableFloatStateOf(value) }
+	val labelText = stringResource(label, (position * 100f).roundToInt())
 
-	SectionLabel(stringResource(label, (position * 100f).roundToInt()))
+	ResettableSectionLabel(
+		text = labelText,
+		isDefault = position == defaultValue,
+		onReset = {
+			position = defaultValue
+			onCommit(defaultValue)
+		}
+	)
 
 	Slider(
 		value = position,
@@ -521,10 +566,23 @@ private fun PercentageSlider(label: Int, value: Float, valueRange: ClosedFloatin
  * The drag position is local state and only commits on release: a DataStore write per pixel would hammer the settings file and restart the scene mid-gesture.
  */
 @Composable
-private fun IntensitySlider(label: String, value: Float, onCommit: (Float) -> Unit) {
+private fun IntensitySlider(
+	label: String,
+	value: Float,
+	defaultValue: Float,
+	onCommit: (Float) -> Unit
+) {
 	var position by remember(value) { mutableFloatStateOf(value) }
+	val labelText = stringResource(R.string.setting_with_percentage, label, (position * 100f).roundToInt())
 
-	SectionLabel(label)
+	ResettableSectionLabel(
+		text = labelText,
+		isDefault = position == defaultValue,
+		onReset = {
+			position = defaultValue
+			onCommit(defaultValue)
+		}
+	)
 
 	Slider(
 		value = position,
@@ -556,7 +614,9 @@ private fun WallpaperMotionSection(settings: AppSettings, onSave: (AppSettings) 
 		subtitle = subtitle,
 		checked = settings.wallpaperScrollingEnabled && scrollingSupported,
 		onToggle = { onSave(settings.copy(wallpaperScrollingEnabled = it)) },
-		enabled = scrollingSupported
+		enabled = scrollingSupported,
+		resetVisible = settings.wallpaperScrollingEnabled != SETTINGS_DEFAULTS.wallpaperScrollingEnabled,
+		onReset = { onSave(settings.copy(wallpaperScrollingEnabled = SETTINGS_DEFAULTS.wallpaperScrollingEnabled)) }
 	)
 }
 
@@ -591,14 +651,18 @@ private fun SunEffectsSection(settings: AppSettings, onSave: (AppSettings) -> Un
 		label = stringResource(R.string.label_show_sun),
 		subtitle = stringResource(R.string.subtitle_show_sun),
 		checked = settings.sunVisible,
-		onToggle = { onSave(settings.copy(sunVisible = it)) }
+		onToggle = { onSave(settings.copy(sunVisible = it)) },
+		resetVisible = settings.sunVisible != SETTINGS_DEFAULTS.sunVisible,
+		onReset = { onSave(settings.copy(sunVisible = SETTINGS_DEFAULTS.sunVisible)) }
 	)
 
 	ToggleSetting(
 		label = stringResource(R.string.label_show_moon),
 		subtitle = stringResource(R.string.subtitle_show_moon),
 		checked = settings.moonVisible,
-		onToggle = { onSave(settings.copy(moonVisible = it)) }
+		onToggle = { onSave(settings.copy(moonVisible = it)) },
+		resetVisible = settings.moonVisible != SETTINGS_DEFAULTS.moonVisible,
+		onReset = { onSave(settings.copy(moonVisible = SETTINGS_DEFAULTS.moonVisible)) }
 	)
 
 	AnimatedVisibility(visible = settings.sunVisible) {
@@ -613,7 +677,9 @@ private fun SunEffectsSection(settings: AppSettings, onSave: (AppSettings) -> Un
 				label = stringResource(R.string.label_lens_flare),
 				subtitle = stringResource(R.string.subtitle_lens_flare),
 				checked = settings.lensFlareEnabled,
-				onToggle = { onSave(settings.copy(lensFlareEnabled = it)) }
+				onToggle = { onSave(settings.copy(lensFlareEnabled = it)) },
+				resetVisible = settings.lensFlareEnabled != SETTINGS_DEFAULTS.lensFlareEnabled,
+				onReset = { onSave(settings.copy(lensFlareEnabled = SETTINGS_DEFAULTS.lensFlareEnabled)) }
 			)
 		}
 	}
@@ -622,8 +688,16 @@ private fun SunEffectsSection(settings: AppSettings, onSave: (AppSettings) -> Un
 @Composable
 private fun SunSizeSlider(settings: AppSettings, onSave: (AppSettings) -> Unit) {
 	var position by remember(settings.sunSizeScale) { mutableFloatStateOf(settings.sunSizeScale) }
+	val label = stringResource(R.string.label_sun_size, (position * 100f).roundToInt())
 
-	SectionLabel(stringResource(R.string.label_sun_size, (position * 100f).roundToInt()))
+	ResettableSectionLabel(
+		text = label,
+		isDefault = position == SETTINGS_DEFAULTS.sunSizeScale,
+		onReset = {
+			position = SETTINGS_DEFAULTS.sunSizeScale
+			onSave(settings.copy(sunSizeScale = SETTINGS_DEFAULTS.sunSizeScale))
+		}
+	)
 
 	Slider(
 		value = position,
@@ -643,7 +717,11 @@ private fun SunSizeSlider(settings: AppSettings, onSave: (AppSettings) -> Unit) 
 private fun SunColorPicker(settings: AppSettings, onSave: (AppSettings) -> Unit) {
 	var expanded by remember { mutableStateOf(false) }
 
-	SectionLabel(stringResource(R.string.label_sun_color))
+	ResettableSectionLabel(
+		text = stringResource(R.string.label_sun_color),
+		isDefault = settings.sunColorPreset == SETTINGS_DEFAULTS.sunColorPreset,
+		onReset = { onSave(settings.copy(sunColorPreset = SETTINGS_DEFAULTS.sunColorPreset)) }
+	)
 
 	ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
 		OutlinedTextField(
@@ -678,7 +756,11 @@ private fun SunColorPicker(settings: AppSettings, onSave: (AppSettings) -> Unit)
 private fun BackdropSection(settings: AppSettings, onSave: (AppSettings) -> Unit) {
 	var expanded by remember { mutableStateOf(false) }
 
-	SectionLabel(stringResource(R.string.section_backdrop))
+	ResettableSectionLabel(
+		text = stringResource(R.string.section_backdrop),
+		isDefault = settings.backdropScene == SETTINGS_DEFAULTS.backdropScene,
+		onReset = { onSave(settings.copy(backdropScene = SETTINGS_DEFAULTS.backdropScene)) }
+	)
 
 	ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
 		OutlinedTextField(
@@ -839,14 +921,22 @@ private fun LabelsSection(settings: AppSettings, onSave: (AppSettings) -> Unit) 
 		label = stringResource(R.string.label_show_weather),
 		subtitle = stringResource(R.string.subtitle_show_weather),
 		checked = settings.showWeatherLabel,
-		onToggle = { onSave(settings.copy(showWeatherLabel = it)) }
+		onToggle = { onSave(settings.copy(showWeatherLabel = it)) },
+		resetVisible = settings.showWeatherLabel != SETTINGS_DEFAULTS.showWeatherLabel,
+		onReset = { onSave(settings.copy(showWeatherLabel = SETTINGS_DEFAULTS.showWeatherLabel)) }
 	)
 
 	AnimatedVisibility(visible = settings.showWeatherLabel) {
 		Column {
 			Spacer(modifier = Modifier.height(8.dp))
 
-			SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+			ResettableSectionLabel(
+			text = stringResource(R.string.section_temperature_unit),
+			isDefault = settings.temperatureUnit == SETTINGS_DEFAULTS.temperatureUnit,
+			onReset = { onSave(settings.copy(temperatureUnit = SETTINGS_DEFAULTS.temperatureUnit)) }
+		)
+
+		SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
 				TemperatureUnit.entries.forEachIndexed { index, unit ->
 					SegmentedButton(
 						selected = settings.temperatureUnit == unit,
@@ -870,7 +960,9 @@ private fun LabelsSection(settings: AppSettings, onSave: (AppSettings) -> Unit) 
 		label = stringResource(R.string.label_show_location),
 		subtitle = stringResource(R.string.subtitle_show_location),
 		checked = settings.showLocationLabel,
-		onToggle = { onSave(settings.copy(showLocationLabel = it)) }
+		onToggle = { onSave(settings.copy(showLocationLabel = it)) },
+		resetVisible = settings.showLocationLabel != SETTINGS_DEFAULTS.showLocationLabel,
+		onReset = { onSave(settings.copy(showLocationLabel = SETTINGS_DEFAULTS.showLocationLabel)) }
 	)
 }
 
@@ -884,6 +976,15 @@ private fun SceneSimulatorSection(settings: AppSettings, onSave: (AppSettings) -
 		checked = settings.sceneSimulatorEnabled,
 		onToggle = {
 			onSave(settings.copy(sceneSimulatorEnabled = it, sceneSimulatorActive = settings.sceneSimulatorActive && it))
+		},
+		resetVisible = settings.sceneSimulatorEnabled != SETTINGS_DEFAULTS.sceneSimulatorEnabled,
+		onReset = {
+			onSave(
+				settings.copy(
+					sceneSimulatorEnabled = SETTINGS_DEFAULTS.sceneSimulatorEnabled,
+					sceneSimulatorActive = settings.sceneSimulatorActive && SETTINGS_DEFAULTS.sceneSimulatorEnabled
+				)
+			)
 		}
 	)
 }
@@ -922,7 +1023,9 @@ private fun LocationSection(
 		label = stringResource(R.string.label_use_device_location),
 		subtitle = stringResource(R.string.subtitle_use_device_location),
 		checked = settings.useDeviceLocation,
-		onToggle = onToggleDeviceLocation
+		onToggle = onToggleDeviceLocation,
+		resetVisible = settings.useDeviceLocation != SETTINGS_DEFAULTS.useDeviceLocation,
+		onReset = { onToggleDeviceLocation(SETTINGS_DEFAULTS.useDeviceLocation) }
 	)
 
 	AnimatedVisibility(visible = !settings.useDeviceLocation) {
@@ -1040,11 +1143,28 @@ private fun CurrentManualLocation(label: String, onClear: () -> Unit) {
 }
 
 @Composable
-private fun ToggleSetting(label: String, subtitle: String, checked: Boolean, onToggle: (Boolean) -> Unit, enabled: Boolean = true) {
-	Row(modifier = Modifier.fillMaxWidth().alpha(if (enabled) 1f else 0.5f), verticalAlignment = Alignment.CenterVertically) {
+private fun ToggleSetting(
+	label: String,
+	subtitle: String,
+	checked: Boolean,
+	onToggle: (Boolean) -> Unit,
+	enabled: Boolean = true,
+	resetVisible: Boolean = false,
+	onReset: (() -> Unit)? = null
+) {
+	Row(
+		modifier = Modifier
+			.fillMaxWidth()
+			.alpha(if (enabled) 1f else 0.5f),
+		verticalAlignment = Alignment.CenterVertically
+	) {
 		Column(modifier = Modifier.weight(1f)) {
 			Text(label)
 			Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+		}
+
+		if (resetVisible && onReset != null) {
+			ResetButton(settingLabel = label, onClick = onReset)
 		}
 
 		Switch(checked = checked, onCheckedChange = onToggle, enabled = enabled)
@@ -1062,6 +1182,40 @@ private fun VersionFooter() {
 			.fillMaxWidth()
 			.padding(16.dp)
 	)
+}
+
+@Composable
+private fun ResettableSectionLabel(
+	text: String,
+	isDefault: Boolean,
+	onReset: () -> Unit
+) {
+	Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+		Text(
+			text = text,
+			style = MaterialTheme.typography.labelSmall,
+			color = MaterialTheme.colorScheme.onSurfaceVariant,
+			modifier = Modifier
+				.weight(1f)
+				.padding(bottom = 4.dp)
+		)
+
+		if (!isDefault) {
+			ResetButton(settingLabel = text, onClick = onReset)
+		}
+	}
+}
+
+@Composable
+private fun ResetButton(settingLabel: String, onClick: () -> Unit) {
+	val resetDescription = stringResource(R.string.content_description_reset_to_default, settingLabel)
+
+	TextButton(
+		onClick = onClick,
+		modifier = Modifier.semantics { contentDescription = resetDescription }
+	) {
+		Text(stringResource(R.string.reset_to_default))
+	}
 }
 
 @Composable
