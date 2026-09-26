@@ -147,6 +147,7 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 	}
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SettingsTopBar(selectedTabIndex: Int, onNavigateBack: () -> Unit, onSelectTab: (Int) -> Unit) {
 	Column {
