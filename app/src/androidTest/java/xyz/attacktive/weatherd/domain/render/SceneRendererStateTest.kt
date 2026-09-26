@@ -8,6 +8,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
+import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 
 @RunWith(AndroidJUnit4::class)
@@ -42,6 +43,42 @@ class SceneRendererStateTest {
 		)
 
 		backdrop.recycle()
+	}
+
+	@Test
+	fun blackNightBrightnessDarkensPhotoBackdropWithoutChangingDay() {
+		val renderer = SceneRenderer(resources)
+		val photo = createBitmap(WIDTH, HEIGHT)
+		photo.eraseColor(Color.WHITE)
+		renderer.backgroundPhoto = photo
+
+		val nightParams = SceneParams(
+			dayPhase = DayPhase.NIGHT,
+			cloudiness = 0f,
+			fogDensity = 0f,
+			precipitation = null,
+			thunder = false,
+			windFactor = 0f,
+			backdropScene = BackdropScene.PHOTO,
+			nightBrightnessScale = 0f,
+			moonVisible = false
+		)
+		val nightBackdrop = createBitmap(WIDTH, HEIGHT)
+		renderer.renderBackdrop(Canvas(nightBackdrop), WIDTH, HEIGHT, nightParams)
+		val nightPixel = nightBackdrop.getPixel(WIDTH / 2, HEIGHT / 2)
+
+		assertEquals(Color.BLACK, nightPixel)
+
+		val dayBackdrop = createBitmap(WIDTH, HEIGHT)
+		renderer.renderBackdrop(Canvas(dayBackdrop), WIDTH, HEIGHT, nightParams.copy(dayPhase = DayPhase.DAY))
+		val dayPixel = dayBackdrop.getPixel(WIDTH / 2, HEIGHT / 2)
+
+		assertEquals(Color.WHITE, dayPixel)
+
+		renderer.backgroundPhoto = null
+		photo.recycle()
+		nightBackdrop.recycle()
+		dayBackdrop.recycle()
 	}
 
 	private companion object {

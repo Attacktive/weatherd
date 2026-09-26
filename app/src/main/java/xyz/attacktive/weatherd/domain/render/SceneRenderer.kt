@@ -28,6 +28,7 @@ import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.CLOUD_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.DayPhase
+import xyz.attacktive.weatherd.domain.model.NIGHT_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
@@ -318,6 +319,17 @@ class SceneRenderer(resources: Resources) {
 			// The photo supplies the whole sky, so everything renderBackdrop draws after this — overcast ceiling, fog base, haze, vignette — composites onto it with no tinting pass of its own.
 			photoDest.set(0f, 0f, width, height)
 			canvas.drawBitmap(photo, photoSourceRect(photo.width, photo.height, width, height), photoDest, photoPaint)
+
+			if (params.dayPhase == DayPhase.NIGHT) {
+				val nightBrightness = params.nightBrightnessScale.coerceIn(NIGHT_BRIGHTNESS_SCALE_RANGE.start, NIGHT_BRIGHTNESS_SCALE_RANGE.endInclusive)
+				if (nightBrightness < 1f) {
+					paint.style = Paint.Style.FILL
+					paint.shader = null
+					paint.color = Color.argb(((1f - nightBrightness) * 255f).roundToInt(), 0, 0, 0)
+					canvas.drawRect(0f, 0f, width, height, paint)
+				}
+			}
+
 			return
 		}
 
