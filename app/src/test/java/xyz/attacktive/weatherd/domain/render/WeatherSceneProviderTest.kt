@@ -377,32 +377,12 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `settings status resolves a device place name even when the wallpaper label is off`() = runTest {
-		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = true, showLocationLabel = false))
-		coEvery { locationRepository.currentLocation() } returns GeoLocation(37.57, 126.98)
-		coEvery { weatherRepository.current(37.57, 126.98) } returns Result.success(snapshotWith(weatherCode = 63))
-		coEvery { reverseGeocodingRepository.placeName(37.57, 126.98) } returns "Seoul"
-
-		provider.refresh(1_000_000L, resolveLocationName = true)
-
-		assertEquals(
-			WeatherSceneStatus(locationLabel = "Seoul", lastRefreshEpochSeconds = 1_000_000L),
-			provider.status.value
-		)
+		assertSettingsLocationStatus(AppSettings(useDeviceLocation = true, showLocationLabel = false))
 	}
 
 	@Test
 	fun `manual mode without a selected city reports the fallback device location`() = runTest {
-		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = false, showLocationLabel = false))
-		coEvery { locationRepository.currentLocation() } returns GeoLocation(37.57, 126.98)
-		coEvery { weatherRepository.current(37.57, 126.98) } returns Result.success(snapshotWith(weatherCode = 63))
-		coEvery { reverseGeocodingRepository.placeName(37.57, 126.98) } returns "Seoul"
-
-		provider.refresh(1_000_000L, resolveLocationName = true)
-
-		assertEquals(
-			WeatherSceneStatus(locationLabel = "Seoul", lastRefreshEpochSeconds = 1_000_000L),
-			provider.status.value
-		)
+		assertSettingsLocationStatus(AppSettings(useDeviceLocation = false, showLocationLabel = false))
 	}
 
 	@Test
@@ -518,6 +498,20 @@ class WeatherSceneProviderTest {
 		assertEquals(0.6f, throttledParams.skySaturationScale, 0.0001f)
 		assertEquals(SkyColorPreset.CYBERPUNK, throttledParams.skyColorPreset)
 		assertEquals(0.2872f, throttledParams.windFactor, 0.0001f)
+	}
+
+	private suspend fun assertSettingsLocationStatus(settings: AppSettings) {
+		every { settingsRepository.settings } returns flowOf(settings)
+		coEvery { locationRepository.currentLocation() } returns GeoLocation(37.57, 126.98)
+		coEvery { weatherRepository.current(37.57, 126.98) } returns Result.success(snapshotWith(weatherCode = 63))
+		coEvery { reverseGeocodingRepository.placeName(37.57, 126.98) } returns "Seoul"
+
+		provider.refresh(1_000_000L, resolveLocationName = true)
+
+		assertEquals(
+			WeatherSceneStatus(locationLabel = "Seoul", lastRefreshEpochSeconds = 1_000_000L),
+			provider.status.value
+		)
 	}
 
 	private fun snapshotWith(weatherCode: Int) = WeatherSnapshot(
