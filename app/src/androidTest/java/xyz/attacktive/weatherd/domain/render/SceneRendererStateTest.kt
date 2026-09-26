@@ -97,6 +97,7 @@ class SceneRendererStateTest {
 			nightBrightnessScale = 0f,
 			moonVisible = false
 		)
+
 		val rainyNight = clearNight.copy(
 			cloudiness = 0.75f,
 			precipitation = Precipitation(
