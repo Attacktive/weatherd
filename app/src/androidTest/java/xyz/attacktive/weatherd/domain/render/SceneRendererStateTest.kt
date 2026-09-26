@@ -10,6 +10,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
+import xyz.attacktive.weatherd.domain.model.Precipitation
+import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 
 @RunWith(AndroidJUnit4::class)
 class SceneRendererStateTest {
@@ -63,6 +65,7 @@ class SceneRendererStateTest {
 			nightBrightnessScale = 0f,
 			moonVisible = false
 		)
+
 		val nightBackdrop = createBitmap(WIDTH, HEIGHT)
 		renderer.renderBackdrop(Canvas(nightBackdrop), WIDTH, HEIGHT, nightParams)
 		val nightPixel = nightBackdrop.getPixel(WIDTH / 2, HEIGHT / 2)
@@ -79,6 +82,44 @@ class SceneRendererStateTest {
 		photo.recycle()
 		nightBackdrop.recycle()
 		dayBackdrop.recycle()
+	}
+
+	@Test
+	fun blackNightBrightnessDarkensStaticWeatherLayers() {
+		val renderer = SceneRenderer(resources)
+		val clearNight = SceneParams(
+			dayPhase = DayPhase.NIGHT,
+			cloudiness = 0f,
+			fogDensity = 0f,
+			precipitation = null,
+			thunder = false,
+			windFactor = 0f,
+			nightBrightnessScale = 0f,
+			moonVisible = false
+		)
+		val rainyNight = clearNight.copy(
+			cloudiness = 0.75f,
+			precipitation = Precipitation(
+				kind = PrecipitationKind.RAIN,
+				severity = 1f,
+				observed = 1f
+			)
+		)
+
+		assertBackdropIsBlack(renderer, clearNight)
+		assertBackdropIsBlack(renderer, clearNight.copy(cloudiness = 0.85f))
+		assertBackdropIsBlack(renderer, rainyNight)
+	}
+
+	private fun assertBackdropIsBlack(renderer: SceneRenderer, params: SceneParams) {
+		val backdrop = createBitmap(WIDTH, HEIGHT)
+		renderer.renderBackdrop(Canvas(backdrop), WIDTH, HEIGHT, params)
+
+		for (y in intArrayOf(HEIGHT / 4, HEIGHT / 2, HEIGHT * 3 / 4)) {
+			assertEquals(Color.BLACK, backdrop.getPixel(WIDTH / 2, y))
+		}
+
+		backdrop.recycle()
 	}
 
 	private companion object {

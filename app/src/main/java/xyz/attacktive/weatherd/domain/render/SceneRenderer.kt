@@ -207,6 +207,7 @@ class SceneRenderer(resources: Resources) {
 		}
 
 		drawVignette(canvas, w, h)
+		drawNightBackdropDimming(canvas, w, h, params)
 	}
 
 	/** The animated layers (stars, sun/moon glow, horizon scenery, drifting clouds/overcast/mist, precipitation, lightning). */
@@ -319,17 +320,6 @@ class SceneRenderer(resources: Resources) {
 			// The photo supplies the whole sky, so everything renderBackdrop draws after this — overcast ceiling, fog base, haze, vignette — composites onto it with no tinting pass of its own.
 			photoDest.set(0f, 0f, width, height)
 			canvas.drawBitmap(photo, photoSourceRect(photo.width, photo.height, width, height), photoDest, photoPaint)
-
-			if (params.dayPhase == DayPhase.NIGHT) {
-				val nightBrightness = params.nightBrightnessScale.coerceIn(NIGHT_BRIGHTNESS_SCALE_RANGE.start, NIGHT_BRIGHTNESS_SCALE_RANGE.endInclusive)
-				if (nightBrightness < 1f) {
-					paint.style = Paint.Style.FILL
-					paint.shader = null
-					paint.color = Color.argb(((1f - nightBrightness) * 255f).roundToInt(), 0, 0, 0)
-					canvas.drawRect(0f, 0f, width, height, paint)
-				}
-			}
-
 			return
 		}
 
@@ -2261,6 +2251,22 @@ class SceneRenderer(resources: Resources) {
 		canvas.drawRect(0f, height * 0.55f, width, height, paint)
 
 		paint.shader = null
+	}
+
+	private fun drawNightBackdropDimming(canvas: Canvas, width: Float, height: Float, params: SceneParams) {
+		if (params.dayPhase != DayPhase.NIGHT) {
+			return
+		}
+
+		val nightBrightness = params.nightBrightnessScale.coerceIn(NIGHT_BRIGHTNESS_SCALE_RANGE.start, NIGHT_BRIGHTNESS_SCALE_RANGE.endInclusive)
+		if (nightBrightness >= 1f) {
+			return
+		}
+
+		paint.style = Paint.Style.FILL
+		paint.shader = null
+		paint.color = Color.argb(((1f - nightBrightness) * 255f).roundToInt(), 0, 0, 0)
+		canvas.drawRect(0f, 0f, width, height, paint)
 	}
 
 	private fun drawVignette(canvas: Canvas, width: Float, height: Float) {
