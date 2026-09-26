@@ -113,6 +113,19 @@ class ScenePaletteTest {
 	}
 
 	@Test
+	fun `night brightness can black out the final night sky without changing day`() {
+		val night = clearParams(DayPhase.NIGHT)
+		val blackNight = skyGradientFor(night.copy(nightBrightnessScale = 0f))
+		val blackOvercastNight = skyGradientFor(night.copy(cloudiness = 0.85f, nightBrightnessScale = 0f))
+		val day = clearParams(DayPhase.DAY)
+
+		assertEquals(0xFF000000.toInt(), blackNight.topColor)
+		assertEquals(0xFF000000.toInt(), blackNight.bottomColor)
+		assertEquals(blackNight, blackOvercastNight)
+		assertEquals(skyGradientFor(day), skyGradientFor(day.copy(nightBrightnessScale = 0f)))
+	}
+
+	@Test
 	fun `sky presets stay phase aware and weather can still gray them out`() {
 		val natural = skyGradientFor(clearParams(DayPhase.DUSK))
 		val cyberpunk = skyGradientFor(clearParams(DayPhase.DUSK).copy(skyColorPreset = SkyColorPreset.CYBERPUNK))

@@ -22,6 +22,7 @@ class SceneDebugPresetsTest {
 			assertEquals(1f, params.cloudCountScale, 0.0001f)
 			assertEquals(1f, params.cloudContrastScale, 0.0001f)
 			assertEquals(1f, params.skyBrightnessScale, 0.0001f)
+			assertEquals(1f, params.nightBrightnessScale, 0.0001f)
 			assertEquals(1f, params.skySaturationScale, 0.0001f)
 			assertEquals(SkyColorPreset.NATURAL, params.skyColorPreset)
 			assertTrue(params.sunVisible)
@@ -77,12 +78,14 @@ class SceneDebugPresetsTest {
 			DayPhase.DAY,
 			cloudContrastScale = 1.4f,
 			skyBrightnessScale = 0.8f,
+			nightBrightnessScale = 0.35f,
 			skySaturationScale = 1.2f,
 			skyColorPreset = SkyColorPreset.CYBERPUNK
 		)
 
 		assertEquals(1.4f, params.cloudContrastScale, 0.0001f)
 		assertEquals(0.8f, params.skyBrightnessScale, 0.0001f)
+		assertEquals(0.35f, params.nightBrightnessScale, 0.0001f)
 		assertEquals(1.2f, params.skySaturationScale, 0.0001f)
 		assertEquals(SkyColorPreset.CYBERPUNK, params.skyColorPreset)
 	}

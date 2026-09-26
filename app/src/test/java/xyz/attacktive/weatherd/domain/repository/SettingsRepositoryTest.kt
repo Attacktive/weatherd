@@ -111,6 +111,7 @@ class SettingsRepositoryTest {
 			wallpaperScrollingEnabled = true,
 			cloudContrastScale = 1.35f,
 			skyBrightnessScale = 0.8f,
+			nightBrightnessScale = 0.35f,
 			skySaturationScale = 1.25f,
 			skyColorPreset = SkyColorPreset.PASTEL,
 			sunVisible = false,
@@ -201,7 +202,7 @@ class SettingsRepositoryTest {
 	fun `round-trips the intensity scales`() = runTest {
 		val repository = SettingsRepository(dataStore())
 
-		repository.save(AppSettings(precipitationIntensityScale = 0.4f, windIntensityScale = 1.8f, cloudIntensityScale = 0.6f, cloudSizeScale = 1.7f, cloudCountScale = 0.7f, cloudContrastScale = 1.3f, skyBrightnessScale = 0.8f, skySaturationScale = 1.2f, skyColorPreset = SkyColorPreset.WARM))
+		repository.save(AppSettings(precipitationIntensityScale = 0.4f, windIntensityScale = 1.8f, cloudIntensityScale = 0.6f, cloudSizeScale = 1.7f, cloudCountScale = 0.7f, cloudContrastScale = 1.3f, skyBrightnessScale = 0.8f, nightBrightnessScale = 0.4f, skySaturationScale = 1.2f, skyColorPreset = SkyColorPreset.WARM))
 
 		val settings = repository.settings.first()
 		assertEquals(0.4f, settings.precipitationIntensityScale, 0.0001f)
@@ -211,6 +212,7 @@ class SettingsRepositoryTest {
 		assertEquals(0.7f, settings.cloudCountScale, 0.0001f)
 		assertEquals(1.3f, settings.cloudContrastScale, 0.0001f)
 		assertEquals(0.8f, settings.skyBrightnessScale, 0.0001f)
+		assertEquals(0.4f, settings.nightBrightnessScale, 0.0001f)
 		assertEquals(1.2f, settings.skySaturationScale, 0.0001f)
 		assertEquals(SkyColorPreset.WARM, settings.skyColorPreset)
 	}
@@ -228,6 +230,7 @@ class SettingsRepositoryTest {
 		assertEquals(1f, settings.cloudCountScale, 0.0001f)
 		assertEquals(1f, settings.cloudContrastScale, 0.0001f)
 		assertEquals(1f, settings.skyBrightnessScale, 0.0001f)
+		assertEquals(1f, settings.nightBrightnessScale, 0.0001f)
 		assertEquals(1f, settings.skySaturationScale, 0.0001f)
 		assertEquals(SkyColorPreset.NATURAL, settings.skyColorPreset)
 	}

@@ -62,6 +62,7 @@ class WeatherSceneProviderTest {
 				cloudCountScale = 0.7f,
 				cloudContrastScale = 1.4f,
 				skyBrightnessScale = 0.8f,
+				nightBrightnessScale = 0.35f,
 				skySaturationScale = 1.2f,
 				skyColorPreset = SkyColorPreset.PASTEL,
 				sunVisible = false,
@@ -91,6 +92,7 @@ class WeatherSceneProviderTest {
 		assertEquals(0.7f, params.cloudCountScale, 0.0001f)
 		assertEquals(1.4f, params.cloudContrastScale, 0.0001f)
 		assertEquals(0.8f, params.skyBrightnessScale, 0.0001f)
+		assertEquals(0.35f, params.nightBrightnessScale, 0.0001f)
 		assertEquals(1.2f, params.skySaturationScale, 0.0001f)
 		assertEquals(SkyColorPreset.PASTEL, params.skyColorPreset)
 		assertFalse(params.sunVisible)
@@ -431,7 +433,7 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `intensity scale settings reach the scene params even when the refresh is throttled`() = runTest {
-		val device = AppSettings(useDeviceLocation = true, precipitationIntensityScale = 1.5f, windIntensityScale = 0.5f, cloudIntensityScale = 0.8f, cloudContrastScale = 1.3f, skyBrightnessScale = 0.75f, skySaturationScale = 1.25f, skyColorPreset = SkyColorPreset.WARM)
+		val device = AppSettings(useDeviceLocation = true, precipitationIntensityScale = 1.5f, windIntensityScale = 0.5f, cloudIntensityScale = 0.8f, cloudContrastScale = 1.3f, skyBrightnessScale = 0.75f, nightBrightnessScale = 0.65f, skySaturationScale = 1.25f, skyColorPreset = SkyColorPreset.WARM)
 		every { settingsRepository.settings } returns flowOf(device)
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 63))
@@ -445,12 +447,13 @@ class WeatherSceneProviderTest {
 		assertEquals(0.8f, initialParams.cloudScale, 0.0001f)
 		assertEquals(1.3f, initialParams.cloudContrastScale, 0.0001f)
 		assertEquals(0.75f, initialParams.skyBrightnessScale, 0.0001f)
+		assertEquals(0.65f, initialParams.nightBrightnessScale, 0.0001f)
 		assertEquals(1.25f, initialParams.skySaturationScale, 0.0001f)
 		assertEquals(SkyColorPreset.WARM, initialParams.skyColorPreset)
 		assertEquals(0.2872f, initialParams.windFactor, 0.0001f)
 
 		// The user adjusts the sliders; the next refresh is inside the throttle window but must still pick the new scales up.
-		every { settingsRepository.settings } returns flowOf(device.copy(precipitationIntensityScale = 0.25f, windIntensityScale = 2f, cloudIntensityScale = 1.5f, cloudContrastScale = 0.7f, skyBrightnessScale = 1.3f, skySaturationScale = 0.6f, skyColorPreset = SkyColorPreset.CYBERPUNK))
+		every { settingsRepository.settings } returns flowOf(device.copy(precipitationIntensityScale = 0.25f, windIntensityScale = 2f, cloudIntensityScale = 1.5f, cloudContrastScale = 0.7f, skyBrightnessScale = 1.3f, nightBrightnessScale = 0.2f, skySaturationScale = 0.6f, skyColorPreset = SkyColorPreset.CYBERPUNK))
 		provider.refresh(1_000_060L)
 
 		// The new wind scale reaches scene params while windFactor stays an honest observation reading.
@@ -460,6 +463,7 @@ class WeatherSceneProviderTest {
 		assertEquals(1.5f, throttledParams.cloudScale, 0.0001f)
 		assertEquals(0.7f, throttledParams.cloudContrastScale, 0.0001f)
 		assertEquals(1.3f, throttledParams.skyBrightnessScale, 0.0001f)
+		assertEquals(0.2f, throttledParams.nightBrightnessScale, 0.0001f)
 		assertEquals(0.6f, throttledParams.skySaturationScale, 0.0001f)
 		assertEquals(SkyColorPreset.CYBERPUNK, throttledParams.skyColorPreset)
 		assertEquals(0.2872f, throttledParams.windFactor, 0.0001f)

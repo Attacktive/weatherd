@@ -189,6 +189,7 @@ class SceneParamsTest {
 			NOW,
 			cloudContrastScale = 1.4f,
 			skyBrightnessScale = 0.8f,
+			nightBrightnessScale = 0.4f,
 			skySaturationScale = 1.2f,
 			skyColorPreset = SkyColorPreset.CYBERPUNK
 		)
@@ -196,6 +197,7 @@ class SceneParamsTest {
 		assertEquals(0.4f, params.cloudiness, 0.0001f)
 		assertEquals(1.4f, params.cloudContrastScale, 0.0001f)
 		assertEquals(0.8f, params.skyBrightnessScale, 0.0001f)
+		assertEquals(0.4f, params.nightBrightnessScale, 0.0001f)
 		assertEquals(1.2f, params.skySaturationScale, 0.0001f)
 		assertEquals(SkyColorPreset.CYBERPUNK, params.skyColorPreset)
 	}
@@ -311,6 +313,7 @@ class SceneParamsTest {
 			"windScale" to params.copy(windScale = 2f),
 			"cloudScale" to params.copy(cloudScale = 2f),
 			"skyBrightnessScale" to params.copy(skyBrightnessScale = 1.4f),
+			"nightBrightnessScale" to params.copy(nightBrightnessScale = 0.2f),
 			"skySaturationScale" to params.copy(skySaturationScale = 0.7f),
 			"skyColorPreset" to params.copy(skyColorPreset = SkyColorPreset.WARM),
 			"backdropScene" to params.copy(backdropScene = BackdropScene.NONE),
@@ -335,6 +338,7 @@ class SceneParamsTest {
 		cloudScale = 0.7f,
 		cloudContrastScale = 1.3f,
 		skyBrightnessScale = 0.8f,
+		nightBrightnessScale = 0.6f,
 		skySaturationScale = 1.2f,
 		skyColorPreset = SkyColorPreset.PASTEL,
 		moonPhase = 0.17f,
