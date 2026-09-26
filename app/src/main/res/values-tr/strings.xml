@@ -59,6 +59,11 @@
 	<string name="label_scene_simulator">Sahne simülatörü</string>
 	<string name="subtitle_scene_simulator">Farklı hava koşullarını ve günün saatlerini önizleyin</string>
 	<string name="section_current_city">Geçerli şehir</string>
+	<string name="section_current_location">Geçerli konum</string>
+	<string name="last_updated">Son güncelleme: %1$s</string>
+	<string name="last_updated_never">Henüz güncellenmedi</string>
+	<string name="location_unavailable">Konum kullanılamıyor</string>
+	<string name="refresh_now">Şimdi yenile</string>
 	<string name="label_show_weather">Geçerli hava durumunu göster</string>
 	<string name="subtitle_show_weather">örn. \"Hafif yağmur · 23°\"</string>
 	<string name="label_show_location">Konum adını göster</string>

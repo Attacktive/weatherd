@@ -59,6 +59,11 @@
 	<string name="label_scene_simulator">Simulatore di scene</string>
 	<string name="subtitle_scene_simulator">Visualizza in anteprima diverse condizioni meteo e ore del giorno</string>
 	<string name="section_current_city">Città attuale</string>
+	<string name="section_current_location">Posizione attuale</string>
+	<string name="last_updated">Ultimo aggiornamento: %1$s</string>
+	<string name="last_updated_never">Non ancora aggiornato</string>
+	<string name="location_unavailable">Posizione non disponibile</string>
+	<string name="refresh_now">Aggiorna ora</string>
 	<string name="label_show_weather">Mostra meteo attuale</string>
 	<string name="subtitle_show_weather">es. \"Pioggia leggera · 23°\"</string>
 	<string name="label_show_location">Mostra nome della località</string>

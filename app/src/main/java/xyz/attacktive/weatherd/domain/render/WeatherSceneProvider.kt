@@ -3,6 +3,9 @@ package xyz.attacktive.weatherd.domain.render
 import java.time.LocalTime
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -25,12 +28,17 @@ import xyz.attacktive.weatherd.domain.weather.moonPhaseFor
 import xyz.attacktive.weatherd.domain.weather.weatherLabelFor
 import xyz.attacktive.weatherd.util.AppLogger
 
+data class WeatherSceneStatus(val locationLabel: String? = null, val lastRefreshEpochSeconds: Long? = null)
+
 /**
  * Shared source of truth for the current [SceneParams], so the live wallpaper and the in-app preview never disagree about what to draw. Live weather is fetched lazily and cached; while the persisted scene simulator is active, its preset, phase and progress replace those meteorological fields for both consumers.
  * Thread-safe: [refresh] runs off the render thread and publishes weather, display settings and simulator state through volatile fields that [paramsFor] reads.
  */
 @Singleton
 class WeatherSceneProvider @Inject constructor(@ApplicationContext private val context: Context, private val locationRepository: LocationRepository, private val weatherRepository: WeatherRepository, private val reverseGeocodingRepository: ReverseGeocodingRepository, private val settingsRepository: SettingsRepository, private val photoBackgroundRepository: PhotoBackgroundRepository, private val logger: AppLogger) {
+	private val _status = MutableStateFlow(WeatherSceneStatus())
+	val status: StateFlow<WeatherSceneStatus> = _status.asStateFlow()
+
 	@Volatile private var snapshot: WeatherSnapshot? = null
 	@Volatile private var lastRefreshEpochSeconds = 0L
 	@Volatile private var lastLocationKey: String? = null
@@ -60,7 +68,8 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	@Volatile private var sceneSimulatorDayPhase = DayPhase.DAY
 	@Volatile private var sceneSimulatorCelestialProgress = 0.5f
 	@Volatile private var locationLabel: String? = null
-	@Volatile private var lastFix: GeoLocation? = null
+	@Volatile private var lastDeviceFix: GeoLocation? = null
+	@Volatile private var lastRefreshLocation: GeoLocation? = null
 	@Volatile private var geocodedKey: String? = null
 
 	/** The scene to draw at [nowEpochSeconds]; a clock-lit clear sky until the first weather fetch lands. */
@@ -100,7 +109,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	 * A change in location settings (device↔manual, or a new city) or weather provider also bypasses the interval, so the scene tracks the new source on the next refresh instead of waiting out the throttle.
 	 * No-ops without a location fix or permission, leaving the last known scene in place.
 	 */
-	suspend fun refresh(nowEpochSeconds: Long, force: Boolean = false) {
+	suspend fun refresh(nowEpochSeconds: Long, force: Boolean = false, resolveLocationName: Boolean = false) {
 		val settings = settingsRepository.settings.first()
 
 		// Render settings are captured before the throttle: they're display choices, not weather, so even a throttled refresh must adopt them.
@@ -137,10 +146,14 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		sceneSimulatorDayPhase = settings.sceneSimulatorDayPhase
 		sceneSimulatorCelestialProgress = settings.sceneSimulatorCelestialProgress.coerceIn(0f, 1f)
 		if (sceneSimulatorActive) {
+			if (resolveLocationName) {
+				refreshStatusLocation(settings, force)
+			}
+
 			return
 		}
 
-		refreshLocationLabel(settings)
+		refreshLocationLabel(settings, resolveLocationName)
 
 		val locationKey = locationKey(settings)
 		val locationChanged = locationKey != lastLocationKey
@@ -150,7 +163,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			return
 		}
 
-		val location = resolveLocation(settings)
+		val location = resolveLocation(settings, force)
 		if (location == null) {
 			val fallbackLocation = if (snapshot == null) {
 				"fallback scene"
@@ -162,9 +175,9 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			return
 		}
 
-		// The fix is remembered and the label refreshed again now that one exists — the first refresh has nothing cached for the pre-throttle pass to geocode.
-		lastFix = location
-		refreshLocationLabel(settings)
+		// The device fix is remembered and the label refreshed again now that one exists — the first refresh has nothing cached for the pre-throttle pass to geocode.
+		rememberDeviceFix(settings, location)
+		refreshLocationLabel(settings, resolveLocationName)
 
 		/*
 		 * A provider change is an immediate-refresh trigger, not a retry policy.
@@ -176,6 +189,8 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			snapshot = it
 			lastRefreshEpochSeconds = nowEpochSeconds
 			lastLocationKey = locationKey
+			lastRefreshLocation = location
+			publishStatus(settings)
 			logger.debug(TAG, "weather refreshed: condition=${it.observation.condition.label}, cloud=${it.observation.cloudCoverPercent}%")
 		}
 	}
@@ -204,11 +219,14 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		.copy(backdropScene = backdropScene, photoRevision = photoRevision)
 
 	/** Manual coordinates win only when the user opted out of device location and actually set a place; otherwise the device fix. */
-	private suspend fun resolveLocation(settings: AppSettings): GeoLocation? {
+	private suspend fun resolveLocation(settings: AppSettings, forceDeviceFix: Boolean): GeoLocation? {
 		val manual = manualLocation(settings)
+		if (!settings.useDeviceLocation && manual != null) {
+			return manual
+		}
 
-		return if (!settings.useDeviceLocation && manual != null) {
-			manual
+		return if (forceDeviceFix) {
+			locationRepository.currentLocation(force = true)
 		} else {
 			locationRepository.currentLocation()
 		}
@@ -227,27 +245,75 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 
 	/**
 	 * Keeps [locationLabel] current: the user's own words in manual mode, a reverse-geocoded place name in device mode.
-	 * Geocoding is skipped while the label is toggled off and cached per fix, so a place is looked up once — a failed lookup leaves the label null and retries on the next refresh.
+	 * Device geocoding is cached per fix. It normally runs only for the wallpaper label, while Settings can explicitly request the same place name for its status row.
 	 */
-	private suspend fun refreshLocationLabel(settings: AppSettings) {
+	private suspend fun refreshLocationLabel(settings: AppSettings, resolveForStatus: Boolean) {
 		if (!settings.useDeviceLocation) {
 			locationLabel = settings.manualLocationLabel
+			geocodedKey = null
+			publishStatus(settings)
 			return
 		}
 
-		if (!settings.showLocationLabel) {
+		if (!settings.showLocationLabel && !resolveForStatus) {
 			return
 		}
 
-		val fix = lastFix ?: return
-		val fixKey = "${fix.latitude},${fix.longitude}"
+		val fix = lastDeviceFix ?: return
+		val fixKey = locationFixKey(fix)
 		if (fixKey == geocodedKey && locationLabel != null) {
+			publishStatus(settings)
 			return
 		}
 
 		locationLabel = reverseGeocodingRepository.placeName(fix.latitude, fix.longitude)
 		geocodedKey = fixKey
+		publishStatus(settings)
 	}
+
+	private suspend fun refreshStatusLocation(settings: AppSettings, forceDeviceFix: Boolean) {
+		val location = resolveLocation(settings, forceDeviceFix)
+		if (location != null) {
+			rememberDeviceFix(settings, location)
+		}
+
+		refreshLocationLabel(settings, resolveForStatus = true)
+	}
+
+	private fun rememberDeviceFix(settings: AppSettings, location: GeoLocation) {
+		if (!settings.useDeviceLocation) {
+			return
+		}
+
+		if (location != lastDeviceFix) {
+			locationLabel = null
+			geocodedKey = null
+		}
+
+		lastDeviceFix = location
+	}
+
+	private fun publishStatus(settings: AppSettings) {
+		val currentLocation = if (settings.useDeviceLocation) {
+			lastDeviceFix
+		} else {
+			manualLocation(settings)
+		}
+		val currentFixKey = currentLocation?.let(::locationFixKey)
+		val statusLabel = if (settings.useDeviceLocation) {
+			locationLabel.takeIf { currentFixKey != null && currentFixKey == geocodedKey }
+		} else {
+			settings.manualLocationLabel
+		}
+		val lastUpdated = lastRefreshEpochSeconds.takeIf { currentLocation != null && currentLocation == lastRefreshLocation }
+
+		_status.value = WeatherSceneStatus(
+			locationLabel = statusLabel,
+			lastRefreshEpochSeconds = lastUpdated
+		)
+	}
+
+	private fun locationFixKey(location: GeoLocation) = "${location.latitude},${location.longitude}"
 
 	/** The formatted overlay lines, or null when nothing is toggled on — the renderer skips the text pass entirely. */
 	private fun overlayLabels(snapshot: WeatherSnapshot): OverlayLabels? {

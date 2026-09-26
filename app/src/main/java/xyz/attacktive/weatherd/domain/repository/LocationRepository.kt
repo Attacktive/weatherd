@@ -29,15 +29,18 @@ class LocationRepository @Inject constructor(@ApplicationContext private val con
 	 * The device's coordinates, preferring a recent cached fix and actively requesting a fresh one when the cache is missing or stale.
 	 * Returns null only without permission, or when no fix can be obtained at all.
 	 */
+	suspend fun currentLocation(): GeoLocation? = currentLocation(force = false)
+
+	/** Forces an active fix when [force] is true, falling back to the newest cache only if the provider cannot return one. */
 	@SuppressLint("MissingPermission")
-	suspend fun currentLocation(): GeoLocation? {
+	suspend fun currentLocation(force: Boolean): GeoLocation? {
 		if (!hasLocationPermission()) {
 			logger.debug(TAG, "location permission not granted")
 			return null
 		}
 
 		val cached = newestLastKnown()
-		if (cached != null && cached.isFreshEnough()) {
+		if (!force && cached != null && cached.isFreshEnough()) {
 			return cached.toGeoLocation()
 		}
 

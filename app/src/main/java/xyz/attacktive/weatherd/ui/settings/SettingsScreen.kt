@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import android.text.format.DateUtils
 import androidx.annotation.StringRes
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContract
@@ -106,6 +107,7 @@ import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
+import xyz.attacktive.weatherd.domain.render.WeatherSceneStatus
 import xyz.attacktive.weatherd.domain.model.UPDATE_INTERVAL_OPTIONS
 import xyz.attacktive.weatherd.domain.model.drawsScenery
 import xyz.attacktive.weatherd.platform.HomeLauncher
@@ -118,6 +120,8 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 	val settings by viewModel.settings.collectAsStateWithLifecycle()
 	val defaults = viewModel.defaults
 	val citySearch by viewModel.citySearch.collectAsStateWithLifecycle()
+	val weatherStatus by viewModel.weatherStatus.collectAsStateWithLifecycle()
+	val weatherRefreshInProgress by viewModel.weatherRefreshInProgress.collectAsStateWithLifecycle()
 	val photoBuckets by viewModel.photoBuckets.collectAsStateWithLifecycle()
 	val photoThumbnails by viewModel.photoThumbnails.collectAsStateWithLifecycle()
 	val photoImportFailed by viewModel.photoImportFailed.collectAsStateWithLifecycle()
@@ -161,7 +165,10 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 					LocationSection(
 						settings = settings,
 						citySearch = citySearch,
-						onToggleDeviceLocation = { viewModel.save(settings.copy(useDeviceLocation = it)) },
+						weatherStatus = weatherStatus,
+						weatherRefreshInProgress = weatherRefreshInProgress,
+						onToggleDeviceLocation = viewModel::setUseDeviceLocation,
+						onRefresh = viewModel::refreshWeather,
 						onQueryChange = viewModel::onCityQueryChange,
 						onSearch = viewModel::searchCityImmediately,
 						onClearQuery = viewModel::clearCityQuery,
@@ -972,7 +979,10 @@ private fun MetNoAttributionSection() {
 private fun LocationSection(
 	settings: AppSettings,
 	citySearch: CitySearchState,
+	weatherStatus: WeatherSceneStatus,
+	weatherRefreshInProgress: Boolean,
 	onToggleDeviceLocation: (Boolean) -> Unit,
+	onRefresh: () -> Unit,
 	onQueryChange: (String) -> Unit,
 	onSearch: (String) -> Unit,
 	onClearQuery: () -> Unit,
@@ -990,14 +1000,20 @@ private fun LocationSection(
 		onToggle = onToggleDeviceLocation,
 	)
 
+	Spacer(modifier = Modifier.height(8.dp))
+
+	CurrentLocationSummary(
+		locationLabel = if (settings.useDeviceLocation) weatherStatus.locationLabel else settings.manualLocationLabel,
+		lastRefreshEpochSeconds = weatherStatus.lastRefreshEpochSeconds,
+		refreshInProgress = weatherRefreshInProgress,
+		refreshEnabled = settings.useDeviceLocation || (settings.manualLatitude != null && settings.manualLongitude != null),
+		onRefresh = onRefresh,
+		onClear = onClearManualLocation.takeIf { !settings.useDeviceLocation && settings.manualLocationLabel != null }
+	)
+
 	AnimatedVisibility(visible = !settings.useDeviceLocation) {
 		Column {
 			Spacer(modifier = Modifier.height(8.dp))
-
-			settings.manualLocationLabel?.let { label ->
-				CurrentManualLocation(label = label, onClear = onClearManualLocation)
-				Spacer(modifier = Modifier.height(8.dp))
-			}
 
 			CitySearchField(
 				query = query,
@@ -1091,16 +1107,52 @@ private fun CitySearchResults(state: CitySearchState, onSelectPlace: (GeoPlace) 
 }
 
 @Composable
-private fun CurrentManualLocation(label: String, onClear: () -> Unit) {
+private fun CurrentLocationSummary(
+	locationLabel: String?,
+	lastRefreshEpochSeconds: Long?,
+	refreshInProgress: Boolean,
+	refreshEnabled: Boolean,
+	onRefresh: () -> Unit,
+	onClear: (() -> Unit)?
+) {
+	val context = LocalContext.current
+	val lastUpdated = if (lastRefreshEpochSeconds == null) {
+		stringResource(R.string.last_updated_never)
+	} else {
+		val formatted = DateUtils.formatDateTime(
+			context,
+			lastRefreshEpochSeconds * 1000L,
+			DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_TIME or DateUtils.FORMAT_ABBREV_MONTH
+		)
+
+		stringResource(R.string.last_updated, formatted)
+	}
+
 	Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
 		Column(modifier = Modifier.weight(1f)) {
-			SectionLabel(stringResource(R.string.section_current_city))
-			Text(label)
+			SectionLabel(stringResource(R.string.section_current_location))
+			Text(locationLabel ?: stringResource(R.string.location_unavailable))
+			Text(
+				lastUpdated,
+				style = MaterialTheme.typography.bodySmall,
+				color = MaterialTheme.colorScheme.onSurfaceVariant
+			)
 		}
 
-		IconButton(onClick = onClear) {
-			Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.content_description_clear_city))
+		if (onClear != null) {
+			IconButton(onClick = onClear) {
+				Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.content_description_clear_city))
+			}
 		}
+	}
+
+	TextButton(onClick = onRefresh, enabled = refreshEnabled && !refreshInProgress) {
+		if (refreshInProgress) {
+			CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+			Spacer(modifier = Modifier.width(8.dp))
+		}
+
+		Text(stringResource(R.string.refresh_now))
 	}
 }
 

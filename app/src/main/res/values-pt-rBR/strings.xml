@@ -59,6 +59,11 @@
 	<string name="label_scene_simulator">Simulador de cena</string>
 	<string name="subtitle_scene_simulator">Visualize diferentes condições do tempo e horários do dia</string>
 	<string name="section_current_city">Cidade atual</string>
+	<string name="section_current_location">Localização atual</string>
+	<string name="last_updated">Última atualização: %1$s</string>
+	<string name="last_updated_never">Ainda não atualizado</string>
+	<string name="location_unavailable">Localização indisponível</string>
+	<string name="refresh_now">Atualizar agora</string>
 	<string name="label_show_weather">Mostrar clima atual</string>
 	<string name="subtitle_show_weather">ex.: \"Chuva fraca · 23°\"</string>
 	<string name="label_show_location">Mostrar nome do local</string>

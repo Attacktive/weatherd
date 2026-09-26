@@ -59,6 +59,11 @@
 	<string name="label_scene_simulator">Szenensimulator</string>
 	<string name="subtitle_scene_simulator">Verschiedene Wetterlagen und Tageszeiten in der Vorschau anzeigen</string>
 	<string name="section_current_city">Aktuelle Stadt</string>
+	<string name="section_current_location">Aktueller Standort</string>
+	<string name="last_updated">Zuletzt aktualisiert: %1$s</string>
+	<string name="last_updated_never">Noch nicht aktualisiert</string>
+	<string name="location_unavailable">Standort nicht verfügbar</string>
+	<string name="refresh_now">Jetzt aktualisieren</string>
 	<string name="label_show_weather">Aktuelles Wetter anzeigen</string>
 	<string name="subtitle_show_weather">z. B. „Leichter Regen · 23°“</string>
 	<string name="label_show_location">Standortname anzeigen</string>

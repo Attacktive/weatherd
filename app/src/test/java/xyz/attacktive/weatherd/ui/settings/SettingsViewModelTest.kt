@@ -33,6 +33,8 @@ import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.GeoPlace
 import xyz.attacktive.weatherd.domain.model.PhotoBucket
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
+import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
+import xyz.attacktive.weatherd.domain.render.WeatherSceneStatus
 import xyz.attacktive.weatherd.domain.repository.GeocodingRepository
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
@@ -46,6 +48,7 @@ class SettingsViewModelTest {
 	private val settingsRepository = mockk<SettingsRepository>()
 	private val geocodingRepository = mockk<GeocodingRepository>()
 	private val photoBackgroundRepository = mockk<PhotoBackgroundRepository>()
+	private val sceneProvider = mockk<WeatherSceneProvider>()
 
 	@Before
 	fun stubRepositories() {
@@ -53,7 +56,9 @@ class SettingsViewModelTest {
 		every { settingsRepository.settings } returns flowOf(AppSettings())
 		every { photoBackgroundRepository.available } returns MutableStateFlow(emptySet())
 		every { photoBackgroundRepository.revision } returns MutableStateFlow(0)
+		every { sceneProvider.status } returns MutableStateFlow(WeatherSceneStatus())
 		coEvery { photoBackgroundRepository.loadThumbnail(any()) } returns null
+		coEvery { sceneProvider.refresh(any(), any(), any()) } returns Unit
 	}
 
 	@After
@@ -74,12 +79,24 @@ class SettingsViewModelTest {
 			settingsRepository = settingsRepository,
 			geocodingRepository = geocodingRepository,
 			photoBackgroundRepository = photoBackgroundRepository,
+			sceneProvider = sceneProvider,
 			applicationScope = CoroutineScope(dispatcher)
 		).also {
 			testScheduler.runCurrent()
 		}
 	}
 
+
+	@Test
+	fun `manual refresh forces weather and location status resolution`() = runTest {
+		val viewModel = viewModel()
+		runCurrent()
+
+		viewModel.refreshWeather()
+		runCurrent()
+
+		coVerify(exactly = 1) { sceneProvider.refresh(any(), force = true, resolveLocationName = true) }
+	}
 
 	@Test
 	fun `regional defaults survive a save before persisted settings emit`() = runTest {

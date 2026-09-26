@@ -22,6 +22,8 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import android.app.Application
 import android.graphics.Bitmap
 import android.net.Uri
@@ -33,6 +35,7 @@ import xyz.attacktive.weatherd.di.ApplicationScope
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.GeoPlace
 import xyz.attacktive.weatherd.domain.model.PhotoBucket
+import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
 import xyz.attacktive.weatherd.domain.repository.GeocodingRepository
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
@@ -60,11 +63,17 @@ class SettingsViewModel @Inject constructor(
 	private val settingsRepository: SettingsRepository,
 	private val geocodingRepository: GeocodingRepository,
 	private val photoBackgroundRepository: PhotoBackgroundRepository,
+	private val sceneProvider: WeatherSceneProvider,
 	@ApplicationScope private val applicationScope: CoroutineScope
 ): AndroidViewModel(application) {
 	val defaults = settingsRepository.defaults
 	val settings = settingsRepository.settings
 		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), defaults)
+	val weatherStatus = sceneProvider.status
+
+	private val weatherRefreshMutex = Mutex()
+	private val _weatherRefreshInProgress = MutableStateFlow(false)
+	val weatherRefreshInProgress = _weatherRefreshInProgress.asStateFlow()
 
 	/**
 	 * The buckets that currently hold one of the user's photos, already a hot [kotlinx.coroutines.flow.StateFlow] on the repository and so exposed as it stands.
@@ -109,6 +118,8 @@ class SettingsViewModel @Inject constructor(
 		val immediateSearch = immediateQueries
 			.map { SearchTrigger.Immediate(it.trim()) }
 
+		viewModelScope.launch { refreshWeatherStatus(force = false) }
+
 		viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
 			merge(debouncedTyping, immediateSearch)
 				.collectLatest { trigger ->
@@ -149,6 +160,18 @@ class SettingsViewModel @Inject constructor(
 		}
 	}
 
+	fun setUseDeviceLocation(enabled: Boolean) {
+		viewModelScope.launch {
+			val current = settingsRepository.settings.first()
+			settingsRepository.save(current.copy(useDeviceLocation = enabled))
+			refreshWeatherStatus(force = true)
+		}
+	}
+
+	fun refreshWeather() {
+		viewModelScope.launch { refreshWeatherStatus(force = true) }
+	}
+
 	fun onCityQueryChange(query: String) {
 		typingQueries.tryEmit(query)
 	}
@@ -177,6 +200,7 @@ class SettingsViewModel @Inject constructor(
 					manualLocationLabel = place.label
 				)
 			)
+			refreshWeatherStatus(force = true)
 
 			_citySearch.value = CitySearchState.Idle
 		}
@@ -186,6 +210,7 @@ class SettingsViewModel @Inject constructor(
 		viewModelScope.launch {
 			val current = settingsRepository.settings.first()
 			settingsRepository.save(current.copy(manualLatitude = null, manualLongitude = null, manualLocationLabel = null))
+			refreshWeatherStatus(force = true)
 
 			_citySearch.value = CitySearchState.Idle
 		}
@@ -219,6 +244,20 @@ class SettingsViewModel @Inject constructor(
 			photoBackgroundRepository.clear(bucket)
 		}
 	}
+
+	private suspend fun refreshWeatherStatus(force: Boolean) {
+		weatherRefreshMutex.withLock {
+			_weatherRefreshInProgress.value = true
+
+			try {
+				sceneProvider.refresh(nowEpochSeconds(), force = force, resolveLocationName = true)
+			} finally {
+				_weatherRefreshInProgress.value = false
+			}
+		}
+	}
+
+	private fun nowEpochSeconds() = System.currentTimeMillis() / 1000L
 
 	companion object {
 		const val CITY_SEARCH_DEBOUNCE_MILLIS = 400L

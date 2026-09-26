@@ -59,6 +59,11 @@
 	<string name="label_scene_simulator">シーンシミュレーター</string>
 	<string name="subtitle_scene_simulator">さまざまな天気や時間帯をプレビューします</string>
 	<string name="section_current_city">現在の都市</string>
+	<string name="section_current_location">現在地</string>
+	<string name="last_updated">最終更新: %1$s</string>
+	<string name="last_updated_never">まだ更新されていません</string>
+	<string name="location_unavailable">位置情報を取得できません</string>
+	<string name="refresh_now">今すぐ更新</string>
 	<string name="label_show_weather">現在の天気を表示</string>
 	<string name="subtitle_show_weather">例: \"小雨 · 23°\"</string>
 	<string name="label_show_location">地名を表示</string>

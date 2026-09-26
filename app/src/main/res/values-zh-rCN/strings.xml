@@ -59,6 +59,11 @@
 	<string name="label_scene_simulator">场景模拟器</string>
 	<string name="subtitle_scene_simulator">预览不同的天气状况和一天中的时段</string>
 	<string name="section_current_city">当前城市</string>
+	<string name="section_current_location">当前位置</string>
+	<string name="last_updated">上次更新：%1$s</string>
+	<string name="last_updated_never">尚未更新</string>
+	<string name="location_unavailable">无法获取位置</string>
+	<string name="refresh_now">立即刷新</string>
 	<string name="label_show_weather">显示当前天气</string>
 	<string name="subtitle_show_weather">例如：\"小雨 · 23°\"</string>
 	<string name="label_show_location">显示位置名称</string>

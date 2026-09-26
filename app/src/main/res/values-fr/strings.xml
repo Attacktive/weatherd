@@ -59,6 +59,11 @@
 	<string name="label_scene_simulator">Simulateur de scène</string>
 	<string name="subtitle_scene_simulator">Prévisualisez différentes conditions météo et heures de la journée</string>
 	<string name="section_current_city">Ville actuelle</string>
+	<string name="section_current_location">Emplacement actuel</string>
+	<string name="last_updated">Dernière mise à jour : %1$s</string>
+	<string name="last_updated_never">Pas encore mis à jour</string>
+	<string name="location_unavailable">Emplacement indisponible</string>
+	<string name="refresh_now">Actualiser maintenant</string>
 	<string name="label_show_weather">Afficher la météo actuelle</string>
 	<string name="subtitle_show_weather">ex. \"Pluie légère · 23°\"</string>
 	<string name="label_show_location">Afficher le nom du lieu</string>

@@ -59,6 +59,11 @@
 	<string name="label_scene_simulator">장면 시뮬레이터</string>
 	<string name="subtitle_scene_simulator">다양한 날씨와 시간대를 미리 봅니다</string>
 	<string name="section_current_city">현재 도시</string>
+	<string name="section_current_location">현재 위치</string>
+	<string name="last_updated">마지막 업데이트: %1$s</string>
+	<string name="last_updated_never">아직 업데이트되지 않음</string>
+	<string name="location_unavailable">위치를 사용할 수 없음</string>
+	<string name="refresh_now">지금 업데이트</string>
 	<string name="label_show_weather">현재 날씨 표시</string>
 	<string name="subtitle_show_weather">예: \"가벼운 비 · 23°\"</string>
 	<string name="label_show_location">위치 이름 표시</string>
