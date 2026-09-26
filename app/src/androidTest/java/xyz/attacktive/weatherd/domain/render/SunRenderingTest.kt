@@ -145,9 +145,16 @@ class SunRenderingTest {
 		val edge = PixelPoint(center.x + (radius * LENS_GHOST_EDGE_SAMPLE_FRACTION).roundToInt(), center.y)
 		val centerLift = Color.alpha(enabled.getPixel(center.x, center.y)) - Color.alpha(disabled.getPixel(center.x, center.y))
 		val edgeLift = Color.alpha(enabled.getPixel(edge.x, edge.y)) - Color.alpha(disabled.getPixel(edge.x, edge.y))
+		val farCenter = lensGhostCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, LENS_GHOST_FAR_TEST_DISTANCE)
+		val farRadius = minOf(PORTRAIT_WIDTH, PORTRAIT_HEIGHT) * SUN_RADIUS_FRACTION * LENS_GHOST_FAR_TEST_SCALE
+		val farEdge = PixelPoint(farCenter.x + (farRadius * LENS_GHOST_FAR_EDGE_SAMPLE_FRACTION).roundToInt(), farCenter.y)
+		val farCenterLift = Color.alpha(enabled.getPixel(farCenter.x, farCenter.y)) - Color.alpha(disabled.getPixel(farCenter.x, farCenter.y))
+		val farEdgeLift = Color.alpha(enabled.getPixel(farEdge.x, farEdge.y)) - Color.alpha(disabled.getPixel(farEdge.x, farEdge.y))
 
 		assertTrue("A lens ghost should have a visible filled center at $center, but alpha only lifted by $centerLift", centerLift >= MIN_LENS_GHOST_CENTER_LIFT)
 		assertTrue("A lens ghost should fade outward from its center instead of peaking on a ring, but center/edge lifts were $centerLift/$edgeLift", centerLift - edgeLift >= MIN_LENS_GHOST_CENTER_EDGE_DELTA)
+		assertTrue("The far lens ghost should stay visible after shrinking its footprint, but alpha only lifted by $farCenterLift", farCenterLift >= MIN_LENS_GHOST_CENTER_LIFT)
+		assertTrue("The far lens ghost should stay compact instead of returning to a broad haze, but center/edge lifts were $farCenterLift/$farEdgeLift", farCenterLift - farEdgeLift >= MIN_LENS_GHOST_CENTER_EDGE_DELTA)
 
 		enabled.recycle()
 		disabled.recycle()
@@ -589,6 +596,9 @@ class SunRenderingTest {
 		const val LENS_GHOST_TEST_SCALE = 0.72f
 		const val LENS_GHOST_SECONDARY_TEST_DISTANCE = 1.34f
 		const val LENS_GHOST_SECONDARY_TEST_SCALE = 0.62f
+		const val LENS_GHOST_FAR_TEST_DISTANCE = 1.82f
+		const val LENS_GHOST_FAR_TEST_SCALE = 0.56f
+		const val LENS_GHOST_FAR_EDGE_SAMPLE_FRACTION = 0.75f
 		const val LENS_GHOST_EDGE_SAMPLE_FRACTION = 0.68f
 		const val LENS_GHOST_DAY_SKY_SAMPLE_RADIUS = 0.45f
 		const val OPAQUE_ALPHA_THRESHOLD = 245
