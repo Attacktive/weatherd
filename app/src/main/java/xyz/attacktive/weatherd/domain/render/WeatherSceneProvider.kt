@@ -117,35 +117,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		 * Only PHOTO draws them, though, so every other scene holds it at zero: the backdrop signature carries the revision, and adopting a live one there would discard a cached backdrop to rasterize the same procedural sky again and crossfade between two identical images.
 		 * Switching into PHOTO moves backdropScene itself, so the first frame that actually wants a photo still re-rasterizes.
 		 */
-		backdropScene = settings.backdropScene
-		photoRevision = if (settings.backdropScene == BackdropScene.PHOTO) {
-			photoBackgroundRepository.revisionNow()
-		} else {
-			0
-		}
-
-		showWeatherLabel = settings.showWeatherLabel
-		showLocationLabel = settings.showLocationLabel
-		temperatureUnit = settings.temperatureUnit
-		precipitationIntensityScale = settings.precipitationIntensityScale
-		windIntensityScale = settings.windIntensityScale
-		cloudIntensityScale = settings.cloudIntensityScale
-		cloudSizeScale = settings.cloudSizeScale
-		cloudCountScale = settings.cloudCountScale
-		cloudContrastScale = settings.cloudContrastScale
-		skyBrightnessScale = settings.skyBrightnessScale
-		nightBrightnessScale = settings.nightBrightnessScale
-		skySaturationScale = settings.skySaturationScale
-		skyColorPreset = settings.skyColorPreset
-		sunVisible = settings.sunVisible
-		moonVisible = settings.moonVisible
-		sunSizeScale = settings.sunSizeScale
-		sunColorPreset = settings.sunColorPreset
-		lensFlareEnabled = settings.lensFlareEnabled
-		sceneSimulatorActive = settings.sceneSimulatorActive
-		sceneSimulatorPresetIndex = settings.sceneSimulatorPresetIndex.coerceIn(0, SCENE_PRESETS.lastIndex)
-		sceneSimulatorDayPhase = settings.sceneSimulatorDayPhase
-		sceneSimulatorCelestialProgress = settings.sceneSimulatorCelestialProgress.coerceIn(0f, 1f)
+		applyRenderSettings(settings)
 		if (sceneSimulatorActive) {
 			refreshSimulatorStatus(settings, force, resolveLocationName)
 			return
@@ -191,6 +163,38 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			publishStatus(settings)
 			logger.debug(TAG, "weather refreshed: condition=${it.observation.condition.label}, cloud=${it.observation.cloudCoverPercent}%")
 		}
+	}
+
+	private fun applyRenderSettings(settings: AppSettings) {
+		backdropScene = settings.backdropScene
+		photoRevision = if (settings.backdropScene == BackdropScene.PHOTO) {
+			photoBackgroundRepository.revisionNow()
+		} else {
+			0
+		}
+
+		showWeatherLabel = settings.showWeatherLabel
+		showLocationLabel = settings.showLocationLabel
+		temperatureUnit = settings.temperatureUnit
+		precipitationIntensityScale = settings.precipitationIntensityScale
+		windIntensityScale = settings.windIntensityScale
+		cloudIntensityScale = settings.cloudIntensityScale
+		cloudSizeScale = settings.cloudSizeScale
+		cloudCountScale = settings.cloudCountScale
+		cloudContrastScale = settings.cloudContrastScale
+		skyBrightnessScale = settings.skyBrightnessScale
+		nightBrightnessScale = settings.nightBrightnessScale
+		skySaturationScale = settings.skySaturationScale
+		skyColorPreset = settings.skyColorPreset
+		sunVisible = settings.sunVisible
+		moonVisible = settings.moonVisible
+		sunSizeScale = settings.sunSizeScale
+		sunColorPreset = settings.sunColorPreset
+		lensFlareEnabled = settings.lensFlareEnabled
+		sceneSimulatorActive = settings.sceneSimulatorActive
+		sceneSimulatorPresetIndex = settings.sceneSimulatorPresetIndex.coerceIn(0, SCENE_PRESETS.lastIndex)
+		sceneSimulatorDayPhase = settings.sceneSimulatorDayPhase
+		sceneSimulatorCelestialProgress = settings.sceneSimulatorCelestialProgress.coerceIn(0f, 1f)
 	}
 
 	/** The persisted simulator scene, carrying the same display preferences as live weather while replacing its meteorological fields. */

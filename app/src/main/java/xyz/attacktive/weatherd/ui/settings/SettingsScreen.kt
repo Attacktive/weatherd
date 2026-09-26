@@ -117,14 +117,6 @@ import xyz.attacktive.weatherd.platform.wallpaperScrollingSupportedBy
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
-	val settings by viewModel.settings.collectAsStateWithLifecycle()
-	val defaults = viewModel.defaults
-	val citySearch by viewModel.citySearch.collectAsStateWithLifecycle()
-	val weatherStatus by viewModel.weatherStatus.collectAsStateWithLifecycle()
-	val weatherRefreshInProgress by viewModel.weatherRefreshInProgress.collectAsStateWithLifecycle()
-	val photoBuckets by viewModel.photoBuckets.collectAsStateWithLifecycle()
-	val photoThumbnails by viewModel.photoThumbnails.collectAsStateWithLifecycle()
-	val photoImportFailed by viewModel.photoImportFailed.collectAsStateWithLifecycle()
 	var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
 	val weatherScrollState = rememberScrollState()
 	val appearanceScrollState = rememberScrollState()
@@ -133,26 +125,11 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 
 	Scaffold(
 		topBar = {
-			Column {
-				TopAppBar(
-					title = { Text(stringResource(R.string.settings_title)) },
-					navigationIcon = {
-						IconButton(onClick = onNavigateBack) {
-							Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.content_description_back))
-						}
-					}
-				)
-
-				PrimaryScrollableTabRow(selectedTabIndex = selectedTabIndex) {
-					SettingsTab.entries.forEachIndexed { index, tab ->
-						Tab(
-							selected = selectedTabIndex == index,
-							onClick = { selectedTabIndex = index },
-							text = { Text(stringResource(tab.label)) }
-						)
-					}
-				}
-			}
+			SettingsTopBar(
+				selectedTabIndex = selectedTabIndex,
+				onNavigateBack = onNavigateBack,
+				onSelectTab = { selectedTabIndex = it }
+			)
 		}
 	) { padding ->
 		Box(
@@ -161,98 +138,153 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 				.padding(padding)
 		) {
 			when (SettingsTab.entries[selectedTabIndex]) {
-				SettingsTab.WEATHER -> SettingsTabContent(weatherScrollState) {
-					LocationSection(
-						state = LocationSectionState(
-							settings = settings,
-							citySearch = citySearch,
-							weatherStatus = weatherStatus,
-							weatherRefreshInProgress = weatherRefreshInProgress
-						),
-						locationActions = LocationActions(
-							onToggleDeviceLocation = viewModel::setUseDeviceLocation,
-							onRefresh = viewModel::refreshWeather,
-							onClearManualLocation = viewModel::clearManualLocation
-						),
-						citySearchActions = CitySearchActions(
-							onQueryChange = viewModel::onCityQueryChange,
-							onSearch = viewModel::searchCityImmediately,
-							onClearQuery = viewModel::clearCityQuery,
-							onSelectPlace = viewModel::selectPlace
-						)
-					)
-
-					Spacer(modifier = Modifier.height(24.dp))
-
-					WeatherProviderSection(settings = settings, defaults = defaults, onSave = viewModel::save)
-
-					Spacer(modifier = Modifier.height(24.dp))
-
-					RefreshIntervalSection(settings = settings, defaults = defaults, onSave = viewModel::save)
-				}
-
-				SettingsTab.APPEARANCE -> SettingsTabContent(appearanceScrollState) {
-					BackdropSection(settings = settings, defaults = defaults, onSave = viewModel::save)
-
-					AnimatedVisibility(visible = settings.backdropScene == BackdropScene.PHOTO) {
-						Column {
-							Spacer(modifier = Modifier.height(24.dp))
-
-							PhotoBackgroundSection(
-								buckets = photoBuckets,
-								thumbnails = photoThumbnails,
-								importFailed = photoImportFailed,
-								onChoose = viewModel::importPhoto,
-								onClear = viewModel::clearPhoto,
-								onDismissFailure = viewModel::dismissImportFailure
-							)
-						}
-					}
-
-					Spacer(modifier = Modifier.height(24.dp))
-
-					SkyAppearanceSection(settings = settings, defaults = defaults, onSave = viewModel::save)
-
-					Spacer(modifier = Modifier.height(24.dp))
-
-					CloudAppearanceSection(settings = settings, defaults = defaults, onSave = viewModel::save)
-
-					Spacer(modifier = Modifier.height(24.dp))
-
-					SunEffectsSection(settings = settings, defaults = defaults, onSave = viewModel::save)
-
-					Spacer(modifier = Modifier.height(24.dp))
-
-					IntensitySection(settings = settings, defaults = defaults, onSave = viewModel::save)
-
-					Spacer(modifier = Modifier.height(24.dp))
-
-					LabelsSection(settings = settings, defaults = defaults, onSave = viewModel::save)
-				}
-
-				SettingsTab.WALLPAPER -> SettingsTabContent(wallpaperScrollState) {
-					WallpaperMotionSection(settings = settings, onSave = viewModel::save)
-
-					Spacer(modifier = Modifier.height(24.dp))
-
-					FrameRateSection(settings = settings, defaults = defaults, onSave = viewModel::save)
-				}
-
-				SettingsTab.ADVANCED -> SettingsTabContent(advancedScrollState) {
-					SceneSimulatorSection(settings = settings, onSave = viewModel::save)
-
-					if (settings.weatherProvider == WeatherProviderType.MET_NORWAY) {
-						Spacer(modifier = Modifier.height(24.dp))
-
-						MetNoAttributionSection()
-					}
-
-					Spacer(modifier = Modifier.height(24.dp))
-
-					VersionFooter()
-				}
+				SettingsTab.WEATHER -> WeatherSettingsTab(viewModel, weatherScrollState)
+				SettingsTab.APPEARANCE -> AppearanceSettingsTab(viewModel, appearanceScrollState)
+				SettingsTab.WALLPAPER -> WallpaperSettingsTab(viewModel, wallpaperScrollState)
+				SettingsTab.ADVANCED -> AdvancedSettingsTab(viewModel, advancedScrollState)
 			}
 		}
+	}
+}
+
+@Composable
+private fun SettingsTopBar(selectedTabIndex: Int, onNavigateBack: () -> Unit, onSelectTab: (Int) -> Unit) {
+	Column {
+		TopAppBar(
+			title = { Text(stringResource(R.string.settings_title)) },
+			navigationIcon = {
+				IconButton(onClick = onNavigateBack) {
+					Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.content_description_back))
+				}
+			}
+		)
+
+		PrimaryScrollableTabRow(selectedTabIndex = selectedTabIndex) {
+			SettingsTab.entries.forEachIndexed { index, tab ->
+				Tab(
+					selected = selectedTabIndex == index,
+					onClick = { onSelectTab(index) },
+					text = { Text(stringResource(tab.label)) }
+				)
+			}
+		}
+	}
+}
+
+@Composable
+private fun WeatherSettingsTab(viewModel: SettingsViewModel, scrollState: ScrollState) {
+	val settings by viewModel.settings.collectAsStateWithLifecycle()
+	val citySearch by viewModel.citySearch.collectAsStateWithLifecycle()
+	val weatherStatus by viewModel.weatherStatus.collectAsStateWithLifecycle()
+	val weatherRefreshInProgress by viewModel.weatherRefreshInProgress.collectAsStateWithLifecycle()
+
+	SettingsTabContent(scrollState) {
+		LocationSection(
+			state = LocationSectionState(
+				settings = settings,
+				citySearch = citySearch,
+				weatherStatus = weatherStatus,
+				weatherRefreshInProgress = weatherRefreshInProgress
+			),
+			locationActions = LocationActions(
+				onToggleDeviceLocation = viewModel::setUseDeviceLocation,
+				onRefresh = viewModel::refreshWeather,
+				onClearManualLocation = viewModel::clearManualLocation
+			),
+			citySearchActions = CitySearchActions(
+				onQueryChange = viewModel::onCityQueryChange,
+				onSearch = viewModel::searchCityImmediately,
+				onClearQuery = viewModel::clearCityQuery,
+				onSelectPlace = viewModel::selectPlace
+			)
+		)
+
+		Spacer(modifier = Modifier.height(24.dp))
+
+		WeatherProviderSection(settings = settings, defaults = viewModel.defaults, onSave = viewModel::save)
+
+		Spacer(modifier = Modifier.height(24.dp))
+
+		RefreshIntervalSection(settings = settings, defaults = viewModel.defaults, onSave = viewModel::save)
+	}
+}
+
+@Composable
+private fun AppearanceSettingsTab(viewModel: SettingsViewModel, scrollState: ScrollState) {
+	val settings by viewModel.settings.collectAsStateWithLifecycle()
+	val photoBuckets by viewModel.photoBuckets.collectAsStateWithLifecycle()
+	val photoThumbnails by viewModel.photoThumbnails.collectAsStateWithLifecycle()
+	val photoImportFailed by viewModel.photoImportFailed.collectAsStateWithLifecycle()
+
+	SettingsTabContent(scrollState) {
+		BackdropSection(settings = settings, defaults = viewModel.defaults, onSave = viewModel::save)
+
+		AnimatedVisibility(visible = settings.backdropScene == BackdropScene.PHOTO) {
+			Column {
+				Spacer(modifier = Modifier.height(24.dp))
+
+				PhotoBackgroundSection(
+					buckets = photoBuckets,
+					thumbnails = photoThumbnails,
+					importFailed = photoImportFailed,
+					onChoose = viewModel::importPhoto,
+					onClear = viewModel::clearPhoto,
+					onDismissFailure = viewModel::dismissImportFailure
+				)
+			}
+		}
+
+		Spacer(modifier = Modifier.height(24.dp))
+
+		SkyAppearanceSection(settings = settings, defaults = viewModel.defaults, onSave = viewModel::save)
+
+		Spacer(modifier = Modifier.height(24.dp))
+
+		CloudAppearanceSection(settings = settings, defaults = viewModel.defaults, onSave = viewModel::save)
+
+		Spacer(modifier = Modifier.height(24.dp))
+
+		SunEffectsSection(settings = settings, defaults = viewModel.defaults, onSave = viewModel::save)
+
+		Spacer(modifier = Modifier.height(24.dp))
+
+		IntensitySection(settings = settings, defaults = viewModel.defaults, onSave = viewModel::save)
+
+		Spacer(modifier = Modifier.height(24.dp))
+
+		LabelsSection(settings = settings, defaults = viewModel.defaults, onSave = viewModel::save)
+	}
+}
+
+@Composable
+private fun WallpaperSettingsTab(viewModel: SettingsViewModel, scrollState: ScrollState) {
+	val settings by viewModel.settings.collectAsStateWithLifecycle()
+
+	SettingsTabContent(scrollState) {
+		WallpaperMotionSection(settings = settings, onSave = viewModel::save)
+
+		Spacer(modifier = Modifier.height(24.dp))
+
+		FrameRateSection(settings = settings, defaults = viewModel.defaults, onSave = viewModel::save)
+	}
+}
+
+@Composable
+private fun AdvancedSettingsTab(viewModel: SettingsViewModel, scrollState: ScrollState) {
+	val settings by viewModel.settings.collectAsStateWithLifecycle()
+
+	SettingsTabContent(scrollState) {
+		SceneSimulatorSection(settings = settings, onSave = viewModel::save)
+
+		if (settings.weatherProvider == WeatherProviderType.MET_NORWAY) {
+			Spacer(modifier = Modifier.height(24.dp))
+
+			MetNoAttributionSection()
+		}
+
+		Spacer(modifier = Modifier.height(24.dp))
+
+		VersionFooter()
 	}
 }
 
