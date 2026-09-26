@@ -154,15 +154,19 @@ class SunRenderingTest {
 	}
 
 	@Test
-	fun lensFlareGhostRemainsReadableAgainstDaySky() {
+	fun lensFlareGhostsRemainReadableAgainstDaySky() {
 		val enabledParams = clearParams()
 		val enabled = renderScene(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams)
 		val disabled = renderScene(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams.copy(lensFlareEnabled = false))
-		val center = lensGhostCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, LENS_GHOST_TEST_DISTANCE)
-		val radius = minOf(PORTRAIT_WIDTH, PORTRAIT_HEIGHT) * SUN_RADIUS_FRACTION * LENS_GHOST_TEST_SCALE * LENS_GHOST_DAY_SKY_SAMPLE_RADIUS
-		val contrast = averageColorDistance(enabled, disabled, center, radius)
+		val primaryCenter = lensGhostCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, LENS_GHOST_TEST_DISTANCE)
+		val primaryRadius = minOf(PORTRAIT_WIDTH, PORTRAIT_HEIGHT) * SUN_RADIUS_FRACTION * LENS_GHOST_TEST_SCALE * LENS_GHOST_DAY_SKY_SAMPLE_RADIUS
+		val primaryContrast = averageColorDistance(enabled, disabled, primaryCenter, primaryRadius)
+		val secondaryCenter = lensGhostCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, LENS_GHOST_SECONDARY_TEST_DISTANCE)
+		val secondaryRadius = minOf(PORTRAIT_WIDTH, PORTRAIT_HEIGHT) * SUN_RADIUS_FRACTION * LENS_GHOST_SECONDARY_TEST_SCALE * LENS_GHOST_DAY_SKY_SAMPLE_RADIUS
+		val secondaryContrast = averageColorDistance(enabled, disabled, secondaryCenter, secondaryRadius)
 
-		assertTrue("A daytime lens ghost should remain visibly distinct from the rendered blue sky, but average channel contrast was only $contrast", contrast >= MIN_LENS_GHOST_DAY_SKY_CONTRAST)
+		assertTrue("The primary daytime lens ghost should remain visibly distinct from the rendered blue sky, but average channel contrast was only $primaryContrast", primaryContrast >= MIN_LENS_GHOST_DAY_SKY_CONTRAST)
+		assertTrue("The secondary daytime lens ghost should remain visibly distinct from the rendered blue sky, but average channel contrast was only $secondaryContrast", secondaryContrast >= MIN_LENS_GHOST_SECONDARY_DAY_SKY_CONTRAST)
 
 		enabled.recycle()
 		disabled.recycle()
@@ -583,6 +587,8 @@ class SunRenderingTest {
 		const val LENS_HALO_DAY_SKY_SAMPLE_RADIUS = 0.06f
 		const val LENS_GHOST_TEST_DISTANCE = 0.76f
 		const val LENS_GHOST_TEST_SCALE = 0.72f
+		const val LENS_GHOST_SECONDARY_TEST_DISTANCE = 1.34f
+		const val LENS_GHOST_SECONDARY_TEST_SCALE = 0.62f
 		const val LENS_GHOST_EDGE_SAMPLE_FRACTION = 0.8f
 		const val LENS_GHOST_DAY_SKY_SAMPLE_RADIUS = 0.45f
 		const val OPAQUE_ALPHA_THRESHOLD = 245
@@ -595,7 +601,8 @@ class SunRenderingTest {
 		const val MIN_LENS_HALO_DAY_SKY_CONTRAST = 5f
 		const val MIN_LENS_GHOST_CENTER_LIFT = 6
 		const val MIN_LENS_GHOST_CENTER_EDGE_DELTA = 3
-		const val MIN_LENS_GHOST_DAY_SKY_CONTRAST = 15f
+		const val MIN_LENS_GHOST_DAY_SKY_CONTRAST = 20f
+		const val MIN_LENS_GHOST_SECONDARY_DAY_SKY_CONTRAST = 16f
 		const val POSITION_TOLERANCE_PIXELS = 2
 		const val MIN_CLOUD_ATTENUATION = 2f
 		const val MIN_VEILED_DISPLACEMENT = 1.5f
