@@ -3357,7 +3357,7 @@ private data class LensGhost(val distance: Float, val scale: Float, val strength
 private val LENS_GHOSTS = listOf(
 	LensGhost(-0.72f, 0.82f, 0.18f, Color.rgb(255, 238, 204)),
 	LensGhost(0.76f, 0.72f, 0.30f, Color.rgb(255, 232, 202)),
-	LensGhost(1.34f, 0.62f, 0.23f, Color.rgb(196, 228, 248)),
+	LensGhost(1.34f, 0.62f, 0.34f, Color.rgb(196, 228, 248)),
 	LensGhost(1.82f, 1.24f, 0.16f, Color.rgb(214, 232, 215))
 )
 
