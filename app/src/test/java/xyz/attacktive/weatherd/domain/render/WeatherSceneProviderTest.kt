@@ -386,6 +386,35 @@ class WeatherSceneProviderTest {
 	}
 
 	@Test
+	fun `clearing a manual city clears status when no device fix is available`() = runTest {
+		val manual = AppSettings(
+			useDeviceLocation = false,
+			manualLatitude = 37.57,
+			manualLongitude = 126.98,
+			manualLocationLabel = "Seoul"
+		)
+		every { settingsRepository.settings } returns flowOf(manual)
+		coEvery { weatherRepository.current(37.57, 126.98) } returns Result.success(snapshotWith(weatherCode = 63))
+
+		provider.refresh(1_000_000L, resolveLocationName = true)
+
+		every {
+			settingsRepository.settings
+		} returns flowOf(
+			manual.copy(
+				manualLatitude = null,
+				manualLongitude = null,
+				manualLocationLabel = null
+			)
+		)
+		coEvery { locationRepository.currentLocation() } returns null
+
+		provider.refresh(1_000_060L, resolveLocationName = true)
+
+		assertEquals(WeatherSceneStatus(), provider.status.value)
+	}
+
+	@Test
 	fun `a forced refresh requests a fresh device fix and publishes the new place`() = runTest {
 		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = true, updateIntervalMinutes = 30))
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(37.57, 126.98)

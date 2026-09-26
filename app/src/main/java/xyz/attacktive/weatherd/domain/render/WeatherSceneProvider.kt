@@ -267,7 +267,14 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			return
 		}
 
-		val fix = lastDeviceFix ?: return
+		val fix = lastDeviceFix
+		if (fix == null) {
+			locationLabel = null
+			geocodedKey = null
+			publishStatus(settings)
+			return
+		}
+
 		val fixKey = locationFixKey(fix)
 		if (fixKey == geocodedKey && locationLabel != null) {
 			publishStatus(settings)
