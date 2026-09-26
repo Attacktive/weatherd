@@ -81,6 +81,9 @@
 	<string name="section_sky_brightness">天空亮度 · %1$d%%</string>
 	<string name="sky_brightness_darker">更暗</string>
 	<string name="sky_brightness_brighter">更亮</string>
+	<string name="section_night_brightness">夜间亮度 · %1$d%%</string>
+	<string name="night_brightness_black">黑色</string>
+	<string name="night_brightness_normal">正常</string>
 	<string name="section_sky_saturation">天空饱和度 · %1$d%%</string>
 	<string name="sky_saturation_muted">柔和</string>
 	<string name="sky_saturation_vivid">鲜艳</string>

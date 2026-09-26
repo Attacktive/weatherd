@@ -81,6 +81,9 @@
 	<string name="section_sky_brightness">空の明るさ · %1$d%%</string>
 	<string name="sky_brightness_darker">暗く</string>
 	<string name="sky_brightness_brighter">明るく</string>
+	<string name="section_night_brightness">夜の明るさ · %1$d%%</string>
+	<string name="night_brightness_black">黒</string>
+	<string name="night_brightness_normal">標準</string>
 	<string name="section_sky_saturation">空の彩度 · %1$d%%</string>
 	<string name="sky_saturation_muted">控えめ</string>
 	<string name="sky_saturation_vivid">鮮やか</string>

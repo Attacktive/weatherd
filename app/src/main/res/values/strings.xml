@@ -82,6 +82,9 @@
 	<string name="section_sky_brightness">Sky brightness · %1$d%%</string>
 	<string name="sky_brightness_darker">Darker</string>
 	<string name="sky_brightness_brighter">Brighter</string>
+	<string name="section_night_brightness">Night brightness · %1$d%%</string>
+	<string name="night_brightness_black">Black</string>
+	<string name="night_brightness_normal">Normal</string>
 	<string name="section_sky_saturation">Sky saturation · %1$d%%</string>
 	<string name="sky_saturation_muted">Muted</string>
 	<string name="sky_saturation_vivid">Vivid</string>

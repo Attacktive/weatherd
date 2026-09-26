@@ -81,6 +81,9 @@
 	<string name="section_sky_brightness">하늘 밝기 · %1$d%%</string>
 	<string name="sky_brightness_darker">더 어둡게</string>
 	<string name="sky_brightness_brighter">더 밝게</string>
+	<string name="section_night_brightness">밤 밝기 · %1$d%%</string>
+	<string name="night_brightness_black">검정</string>
+	<string name="night_brightness_normal">기본</string>
 	<string name="section_sky_saturation">하늘 채도 · %1$d%%</string>
 	<string name="sky_saturation_muted">은은하게</string>
 	<string name="sky_saturation_vivid">선명하게</string>

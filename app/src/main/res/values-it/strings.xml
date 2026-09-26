@@ -81,6 +81,9 @@
 	<string name="section_sky_brightness">Luminosità del cielo · %1$d%%</string>
 	<string name="sky_brightness_darker">Più scuro</string>
 	<string name="sky_brightness_brighter">Più chiaro</string>
+	<string name="section_night_brightness">Luminosità notturna · %1$d%%</string>
+	<string name="night_brightness_black">Nero</string>
+	<string name="night_brightness_normal">Normale</string>
 	<string name="section_sky_saturation">Saturazione del cielo · %1$d%%</string>
 	<string name="sky_saturation_muted">Tenue</string>
 	<string name="sky_saturation_vivid">Vivida</string>
