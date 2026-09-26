@@ -9,6 +9,7 @@ import xyz.attacktive.weatherd.domain.weather.dayPhaseProgressFor
 class DayPhaseMappingTest {
 	private val sunrise = 1_000_000L
 	private val sunset = 1_050_000L
+	private val secondsPerDay = 86_400L
 
 	@Test
 	fun `midday between the twilight windows is day`() {
@@ -32,6 +33,15 @@ class DayPhaseMappingTest {
 	}
 
 	@Test
+	fun `cached sun times repeat on the next day while offline`() {
+		val nextDaySunrise = sunrise + secondsPerDay
+		val nextDayNoon = (sunrise + sunset) / 2L + secondsPerDay
+
+		assertEquals(DayPhase.DAWN, dayPhaseFor(nextDaySunrise, sunrise, sunset, isDay = false))
+		assertEquals(DayPhase.DAY, dayPhaseFor(nextDayNoon, sunrise, sunset, isDay = false))
+	}
+
+	@Test
 	fun `falls back to is_day when sun times are missing`() {
 		assertEquals(DayPhase.DAY, dayPhaseFor(1L, null, null, isDay = true))
 		assertEquals(DayPhase.NIGHT, dayPhaseFor(1L, null, null, isDay = false))
@@ -47,6 +57,15 @@ class DayPhaseMappingTest {
 	@Test
 	fun `progress at midday sits midway through the day window`() {
 		assertEquals(0.5f, dayPhaseProgressFor(1_025_000L, sunrise, sunset, DayPhase.DAY), 0.0001f)
+	}
+
+	@Test
+	fun `cached sun times keep progress aligned on the next day`() {
+		val nextDaySunrise = sunrise + secondsPerDay
+		val nextDayNoon = (sunrise + sunset) / 2L + secondsPerDay
+
+		assertEquals(0.5f, dayPhaseProgressFor(nextDaySunrise, sunrise, sunset, DayPhase.DAWN), 0.0001f)
+		assertEquals(0.5f, dayPhaseProgressFor(nextDayNoon, sunrise, sunset, DayPhase.DAY), 0.0001f)
 	}
 
 	@Test

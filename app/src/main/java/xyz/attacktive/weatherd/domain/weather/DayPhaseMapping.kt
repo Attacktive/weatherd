@@ -15,10 +15,14 @@ fun dayPhaseFor(nowEpochSeconds: Long, sunriseEpochSeconds: Long?, sunsetEpochSe
 		}
 	}
 
+	val solarOffsetSeconds = solarDayOffsetSeconds(nowEpochSeconds, sunsetEpochSeconds)
+	val sunrise = sunriseEpochSeconds + solarOffsetSeconds
+	val sunset = sunsetEpochSeconds + solarOffsetSeconds
+
 	return when (nowEpochSeconds) {
-		in (sunriseEpochSeconds - TWILIGHT_SECONDS)..(sunriseEpochSeconds + TWILIGHT_SECONDS) -> DayPhase.DAWN
-		in (sunsetEpochSeconds - TWILIGHT_SECONDS)..(sunsetEpochSeconds + TWILIGHT_SECONDS) -> DayPhase.DUSK
-		in sunriseEpochSeconds..sunsetEpochSeconds -> DayPhase.DAY
+		in (sunrise - TWILIGHT_SECONDS)..(sunrise + TWILIGHT_SECONDS) -> DayPhase.DAWN
+		in (sunset - TWILIGHT_SECONDS)..(sunset + TWILIGHT_SECONDS) -> DayPhase.DUSK
+		in sunrise..sunset -> DayPhase.DAY
 		else -> DayPhase.NIGHT
 	}
 }
@@ -32,10 +36,13 @@ fun dayPhaseProgressFor(nowEpochSeconds: Long, sunriseEpochSeconds: Long?, sunse
 		return 0.5f
 	}
 
+	val solarOffsetSeconds = solarDayOffsetSeconds(nowEpochSeconds, sunsetEpochSeconds)
+	val sunrise = sunriseEpochSeconds + solarOffsetSeconds
+	val sunset = sunsetEpochSeconds + solarOffsetSeconds
 	val window = when (dayPhase) {
-		DayPhase.DAWN -> (sunriseEpochSeconds - TWILIGHT_SECONDS)..(sunriseEpochSeconds + TWILIGHT_SECONDS)
-		DayPhase.DUSK -> (sunsetEpochSeconds - TWILIGHT_SECONDS)..(sunsetEpochSeconds + TWILIGHT_SECONDS)
-		else -> (sunriseEpochSeconds + TWILIGHT_SECONDS)..(sunsetEpochSeconds - TWILIGHT_SECONDS)
+		DayPhase.DAWN -> (sunrise - TWILIGHT_SECONDS)..(sunrise + TWILIGHT_SECONDS)
+		DayPhase.DUSK -> (sunset - TWILIGHT_SECONDS)..(sunset + TWILIGHT_SECONDS)
+		else -> (sunrise + TWILIGHT_SECONDS)..(sunset - TWILIGHT_SECONDS)
 	}
 
 	if (window.isEmpty()) {
@@ -48,6 +55,20 @@ fun dayPhaseProgressFor(nowEpochSeconds: Long, sunriseEpochSeconds: Long?, sunse
 	return stepped.coerceIn(0f, 1f)
 }
 
+/** Repeats cached solar times every 24 hours after their dusk window ends so day/night lighting keeps moving while weather is offline. */
+private fun solarDayOffsetSeconds(nowEpochSeconds: Long, sunsetEpochSeconds: Long): Long {
+	val duskEndEpochSeconds = sunsetEpochSeconds + TWILIGHT_SECONDS
+	if (nowEpochSeconds <= duskEndEpochSeconds) {
+		return 0L
+	}
+
+	val elapsedAfterDuskEnd = nowEpochSeconds - duskEndEpochSeconds
+	val daysToAdvance = (elapsedAfterDuskEnd + SECONDS_PER_DAY - 1L) / SECONDS_PER_DAY
+
+	return daysToAdvance * SECONDS_PER_DAY
+}
+
+private const val SECONDS_PER_DAY = 24L * 60L * 60L
 private const val TWILIGHT_SECONDS = 45L * 60L
 
 /** Progress quantization steps; at 32 a typical 90-minute twilight ticks roughly every three minutes. */
