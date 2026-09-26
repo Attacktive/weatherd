@@ -163,17 +163,23 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 			when (SettingsTab.entries[selectedTabIndex]) {
 				SettingsTab.WEATHER -> SettingsTabContent(weatherScrollState) {
 					LocationSection(
-						settings = settings,
-						citySearch = citySearch,
-						weatherStatus = weatherStatus,
-						weatherRefreshInProgress = weatherRefreshInProgress,
-						onToggleDeviceLocation = viewModel::setUseDeviceLocation,
-						onRefresh = viewModel::refreshWeather,
-						onQueryChange = viewModel::onCityQueryChange,
-						onSearch = viewModel::searchCityImmediately,
-						onClearQuery = viewModel::clearCityQuery,
-						onSelectPlace = viewModel::selectPlace,
-						onClearManualLocation = viewModel::clearManualLocation
+						state = LocationSectionState(
+							settings = settings,
+							citySearch = citySearch,
+							weatherStatus = weatherStatus,
+							weatherRefreshInProgress = weatherRefreshInProgress
+						),
+						locationActions = LocationActions(
+							onToggleDeviceLocation = viewModel::setUseDeviceLocation,
+							onRefresh = viewModel::refreshWeather,
+							onClearManualLocation = viewModel::clearManualLocation
+						),
+						citySearchActions = CitySearchActions(
+							onQueryChange = viewModel::onCityQueryChange,
+							onSearch = viewModel::searchCityImmediately,
+							onClearQuery = viewModel::clearCityQuery,
+							onSelectPlace = viewModel::selectPlace
+						)
 					)
 
 					Spacer(modifier = Modifier.height(24.dp))
@@ -256,6 +262,33 @@ private enum class SettingsTab(@StringRes val label: Int) {
 	WALLPAPER(R.string.settings_tab_wallpaper),
 	ADVANCED(R.string.settings_tab_advanced)
 }
+
+private data class LocationSectionState(
+	val settings: AppSettings,
+	val citySearch: CitySearchState,
+	val weatherStatus: WeatherSceneStatus,
+	val weatherRefreshInProgress: Boolean
+)
+
+private data class LocationActions(
+	val onToggleDeviceLocation: (Boolean) -> Unit,
+	val onRefresh: () -> Unit,
+	val onClearManualLocation: () -> Unit
+)
+
+private data class CitySearchActions(
+	val onQueryChange: (String) -> Unit,
+	val onSearch: (String) -> Unit,
+	val onClearQuery: () -> Unit,
+	val onSelectPlace: (GeoPlace) -> Unit
+)
+
+private data class CurrentLocationSummaryState(
+	val locationLabel: String?,
+	val lastRefreshEpochSeconds: Long?,
+	val refreshInProgress: Boolean,
+	val onClear: (() -> Unit)?
+)
 
 private val BACKDROP_SCENE_DISPLAY_ORDER = listOf(
 	BackdropScene.NONE,
@@ -977,19 +1010,19 @@ private fun MetNoAttributionSection() {
 
 @Composable
 private fun LocationSection(
-	settings: AppSettings,
-	citySearch: CitySearchState,
-	weatherStatus: WeatherSceneStatus,
-	weatherRefreshInProgress: Boolean,
-	onToggleDeviceLocation: (Boolean) -> Unit,
-	onRefresh: () -> Unit,
-	onQueryChange: (String) -> Unit,
-	onSearch: (String) -> Unit,
-	onClearQuery: () -> Unit,
-	onSelectPlace: (GeoPlace) -> Unit,
-	onClearManualLocation: () -> Unit
+	state: LocationSectionState,
+	locationActions: LocationActions,
+	citySearchActions: CitySearchActions
 ) {
 	var query by rememberSaveable { mutableStateOf("") }
+	val settings = state.settings
+	val manualLocationSelected = !settings.useDeviceLocation && settings.manualLatitude != null && settings.manualLongitude != null
+	val summaryState = CurrentLocationSummaryState(
+		locationLabel = if (manualLocationSelected) settings.manualLocationLabel else state.weatherStatus.locationLabel,
+		lastRefreshEpochSeconds = state.weatherStatus.lastRefreshEpochSeconds,
+		refreshInProgress = state.weatherRefreshInProgress,
+		onClear = locationActions.onClearManualLocation.takeIf { manualLocationSelected }
+	)
 
 	SectionLabel(stringResource(R.string.section_location))
 
@@ -997,19 +1030,12 @@ private fun LocationSection(
 		label = stringResource(R.string.label_use_device_location),
 		subtitle = stringResource(R.string.subtitle_use_device_location),
 		checked = settings.useDeviceLocation,
-		onToggle = onToggleDeviceLocation,
+		onToggle = locationActions.onToggleDeviceLocation,
 	)
 
 	Spacer(modifier = Modifier.height(8.dp))
 
-	CurrentLocationSummary(
-		locationLabel = if (settings.useDeviceLocation) weatherStatus.locationLabel else settings.manualLocationLabel,
-		lastRefreshEpochSeconds = weatherStatus.lastRefreshEpochSeconds,
-		refreshInProgress = weatherRefreshInProgress,
-		refreshEnabled = settings.useDeviceLocation || (settings.manualLatitude != null && settings.manualLongitude != null),
-		onRefresh = onRefresh,
-		onClear = onClearManualLocation.takeIf { !settings.useDeviceLocation && settings.manualLocationLabel != null }
-	)
+	CurrentLocationSummary(state = summaryState, onRefresh = locationActions.onRefresh)
 
 	AnimatedVisibility(visible = !settings.useDeviceLocation) {
 		Column {
@@ -1019,20 +1045,20 @@ private fun LocationSection(
 				query = query,
 				onQueryChange = {
 					query = it
-					onQueryChange(it)
+					citySearchActions.onQueryChange(it)
 				},
-				onSearch = onSearch,
+				onSearch = citySearchActions.onSearch,
 				onClear = {
 					query = ""
-					onClearQuery()
+					citySearchActions.onClearQuery()
 				}
 			)
 
 			CitySearchResults(
-				state = citySearch,
+				state = state.citySearch,
 				onSelectPlace = { place ->
 					query = ""
-					onSelectPlace(place)
+					citySearchActions.onSelectPlace(place)
 				}
 			)
 		}
@@ -1107,31 +1133,13 @@ private fun CitySearchResults(state: CitySearchState, onSelectPlace: (GeoPlace) 
 }
 
 @Composable
-private fun CurrentLocationSummary(
-	locationLabel: String?,
-	lastRefreshEpochSeconds: Long?,
-	refreshInProgress: Boolean,
-	refreshEnabled: Boolean,
-	onRefresh: () -> Unit,
-	onClear: (() -> Unit)?
-) {
-	val context = LocalContext.current
-	val lastUpdated = if (lastRefreshEpochSeconds == null) {
-		stringResource(R.string.last_updated_never)
-	} else {
-		val formatted = DateUtils.formatDateTime(
-			context,
-			lastRefreshEpochSeconds * 1000L,
-			DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_TIME or DateUtils.FORMAT_ABBREV_MONTH
-		)
-
-		stringResource(R.string.last_updated, formatted)
-	}
+private fun CurrentLocationSummary(state: CurrentLocationSummaryState, onRefresh: () -> Unit) {
+	val lastUpdated = formatLastUpdated(state.lastRefreshEpochSeconds)
 
 	Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
 		Column(modifier = Modifier.weight(1f)) {
 			SectionLabel(stringResource(R.string.section_current_location))
-			Text(locationLabel ?: stringResource(R.string.location_unavailable))
+			Text(state.locationLabel ?: stringResource(R.string.location_unavailable))
 			Text(
 				lastUpdated,
 				style = MaterialTheme.typography.bodySmall,
@@ -1139,21 +1147,37 @@ private fun CurrentLocationSummary(
 			)
 		}
 
-		if (onClear != null) {
+		state.onClear?.let { onClear ->
 			IconButton(onClick = onClear) {
 				Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.content_description_clear_city))
 			}
 		}
 	}
 
-	TextButton(onClick = onRefresh, enabled = refreshEnabled && !refreshInProgress) {
-		if (refreshInProgress) {
+	TextButton(onClick = onRefresh, enabled = !state.refreshInProgress) {
+		if (state.refreshInProgress) {
 			CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
 			Spacer(modifier = Modifier.width(8.dp))
 		}
 
 		Text(stringResource(R.string.refresh_now))
 	}
+}
+
+@Composable
+private fun formatLastUpdated(lastRefreshEpochSeconds: Long?): String {
+	if (lastRefreshEpochSeconds == null) {
+		return stringResource(R.string.last_updated_never)
+	}
+
+	val context = LocalContext.current
+	val formatted = DateUtils.formatDateTime(
+		context,
+		lastRefreshEpochSeconds * 1000L,
+		DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_TIME or DateUtils.FORMAT_ABBREV_MONTH
+	)
+
+	return stringResource(R.string.last_updated, formatted)
 }
 
 @Composable

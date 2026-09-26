@@ -146,10 +146,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		sceneSimulatorDayPhase = settings.sceneSimulatorDayPhase
 		sceneSimulatorCelestialProgress = settings.sceneSimulatorCelestialProgress.coerceIn(0f, 1f)
 		if (sceneSimulatorActive) {
-			if (resolveLocationName) {
-				refreshStatusLocation(settings, force)
-			}
-
+			refreshSimulatorStatus(settings, force, resolveLocationName)
 			return
 		}
 
@@ -220,8 +217,8 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 
 	/** Manual coordinates win only when the user opted out of device location and actually set a place; otherwise the device fix. */
 	private suspend fun resolveLocation(settings: AppSettings, forceDeviceFix: Boolean): GeoLocation? {
-		val manual = manualLocation(settings)
-		if (!settings.useDeviceLocation && manual != null) {
+		val manual = selectedManualLocation(settings)
+		if (manual != null) {
 			return manual
 		}
 
@@ -243,12 +240,18 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		}
 	}
 
+	private fun selectedManualLocation(settings: AppSettings) = if (settings.useDeviceLocation) {
+		null
+	} else {
+		manualLocation(settings)
+	}
+
 	/**
 	 * Keeps [locationLabel] current: the user's own words in manual mode, a reverse-geocoded place name in device mode.
 	 * Device geocoding is cached per fix. It normally runs only for the wallpaper label, while Settings can explicitly request the same place name for its status row.
 	 */
 	private suspend fun refreshLocationLabel(settings: AppSettings, resolveForStatus: Boolean) {
-		if (!settings.useDeviceLocation) {
+		if (selectedManualLocation(settings) != null) {
 			locationLabel = settings.manualLocationLabel
 			geocodedKey = null
 			publishStatus(settings)
@@ -271,6 +274,14 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		publishStatus(settings)
 	}
 
+	private suspend fun refreshSimulatorStatus(settings: AppSettings, forceDeviceFix: Boolean, resolveLocationName: Boolean) {
+		if (!resolveLocationName) {
+			return
+		}
+
+		refreshStatusLocation(settings, forceDeviceFix)
+	}
+
 	private suspend fun refreshStatusLocation(settings: AppSettings, forceDeviceFix: Boolean) {
 		val location = resolveLocation(settings, forceDeviceFix)
 		if (location != null) {
@@ -281,7 +292,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	}
 
 	private fun rememberDeviceFix(settings: AppSettings, location: GeoLocation) {
-		if (!settings.useDeviceLocation) {
+		if (selectedManualLocation(settings) != null) {
 			return
 		}
 
@@ -294,17 +305,10 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	}
 
 	private fun publishStatus(settings: AppSettings) {
-		val currentLocation = if (settings.useDeviceLocation) {
-			lastDeviceFix
-		} else {
-			manualLocation(settings)
-		}
+		val manual = selectedManualLocation(settings)
+		val currentLocation = manual ?: lastDeviceFix
 		val currentFixKey = currentLocation?.let(::locationFixKey)
-		val statusLabel = if (settings.useDeviceLocation) {
-			locationLabel.takeIf { currentFixKey != null && currentFixKey == geocodedKey }
-		} else {
-			settings.manualLocationLabel
-		}
+		val statusLabel = manual?.let { settings.manualLocationLabel } ?: deviceLocationLabel(currentFixKey)
 		val lastUpdated = lastRefreshEpochSeconds.takeIf { currentLocation != null && currentLocation == lastRefreshLocation }
 
 		_status.value = WeatherSceneStatus(
@@ -312,6 +316,8 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			lastRefreshEpochSeconds = lastUpdated
 		)
 	}
+
+	private fun deviceLocationLabel(currentFixKey: String?) = locationLabel.takeIf { currentFixKey != null && currentFixKey == geocodedKey }
 
 	private fun locationFixKey(location: GeoLocation) = "${location.latitude},${location.longitude}"
 
@@ -348,12 +354,8 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		}
 	}
 
-	/** A cheap signature of the location inputs; changing it (device↔manual, or a new city) triggers a refetch even mid-interval. */
-	private fun locationKey(settings: AppSettings) = if (settings.useDeviceLocation) {
-		"device"
-	} else {
-		"${settings.manualLatitude},${settings.manualLongitude}"
-	}
+	/** A cheap signature of the effective location source; changing device↔manual or choosing a new city triggers a refetch even mid-interval. */
+	private fun locationKey(settings: AppSettings) = selectedManualLocation(settings)?.let(::locationFixKey) ?: "device"
 
 	/** Until weather loads we still want the right time of day — and the right moon — so lean on the local wall clock. */
 	private fun fallbackParams(nowEpochSeconds: Long): SceneParams {

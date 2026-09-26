@@ -391,6 +391,21 @@ class WeatherSceneProviderTest {
 	}
 
 	@Test
+	fun `manual mode without a selected city reports the fallback device location`() = runTest {
+		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = false, showLocationLabel = false))
+		coEvery { locationRepository.currentLocation() } returns GeoLocation(37.57, 126.98)
+		coEvery { weatherRepository.current(37.57, 126.98) } returns Result.success(snapshotWith(weatherCode = 63))
+		coEvery { reverseGeocodingRepository.placeName(37.57, 126.98) } returns "Seoul"
+
+		provider.refresh(1_000_000L, resolveLocationName = true)
+
+		assertEquals(
+			WeatherSceneStatus(locationLabel = "Seoul", lastRefreshEpochSeconds = 1_000_000L),
+			provider.status.value
+		)
+	}
+
+	@Test
 	fun `a forced refresh requests a fresh device fix and publishes the new place`() = runTest {
 		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = true, updateIntervalMinutes = 30))
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(37.57, 126.98)
