@@ -47,6 +47,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	@Volatile private var cloudCountScale = 1f
 	@Volatile private var cloudContrastScale = 1f
 	@Volatile private var skyBrightnessScale = 1f
+	@Volatile private var nightBrightnessScale = 1f
 	@Volatile private var skySaturationScale = 1f
 	@Volatile private var skyColorPreset = SkyColorPreset.NATURAL
 	@Volatile private var sunVisible = true
@@ -83,6 +84,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			cloudCountScale = cloudCountScale,
 			cloudContrastScale = cloudContrastScale,
 			skyBrightnessScale = skyBrightnessScale,
+			nightBrightnessScale = nightBrightnessScale,
 			skySaturationScale = skySaturationScale,
 			skyColorPreset = skyColorPreset,
 			sunVisible = sunVisible,
@@ -122,6 +124,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		cloudCountScale = settings.cloudCountScale
 		cloudContrastScale = settings.cloudContrastScale
 		skyBrightnessScale = settings.skyBrightnessScale
+		nightBrightnessScale = settings.nightBrightnessScale
 		skySaturationScale = settings.skySaturationScale
 		skyColorPreset = settings.skyColorPreset
 		sunVisible = settings.sunVisible
@@ -188,6 +191,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		cloudCountScale = cloudCountScale,
 		cloudContrastScale = cloudContrastScale,
 		skyBrightnessScale = skyBrightnessScale,
+		nightBrightnessScale = nightBrightnessScale,
 		skySaturationScale = skySaturationScale,
 		skyColorPreset = skyColorPreset,
 		sunVisible = sunVisible,
@@ -311,6 +315,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			cloudCountScale = cloudCountScale,
 			cloudContrastScale = cloudContrastScale,
 			skyBrightnessScale = skyBrightnessScale,
+			nightBrightnessScale = nightBrightnessScale,
 			skySaturationScale = skySaturationScale,
 			skyColorPreset = skyColorPreset,
 			sunVisible = sunVisible,

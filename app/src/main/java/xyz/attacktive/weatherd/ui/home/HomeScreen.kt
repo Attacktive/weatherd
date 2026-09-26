@@ -91,6 +91,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	val cloudCountScale by viewModel.cloudCountScale.collectAsStateWithLifecycle()
 	val cloudContrastScale by viewModel.cloudContrastScale.collectAsStateWithLifecycle()
 	val skyBrightnessScale by viewModel.skyBrightnessScale.collectAsStateWithLifecycle()
+	val nightBrightnessScale by viewModel.nightBrightnessScale.collectAsStateWithLifecycle()
 	val skySaturationScale by viewModel.skySaturationScale.collectAsStateWithLifecycle()
 	val skyColorPreset by viewModel.skyColorPreset.collectAsStateWithLifecycle()
 	val sunVisible by viewModel.sunVisible.collectAsStateWithLifecycle()
@@ -121,6 +122,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 			cloudCountScale = cloudCountScale,
 			cloudContrastScale = cloudContrastScale,
 			skyBrightnessScale = skyBrightnessScale,
+			nightBrightnessScale = nightBrightnessScale,
 			skySaturationScale = skySaturationScale,
 			skyColorPreset = skyColorPreset,
 			sunVisible = sunVisible,

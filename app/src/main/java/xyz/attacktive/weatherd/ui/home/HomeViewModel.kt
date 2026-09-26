@@ -67,6 +67,11 @@ class HomeViewModel @Inject constructor(
 		.map { it.skyBrightnessScale }
 		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().skyBrightnessScale)
 
+	/** The user's night-only sky brightness multiplier, so debug mode matches the live wallpaper. */
+	val nightBrightnessScale = settingsRepository.settings
+		.map { it.nightBrightnessScale }
+		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().nightBrightnessScale)
+
 	/** The user's painted-sky saturation multiplier, so debug mode matches the live wallpaper. */
 	val skySaturationScale = settingsRepository.settings
 		.map { it.skySaturationScale }

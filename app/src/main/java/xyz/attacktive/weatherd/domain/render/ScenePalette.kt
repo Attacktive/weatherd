@@ -2,6 +2,7 @@ package xyz.attacktive.weatherd.domain.render
 
 import kotlin.math.roundToInt
 import xyz.attacktive.weatherd.domain.model.DayPhase
+import xyz.attacktive.weatherd.domain.model.NIGHT_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 import xyz.attacktive.weatherd.domain.model.SKY_BRIGHTNESS_SCALE_RANGE
@@ -29,8 +30,16 @@ fun skyGradientFor(params: SceneParams): SkyGradient {
 
 	val top = darkenColor(lerpColor(base.topColor, gray, overcast), darken)
 	val bottom = darkenColor(lerpColor(base.bottomColor, gray, overcast), darken)
+	if (params.dayPhase != DayPhase.NIGHT) {
+		return SkyGradient(top, bottom)
+	}
 
-	return SkyGradient(top, bottom)
+	val nightBrightness = params.nightBrightnessScale.coerceIn(NIGHT_BRIGHTNESS_SCALE_RANGE.start, NIGHT_BRIGHTNESS_SCALE_RANGE.endInclusive)
+	if (nightBrightness == 1f) {
+		return SkyGradient(top, bottom)
+	}
+
+	return SkyGradient(darkenColor(top, 1f - nightBrightness), darkenColor(bottom, 1f - nightBrightness))
 }
 
 /**

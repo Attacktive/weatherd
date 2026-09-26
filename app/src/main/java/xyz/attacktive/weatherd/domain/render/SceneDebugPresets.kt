@@ -4,6 +4,7 @@ import xyz.attacktive.weatherd.domain.model.CLOUD_CONTRAST_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_COUNT_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.DayPhase
+import xyz.attacktive.weatherd.domain.model.NIGHT_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 import xyz.attacktive.weatherd.domain.model.SKY_BRIGHTNESS_SCALE_RANGE
@@ -56,6 +57,7 @@ fun debugSceneParams(
 	cloudCountScale: Float = 1f,
 	cloudContrastScale: Float = 1f,
 	skyBrightnessScale: Float = 1f,
+	nightBrightnessScale: Float = 1f,
 	skySaturationScale: Float = 1f,
 	skyColorPreset: SkyColorPreset = SkyColorPreset.NATURAL,
 	sunVisible: Boolean = true,
@@ -78,6 +80,7 @@ fun debugSceneParams(
 	cloudCountScale = cloudCountScale.coerceIn(CLOUD_COUNT_SCALE_RANGE.start, CLOUD_COUNT_SCALE_RANGE.endInclusive),
 	cloudContrastScale = cloudContrastScale.coerceIn(CLOUD_CONTRAST_SCALE_RANGE.start, CLOUD_CONTRAST_SCALE_RANGE.endInclusive),
 	skyBrightnessScale = skyBrightnessScale.coerceIn(SKY_BRIGHTNESS_SCALE_RANGE.start, SKY_BRIGHTNESS_SCALE_RANGE.endInclusive),
+	nightBrightnessScale = nightBrightnessScale.coerceIn(NIGHT_BRIGHTNESS_SCALE_RANGE.start, NIGHT_BRIGHTNESS_SCALE_RANGE.endInclusive),
 	skySaturationScale = skySaturationScale.coerceIn(SKY_SATURATION_SCALE_RANGE.start, SKY_SATURATION_SCALE_RANGE.endInclusive),
 	skyColorPreset = skyColorPreset,
 	sunVisible = sunVisible,

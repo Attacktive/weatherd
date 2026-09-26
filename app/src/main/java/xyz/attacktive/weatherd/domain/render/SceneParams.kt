@@ -6,6 +6,7 @@ import xyz.attacktive.weatherd.domain.model.CLOUD_CONTRAST_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_COUNT_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.DayPhase
+import xyz.attacktive.weatherd.domain.model.NIGHT_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.SKY_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SKY_SATURATION_SCALE_RANGE
@@ -30,6 +31,7 @@ import xyz.attacktive.weatherd.domain.weather.precipitationIntensity
  * [cloudScale] is the user's preference rather than an observation, so it rides alongside [cloudiness] instead of being folded into it: the renderer applies it past its own floors, where it scales cloud opacity.
  * [cloudSizeScale] changes individual fair-weather cloud body geometry, [cloudCountScale] scales rendered cloud coverage, and [cloudContrastScale] changes RGB separation inside cloud artwork without touching its alpha mask.
  * [skyBrightnessScale], [skySaturationScale] and [skyColorPreset] customize the painted phase gradient before weather grayness and storm darkening are applied.
+ * [nightBrightnessScale] only changes the final night sky after those weather transforms, so 0 makes night black without dimming dawn, day or dusk.
  * [sunVisible], [moonVisible], [sunSizeScale] and [sunColorPreset] customize the celestial bodies without changing the time-of-day lighting.
  * [lensFlareEnabled] is a display preference for camera-style streaks and optical ghosts around the sun; it does not disable the physical corona or atmospheric light shafts.
  */
@@ -47,6 +49,7 @@ data class SceneParams(
 	val cloudCountScale: Float = 1f,
 	val cloudContrastScale: Float = 1f,
 	val skyBrightnessScale: Float = 1f,
+	val nightBrightnessScale: Float = 1f,
 	val skySaturationScale: Float = 1f,
 	val skyColorPreset: SkyColorPreset = SkyColorPreset.NATURAL,
 	val moonPhase: Float = 0.5f,
@@ -90,6 +93,7 @@ fun sceneParamsFor(
 	cloudCountScale: Float = 1f,
 	cloudContrastScale: Float = 1f,
 	skyBrightnessScale: Float = 1f,
+	nightBrightnessScale: Float = 1f,
 	skySaturationScale: Float = 1f,
 	skyColorPreset: SkyColorPreset = SkyColorPreset.NATURAL,
 	sunVisible: Boolean = true,
@@ -123,6 +127,7 @@ fun sceneParamsFor(
 		cloudCountScale = cloudCountScale.coerceIn(CLOUD_COUNT_SCALE_RANGE.start, CLOUD_COUNT_SCALE_RANGE.endInclusive),
 		cloudContrastScale = cloudContrastScale.coerceIn(CLOUD_CONTRAST_SCALE_RANGE.start, CLOUD_CONTRAST_SCALE_RANGE.endInclusive),
 		skyBrightnessScale = skyBrightnessScale.coerceIn(SKY_BRIGHTNESS_SCALE_RANGE.start, SKY_BRIGHTNESS_SCALE_RANGE.endInclusive),
+		nightBrightnessScale = nightBrightnessScale.coerceIn(NIGHT_BRIGHTNESS_SCALE_RANGE.start, NIGHT_BRIGHTNESS_SCALE_RANGE.endInclusive),
 		skySaturationScale = skySaturationScale.coerceIn(SKY_SATURATION_SCALE_RANGE.start, SKY_SATURATION_SCALE_RANGE.endInclusive),
 		skyColorPreset = skyColorPreset,
 		sunVisible = sunVisible,

@@ -97,6 +97,7 @@ import xyz.attacktive.weatherd.domain.model.CLOUD_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
 import xyz.attacktive.weatherd.domain.model.GeoPlace
 import xyz.attacktive.weatherd.domain.model.INTENSITY_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.NIGHT_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SKY_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SKY_SATURATION_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.PhotoBucket
@@ -430,6 +431,18 @@ private fun SkyAppearanceSection(settings: AppSettings, defaults: AppSettings, o
 		lowLabel = R.string.sky_brightness_darker,
 		highLabel = R.string.sky_brightness_brighter,
 		onCommit = { onSave(settings.copy(skyBrightnessScale = it)) }
+	)
+
+	Spacer(modifier = Modifier.height(12.dp))
+
+	PercentageSlider(
+		label = R.string.section_night_brightness,
+		value = settings.nightBrightnessScale,
+		defaultValue = defaults.nightBrightnessScale,
+		valueRange = NIGHT_BRIGHTNESS_SCALE_RANGE,
+		lowLabel = R.string.night_brightness_black,
+		highLabel = R.string.night_brightness_normal,
+		onCommit = { onSave(settings.copy(nightBrightnessScale = it)) }
 	)
 
 	Spacer(modifier = Modifier.height(12.dp))
