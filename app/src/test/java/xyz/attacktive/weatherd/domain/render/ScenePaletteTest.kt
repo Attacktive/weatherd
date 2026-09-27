@@ -125,6 +125,15 @@ class ScenePaletteTest {
 	}
 
 	@Test
+	fun `warm dawn horizon glow fades before the phase flips to day`() {
+		assertEquals(80, warmHorizonGlowAlpha(DayPhase.DAWN, 0.5f))
+		assertTrue(warmHorizonGlowAlpha(DayPhase.DAWN, 0.75f) in 1 until 80)
+		assertEquals(0, warmHorizonGlowAlpha(DayPhase.DAWN, 0.85f))
+		assertEquals(80, warmHorizonGlowAlpha(DayPhase.DUSK, 0.85f))
+		assertEquals(0, warmHorizonGlowAlpha(DayPhase.DAY, 0.5f))
+	}
+
+	@Test
 	fun `sky brightness and saturation tune the clear palette`() {
 		val natural = skyGradientFor(clearParams(DayPhase.DAY))
 		val dim = skyGradientFor(clearParams(DayPhase.DAY).copy(skyBrightnessScale = 0.7f))

@@ -329,10 +329,11 @@ class SceneRenderer(resources: Resources) {
 		canvas.drawRect(0f, 0f, width, height, paint)
 		paint.shader = null
 
-		// A warm band above the horizon sells the low sun at dawn and dusk.
-		if ((params.dayPhase == DayPhase.DAWN || params.dayPhase == DayPhase.DUSK) && showsCelestialBody(params)) {
+		// A warm band above the horizon sells the low sun at dawn and dusk, then gets out of the way as dawn becomes a blue daytime sky.
+		val horizonGlowAlpha = warmHorizonGlowAlpha(params.dayPhase, params.celestialProgress)
+		if (horizonGlowAlpha > 0 && showsCelestialBody(params)) {
 			val glow = sunColor(params.dayPhase, SunColorPreset.NATURAL)
-			paint.shader = LinearGradient(0f, height * 0.55f, 0f, height, withAlpha(glow, 0), withAlpha(glow, 80), Shader.TileMode.CLAMP)
+			paint.shader = LinearGradient(0f, height * 0.55f, 0f, height, withAlpha(glow, 0), withAlpha(glow, horizonGlowAlpha), Shader.TileMode.CLAMP)
 			canvas.drawRect(0f, height * 0.55f, width, height, paint)
 			paint.shader = null
 		}
@@ -3378,4 +3379,12 @@ private fun lerpColor(from: Int, to: Int, fraction: Float) = Color.rgb(
 	(Color.blue(from) + (Color.blue(to) - Color.blue(from)) * fraction).roundToInt()
 )
 
+internal fun warmHorizonGlowAlpha(dayPhase: DayPhase, celestialProgress: Float) = when (dayPhase) {
+	DayPhase.DAWN -> (WARM_HORIZON_GLOW_ALPHA * (1f - dawnDaylightStrength(celestialProgress))).roundToInt()
+	DayPhase.DUSK -> WARM_HORIZON_GLOW_ALPHA
+	DayPhase.DAY, DayPhase.NIGHT -> 0
+}
+
 private fun withAlpha(color: Int, alpha: Int) = Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color))
+
+private const val WARM_HORIZON_GLOW_ALPHA = 80
