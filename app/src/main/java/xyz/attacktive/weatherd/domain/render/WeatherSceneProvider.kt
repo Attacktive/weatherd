@@ -167,8 +167,6 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			lastRefreshLocation = location
 			publishStatus(settings)
 			logger.debug(TAG, "weather refreshed: condition=${weather.observation.condition.label}, cloud=${weather.observation.cloudCoverPercent}%")
-
-			Unit
 		}
 	}
 
