@@ -115,6 +115,7 @@ dependencies {
 	implementation(libs.androidx.core.ktx)
 	implementation(libs.androidx.activity.compose)
 	implementation(libs.androidx.exifinterface)
+	implementation(libs.androidx.work.runtime.ktx)
 
 	testImplementation(libs.junit)
 	testImplementation(libs.kotlinx.coroutines.test)

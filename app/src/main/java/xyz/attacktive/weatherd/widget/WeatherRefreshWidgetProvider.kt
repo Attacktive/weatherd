@@ -1,25 +1,20 @@
 package xyz.attacktive.weatherd.widget
 
-import javax.inject.Inject
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
 import android.widget.RemoteViews
-import dagger.hilt.android.AndroidEntryPoint
+import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import xyz.attacktive.weatherd.R
-import xyz.attacktive.weatherd.di.ApplicationScope
-import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
 
-/** A one-tap home-screen control that forces the same weather refresh used by the app and live wallpaper. */
-@AndroidEntryPoint
+/** A one-tap home-screen control that queues a forced refresh of the same weather source used by the app and live wallpaper. */
 class WeatherRefreshWidgetProvider: AppWidgetProvider() {
-	@Inject @ApplicationScope lateinit var applicationScope: CoroutineScope
-	@Inject lateinit var sceneProvider: WeatherSceneProvider
-
 	override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
 		val views = widgetViews(context)
 
@@ -27,19 +22,23 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 	}
 
 	override fun onReceive(context: Context, intent: Intent) {
-		super.onReceive(context, intent)
-		if (intent.action != ACTION_REFRESH) {
+		if (intent.action == ACTION_REFRESH) {
+			enqueueRefresh(context)
 			return
 		}
 
-		val pendingResult = goAsync()
-		applicationScope.launch {
-			try {
-				sceneProvider.refresh(nowEpochSeconds(), force = true)
-			} finally {
-				pendingResult.finish()
-			}
-		}
+		super.onReceive(context, intent)
+	}
+
+	private fun enqueueRefresh(context: Context) {
+		val constraints = Constraints.Builder()
+			.setRequiredNetworkType(NetworkType.CONNECTED)
+			.build()
+		val request = OneTimeWorkRequestBuilder<WeatherRefreshWorker>()
+			.setConstraints(constraints)
+			.build()
+
+		WorkManager.getInstance(context).enqueueUniqueWork(REFRESH_WORK_NAME, ExistingWorkPolicy.REPLACE, request)
 	}
 
 	private fun widgetViews(context: Context) = RemoteViews(context.packageName, R.layout.widget_weather_refresh).apply {
@@ -53,9 +52,8 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 		return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 	}
 
-	private fun nowEpochSeconds() = System.currentTimeMillis() / 1000L
-
 	private companion object {
 		const val ACTION_REFRESH = "xyz.attacktive.weatherd.action.REFRESH_WEATHER"
+		const val REFRESH_WORK_NAME = "manual-weather-refresh"
 	}
 }
