@@ -326,6 +326,32 @@ class WeatherSceneProviderTest {
 	}
 
 	@Test
+	fun `a provider failure is returned to background refresh callers`() = runTest {
+		val failure = IllegalStateException("provider unavailable")
+		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = false, manualLatitude = 34.06, manualLongitude = -117.65))
+		coEvery { weatherRepository.current(34.06, -117.65) } returns Result.failure(failure)
+
+		val result = provider.refreshWithResult(1_000_000L, force = true)
+
+		assertTrue(result.isFailure)
+		assertEquals(failure, result.exceptionOrNull())
+	}
+
+	@Test
+	fun `the manual location label survives fallback when weather refresh fails`() = runTest {
+		val ontario = AppSettings(useDeviceLocation = false, manualLatitude = 34.06, manualLongitude = -117.65, manualLocationLabel = "Ontario, California, United States", showLocationLabel = true)
+		every { settingsRepository.settings } returns flowOf(ontario)
+		coEvery { weatherRepository.current(34.06, -117.65) } returns Result.failure(IllegalStateException("provider unavailable"))
+
+		provider.refresh(1_000_000L, force = true)
+
+		assertEquals(
+			OverlayLabels(weather = null, location = "Ontario, California, United States"),
+			provider.paramsFor(1_000_030L).overlayLabels
+		)
+	}
+
+	@Test
 	fun `the manual city label is used without reverse geocoding`() = runTest {
 		val munich = AppSettings(useDeviceLocation = false, manualLatitude = 48.14, manualLongitude = 11.58, manualLocationLabel = "Munich, Germany", showWeatherLabel = true, showLocationLabel = true)
 		every { settingsRepository.settings } returns flowOf(munich)

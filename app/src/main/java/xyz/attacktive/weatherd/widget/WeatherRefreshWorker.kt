@@ -17,12 +17,20 @@ internal class WeatherRefreshWorker(appContext: Context, workerParams: WorkerPar
 			WeatherRefreshWorkerEntryPoint::class.java
 		).sceneProvider()
 
-		sceneProvider.refresh(nowEpochSeconds(), force = true)
+		val refreshResult = sceneProvider.refreshWithResult(nowEpochSeconds(), force = true)
 
-		return Result.success()
+		return when {
+			refreshResult.isSuccess -> Result.success()
+			runAttemptCount < MAX_RETRY_ATTEMPTS -> Result.retry()
+			else -> Result.failure()
+		}
 	}
 
 	private fun nowEpochSeconds() = System.currentTimeMillis() / 1000L
+
+	private companion object {
+		const val MAX_RETRY_ATTEMPTS = 2
+	}
 }
 
 @EntryPoint

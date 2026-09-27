@@ -110,6 +110,11 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	 * No-ops without a location fix or permission, leaving the last known scene in place.
 	 */
 	suspend fun refresh(nowEpochSeconds: Long, force: Boolean = false, resolveLocationName: Boolean = false) {
+		refreshWithResult(nowEpochSeconds, force, resolveLocationName)
+	}
+
+	/** The refresh result for background callers that need to distinguish a provider failure from a successful or intentionally skipped refresh. */
+	internal suspend fun refreshWithResult(nowEpochSeconds: Long, force: Boolean = false, resolveLocationName: Boolean = false): Result<Unit> {
 		val settings = settingsRepository.settings.first()
 
 		/* Render settings are captured before the throttle: they're display choices, not weather, so even a throttled refresh must adopt them.
@@ -120,7 +125,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		applyRenderSettings(settings)
 		if (sceneSimulatorActive) {
 			refreshSimulatorStatus(settings, force, resolveLocationName)
-			return
+			return Result.success(Unit)
 		}
 
 		refreshLocationLabel(settings, resolveLocationName)
@@ -130,7 +135,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		val weatherProviderChanged = settings.weatherProvider != lastAttemptedWeatherProvider
 		val minRefreshSeconds = settings.updateIntervalMinutes * SECONDS_PER_MINUTE
 		if (!force && !locationChanged && !weatherProviderChanged && nowEpochSeconds - lastRefreshEpochSeconds < minRefreshSeconds) {
-			return
+			return Result.success(Unit)
 		}
 
 		val location = resolveLocation(settings, force)
@@ -142,7 +147,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			}
 
 			logger.debug(TAG, "no location fix; keeping $fallbackLocation")
-			return
+			return Result.success(Unit)
 		}
 
 		// The device fix is remembered and the label refreshed again now that one exists — the first refresh has nothing cached for the pre-throttle pass to geocode.
@@ -155,13 +160,15 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		 */
 		lastAttemptedWeatherProvider = settings.weatherProvider
 
-		weatherRepository.current(location.latitude, location.longitude).onSuccess {
-			snapshot = it
+		return weatherRepository.current(location.latitude, location.longitude).map { weather ->
+			snapshot = weather
 			lastRefreshEpochSeconds = nowEpochSeconds
 			lastLocationKey = locationKey
 			lastRefreshLocation = location
 			publishStatus(settings)
-			logger.debug(TAG, "weather refreshed: condition=${it.observation.condition.label}, cloud=${it.observation.cloudCoverPercent}%")
+			logger.debug(TAG, "weather refreshed: condition=${weather.observation.condition.label}, cloud=${weather.observation.cloudCoverPercent}%")
+
+			Unit
 		}
 	}
 
@@ -402,8 +409,19 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			moonVisible = moonVisible,
 			sunSizeScale = sunSizeScale,
 			sunColorPreset = sunColorPreset,
-			lensFlareEnabled = lensFlareEnabled
+			lensFlareEnabled = lensFlareEnabled,
+			overlayLabels = fallbackOverlayLabels()
 		)
+	}
+
+	private fun fallbackOverlayLabels(): OverlayLabels? {
+		val location = locationLabel.takeIf { showLocationLabel }
+
+		return if (location == null) {
+			null
+		} else {
+			OverlayLabels(weather = null, location = location)
+		}
 	}
 
 	companion object {
