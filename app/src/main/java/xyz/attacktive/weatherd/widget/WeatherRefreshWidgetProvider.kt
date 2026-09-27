@@ -34,11 +34,12 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 		val constraints = Constraints.Builder()
 			.setRequiredNetworkType(NetworkType.CONNECTED)
 			.build()
+
 		val request = OneTimeWorkRequestBuilder<WeatherRefreshWorker>()
 			.setConstraints(constraints)
 			.build()
 
-		WorkManager.getInstance(context).enqueueUniqueWork(REFRESH_WORK_NAME, ExistingWorkPolicy.REPLACE, request)
+		WorkManager.getInstance(context).enqueueUniqueWork(REFRESH_WORK_NAME, ExistingWorkPolicy.KEEP, request)
 	}
 
 	private fun widgetViews(context: Context) = RemoteViews(context.packageName, R.layout.widget_weather_refresh).apply {

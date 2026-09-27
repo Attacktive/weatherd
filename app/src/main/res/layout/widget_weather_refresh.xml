@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout
 	xmlns:android="http://schemas.android.com/apk/res/android"
-	android:id="@+id/weather_refresh_widget"
 	android:layout_width="match_parent"
 	android:layout_height="match_parent"
-	android:contentDescription="@string/refresh_now"
 	android:padding="4dp"
 >
 	<FrameLayout
+		android:id="@+id/weather_refresh_widget"
 		android:layout_width="56dp"
 		android:layout_height="56dp"
 		android:layout_gravity="center"
 		android:background="@drawable/widget_refresh_background"
+		android:contentDescription="@string/refresh_now"
 		android:elevation="4dp"
 	>
 		<ImageView
