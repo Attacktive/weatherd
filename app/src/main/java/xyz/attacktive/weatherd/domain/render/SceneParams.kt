@@ -69,14 +69,15 @@ data class OverlayLabels(val weather: String?, val location: String?)
 
 /**
  * The same scene with the fields the backdrop cannot show flattened away, so two params that differ only in those compare equal.
- * The backdrop never draws the moon or the sun's arc, but the procedural dawn sky now follows late-dawn daylight progress, so that derived value remains backdrop-relevant until the phase reaches day.
- * Photo backdrops still flatten celestial progress because the user's photo supplies the sky and should not be re-decoded for a foreground-only sun movement.
+ * The backdrop never draws the moon or the sun's arc, but the procedural dawn sky follows late-dawn daylight progress while that painted gradient is actually visible.
+ * [backgroundPhotoAvailable] comes from the photo repository's resolved bucket state rather than merely [SceneParams.backdropScene], so a missing or corrupt photo keeps the procedural dawn progression in the key.
+ * A fully opaque dry overcast also flattens that progression because its gray sky completely replaces the progress-dependent base gradient.
  * Which photo draws is a function of [SceneParams.dayPhase] and [SceneParams.backdropScene], so a phase flip or a switch away from [BackdropScene.PHOTO] re-rasterizes on its own; [SceneParams.photoRevision] covers the case those two miss, where the photo behind a fixed bucket is replaced or cleared.
  * Every other field is carried through untouched, so a field added later stays backdrop-relevant until someone lists it here.
  * Both the wallpaper's backdrop cache and the in-app preview's remembered backdrop key on this, which is what keeps them redrawing on exactly the same changes.
  */
-fun backdropSignature(params: SceneParams): SceneParams {
-	val backdropCelestialProgress = if (params.dayPhase == DayPhase.DAWN && params.backdropScene != BackdropScene.PHOTO) {
+fun backdropSignature(params: SceneParams, backgroundPhotoAvailable: Boolean = false): SceneParams {
+	val backdropCelestialProgress = if (dawnBackdropUsesProgress(params, backgroundPhotoAvailable)) {
 		dawnDaylightStrength(params.celestialProgress)
 	} else {
 		0f
@@ -94,6 +95,19 @@ fun backdropSignature(params: SceneParams): SceneParams {
 		sunColorPreset = SunColorPreset.NATURAL,
 		lensFlareEnabled = true
 	)
+}
+
+private fun dawnBackdropUsesProgress(params: SceneParams, backgroundPhotoAvailable: Boolean): Boolean {
+	if (params.dayPhase != DayPhase.DAWN || backgroundPhotoAvailable) {
+		return false
+	}
+
+	val fullyOpaqueDryOvercast =
+		params.fogDensity <= 0f &&
+			params.precipitation == null &&
+			overcastCeilingStrength(effectiveCloudiness(params)) >= 1f
+
+	return !fullyOpaqueDryOvercast
 }
 
 /** User-adjusted rendered cloud coverage while preserving the provider's raw observation in [SceneParams.cloudiness]. */

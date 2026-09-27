@@ -202,8 +202,10 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 		val widthPx = with(density) { maxWidth.roundToPx() }
 		val heightPx = with(density) { maxHeight.roundToPx() }
 
-		// The backdrop cannot show the moon or the sun's arc, so keying on the whole params would re-decode the photo every time the once-a-second tick nudged the celestial fields along.
-		val backdropParams = backdropSignature(params)
+		// The backdrop cannot show the moon or the sun's arc, so keying on the whole params would rebuild it for foreground-only celestial motion.
+		// Photo availability matters because a missing or corrupt stored photo falls back to the procedural dawn sky, whose late-dawn blue progression belongs in the cache key.
+		val backgroundPhotoAvailable = viewModel.hasPhotoBackground(params.backdropScene, params.dayPhase)
+		val backdropParams = backdropSignature(params, backgroundPhotoAvailable)
 
 		/*
 		 * The photo is decoded, lent to the renderer, rasterized into the backdrop and released inside this one block, all on the thread that composes and draws.

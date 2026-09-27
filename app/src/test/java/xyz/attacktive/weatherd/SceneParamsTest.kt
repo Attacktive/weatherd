@@ -261,10 +261,45 @@ class SceneParamsTest {
 	}
 
 	@Test
-	fun `late dawn progress stays foreground-only for photo backdrops`() {
+	fun `late dawn progress stays foreground-only when a photo actually resolves`() {
 		val sunrise = fullyPopulatedParams().copy(
 			dayPhase = DayPhase.DAWN,
 			backdropScene = BackdropScene.PHOTO,
+			celestialProgress = 0.5f
+		)
+
+		val morning = sunrise.copy(celestialProgress = 0.75f)
+
+		assertEquals(
+			backdropSignature(sunrise, backgroundPhotoAvailable = true),
+			backdropSignature(morning, backgroundPhotoAvailable = true)
+		)
+	}
+
+	@Test
+	fun `late dawn photo fallback keeps procedural progress in the signature`() {
+		val sunrise = fullyPopulatedParams().copy(
+			dayPhase = DayPhase.DAWN,
+			backdropScene = BackdropScene.PHOTO,
+			celestialProgress = 0.5f
+		)
+
+		val morning = sunrise.copy(celestialProgress = 0.75f)
+
+		assertNotEquals(
+			backdropSignature(sunrise, backgroundPhotoAvailable = false),
+			backdropSignature(morning, backgroundPhotoAvailable = false)
+		)
+	}
+
+	@Test
+	fun `fully overcast dry dawn ignores invisible sky progress`() {
+		val sunrise = fullyPopulatedParams().copy(
+			dayPhase = DayPhase.DAWN,
+			backdropScene = BackdropScene.NONE,
+			cloudiness = 0.85f,
+			fogDensity = 0f,
+			precipitation = null,
 			celestialProgress = 0.5f
 		)
 

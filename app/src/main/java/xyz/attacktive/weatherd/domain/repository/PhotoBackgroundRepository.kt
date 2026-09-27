@@ -149,13 +149,20 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 	}
 
 	/**
-	 * The stored photo to draw as the sky during [dayPhase], or null when [scene] is not [BackdropScene.PHOTO], no filled bucket covers that phase, or the stored file no longer decodes.
+	 * Whether [scene] resolves to a decodable stored photo for [dayPhase].
+	 * This is allocation-free after the repository scans its four buckets, so render caches can distinguish a real photo-backed sky from the procedural fallback without decoding the bitmap merely to build a cache key.
+	 */
+	fun hasFor(scene: BackdropScene, dayPhase: DayPhase) =
+		scene == BackdropScene.PHOTO && photoBucketFor(dayPhase, availableNow()) != null
+
+	/**
+	 * The stored photo to draw as the sky during [dayPhase], or null when [scene] is not [BackdropScene.PHOTO], no usable bucket covers that phase, or the stored file no longer decodes.
 	 * Null is the ordinary case and not a failure: the caller then lets the renderer paint its procedural sky exactly as it always has.
-	 * The whole fallback rule of the feature lives here and only here — the guard on [scene], the bucket resolution and the read — so the wallpaper and the in-app preview cannot drift into showing different photos for the same phase.
+	 * Bucket resolution is shared with [hasFor], so the wallpaper and the in-app preview build their cache key from the same fallback decision the actual load uses.
 	 * Synchronous and safe to call from the render thread for the same reason [load] is, and with the same ownership: the caller borrows the bitmap for one `renderBackdrop` call on the thread that rasterizes, and must recycle it afterward.
 	 */
 	fun loadFor(scene: BackdropScene, dayPhase: DayPhase): Bitmap? {
-		if (scene != BackdropScene.PHOTO) {
+		if (!hasFor(scene, dayPhase)) {
 			return null
 		}
 
@@ -366,7 +373,19 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 	}
 
 	// The return type is spelled out so neither the state flow nor availableNow hands a caller a mutable handle on the live set.
-	private fun scanAvailableBuckets(): Set<PhotoBucket> = PhotoBucket.entries.filterTo(mutableSetOf()) { fileFor(it).exists() }
+	private fun scanAvailableBuckets(): Set<PhotoBucket> = PhotoBucket.entries.filterTo(mutableSetOf()) { storedPhotoDecodes(it) }
+
+	private fun storedPhotoDecodes(bucket: PhotoBucket): Boolean {
+		val file = fileFor(bucket)
+		if (!file.exists()) {
+			return false
+		}
+
+		val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+		BitmapFactory.decodeFile(file.path, bounds)
+
+		return bounds.outWidth > 0 && bounds.outHeight > 0
+	}
 
 	private fun fileFor(bucket: PhotoBucket) = File(directory, "${fileNameFor(bucket)}.jpg")
 

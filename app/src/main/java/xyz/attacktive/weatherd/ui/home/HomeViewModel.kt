@@ -180,5 +180,8 @@ class HomeViewModel @Inject constructor(
 	 */
 	fun loadPhotoBackground(scene: BackdropScene, dayPhase: DayPhase) = photoBackgroundRepository.loadFor(scene, dayPhase)
 
+	/** Whether the preview will actually resolve [scene] to a stored photo for [dayPhase], without allocating that bitmap. */
+	fun hasPhotoBackground(scene: BackdropScene, dayPhase: DayPhase) = photoBackgroundRepository.hasFor(scene, dayPhase)
+
 	private fun nowEpochSeconds() = System.currentTimeMillis() / 1000L
 }

@@ -219,7 +219,8 @@ class WeatherLiveWallpaperService: WallpaperService() {
 		/** The cached static backdrop, re-rasterized only when a backdrop-relevant part of the scene changes. */
 		private fun backdropFor(params: SceneParams, sceneWidth: Int): Bitmap {
 			val current = backdrop
-			val signature = backdropSignature(params)
+			val backgroundPhotoAvailable = photoBackgroundRepository.hasFor(params.backdropScene, params.dayPhase)
+			val signature = backdropSignature(params, backgroundPhotoAvailable)
 			if (current != null && current.width == sceneWidth && current.height == height && signature == renderedParams) {
 				return current
 			}
