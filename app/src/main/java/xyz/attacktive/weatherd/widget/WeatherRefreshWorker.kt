@@ -1,7 +1,6 @@
 package xyz.attacktive.weatherd.widget
 
 import android.content.Context
-import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import dagger.hilt.EntryPoint
