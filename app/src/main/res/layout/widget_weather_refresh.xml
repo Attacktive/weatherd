@@ -13,13 +13,5 @@
 		android:background="@drawable/widget_refresh_background"
 		android:contentDescription="@string/refresh_now"
 		android:elevation="4dp"
-	>
-		<ImageView
-			android:layout_width="30dp"
-			android:layout_height="30dp"
-			android:layout_gravity="center"
-			android:importantForAccessibility="no"
-			android:src="@drawable/ic_widget_refresh"
-		/>
-	</FrameLayout>
+	/>
 </FrameLayout>

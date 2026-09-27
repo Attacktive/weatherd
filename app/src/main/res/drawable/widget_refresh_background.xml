@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="#40FFFFFF">
 	<item>
-		<shape android:shape="oval">
-			<solid android:color="#D9202124" />
-			<stroke android:width="1dp" android:color="#33FFFFFF" />
-		</shape>
+		<bitmap
+			android:src="@drawable/widget_refresh_artwork"
+			android:gravity="fill"
+		/>
 	</item>
 
 	<item android:id="@android:id/mask">
