@@ -1192,22 +1192,22 @@ class SceneRenderer(resources: Resources) {
 		}
 
 		val corona = tile("sunCorona-${sun.params.dayPhase}", SUN_CORONA_SPRITE_SIZE, SUN_CORONA_SPRITE_SIZE) { buildSunCoronaSprite(it, core, sunCoronaWarmth(sun.params.dayPhase)) }
-		val scale = sunCoronaScale(sun.params.dayPhase)
-		val alpha = sunCoronaAlpha(sun.params.dayPhase)
+		val scale = sunCoronaScale(sun.params.dayPhase, sun.params.celestialProgress)
+		val alpha = sunCoronaAlpha(sun.params.dayPhase, sun.params.celestialProgress)
 		val cloudStrength = sunCoronaCloudStrength(effectiveCloudiness(sun.params))
 		blitGlow(canvas, corona, sun.centerX, sun.centerY, radius * SUN_CORONA_REACH * scale, sunAlpha(SUN_CORONA_ALPHA * alpha * cloudStrength * (0.92f + 0.08f * sun.pulse), sun.visibility))
 	}
 
-	private fun sunCoronaScale(dayPhase: DayPhase) = when (dayPhase) {
+	private fun sunCoronaScale(dayPhase: DayPhase, celestialProgress: Float) = when (dayPhase) {
 		DayPhase.DAY -> 1f
-		DayPhase.DAWN -> SUN_CORONA_DAWN_SCALE
+		DayPhase.DAWN -> lerp(SUN_CORONA_DAWN_SCALE, 1f, dawnDaylightStrength(celestialProgress))
 		DayPhase.DUSK -> SUN_CORONA_DUSK_SCALE
 		DayPhase.NIGHT -> 0f
 	}
 
-	private fun sunCoronaAlpha(dayPhase: DayPhase) = when (dayPhase) {
+	private fun sunCoronaAlpha(dayPhase: DayPhase, celestialProgress: Float) = when (dayPhase) {
 		DayPhase.DAY -> 1f
-		DayPhase.DAWN -> SUN_CORONA_DAWN_ALPHA
+		DayPhase.DAWN -> lerp(SUN_CORONA_DAWN_ALPHA, 1f, dawnDaylightStrength(celestialProgress))
 		DayPhase.DUSK -> SUN_CORONA_DUSK_ALPHA
 		DayPhase.NIGHT -> 0f
 	}
@@ -1224,7 +1224,7 @@ class SceneRenderer(resources: Resources) {
 		val axisX = sun.width / 2f - sun.centerX
 		val axisY = sun.height / 2f - sun.centerY
 		val lensHalo = tile("sunLensHalo-reference", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildLensHaloSprite(it) }
-		val lensHaloAlpha = SUN_LENS_HALO_ALPHA * lensHaloPhaseStrength(sun.params.dayPhase)
+		val lensHaloAlpha = SUN_LENS_HALO_ALPHA * lensHaloPhaseStrength(sun.params.dayPhase, sun.params.celestialProgress)
 		blitGlow(canvas, lensHalo, sun.centerX + axisX * SUN_LENS_HALO_AXIS_OFFSET, sun.centerY + axisY * SUN_LENS_HALO_AXIS_OFFSET, radius * SUN_LENS_HALO_REACH, sunAlpha(lensHaloAlpha, sun.visibility))
 
 		val streak = tile("sunStreak", SUN_STREAK_SPRITE_WIDTH, SUN_STREAK_SPRITE_HEIGHT) { buildSunStreakSprite(it, core) }
@@ -2731,9 +2731,9 @@ class SceneRenderer(resources: Resources) {
 		canvas.drawCircle(center, center, radius, brush)
 	}
 
-	private fun lensHaloPhaseStrength(dayPhase: DayPhase) = when (dayPhase) {
+	private fun lensHaloPhaseStrength(dayPhase: DayPhase, celestialProgress: Float) = when (dayPhase) {
 		DayPhase.DAY -> 0.72f
-		DayPhase.DAWN -> 0.055f
+		DayPhase.DAWN -> lerp(0.055f, 0.72f, dawnDaylightStrength(celestialProgress))
 		DayPhase.DUSK -> 0.018f
 		DayPhase.NIGHT -> 0f
 	}

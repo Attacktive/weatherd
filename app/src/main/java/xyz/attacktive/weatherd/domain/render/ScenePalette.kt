@@ -17,7 +17,7 @@ data class SkyGradient(val topColor: Int, val bottomColor: Int)
  * Pure ARGB maths so it unit-tests without Android.
  */
 fun skyGradientFor(params: SceneParams): SkyGradient {
-	val base = tuneSkyGradient(basePhaseGradient(params.dayPhase, params.skyColorPreset), params.skyBrightnessScale, params.skySaturationScale)
+	val base = tuneSkyGradient(basePhaseGradient(params.dayPhase, params.skyColorPreset, params.celestialProgress), params.skyBrightnessScale, params.skySaturationScale)
 	val gray = if (params.precipitation?.kind == PrecipitationKind.SNOW) {
 		snowGray(params.dayPhase)
 	} else {
@@ -107,7 +107,32 @@ private fun atmosphereAmount(params: SceneParams, plane: SceneryPlane): Float {
 	return lerp((base + depth).coerceAtMost(1f), 1f, weather)
 }
 
-private fun basePhaseGradient(dayPhase: DayPhase, preset: SkyColorPreset) = when (preset) {
+private fun basePhaseGradient(dayPhase: DayPhase, preset: SkyColorPreset, celestialProgress: Float): SkyGradient {
+	val phase = phaseGradient(dayPhase, preset)
+	if (dayPhase != DayPhase.DAWN) {
+		return phase
+	}
+
+	val daylight = dawnDaylightStrength(celestialProgress)
+	if (daylight <= 0f) {
+		return phase
+	}
+
+	val day = phaseGradient(DayPhase.DAY, preset)
+
+	return SkyGradient(
+		lerpColor(phase.topColor, day.topColor, daylight),
+		lerpColor(phase.bottomColor, day.bottomColor, daylight)
+	)
+}
+
+internal fun dawnDaylightStrength(celestialProgress: Float): Float {
+	val raw = ((celestialProgress - DAWN_DAYLIGHT_START) / (DAWN_DAYLIGHT_FULL - DAWN_DAYLIGHT_START)).coerceIn(0f, 1f)
+
+	return raw * raw * (3f - 2f * raw)
+}
+
+private fun phaseGradient(dayPhase: DayPhase, preset: SkyColorPreset) = when (preset) {
 	SkyColorPreset.NATURAL -> when (dayPhase) {
 		DayPhase.DAY -> SkyGradient(rgb(74, 144, 217), rgb(169, 214, 245))
 		DayPhase.DAWN -> SkyGradient(rgb(52, 64, 107), rgb(246, 169, 132))
@@ -193,6 +218,9 @@ private fun overcastAmount(params: SceneParams): Float = when {
 internal fun overcastCeilingStrength(cloudiness: Float) = ((cloudiness - OVERCAST_GRAY_FLOOR) / (OVERCAST_GRAY_FULL - OVERCAST_GRAY_FLOOR)).coerceIn(0f, 1f)
 
 /** The cloudiness at which a dry sky starts graying, matching where the renderer starts drawing an overcast ceiling. */
+private const val DAWN_DAYLIGHT_START = 0.5f
+private const val DAWN_DAYLIGHT_FULL = 0.85f
+
 private const val OVERCAST_GRAY_FLOOR = 0.55f
 
 /** The cloudiness at which a dry sky has given up its blue entirely. */

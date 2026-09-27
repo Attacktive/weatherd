@@ -69,12 +69,32 @@ data class OverlayLabels(val weather: String?, val location: String?)
 
 /**
  * The same scene with the fields the backdrop cannot show flattened away, so two params that differ only in those compare equal.
- * The backdrop never draws the moon or the sun's arc, so their slow foreground-only ticks must not force a re-rasterize — and [celestialProgress] moves every few minutes through dawn and dusk, which would otherwise re-decode the user's photo for a change nothing in the backdrop reflects.
+ * The backdrop never draws the moon or the sun's arc, but the procedural dawn sky now follows late-dawn daylight progress, so that derived value remains backdrop-relevant until the phase reaches day.
+ * Photo backdrops still flatten celestial progress because the user's photo supplies the sky and should not be re-decoded for a foreground-only sun movement.
  * Which photo draws is a function of [SceneParams.dayPhase] and [SceneParams.backdropScene], so a phase flip or a switch away from [BackdropScene.PHOTO] re-rasterizes on its own; [SceneParams.photoRevision] covers the case those two miss, where the photo behind a fixed bucket is replaced or cleared.
  * Every other field is carried through untouched, so a field added later stays backdrop-relevant until someone lists it here.
  * Both the wallpaper's backdrop cache and the in-app preview's remembered backdrop key on this, which is what keeps them redrawing on exactly the same changes.
  */
-fun backdropSignature(params: SceneParams) = params.copy(moonPhase = 0f, celestialProgress = 0f, overlayLabels = null, cloudSizeScale = 1f, cloudContrastScale = 1f, sunVisible = true, moonVisible = true, sunSizeScale = 1f, sunColorPreset = SunColorPreset.NATURAL, lensFlareEnabled = true)
+fun backdropSignature(params: SceneParams): SceneParams {
+	val backdropCelestialProgress = if (params.dayPhase == DayPhase.DAWN && params.backdropScene != BackdropScene.PHOTO) {
+		dawnDaylightStrength(params.celestialProgress)
+	} else {
+		0f
+	}
+
+	return params.copy(
+		moonPhase = 0f,
+		celestialProgress = backdropCelestialProgress,
+		overlayLabels = null,
+		cloudSizeScale = 1f,
+		cloudContrastScale = 1f,
+		sunVisible = true,
+		moonVisible = true,
+		sunSizeScale = 1f,
+		sunColorPreset = SunColorPreset.NATURAL,
+		lensFlareEnabled = true
+	)
+}
 
 /** User-adjusted rendered cloud coverage while preserving the provider's raw observation in [SceneParams.cloudiness]. */
 internal fun effectiveCloudiness(params: SceneParams) = (params.cloudiness * params.cloudCountScale.coerceIn(CLOUD_COUNT_SCALE_RANGE.start, CLOUD_COUNT_SCALE_RANGE.endInclusive)).coerceIn(0f, 1f)

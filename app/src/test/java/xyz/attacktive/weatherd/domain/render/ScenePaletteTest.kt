@@ -103,6 +103,28 @@ class ScenePaletteTest {
 	}
 
 	@Test
+	fun `late dawn keeps sunrise warmth then blends into the blue day palette`() {
+		val sunrise = skyGradientFor(clearParams(DayPhase.DAWN).copy(celestialProgress = 0.5f))
+		val morning = skyGradientFor(clearParams(DayPhase.DAWN).copy(celestialProgress = 0.75f))
+		val daylight = skyGradientFor(clearParams(DayPhase.DAWN).copy(celestialProgress = 0.85f))
+		val day = skyGradientFor(clearParams(DayPhase.DAY))
+
+		assertEquals(0xFF34406B.toInt(), sunrise.topColor)
+		assertEquals(0xFFF6A984.toInt(), sunrise.bottomColor)
+		assertTrue("late-dawn horizon should have turned blue", blue(morning.bottomColor) > red(morning.bottomColor))
+		assertEquals("late dawn should meet the day palette before the phase flips", day, daylight)
+	}
+
+	@Test
+	fun `dawn daylight strength ramps only after sunrise`() {
+		assertEquals(0f, dawnDaylightStrength(0.25f), 0.0001f)
+		assertEquals(0f, dawnDaylightStrength(0.5f), 0.0001f)
+		assertTrue(dawnDaylightStrength(0.75f) > 0.5f)
+		assertEquals(1f, dawnDaylightStrength(0.85f), 0.0001f)
+		assertEquals(1f, dawnDaylightStrength(1f), 0.0001f)
+	}
+
+	@Test
 	fun `sky brightness and saturation tune the clear palette`() {
 		val natural = skyGradientFor(clearParams(DayPhase.DAY))
 		val dim = skyGradientFor(clearParams(DayPhase.DAY).copy(skyBrightnessScale = 0.7f))

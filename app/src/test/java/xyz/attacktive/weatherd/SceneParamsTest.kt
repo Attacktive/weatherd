@@ -248,6 +248,32 @@ class SceneParamsTest {
 	}
 
 	@Test
+	fun `late dawn progress invalidates a procedural backdrop`() {
+		val sunrise = fullyPopulatedParams().copy(
+			dayPhase = DayPhase.DAWN,
+			backdropScene = BackdropScene.NONE,
+			celestialProgress = 0.5f
+		)
+
+		val morning = sunrise.copy(celestialProgress = 0.75f)
+
+		assertNotEquals(backdropSignature(sunrise), backdropSignature(morning))
+	}
+
+	@Test
+	fun `late dawn progress stays foreground-only for photo backdrops`() {
+		val sunrise = fullyPopulatedParams().copy(
+			dayPhase = DayPhase.DAWN,
+			backdropScene = BackdropScene.PHOTO,
+			celestialProgress = 0.5f
+		)
+
+		val morning = sunrise.copy(celestialProgress = 0.75f)
+
+		assertEquals(backdropSignature(sunrise), backdropSignature(morning))
+	}
+
+	@Test
 	fun `the halo follows direct daylight visibility instead of a setting`() {
 		val clearDay = SceneParams(
 			dayPhase = DayPhase.DAY,
