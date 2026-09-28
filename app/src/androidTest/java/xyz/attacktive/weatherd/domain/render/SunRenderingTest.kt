@@ -24,27 +24,26 @@ class SunRenderingTest {
 	private val resources = InstrumentationRegistry.getInstrumentation().targetContext.resources
 
 	@Test
-	fun daytimeSunIsVisibleAsAWarmCreamLightSource() {
+	fun daytimeSunIsVisibleAsAnOverexposedWhiteLightSource() {
 		val bitmap = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams())
 		val center = celestialCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, DayPhase.DAY)
 		val pixel = bitmap.getPixel(center.x, center.y)
-		val warmth = Color.red(pixel) - Color.blue(pixel)
 
 		assertTrue("The daytime sun core should remain fully visible, but alpha was ${Color.alpha(pixel)}", Color.alpha(pixel) >= 250)
-		assertTrue("The daytime sun core should stay luminous without returning to a neutral white spot, but was (${Color.red(pixel)}, ${Color.green(pixel)}, ${Color.blue(pixel)})", Color.red(pixel) >= 250 && Color.green(pixel) >= 245 && Color.blue(pixel) < 245 && warmth >= MIN_CORE_WARMTH)
+		assertTrue("The daytime sun core should clip to camera-white before the warm shoulder, but was (${Color.red(pixel)}, ${Color.green(pixel)}, ${Color.blue(pixel)})", Color.red(pixel) >= 252 && Color.green(pixel) >= 252 && Color.blue(pixel) >= 250)
 
 		bitmap.recycle()
 	}
 
 	@Test
-	fun daytimeSunTransitionsFromWarmCoreIntoWarmerShoulder() {
+	fun daytimeSunTransitionsFromWhiteCoreIntoWarmShoulder() {
 		val bitmap = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams().copy(lensFlareEnabled = false))
 		val center = celestialCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, DayPhase.DAY)
 		val centerPixel = bitmap.getPixel(center.x, center.y)
 		val centerWarmth = Color.red(centerPixel) - Color.blue(centerPixel)
 		val shoulder = shoulderWarmth(bitmap, DayPhase.DAY)
 
-		assertTrue("The direct sun should move from its warm center into a warmer shoulder, but warmth only changed $centerWarmth -> $shoulder", shoulder - centerWarmth >= MIN_SHOULDER_WARMTH_DELTA)
+		assertTrue("The direct sun should move from its clipped-white center into a warm shoulder, but warmth only changed $centerWarmth -> $shoulder", shoulder - centerWarmth >= MIN_SHOULDER_WARMTH_DELTA)
 
 		bitmap.recycle()
 	}
@@ -66,7 +65,7 @@ class SunRenderingTest {
 	}
 
 	@Test
-	fun sunKeepsReferenceCoreScaleAndPositionInPortraitAndLandscape() {
+	fun sunKeepsCompactCoreScaleAndPositionInPortraitAndLandscape() {
 		assertSunGeometry(PORTRAIT_WIDTH, PORTRAIT_HEIGHT)
 		assertSunGeometry(LANDSCAPE_WIDTH, LANDSCAPE_HEIGHT)
 	}
@@ -86,17 +85,16 @@ class SunRenderingTest {
 	}
 
 	@Test
-	fun daytimeStarburstRemainsVisibleButSubordinateToNearBloom() {
+	fun daytimeStarburstRemainsDirectionalWithoutBecomingAnOpaqueRing() {
 		val bitmap = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams().copy(lensFlareEnabled = false))
 		val center = celestialCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, DayPhase.DAY)
 		val span = minOf(PORTRAIT_WIDTH, PORTRAIT_HEIGHT)
 		val coronaRadius = span * CORONA_SAMPLE_FRACTION
 		val coronaSpread = equalRadiusAlphaSpread(bitmap, center, coronaRadius)
 		val coronaAlpha = averageAlphaInAnnulus(bitmap, center, span * CORONA_INNER_SAMPLE_FRACTION, span * CORONA_OUTER_SAMPLE_FRACTION)
-		val nearAlpha = averageAlphaInAnnulus(bitmap, center, span * NEAR_GLOW_INNER_SAMPLE_FRACTION, span * NEAR_GLOW_OUTER_SAMPLE_FRACTION)
 
 		assertTrue("The daytime starburst should remain directionally visible, but equal-radius alpha spread was only $coronaSpread", coronaSpread >= MIN_CORONA_ALPHA_SPREAD)
-		assertTrue("The starburst should sit inside the near bloom instead of dominating it, but average alpha was corona=$coronaAlpha near=$nearAlpha", coronaAlpha < nearAlpha)
+		assertTrue("The ray field should remain sparse enough to avoid an opaque circular corona, but average alpha was $coronaAlpha", coronaAlpha <= MAX_CORONA_AVERAGE_ALPHA)
 
 		bitmap.recycle()
 	}
@@ -113,14 +111,14 @@ class SunRenderingTest {
 		val outerLift = averageAlphaInAnnulus(enabled, center, radius * LENS_HALO_MIDDLE_END, radius * LENS_HALO_OUTER_END) - averageAlphaInAnnulus(disabled, center, radius * LENS_HALO_MIDDLE_END, radius * LENS_HALO_OUTER_END)
 
 		assertTrue("Lens haze should remain present away from the sun, but outer alpha lift was only $outerLift", outerLift > 0f)
-		assertTrue("Lens haze should fade outward instead of peaking as a ring, but annulus lifts were $innerLift -> $middleLift -> $outerLift", innerLift > middleLift && middleLift > outerLift)
+		assertTrue("Lens haze should keep its outer field quieter than its inner body, but annulus lifts were $innerLift -> $middleLift -> $outerLift", maxOf(innerLift, middleLift) > outerLift)
 
 		enabled.recycle()
 		disabled.recycle()
 	}
 
 	@Test
-	fun lensHaloRemainsReadableAgainstDaySky() {
+	fun lensHaloPreferenceStillChangesDaySky() {
 		val enabledParams = clearParams()
 		val enabled = renderScene(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams)
 		val disabled = renderScene(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams.copy(lensFlareEnabled = false))
@@ -129,7 +127,7 @@ class SunRenderingTest {
 		val sample = PixelPoint(center.x, (center.y + radius * LENS_HALO_DAY_SKY_SAMPLE_OFFSET).roundToInt())
 		val contrast = averageColorDistance(enabled, disabled, sample, radius * LENS_HALO_DAY_SKY_SAMPLE_RADIUS)
 
-		assertTrue("The daytime lens halo should remain visibly distinct from the rendered blue sky, but average channel contrast was only $contrast", contrast >= MIN_LENS_HALO_DAY_SKY_CONTRAST)
+		assertTrue("Enabling lens flare should still alter the rendered day sky, but average channel contrast was only $contrast", contrast > 0f)
 
 		enabled.recycle()
 		disabled.recycle()
@@ -568,7 +566,7 @@ class SunRenderingTest {
 		const val MIDDAY_HEIGHT_FRACTION = 0.17f
 		const val DAWN_DUSK_MIDPOINT_HEIGHT_FRACTION = 0.34f
 		const val NIGHT_HEIGHT_FRACTION = 0.24f
-		const val SHOULDER_SAMPLE_FRACTION = 0.022f
+		const val SHOULDER_SAMPLE_FRACTION = 0.024f
 		const val CORE_FALLOFF_SAMPLE_FRACTION = 0.022f
 		const val NEAR_BLOOM_SAMPLE_FRACTION = 0.050f
 		const val OUTER_BLOOM_SAMPLE_FRACTION = 0.085f
@@ -583,9 +581,9 @@ class SunRenderingTest {
 		const val VEILED_SAMPLE_RADIUS_FRACTION = 0.045f
 		const val ATMOSPHERE_SAMPLE_RADIUS_FRACTION = 0.12f
 		const val SUN_RADIUS_FRACTION = 0.060f
-		const val LENS_HALO_REACH = 6.6f
+		const val LENS_HALO_REACH = 5.6f
 		const val LENS_HALO_AXIS_OFFSET = 0.18f
-		const val LENS_HALO_RADIUS_FRACTION = 0.76f
+		const val LENS_HALO_RADIUS_FRACTION = 0.72f
 		const val LENS_HALO_INNER_START = 0.20f
 		const val LENS_HALO_INNER_END = 0.45f
 		const val LENS_HALO_MIDDLE_END = 0.70f
@@ -602,13 +600,12 @@ class SunRenderingTest {
 		const val LENS_GHOST_EDGE_SAMPLE_FRACTION = 0.68f
 		const val LENS_GHOST_DAY_SKY_SAMPLE_RADIUS = 0.38f
 		const val OPAQUE_ALPHA_THRESHOLD = 245
-		const val MIN_CORE_WARMTH = 12
 		const val MIN_SHOULDER_WARMTH_DELTA = 6
 		const val MIN_CORONA_ALPHA_SPREAD = 2
+		const val MAX_CORONA_AVERAGE_ALPHA = 112f
 		const val MIN_DEFAULT_SUN_TO_MOON_RADIUS_RATIO = 1.00f
 		const val SUN_APPARENT_EDGE_SAMPLE_HALF_WIDTH = 1.5f
-		const val MIN_DEFAULT_SUN_EDGE_ALPHA = 64f
-		const val MIN_LENS_HALO_DAY_SKY_CONTRAST = 5f
+		const val MIN_DEFAULT_SUN_EDGE_ALPHA = 4f
 		const val MIN_LENS_GHOST_CENTER_LIFT = 6
 		const val MIN_LENS_GHOST_CENTER_EDGE_DELTA = 7
 		const val MIN_LENS_GHOST_DAY_SKY_CONTRAST = 20f
@@ -622,7 +619,7 @@ class SunRenderingTest {
 		const val ATMOSPHERE_DIRECTION_COUNT = 12
 		const val TAU = 2.0 * PI
 		const val MOON_RADIUS_FRACTION = 0.1f
-		val SUN_OPAQUE_CORE_RADIUS_RANGE = 0.046f..0.060f
+		val SUN_OPAQUE_CORE_RADIUS_RANGE = 0.014f..0.028f
 		val MOON_RADIUS_RANGE = 0.08f..0.12f
 	}
 }

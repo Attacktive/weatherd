@@ -13,6 +13,7 @@ import android.graphics.Bitmap
 import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.ComposeShader
 import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
@@ -1192,11 +1193,17 @@ class SceneRenderer(resources: Resources) {
 			return
 		}
 
-		val corona = tile("sunCorona-${sun.params.dayPhase}", SUN_CORONA_SPRITE_SIZE, SUN_CORONA_SPRITE_SIZE) { buildSunCoronaSprite(it, core, sunCoronaWarmth(sun.params.dayPhase)) }
+		val warmth = sunCoronaWarmth(sun.params.dayPhase)
+		val beams = tile("sunCoronaBeams-${sun.params.dayPhase}", SUN_CORONA_SPRITE_SIZE, SUN_CORONA_SPRITE_SIZE) { buildSunCoronaBeamSprite(it, core, warmth) }
+		val corona = tile("sunCorona-${sun.params.dayPhase}", SUN_CORONA_SPRITE_SIZE, SUN_CORONA_SPRITE_SIZE) { buildSunCoronaSprite(it, core, warmth) }
 		val scale = sunCoronaScale(sun.params.dayPhase, sun.params.celestialProgress)
 		val alpha = sunCoronaAlpha(sun.params.dayPhase, sun.params.celestialProgress)
 		val cloudStrength = sunCoronaCloudStrength(effectiveCloudiness(sun.params))
-		blitGlow(canvas, corona, sun.centerX, sun.centerY, radius * SUN_CORONA_REACH * scale, sunAlpha(SUN_CORONA_ALPHA * alpha * cloudStrength * (0.92f + 0.08f * sun.pulse), sun.visibility))
+		val coronaAlpha = SUN_CORONA_ALPHA * alpha * cloudStrength * (0.92f + 0.08f * sun.pulse)
+		val coronaRadius = radius * SUN_CORONA_REACH * scale
+		blitGlow(canvas, beams, sun.centerX, sun.centerY, coronaRadius, sunAlpha(coronaAlpha * SUN_CORONA_BEAM_GLOW_ALPHA_SCALE, sun.visibility))
+		blitSprite(canvas, corona, sun.centerX, sun.centerY, coronaRadius, sunAlpha(coronaAlpha * SUN_CORONA_COLOR_ALPHA_SCALE, sun.visibility))
+		blitGlow(canvas, corona, sun.centerX, sun.centerY, coronaRadius, sunAlpha(coronaAlpha * SUN_CORONA_GLOW_ALPHA_SCALE, sun.visibility))
 	}
 
 	private fun sunCoronaScale(dayPhase: DayPhase, celestialProgress: Float) = when (dayPhase) {
@@ -2644,70 +2651,285 @@ class SceneRenderer(resources: Resources) {
 	}
 
 	/**
-	 * Cached deterministic starburst between the white disc and the broad atmospheric bloom.
-	 * Broad tapered lobes and heavy feathering keep the rays optically connected to the bloom instead of reading as pointed spokes around the disc.
+	 * Cached deterministic camera-glare starburst between the white core and the broad atmospheric bloom.
+	 * Dense hairline rays carry the compact glare while a few longer, weaker beams break the silhouette without forming broad petals.
 	 */
-	private fun buildSunCoronaSprite(canvas: Canvas, core: Int, warmth: Float) {
+	private fun buildSunCoronaBeamSprite(canvas: Canvas, core: Int, warmth: Float) {
 		val size = SUN_CORONA_SPRITE_SIZE.toFloat()
 		val center = size / 2f
 		val random = Random(SUN_CORONA_SEED)
+		val brush = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+			style = Paint.Style.STROKE
+			strokeCap = Paint.Cap.ROUND
+		}
+		val warm = sunCoronaColor(core, warmth)
+
+		repeat(SUN_CORONA_BROAD_BEAM_COUNT) {
+			drawSunCoronaBeam(
+				canvas,
+				brush,
+				center,
+				random.nextFloat(0f, TAU),
+				center * random.nextFloat(SUN_CORONA_BROAD_INNER_MIN, SUN_CORONA_BROAD_INNER_MAX),
+				center * random.nextFloat(SUN_CORONA_BROAD_OUTER_MIN, SUN_CORONA_BROAD_OUTER_MAX),
+				size * random.nextFloat(SUN_CORONA_BROAD_WIDTH_MIN, SUN_CORONA_BROAD_WIDTH_MAX),
+				random.nextFloat(SUN_CORONA_BROAD_ALPHA_MIN, SUN_CORONA_BROAD_ALPHA_MAX).roundToInt(),
+				warm
+			)
+		}
+	}
+
+	private fun buildSunCoronaSprite(canvas: Canvas, core: Int, warmth: Float) {
+		val size = SUN_CORONA_SPRITE_SIZE.toFloat()
+		val center = size / 2f
+		val random = sunCoronaRayRandom()
 		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
-		val ray = Path()
-		val featherBlur = BlurMaskFilter(size * SUN_CORONA_FEATHER_BLUR_FRACTION, BlurMaskFilter.Blur.NORMAL)
-		val rayBlur = BlurMaskFilter(size * SUN_CORONA_BLUR_FRACTION, BlurMaskFilter.Blur.NORMAL)
-		val gold = Color.rgb(255, 193, 72)
-		val warm = lerpColor(core, gold, warmth)
+		val warm = sunCoronaColor(core, warmth)
+		val rayGlowBlur = BlurMaskFilter(center * SUN_CORONA_RAY_GLOW_BLUR_FRACTION, BlurMaskFilter.Blur.NORMAL)
+		val rayCoreBlur = BlurMaskFilter(center * SUN_CORONA_RAY_CORE_BLUR_FRACTION, BlurMaskFilter.Blur.NORMAL)
 
 		brush.style = Paint.Style.FILL
-
 		brush.shader = RadialGradient(
 			center,
 			center,
 			center * SUN_CORONA_GLOW_REACH,
-			intArrayOf(withAlpha(warm, 168), withAlpha(warm, 70), withAlpha(warm, 10), withAlpha(warm, 0)),
-			floatArrayOf(0f, 0.24f, 0.52f, 1f),
+			intArrayOf(withAlpha(warm, 244), withAlpha(warm, 220), withAlpha(warm, 112), withAlpha(warm, 10), withAlpha(warm, 0)),
+			floatArrayOf(0f, 0.22f, 0.48f, 0.76f, 1f),
 			Shader.TileMode.CLAMP
 		)
 
 		canvas.drawCircle(center, center, center * SUN_CORONA_GLOW_REACH, brush)
 
-		brush.shader = null
+		brush.style = Paint.Style.STROKE
+		repeat(SUN_CORONA_FINE_RAY_COUNT) {
+			if (random.nextFloat() < SUN_CORONA_FINE_RAY_SKIP_FRACTION) {
+				return@repeat
+			}
 
-		repeat(SUN_CORONA_RAY_COUNT) { index ->
-			val emphasis = sunCoronaRayEmphasis(index)
-			val angle = TAU * index / SUN_CORONA_RAY_COUNT + random.nextFloat(-SUN_CORONA_ANGLE_JITTER, SUN_CORONA_ANGLE_JITTER)
-			val directionX = cos(angle)
-			val directionY = sin(angle)
-			val normalX = -directionY
-			val normalY = directionX
-			val innerRadius = center * random.nextFloat(0.14f, 0.20f)
-			val outerRadius = center * random.nextFloat(lerp(0.46f, 0.62f, emphasis), lerp(0.58f, 0.78f, emphasis))
-			val halfWidth = center * random.nextFloat(lerp(0.054f, 0.072f, emphasis), lerp(0.072f, 0.098f, emphasis))
-			val tipHalfWidth = halfWidth * random.nextFloat(0.18f, 0.30f)
-			val alpha = random.nextFloat(lerp(82f, 108f, emphasis), lerp(120f, 160f, emphasis)).roundToInt()
+			val prominence = random.nextFloat().pow(SUN_CORONA_FINE_LENGTH_POWER)
+			val angle = random.nextFloat(0f, TAU)
+			val innerRadius = center * random.nextFloat(SUN_CORONA_FINE_INNER_MIN, SUN_CORONA_FINE_INNER_MAX)
+			val width = size * random.nextFloat(SUN_CORONA_FINE_WIDTH_MIN, SUN_CORONA_FINE_WIDTH_MAX)
+			val alphaJitter = random.nextFloat()
+			val alphaProgress = lerp(alphaJitter, prominence, SUN_CORONA_FINE_ALPHA_LENGTH_BIAS)
+			drawSunCoronaRay(
+				canvas,
+				brush,
+				center,
+				angle,
+				innerRadius,
+				center * lerp(SUN_CORONA_FINE_OUTER_MIN, SUN_CORONA_FINE_OUTER_MAX, prominence),
+				width,
+				lerp(SUN_CORONA_FINE_ALPHA_MIN, SUN_CORONA_FINE_ALPHA_MAX, alphaProgress).roundToInt(),
+				warm,
+				rayGlowBlur,
+				rayCoreBlur
+			)
+		}
 
-			ray.rewind()
-			ray.moveTo(center + directionX * innerRadius + normalX * halfWidth, center + directionY * innerRadius + normalY * halfWidth)
-			ray.lineTo(center + directionX * outerRadius + normalX * tipHalfWidth, center + directionY * outerRadius + normalY * tipHalfWidth)
-			ray.lineTo(center + directionX * outerRadius - normalX * tipHalfWidth, center + directionY * outerRadius - normalY * tipHalfWidth)
-			ray.lineTo(center + directionX * innerRadius - normalX * halfWidth, center + directionY * innerRadius - normalY * halfWidth)
-			ray.close()
+		repeat(SUN_CORONA_MEDIUM_RAY_COUNT) {
+			drawSunCoronaSoftRay(
+				canvas,
+				brush,
+				center,
+				random.nextFloat(0f, TAU),
+				center * random.nextFloat(SUN_CORONA_MEDIUM_INNER_MIN, SUN_CORONA_MEDIUM_INNER_MAX),
+				center * random.nextFloat(SUN_CORONA_MEDIUM_OUTER_MIN, SUN_CORONA_MEDIUM_OUTER_MAX),
+				size * random.nextFloat(SUN_CORONA_MEDIUM_WIDTH_MIN, SUN_CORONA_MEDIUM_WIDTH_MAX),
+				random.nextFloat(SUN_CORONA_MEDIUM_ALPHA_MIN, SUN_CORONA_MEDIUM_ALPHA_MAX).roundToInt(),
+				warm
+			)
+		}
 
-			brush.maskFilter = featherBlur
-			brush.color = withAlpha(warm, (alpha * SUN_CORONA_FEATHER_ALPHA_SCALE).roundToInt())
-			canvas.drawPath(ray, brush)
-
-			brush.maskFilter = rayBlur
-			brush.color = withAlpha(warm, alpha)
-			canvas.drawPath(ray, brush)
+		repeat(SUN_CORONA_LONG_RAY_COUNT) {
+			drawSunCoronaSoftRay(
+				canvas,
+				brush,
+				center,
+				random.nextFloat(0f, TAU),
+				center * random.nextFloat(SUN_CORONA_LONG_INNER_MIN, SUN_CORONA_LONG_INNER_MAX),
+				center * random.nextFloat(SUN_CORONA_LONG_OUTER_MIN, SUN_CORONA_LONG_OUTER_MAX),
+				size * random.nextFloat(SUN_CORONA_LONG_WIDTH_MIN, SUN_CORONA_LONG_WIDTH_MAX),
+				random.nextFloat(SUN_CORONA_LONG_ALPHA_MIN, SUN_CORONA_LONG_ALPHA_MAX).roundToInt(),
+				warm
+			)
 		}
 	}
 
-	private fun sunCoronaRayEmphasis(index: Int) = when (index) {
-		0, 3, 7, 11, 14 -> 1f
-		2, 5, 9, 12 -> SUN_CORONA_SECONDARY_RAY_EMPHASIS
-		else -> SUN_CORONA_SHORT_RAY_EMPHASIS
+	private fun sunCoronaColor(core: Int, warmth: Float) = lerpColor(core, Color.rgb(255, 154, 18), warmth)
+
+	private fun sunCoronaRayRandom() = Random(SUN_CORONA_SEED).also { random ->
+		repeat(SUN_CORONA_RAY_LAYOUT_OFFSET_DRAWS) {
+			random.nextFloat()
+		}
 	}
+
+	private fun drawSunCoronaBeam(
+		canvas: Canvas,
+		brush: Paint,
+		center: Float,
+		angle: Float,
+		innerRadius: Float,
+		outerRadius: Float,
+		width: Float,
+		alpha: Int,
+		color: Int
+	) {
+		val directionX = cos(angle)
+		val directionY = sin(angle)
+		val normalX = -directionY
+		val normalY = directionX
+		val startX = center + directionX * innerRadius
+		val startY = center + directionY * innerRadius
+		val middleRadius = lerp(innerRadius, outerRadius, SUN_CORONA_BROAD_MIDDLE_FRACTION)
+		val middleX = center + directionX * middleRadius
+		val middleY = center + directionY * middleRadius
+		val endX = center + directionX * outerRadius
+		val endY = center + directionY * outerRadius
+		val startHalfWidth = width * SUN_CORONA_BROAD_START_WIDTH_SCALE / 2f
+		val middleHalfWidth = width / 2f
+		val endHalfWidth = width * SUN_CORONA_BROAD_END_WIDTH_SCALE / 2f
+		val beam = Path().apply {
+			moveTo(startX + normalX * startHalfWidth, startY + normalY * startHalfWidth)
+			lineTo(middleX + normalX * middleHalfWidth, middleY + normalY * middleHalfWidth)
+			lineTo(endX + normalX * endHalfWidth, endY + normalY * endHalfWidth)
+			lineTo(endX - normalX * endHalfWidth, endY - normalY * endHalfWidth)
+			lineTo(middleX - normalX * middleHalfWidth, middleY - normalY * middleHalfWidth)
+			lineTo(startX - normalX * startHalfWidth, startY - normalY * startHalfWidth)
+			close()
+		}
+
+		val lengthShader = LinearGradient(
+			startX,
+			startY,
+			endX,
+			endY,
+			intArrayOf(
+				withAlpha(color, 0),
+				withAlpha(color, alpha),
+				withAlpha(color, (alpha * SUN_CORONA_BROAD_MIDDLE_ALPHA_SCALE).roundToInt()),
+				withAlpha(color, 0)
+			),
+			floatArrayOf(0f, SUN_CORONA_BROAD_INNER_STOP, SUN_CORONA_BROAD_MIDDLE_STOP, 1f),
+			Shader.TileMode.CLAMP
+		)
+		val widthShader = LinearGradient(
+			middleX - normalX * middleHalfWidth,
+			middleY - normalY * middleHalfWidth,
+			middleX + normalX * middleHalfWidth,
+			middleY + normalY * middleHalfWidth,
+			intArrayOf(Color.TRANSPARENT, Color.WHITE, Color.WHITE, Color.TRANSPARENT),
+			floatArrayOf(0f, SUN_CORONA_BROAD_EDGE_FADE, 1f - SUN_CORONA_BROAD_EDGE_FADE, 1f),
+			Shader.TileMode.CLAMP
+		)
+
+		brush.style = Paint.Style.FILL
+		brush.maskFilter = BlurMaskFilter(center * SUN_CORONA_BROAD_BLUR_FRACTION, BlurMaskFilter.Blur.NORMAL)
+		brush.shader = ComposeShader(lengthShader, widthShader, PorterDuff.Mode.MULTIPLY)
+		canvas.drawPath(beam, brush)
+		brush.maskFilter = null
+		brush.style = Paint.Style.STROKE
+	}
+
+	private fun drawSunCoronaSoftRay(
+		canvas: Canvas,
+		brush: Paint,
+		center: Float,
+		angle: Float,
+		innerRadius: Float,
+		outerRadius: Float,
+		width: Float,
+		alpha: Int,
+		color: Int
+	) {
+		val directionX = cos(angle)
+		val directionY = sin(angle)
+
+		brush.style = Paint.Style.STROKE
+		brush.strokeCap = Paint.Cap.ROUND
+		brush.shader = null
+		brush.maskFilter = BlurMaskFilter(center * SUN_CORONA_SOFT_RAY_BLUR_FRACTION, BlurMaskFilter.Blur.NORMAL)
+		repeat(SUN_CORONA_SOFT_RAY_SEGMENTS) { index ->
+			val nominalStart = index.toFloat() / SUN_CORONA_SOFT_RAY_SEGMENTS
+			val nominalEnd = (index + 1f) / SUN_CORONA_SOFT_RAY_SEGMENTS
+			val startProgress = (nominalStart - SUN_CORONA_SOFT_RAY_SEGMENT_OVERLAP).coerceAtLeast(0f)
+			val endProgress = (nominalEnd + SUN_CORONA_SOFT_RAY_SEGMENT_OVERLAP).coerceAtMost(1f)
+			val middleProgress = (nominalStart + nominalEnd) / 2f
+			val widthScale = if (middleProgress <= SUN_CORONA_SOFT_RAY_WIDTH_PEAK) {
+				lerp(SUN_CORONA_SOFT_RAY_START_WIDTH_SCALE, 1f, middleProgress / SUN_CORONA_SOFT_RAY_WIDTH_PEAK)
+			} else {
+				lerp(1f, SUN_CORONA_SOFT_RAY_END_WIDTH_SCALE, (middleProgress - SUN_CORONA_SOFT_RAY_WIDTH_PEAK) / (1f - SUN_CORONA_SOFT_RAY_WIDTH_PEAK))
+			}
+			val alphaScale = if (middleProgress <= SUN_CORONA_SOFT_RAY_ALPHA_PEAK) {
+				lerp(SUN_CORONA_SOFT_RAY_START_ALPHA_SCALE, 1f, middleProgress / SUN_CORONA_SOFT_RAY_ALPHA_PEAK)
+			} else {
+				val fade = 1f - (middleProgress - SUN_CORONA_SOFT_RAY_ALPHA_PEAK) / (1f - SUN_CORONA_SOFT_RAY_ALPHA_PEAK)
+				fade * fade
+			}
+			val startRadius = lerp(innerRadius, outerRadius, startProgress)
+			val endRadius = lerp(innerRadius, outerRadius, endProgress)
+
+			brush.strokeWidth = width * widthScale
+			brush.color = withAlpha(color, (alpha * alphaScale).roundToInt().coerceIn(0, 255))
+			canvas.drawLine(
+				center + directionX * startRadius,
+				center + directionY * startRadius,
+				center + directionX * endRadius,
+				center + directionY * endRadius,
+				brush
+			)
+		}
+
+		brush.maskFilter = null
+	}
+
+	private fun drawSunCoronaRay(
+		canvas: Canvas,
+		brush: Paint,
+		center: Float,
+		angle: Float,
+		innerRadius: Float,
+		outerRadius: Float,
+		width: Float,
+		alpha: Int,
+		color: Int,
+		glowBlur: BlurMaskFilter,
+		coreBlur: BlurMaskFilter
+	) {
+		val directionX = cos(angle)
+		val directionY = sin(angle)
+		val startX = center + directionX * innerRadius
+		val startY = center + directionY * innerRadius
+		val endX = center + directionX * outerRadius
+		val endY = center + directionY * outerRadius
+
+		val glowAlpha = (alpha * SUN_CORONA_RAY_GLOW_ALPHA_SCALE).roundToInt()
+		brush.strokeWidth = width * SUN_CORONA_RAY_GLOW_WIDTH_SCALE
+		brush.maskFilter = glowBlur
+		brush.shader = sunCoronaRayGradient(startX, startY, endX, endY, color, glowAlpha)
+		canvas.drawLine(startX, startY, endX, endY, brush)
+
+		brush.strokeWidth = width
+		brush.maskFilter = coreBlur
+		brush.shader = sunCoronaRayGradient(startX, startY, endX, endY, color, alpha)
+		canvas.drawLine(startX, startY, endX, endY, brush)
+		brush.maskFilter = null
+	}
+
+	private fun sunCoronaRayGradient(startX: Float, startY: Float, endX: Float, endY: Float, color: Int, alpha: Int) = LinearGradient(
+		startX,
+		startY,
+		endX,
+		endY,
+		intArrayOf(
+			withAlpha(color, 0),
+			withAlpha(color, alpha),
+			withAlpha(color, (alpha * SUN_CORONA_RAY_MIDDLE_ALPHA_SCALE).roundToInt()),
+			withAlpha(color, 0)
+		),
+		floatArrayOf(0f, SUN_CORONA_RAY_INNER_STOP, SUN_CORONA_RAY_MIDDLE_STOP, 1f),
+		Shader.TileMode.CLAMP
+	)
 
 	/** Broad lens haze around the direct sun, fading continuously so it never resolves into a visible circular ring. */
 	private fun buildLensHaloSprite(canvas: Canvas) {
@@ -2757,16 +2979,22 @@ class SceneRenderer(resources: Resources) {
 
 	/**
 	 * The sun disc rasterized once per scene, the moon's counterpart.
-	 * Its warm cream center eases through a warmer shoulder before the alpha feather, so the source stays luminous without resolving into a neutral white spot.
+	 * A clipped-white center falls quickly into a warm shoulder and soft limb so the source reads as camera overexposure rather than a painted solar surface.
 	 */
 	private fun buildSunSprite(canvas: Canvas, core: Int) {
 		val center = SUN_SPRITE_SIZE / 2f
 		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
-		val hotCore = lighten(core, SUN_CORE_LIFT)
 		val innerShoulder = lighten(core, SUN_INNER_LIFT)
 		val softEdge = lighten(core, SUN_EDGE_LIFT)
-		val stops = intArrayOf(hotCore, innerShoulder, softEdge, withAlpha(softEdge, SUN_EDGE_ALPHA), withAlpha(core, 0))
-		val positions = floatArrayOf(0f, 0.18f * SUN_DISC_MARGIN, 0.50f * SUN_DISC_MARGIN, 0.80f * SUN_DISC_MARGIN, 1f)
+		val stops = intArrayOf(
+			Color.WHITE,
+			Color.WHITE,
+			innerShoulder,
+			withAlpha(softEdge, SUN_SHOULDER_ALPHA),
+			withAlpha(softEdge, SUN_EDGE_ALPHA),
+			withAlpha(core, 0)
+		)
+		val positions = floatArrayOf(0f, 0.13f * SUN_DISC_MARGIN, 0.30f * SUN_DISC_MARGIN, 0.50f * SUN_DISC_MARGIN, 0.72f * SUN_DISC_MARGIN, 1f)
 
 		brush.shader = RadialGradient(center, center, center, stops, positions, Shader.TileMode.CLAMP)
 		canvas.drawCircle(center, center, center, brush)
@@ -2949,27 +3177,86 @@ class SceneRenderer(resources: Resources) {
 		/** The sun disc fills this fraction of its sprite radius; the remainder carries the feathered atmospheric edge. */
 		private const val SUN_DISC_MARGIN = 0.84f
 		private const val SUN_DIRECT_BODY_SCALE = 1.30f
-		private const val SUN_DIRECT_DISC_SCALE = 1.08f
+		private const val SUN_DIRECT_DISC_SCALE = 0.64f
 
-		/** Cached corona geometry and on-screen reach around the smaller solar disc. */
+		/** Cached camera-glare geometry and on-screen reach around the compact overexposed source. */
 		private const val SUN_CORONA_SPRITE_SIZE = 512
-		private const val SUN_CORONA_RAY_COUNT = 16
+		private const val SUN_CORONA_FINE_RAY_COUNT = 144
+		private const val SUN_CORONA_MEDIUM_RAY_COUNT = 6
+		private const val SUN_CORONA_LONG_RAY_COUNT = 3
+		private const val SUN_CORONA_BROAD_BEAM_COUNT = 3
+		private const val SUN_CORONA_RAY_LAYOUT_OFFSET_DRAWS = 15
 		private const val SUN_CORONA_REACH = 2.85f
-		private const val SUN_CORONA_ALPHA = 212f
-		private const val SUN_CORONA_BLUR_FRACTION = 0.021f
-		private const val SUN_CORONA_FEATHER_BLUR_FRACTION = 0.063f
-		private const val SUN_CORONA_FEATHER_ALPHA_SCALE = 0.22f
-		private const val SUN_CORONA_ANGLE_JITTER = 0.15f
-		private const val SUN_CORONA_SECONDARY_RAY_EMPHASIS = 0.66f
-		private const val SUN_CORONA_SHORT_RAY_EMPHASIS = 0.28f
-		private const val SUN_CORONA_DAY_WARMTH = 0.92f
-		private const val SUN_CORONA_TWILIGHT_WARMTH = 0.72f
-		private const val SUN_CORONA_GLOW_REACH = 0.52f
-		private const val SUN_CORONA_CLOUD_MIN_STRENGTH = 0.18f
-		private const val SUN_CORONA_DAWN_SCALE = 0.88f
-		private const val SUN_CORONA_DAWN_ALPHA = 0.44f
-		private const val SUN_CORONA_DUSK_SCALE = 0.65f
-		private const val SUN_CORONA_DUSK_ALPHA = 0.38f
+		private const val SUN_CORONA_ALPHA = 255f
+		private const val SUN_CORONA_BEAM_GLOW_ALPHA_SCALE = 0.58f
+		private const val SUN_CORONA_COLOR_ALPHA_SCALE = 0.80f
+		private const val SUN_CORONA_GLOW_ALPHA_SCALE = 0.42f
+		private const val SUN_CORONA_FINE_RAY_SKIP_FRACTION = 0.18f
+		private const val SUN_CORONA_FINE_LENGTH_POWER = 1.72f
+		private const val SUN_CORONA_FINE_INNER_MIN = 0.014f
+		private const val SUN_CORONA_FINE_INNER_MAX = 0.050f
+		private const val SUN_CORONA_FINE_OUTER_MIN = 0.24f
+		private const val SUN_CORONA_FINE_OUTER_MAX = 0.66f
+		private const val SUN_CORONA_FINE_WIDTH_MIN = 0.0019f
+		private const val SUN_CORONA_FINE_WIDTH_MAX = 0.0039f
+		private const val SUN_CORONA_FINE_ALPHA_MIN = 28f
+		private const val SUN_CORONA_FINE_ALPHA_MAX = 108f
+		private const val SUN_CORONA_FINE_ALPHA_LENGTH_BIAS = 0.72f
+		private const val SUN_CORONA_MEDIUM_INNER_MIN = 0.020f
+		private const val SUN_CORONA_MEDIUM_INNER_MAX = 0.070f
+		private const val SUN_CORONA_MEDIUM_OUTER_MIN = 0.38f
+		private const val SUN_CORONA_MEDIUM_OUTER_MAX = 0.56f
+		private const val SUN_CORONA_MEDIUM_WIDTH_MIN = 0.0030f
+		private const val SUN_CORONA_MEDIUM_WIDTH_MAX = 0.0060f
+		private const val SUN_CORONA_MEDIUM_ALPHA_MIN = 16f
+		private const val SUN_CORONA_MEDIUM_ALPHA_MAX = 42f
+		private const val SUN_CORONA_LONG_INNER_MIN = 0.020f
+		private const val SUN_CORONA_LONG_INNER_MAX = 0.070f
+		private const val SUN_CORONA_LONG_OUTER_MIN = 0.58f
+		private const val SUN_CORONA_LONG_OUTER_MAX = 0.78f
+		private const val SUN_CORONA_LONG_WIDTH_MIN = 0.0010f
+		private const val SUN_CORONA_LONG_WIDTH_MAX = 0.0028f
+		private const val SUN_CORONA_LONG_ALPHA_MIN = 50f
+		private const val SUN_CORONA_LONG_ALPHA_MAX = 100f
+		private const val SUN_CORONA_BROAD_INNER_MIN = 0.025f
+		private const val SUN_CORONA_BROAD_INNER_MAX = 0.075f
+		private const val SUN_CORONA_BROAD_OUTER_MIN = 0.54f
+		private const val SUN_CORONA_BROAD_OUTER_MAX = 0.80f
+		private const val SUN_CORONA_BROAD_WIDTH_MIN = 0.014f
+		private const val SUN_CORONA_BROAD_WIDTH_MAX = 0.030f
+		private const val SUN_CORONA_BROAD_ALPHA_MIN = 16f
+		private const val SUN_CORONA_BROAD_ALPHA_MAX = 34f
+		private const val SUN_CORONA_BROAD_START_WIDTH_SCALE = 0.28f
+		private const val SUN_CORONA_BROAD_END_WIDTH_SCALE = 0.015f
+		private const val SUN_CORONA_BROAD_MIDDLE_FRACTION = 0.28f
+		private const val SUN_CORONA_BROAD_BLUR_FRACTION = 0.030f
+		private const val SUN_CORONA_BROAD_INNER_STOP = 0.04f
+		private const val SUN_CORONA_BROAD_MIDDLE_STOP = 0.36f
+		private const val SUN_CORONA_BROAD_MIDDLE_ALPHA_SCALE = 0.14f
+		private const val SUN_CORONA_BROAD_EDGE_FADE = 0.44f
+		private const val SUN_CORONA_SOFT_RAY_SEGMENTS = 9
+		private const val SUN_CORONA_SOFT_RAY_SEGMENT_OVERLAP = 0.035f
+		private const val SUN_CORONA_SOFT_RAY_START_WIDTH_SCALE = 0.28f
+		private const val SUN_CORONA_SOFT_RAY_END_WIDTH_SCALE = 0.04f
+		private const val SUN_CORONA_SOFT_RAY_WIDTH_PEAK = 0.15f
+		private const val SUN_CORONA_SOFT_RAY_ALPHA_PEAK = 0.10f
+		private const val SUN_CORONA_SOFT_RAY_START_ALPHA_SCALE = 0.24f
+		private const val SUN_CORONA_SOFT_RAY_BLUR_FRACTION = 0.0115f
+		private const val SUN_CORONA_RAY_GLOW_WIDTH_SCALE = 1.8f
+		private const val SUN_CORONA_RAY_GLOW_ALPHA_SCALE = 0.22f
+		private const val SUN_CORONA_RAY_GLOW_BLUR_FRACTION = 0.0045f
+		private const val SUN_CORONA_RAY_CORE_BLUR_FRACTION = 0.0005f
+		private const val SUN_CORONA_RAY_INNER_STOP = 0.020f
+		private const val SUN_CORONA_RAY_MIDDLE_STOP = 0.42f
+		private const val SUN_CORONA_RAY_MIDDLE_ALPHA_SCALE = 0.32f
+		private const val SUN_CORONA_DAY_WARMTH = 0.94f
+		private const val SUN_CORONA_TWILIGHT_WARMTH = 0.96f
+		private const val SUN_CORONA_GLOW_REACH = 0.46f
+		private const val SUN_CORONA_CLOUD_MIN_STRENGTH = 0.08f
+		private const val SUN_CORONA_DAWN_SCALE = 0.92f
+		private const val SUN_CORONA_DAWN_ALPHA = 0.70f
+		private const val SUN_CORONA_DUSK_SCALE = 0.78f
+		private const val SUN_CORONA_DUSK_ALPHA = 0.58f
 
 		/** Cloud-edge-driven volumetric rays. Sampling the moving silhouette makes the fan itself move with the clouds instead of only changing opacity. */
 		private const val SUN_SHAFT_PROFILE_SAMPLES = 33
@@ -2997,25 +3284,25 @@ class SceneRenderer(resources: Resources) {
 		private const val SUN_SHAFT_MAX_RAYS = 6
 		private const val SUN_SHAFT_MIN_PEAK_GAP = 3
 
-		/** How far the center is lifted toward white while keeping the natural sun visibly warm. */
-		private const val SUN_CORE_LIFT = 0.42f
-
 		/** How far the inner shoulder is lifted toward white before easing into the warmer limb. */
-		private const val SUN_INNER_LIFT = 0.26f
+		private const val SUN_INNER_LIFT = 0.78f
 
-		/** How far the limb is lifted toward white to prevent a saturated yellow outline behind translucent clouds. */
-		private const val SUN_EDGE_LIFT = 0.18f
+		/** How far the fading shoulder is lifted toward white before it disappears into the ray field. */
+		private const val SUN_EDGE_LIFT = 0.48f
+
+		/** Alpha through the warm shoulder before the final transparent feather. */
+		private const val SUN_SHOULDER_ALPHA = 164
 
 		/** Alpha at the nominal limb before the final transparent feather. */
-		private const val SUN_EDGE_ALPHA = 60
+		private const val SUN_EDGE_ALPHA = 18
 
-		/** Bloom reach as a multiple of the disc radius: an irregular atmospheric far pass and a radial near pass hugging the limb. */
-		private const val SUN_BLOOM_FAR = 5.2f
-		private const val SUN_BLOOM_NEAR = 2.20f
+		/** Bloom reach as a multiple of the disc radius: a faint air wash and a tight source-adjacent pass. */
+		private const val SUN_BLOOM_FAR = 3.4f
+		private const val SUN_BLOOM_NEAR = 1.32f
 
 		/** Peak alpha of each bloom pass before the restrained breathing scales it. */
-		private const val SUN_BLOOM_FAR_ALPHA = 40f
-		private const val SUN_BLOOM_NEAR_ALPHA = 104f
+		private const val SUN_BLOOM_FAR_ALPHA = 10f
+		private const val SUN_BLOOM_NEAR_ALPHA = 60f
 
 		/** Broad irregular bloom used when cloud or fog transmits the sun; fog remains diffuse-only while overcast may retain a faint limb. */
 		private const val SUN_VEILED_BLOOM_REACH = 7.2f
@@ -3056,15 +3343,15 @@ class SceneRenderer(resources: Resources) {
 		private const val SUN_STREAK_ALPHA = 36f
 
 		/** Large optical haze around the direct sun; its cached sprite is brightest inside and fades continuously through the outer atmosphere. */
-		private const val SUN_LENS_HALO_REACH = 6.6f
-		private const val SUN_LENS_HALO_ALPHA = 128f
+		private const val SUN_LENS_HALO_REACH = 5.6f
+		private const val SUN_LENS_HALO_ALPHA = 58f
 		private const val SUN_LENS_HALO_AXIS_OFFSET = 0.18f
-		private const val SUN_LENS_HALO_RADIUS_FRACTION = 0.76f
-		private const val SUN_LENS_HALO_SPRITE_ALPHA = 52
-		private const val SUN_LENS_HALO_MIDDLE_ALPHA_SCALE = 0.40f
-		private const val SUN_LENS_HALO_OUTER_ALPHA_SCALE = 0.10f
-		private const val SUN_LENS_HALO_MIDDLE_STOP = 0.48f
-		private const val SUN_LENS_HALO_OUTER_STOP = 0.72f
+		private const val SUN_LENS_HALO_RADIUS_FRACTION = 0.72f
+		private const val SUN_LENS_HALO_SPRITE_ALPHA = 24
+		private const val SUN_LENS_HALO_MIDDLE_ALPHA_SCALE = 0.22f
+		private const val SUN_LENS_HALO_OUTER_ALPHA_SCALE = 0.04f
+		private const val SUN_LENS_HALO_MIDDLE_STOP = 0.42f
+		private const val SUN_LENS_HALO_OUTER_STOP = 0.66f
 
 		/** Fraction of a soft-dot sprite's radius that is solid color before the fade to transparent begins. */
 		private const val DOT_CORE_STOP = 0.5f
