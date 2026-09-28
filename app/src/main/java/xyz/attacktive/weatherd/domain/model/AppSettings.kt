@@ -29,6 +29,7 @@ data class AppSettings(
 	val moonVisible: Boolean = true,
 	val sunSizeScale: Float = 1f,
 	val sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
+	val useCustomSunImage: Boolean = false,
 	val lensFlareEnabled: Boolean = true,
 	val sceneSimulatorEnabled: Boolean = false,
 	val sceneSimulatorActive: Boolean = false,

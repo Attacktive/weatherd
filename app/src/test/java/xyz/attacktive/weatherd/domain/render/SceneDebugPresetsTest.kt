@@ -29,6 +29,8 @@ class SceneDebugPresetsTest {
 			assertTrue(params.moonVisible)
 			assertEquals(1f, params.sunSizeScale, 0.0001f)
 			assertEquals(SunColorPreset.NATURAL, params.sunColorPreset)
+			assertFalse(params.useCustomSunImage)
+			assertEquals(0, params.sunImageRevision)
 			assertTrue(params.lensFlareEnabled)
 			assertEquals(0.5f, params.celestialProgress, 0.0001f)
 		}
@@ -99,6 +101,15 @@ class SceneDebugPresetsTest {
 		assertFalse(params.moonVisible)
 		assertEquals(1.7f, params.sunSizeScale, 0.0001f)
 		assertEquals(SunColorPreset.ORANGE, params.sunColorPreset)
+	}
+
+	@Test
+	fun `custom sun image preference reaches debug scene params`() {
+		val preset = SCENE_PRESETS.first { it.name == "CLEAR" }
+		val params = debugSceneParams(preset, DayPhase.DAY, useCustomSunImage = true, sunImageRevision = 7)
+
+		assertTrue(params.useCustomSunImage)
+		assertEquals(7, params.sunImageRevision)
 	}
 
 	@Test

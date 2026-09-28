@@ -52,6 +52,12 @@
 	<string name="sun_color_orange">Turuncu</string>
 	<string name="label_lens_flare">Mercek parlaması</string>
 	<string name="subtitle_lens_flare">Güneşin etrafında kamera tarzı ışık çizgileri ve yansımalar</string>
+	<string name="label_custom_sun_image">Özel güneş görüntüsü</string>
+	<string name="subtitle_custom_sun_image">Güneş diski için kendi görüntünüzü kullanın</string>
+	<string name="sun_image_set">Görüntü seçildi</string>
+	<string name="sun_image_unset">Görüntü seçilmedi</string>
+	<string name="hint_custom_sun_image">Görüntü, Weatherd\'in doğrudan güneş efektlerinin yerini alır. Ortadan kırpılır ve daire şeklinde maskelenir.</string>
+	<string name="sun_image_import_failed">Bu görüntü içe aktarılamadı. Başka bir görüntü seçin.</string>
 	<string name="section_labels">Etiketler</string>
 	<string name="section_temperature_unit">Sıcaklık birimi</string>
 	<string name="section_location">Konum</string>

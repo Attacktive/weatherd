@@ -52,6 +52,12 @@
 	<string name="sun_color_orange">Orange</string>
 	<string name="label_lens_flare">Reflets d’objectif</string>
 	<string name="subtitle_lens_flare">Traînées lumineuses et reflets de type appareil photo autour du soleil</string>
+	<string name="label_custom_sun_image">Image du soleil personnalisée</string>
+	<string name="subtitle_custom_sun_image">Utilisez votre propre image pour le disque solaire</string>
+	<string name="sun_image_set">Image sélectionnée</string>
+	<string name="sun_image_unset">Aucune image sélectionnée</string>
+	<string name="hint_custom_sun_image">L’image remplace les effets directs du soleil de Weatherd. Elle est recadrée au centre et découpée en cercle.</string>
+	<string name="sun_image_import_failed">Impossible d’importer cette image. Choisissez-en une autre.</string>
 	<string name="section_labels">Libellés</string>
 	<string name="section_temperature_unit">Unité de température</string>
 	<string name="section_location">Emplacement</string>

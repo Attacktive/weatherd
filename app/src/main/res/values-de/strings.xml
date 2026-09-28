@@ -52,6 +52,12 @@
 	<string name="sun_color_orange">Orange</string>
 	<string name="label_lens_flare">Linsenreflexion</string>
 	<string name="subtitle_lens_flare">Kameraartige Lichtstreifen und Reflexionen um die Sonne</string>
+	<string name="label_custom_sun_image">Benutzerdefiniertes Sonnenbild</string>
+	<string name="subtitle_custom_sun_image">Verwende ein eigenes Bild für die Sonnenscheibe</string>
+	<string name="sun_image_set">Bild ausgewählt</string>
+	<string name="sun_image_unset">Kein Bild ausgewählt</string>
+	<string name="hint_custom_sun_image">Das Bild ersetzt Weatherds direkte Sonneneffekte. Es wird mittig zugeschnitten und kreisförmig maskiert.</string>
+	<string name="sun_image_import_failed">Dieses Bild konnte nicht importiert werden. Wähle ein anderes aus.</string>
 	<string name="section_labels">Beschriftungen</string>
 	<string name="section_temperature_unit">Temperatureinheit</string>
 	<string name="section_location">Standort</string>

@@ -216,6 +216,9 @@ private fun AppearanceSettingsTab(viewModel: SettingsViewModel, scrollState: Scr
 	val photoBuckets by viewModel.photoBuckets.collectAsStateWithLifecycle()
 	val photoThumbnails by viewModel.photoThumbnails.collectAsStateWithLifecycle()
 	val photoImportFailed by viewModel.photoImportFailed.collectAsStateWithLifecycle()
+	val sunImageAvailable by viewModel.sunImageAvailable.collectAsStateWithLifecycle()
+	val sunImageThumbnail by viewModel.sunImageThumbnail.collectAsStateWithLifecycle()
+	val sunImageImportFailed by viewModel.sunImageImportFailed.collectAsStateWithLifecycle()
 
 	SettingsTabContent(scrollState) {
 		BackdropSection(settings = settings, defaults = viewModel.defaults, onSave = viewModel::save)
@@ -245,7 +248,22 @@ private fun AppearanceSettingsTab(viewModel: SettingsViewModel, scrollState: Scr
 
 		Spacer(modifier = Modifier.height(24.dp))
 
-		SunEffectsSection(settings = settings, defaults = viewModel.defaults, onSave = viewModel::save)
+		SunEffectsSection(
+			settings = settings,
+			defaults = viewModel.defaults,
+			onSave = viewModel::save
+		) {
+			CustomSunImageSetting(
+				settings = settings,
+				sunImageAvailable = sunImageAvailable,
+				sunImageThumbnail = sunImageThumbnail,
+				sunImageImportFailed = sunImageImportFailed,
+				onSave = viewModel::save,
+				onChooseSunImage = viewModel::importSunImage,
+				onClearSunImage = viewModel::clearSunImage,
+				onDismissSunImageFailure = viewModel::dismissSunImageImportFailure
+			)
+		}
 
 		Spacer(modifier = Modifier.height(24.dp))
 
@@ -714,7 +732,12 @@ private fun rememberCurrentHomeLauncher(): HomeLauncher? {
 }
 
 @Composable
-private fun SunEffectsSection(settings: AppSettings, defaults: AppSettings, onSave: (AppSettings) -> Unit) {
+private fun SunEffectsSection(
+	settings: AppSettings,
+	defaults: AppSettings,
+	onSave: (AppSettings) -> Unit,
+	customSunImageSetting: @Composable () -> Unit
+) {
 	SectionLabel(stringResource(R.string.section_sun_effects))
 
 	ToggleSetting(
@@ -734,6 +757,8 @@ private fun SunEffectsSection(settings: AppSettings, defaults: AppSettings, onSa
 	AnimatedVisibility(visible = settings.sunVisible) {
 		Column {
 			Spacer(modifier = Modifier.height(12.dp))
+			customSunImageSetting()
+			Spacer(modifier = Modifier.height(12.dp))
 			SunSizeSlider(settings = settings, defaults = defaults, onSave = onSave)
 			Spacer(modifier = Modifier.height(12.dp))
 			SunColorPicker(settings = settings, defaults = defaults, onSave = onSave)
@@ -747,6 +772,88 @@ private fun SunEffectsSection(settings: AppSettings, defaults: AppSettings, onSa
 			)
 		}
 	}
+}
+
+@Composable
+private fun CustomSunImageSetting(
+	settings: AppSettings,
+	sunImageAvailable: Boolean,
+	sunImageThumbnail: Bitmap?,
+	sunImageImportFailed: Boolean,
+	onSave: (AppSettings) -> Unit,
+	onChooseSunImage: (Uri) -> Unit,
+	onClearSunImage: () -> Unit,
+	onDismissSunImageFailure: () -> Unit
+) {
+	ToggleSetting(
+		label = stringResource(R.string.label_custom_sun_image),
+		subtitle = stringResource(R.string.subtitle_custom_sun_image),
+		checked = settings.useCustomSunImage,
+		onToggle = { onSave(settings.copy(useCustomSunImage = it)) }
+	)
+
+	AnimatedVisibility(visible = settings.useCustomSunImage) {
+		Column {
+			Spacer(modifier = Modifier.height(8.dp))
+			CustomSunImageRow(
+				isSet = sunImageAvailable,
+				thumbnail = sunImageThumbnail,
+				importFailed = sunImageImportFailed,
+				onChoose = onChooseSunImage,
+				onClear = onClearSunImage,
+				onDismissFailure = onDismissSunImageFailure
+			)
+		}
+	}
+}
+
+@Composable
+private fun CustomSunImageRow(isSet: Boolean, thumbnail: Bitmap?, importFailed: Boolean, onChoose: (Uri) -> Unit, onClear: () -> Unit, onDismissFailure: () -> Unit) {
+	DisposableEffect(Unit) {
+		onDispose {
+			onDismissFailure()
+		}
+	}
+
+	val contract = remember { ChoosableGetContent() }
+	val picker = rememberLauncherForActivityResult(contract) { picked ->
+		if (picked != null) {
+			onChoose(picked)
+		}
+	}
+
+	Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+		PhotoBucketPreview(thumbnail)
+
+		Spacer(modifier = Modifier.width(16.dp))
+
+		Column(modifier = Modifier.weight(1f)) {
+			Text(stringResource(R.string.label_custom_sun_image))
+			Text(
+				text = stringResource(if (isSet) R.string.sun_image_set else R.string.sun_image_unset),
+				style = MaterialTheme.typography.bodySmall,
+				color = MaterialTheme.colorScheme.onSurfaceVariant
+			)
+		}
+
+		TextButton(onClick = { picker.launch("image/*") }) {
+			Text(formatPhotoAction(isSet))
+		}
+
+		if (isSet) {
+			val clearDescription = "${stringResource(R.string.label_custom_sun_image)}, ${stringResource(R.string.photo_clear)}"
+
+			IconButton(onClick = onClear) {
+				Icon(Icons.Filled.Clear, contentDescription = clearDescription)
+			}
+		}
+	}
+
+	if (importFailed) {
+		ErrorText(stringResource(R.string.sun_image_import_failed))
+	}
+
+	HintText(stringResource(R.string.hint_custom_sun_image))
 }
 
 @Composable

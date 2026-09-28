@@ -243,6 +243,8 @@ class SceneParamsTest {
 				celestialProgress = params.celestialProgress,
 				overlayLabels = params.overlayLabels,
 				cloudContrastScale = params.cloudContrastScale,
+				useCustomSunImage = params.useCustomSunImage,
+				sunImageRevision = params.sunImageRevision,
 			)
 		)
 	}
@@ -406,6 +408,8 @@ class SceneParamsTest {
 		celestialProgress = 0.62f,
 		backdropScene = BackdropScene.PHOTO,
 		photoRevision = 7,
+		useCustomSunImage = true,
+		sunImageRevision = 9,
 		overlayLabels = OverlayLabels(weather = "Rain · 10°", location = "Seoul")
 	)
 

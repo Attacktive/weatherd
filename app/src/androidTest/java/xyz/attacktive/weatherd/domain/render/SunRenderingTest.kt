@@ -50,6 +50,36 @@ class SunRenderingTest {
 	}
 
 	@Test
+	fun customSunImageOwnsTheDirectSunCenter() {
+		val custom = createBitmap(32, 32)
+		custom.eraseColor(Color.BLUE)
+		val renderer = SceneRenderer(resources).apply { customSunImage = custom }
+		val bitmap = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams().copy(useCustomSunImage = true, lensFlareEnabled = false), renderer = renderer)
+		val center = celestialCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, DayPhase.DAY)
+		val centerPixel = bitmap.getPixel(center.x, center.y)
+
+		assertTrue("The custom image should own the direct sun center, but it rendered as $centerPixel", Color.blue(centerPixel) >= 250 && Color.red(centerPixel) <= 5 && Color.green(centerPixel) <= 5)
+
+		bitmap.recycle()
+		custom.recycle()
+	}
+
+	@Test
+	fun transparentCustomSunImageLeavesNoDirectSunPackage() {
+		val custom = createBitmap(1, 1)
+		val renderer = SceneRenderer(resources).apply { customSunImage = custom }
+		val params = clearParams().copy(useCustomSunImage = true, lensFlareEnabled = true)
+		val customBitmap = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, params, renderer = renderer)
+		val hiddenSunBitmap = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, params.copy(sunVisible = false), renderer = renderer)
+
+		assertArrayEquals("A transparent custom image should render like a hidden sun in a clear sky instead of leaving Weatherd's glow or lens artifacts behind", pixels(hiddenSunBitmap), pixels(customBitmap))
+
+		customBitmap.recycle()
+		hiddenSunBitmap.recycle()
+		custom.recycle()
+	}
+
+	@Test
 	fun nightSuppressesTheWarmSunWhileKeepingTheMoon() {
 		val day = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams())
 		val night = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams(dayPhase = DayPhase.NIGHT, moonPhase = 0f))
@@ -517,11 +547,10 @@ class SunRenderingTest {
 		celestialProgress = celestialProgress,
 	)
 
-	private fun renderForeground(width: Int, height: Int, params: SceneParams, timeSeconds: Float = 0f): Bitmap {
+	private fun renderForeground(width: Int, height: Int, params: SceneParams, timeSeconds: Float = 0f, renderer: SceneRenderer = SceneRenderer(resources)): Bitmap {
 		val bitmap = createBitmap(width, height)
 
-		SceneRenderer(resources)
-			.renderForeground(Canvas(bitmap), width, height, params, timeSeconds)
+		renderer.renderForeground(Canvas(bitmap), width, height, params, timeSeconds)
 
 		return bitmap
 	}

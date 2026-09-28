@@ -38,9 +38,10 @@ import xyz.attacktive.weatherd.domain.render.WeatherSceneStatus
 import xyz.attacktive.weatherd.domain.repository.GeocodingRepository
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
+import xyz.attacktive.weatherd.domain.repository.SunImageRepository
 
 /**
- * The photo side of the view model: what the failure flag is allowed to say, and what survives the screen going away.
+ * The image-import side of the view model: what the failure flags are allowed to say, and what survives the screen going away.
  * The repositories are mocked because every question here is about scheduling and state rather than about files.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -48,6 +49,7 @@ class SettingsViewModelTest {
 	private val settingsRepository = mockk<SettingsRepository>()
 	private val geocodingRepository = mockk<GeocodingRepository>()
 	private val photoBackgroundRepository = mockk<PhotoBackgroundRepository>()
+	private val sunImageRepository = mockk<SunImageRepository>()
 	private val sceneProvider = mockk<WeatherSceneProvider>()
 
 	@Before
@@ -56,8 +58,11 @@ class SettingsViewModelTest {
 		every { settingsRepository.settings } returns flowOf(AppSettings())
 		every { photoBackgroundRepository.available } returns MutableStateFlow(emptySet())
 		every { photoBackgroundRepository.revision } returns MutableStateFlow(0)
+		every { sunImageRepository.available } returns MutableStateFlow(false)
+		every { sunImageRepository.revision } returns MutableStateFlow(0)
 		every { sceneProvider.status } returns MutableStateFlow(WeatherSceneStatus())
 		coEvery { photoBackgroundRepository.loadThumbnail(any()) } returns null
+		coEvery { sunImageRepository.loadThumbnail() } returns null
 		coEvery { sceneProvider.refresh(any(), any(), any()) } returns Unit
 	}
 
@@ -79,6 +84,7 @@ class SettingsViewModelTest {
 			settingsRepository = settingsRepository,
 			geocodingRepository = geocodingRepository,
 			photoBackgroundRepository = photoBackgroundRepository,
+			sunImageRepository = sunImageRepository,
 			sceneProvider = sceneProvider,
 			applicationScope = CoroutineScope(dispatcher)
 		).also {
@@ -113,6 +119,18 @@ class SettingsViewModelTest {
 		runCurrent()
 
 		coVerify(exactly = 1) { settingsRepository.save(defaults.copy(showWeatherLabel = true)) }
+	}
+
+	@Test
+	fun `a successful custom sun import refreshes the shared scene`() = runTest {
+		val viewModel = viewModel()
+		coEvery { sunImageRepository.import(any()) } returns Result.success(Unit)
+
+		viewModel.importSunImage(mockk())
+		advanceUntilIdle()
+
+		coVerify(exactly = 1) { sceneProvider.refresh(any(), false, false) }
+		assertFalse(viewModel.sunImageImportFailed.value)
 	}
 
 	@Test

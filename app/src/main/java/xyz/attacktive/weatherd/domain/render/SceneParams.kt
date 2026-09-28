@@ -33,6 +33,7 @@ import xyz.attacktive.weatherd.domain.weather.precipitationIntensity
  * [skyBrightnessScale], [skySaturationScale] and [skyColorPreset] customize the painted phase gradient before weather grayness and storm darkening are applied.
  * [nightBrightnessScale] dims the completed static night backdrop after weather transforms, so 0 makes the background black without dimming dawn, day, dusk, stars, celestial bodies or animated weather.
  * [sunVisible], [moonVisible], [sunSizeScale] and [sunColorPreset] customize the celestial bodies without changing the time-of-day lighting.
+ * [useCustomSunImage] replaces only the direct solar disc with the user's stored image; [sunImageRevision] tells foreground consumers when those stored pixels change.
  * [lensFlareEnabled] is a display preference for camera-style streaks and optical ghosts around the sun; it does not disable the physical corona or atmospheric light shafts.
  */
 data class SceneParams(
@@ -61,6 +62,8 @@ data class SceneParams(
 	val moonVisible: Boolean = true,
 	val sunSizeScale: Float = 1f,
 	val sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
+	val useCustomSunImage: Boolean = false,
+	val sunImageRevision: Int = 0,
 	val lensFlareEnabled: Boolean = true
 )
 
@@ -93,6 +96,8 @@ fun backdropSignature(params: SceneParams, backgroundPhotoAvailable: Boolean = f
 		moonVisible = true,
 		sunSizeScale = 1f,
 		sunColorPreset = SunColorPreset.NATURAL,
+		useCustomSunImage = false,
+		sunImageRevision = 0,
 		lensFlareEnabled = true
 	)
 }
@@ -134,6 +139,8 @@ fun sceneParamsFor(
 	moonVisible: Boolean = true,
 	sunSizeScale: Float = 1f,
 	sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
+	useCustomSunImage: Boolean = false,
+	sunImageRevision: Int = 0,
 	lensFlareEnabled: Boolean = true,
 ): SceneParams {
 	val observation = snapshot.observation
@@ -168,6 +175,8 @@ fun sceneParamsFor(
 		moonVisible = moonVisible,
 		sunSizeScale = sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive),
 		sunColorPreset = sunColorPreset,
+		useCustomSunImage = useCustomSunImage,
+		sunImageRevision = sunImageRevision,
 		moonPhase = moonPhaseFor(nowEpochSeconds),
 		celestialProgress = dayPhaseProgressFor(nowEpochSeconds, snapshot.sunriseEpochSeconds, snapshot.sunsetEpochSeconds, dayPhase),
 		backdropScene = backdropScene,

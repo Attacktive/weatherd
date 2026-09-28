@@ -125,6 +125,7 @@ class SceneRenderer(resources: Resources) {
 	private var rainPoints = FloatArray(0)
 	private val spritePaint = Paint(Paint.FILTER_BITMAP_FLAG)
 	private val spriteDest = RectF()
+	private val customSunClipPath = Path()
 
 	/**
 	 * The photo backdrop is blitted through its own paint rather than the shared [paint] or [blitPaint].
@@ -167,6 +168,9 @@ class SceneRenderer(resources: Resources) {
 	 * The assignment, the [renderBackdrop] call, the clear and the recycle must all happen on the thread that rasterizes: this field is deliberately unsynchronized, and the sky pass reads it, checks it for recycling and then dereferences it through the blit.
 	 */
 	var backgroundPhoto: Bitmap? = null
+
+	/** The decoded user image used only for the direct solar disc. The owner keeps lifetime and recycling responsibility. */
+	var customSunImage: Bitmap? = null
 
 	fun render(canvas: Canvas, width: Int, height: Int, params: SceneParams, timeSeconds: Float) {
 		renderBackdrop(canvas, width, height, params)
@@ -230,7 +234,7 @@ class SceneRenderer(resources: Resources) {
 			drawShootingStar(canvas, w, h, timeSeconds)
 		}
 
-		if (showsRainbow(params)) {
+		if (showsRainbow(params) && !hasActiveCustomSunImage(params)) {
 			rainbow.draw(canvas, celestialCenterX, celestialCenterY, params.dayPhase, sunVisibility(params.dayPhase, params.celestialProgress))
 		}
 
@@ -1101,6 +1105,8 @@ class SceneRenderer(resources: Resources) {
 		blitSprite(canvas, moonSprite, centerX, centerY, radius / MOON_DISC_MARGIN, 255)
 	}
 
+	private fun hasActiveCustomSunImage(params: SceneParams) = params.useCustomSunImage && customSunImage?.isRecycled == false
+
 	/** The sun as a structured atmospheric light source rather than a painted object. */
 	private fun drawSun(canvas: Canvas, sun: SunRenderContext) {
 		if (sun.visibility <= 0f) {
@@ -1115,16 +1121,18 @@ class SceneRenderer(resources: Resources) {
 			return
 		}
 
+		val customSunActive = hasActiveCustomSunImage(sun.params)
 		drawSunLightShafts(canvas, sun, radius, core)
-		if (sun.params.lensFlareEnabled) {
+		if (!customSunActive && sun.params.lensFlareEnabled) {
 			drawSunLensFlare(canvas, sun, radius, core)
 		}
 
 		val directRadius = radius * SUN_DIRECT_BODY_SCALE
-		drawDirectSunGlow(canvas, sun, directRadius, core, halo, atmosphere)
+		if (!customSunActive) {
+			drawDirectSunGlow(canvas, sun, directRadius, core, halo, atmosphere)
+		}
 
-		val disc = tile("sunDisc", SUN_SPRITE_SIZE, SUN_SPRITE_SIZE) { buildSunSprite(it, core) }
-		blitSprite(canvas, disc, sun.centerX, sun.centerY, directRadius / SUN_DISC_MARGIN * SUN_DIRECT_DISC_SCALE, sunAlpha(255f, sun.visibility))
+		drawSunDisc(canvas, sun, directRadius * SUN_DIRECT_DISC_SCALE, core, sunAlpha(255f, sun.visibility))
 	}
 
 	private fun drawVeiledSun(canvas: Canvas, sun: SunRenderContext, radius: Float, core: Int, atmosphere: Bitmap): Boolean {
@@ -1161,8 +1169,31 @@ class SceneRenderer(resources: Resources) {
 
 		val cover = unlerp(DIRECT_SUN_MAX_CLOUDINESS, CLOUD_DECK_THRESHOLD, effectiveCloudiness(sun.params))
 		val discAlpha = sunAlpha(lerp(SUN_VEILED_DISC_MAX_ALPHA, SUN_VEILED_DISC_MIN_ALPHA, cover), sun.visibility)
-		val disc = tile("sunDisc", SUN_SPRITE_SIZE, SUN_SPRITE_SIZE) { buildSunSprite(it, core) }
-		blitSprite(canvas, disc, sun.centerX, sun.centerY, radius / SUN_DISC_MARGIN * SUN_VEILED_DISC_SCALE, discAlpha)
+		drawSunDisc(canvas, sun, radius * SUN_VEILED_DISC_SCALE, core, discAlpha)
+	}
+
+	private fun drawSunDisc(canvas: Canvas, sun: SunRenderContext, bodyRadius: Float, core: Int, alpha: Int) {
+		val custom = customSunImage
+		if (!sun.params.useCustomSunImage || custom == null || custom.isRecycled) {
+			val disc = tile("sunDisc", SUN_SPRITE_SIZE, SUN_SPRITE_SIZE) { buildSunSprite(it, core) }
+			blitSprite(canvas, disc, sun.centerX, sun.centerY, bodyRadius / SUN_DISC_MARGIN, alpha)
+
+			return
+		}
+
+		customSunClipPath.reset()
+		customSunClipPath.addCircle(sun.centerX, sun.centerY, bodyRadius, Path.Direction.CW)
+		spriteDest.set(sun.centerX - bodyRadius, sun.centerY - bodyRadius, sun.centerX + bodyRadius, sun.centerY + bodyRadius)
+
+		val saved = canvas.save()
+		try {
+			canvas.clipPath(customSunClipPath)
+			spritePaint.alpha = alpha
+			canvas.drawBitmap(custom, null, spriteDest, spritePaint)
+		} finally {
+			spritePaint.alpha = 255
+			canvas.restoreToCount(saved)
+		}
 	}
 
 	private fun drawOvercastSunTransmission(canvas: Canvas, width: Float, height: Float, centerX: Float, centerY: Float, params: SceneParams, timeSeconds: Float) {

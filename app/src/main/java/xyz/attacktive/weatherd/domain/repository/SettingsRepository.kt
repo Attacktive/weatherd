@@ -62,6 +62,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		val MOON_VISIBLE = booleanPreferencesKey("moon_visible")
 		val SUN_SIZE_SCALE = floatPreferencesKey("sun_size_scale")
 		val SUN_COLOR_PRESET = stringPreferencesKey("sun_color_preset")
+		val USE_CUSTOM_SUN_IMAGE = booleanPreferencesKey("use_custom_sun_image")
 		val LENS_FLARE_ENABLED = booleanPreferencesKey("lens_flare_enabled")
 		val SCENE_SIMULATOR_ENABLED = booleanPreferencesKey("scene_simulator_enabled")
 		val SCENE_SIMULATOR_ACTIVE = booleanPreferencesKey("scene_simulator_active")
@@ -98,6 +99,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			moonVisible = preferences[Keys.MOON_VISIBLE] ?: defaults.moonVisible,
 			sunSizeScale = (preferences[Keys.SUN_SIZE_SCALE] ?: defaults.sunSizeScale).coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive),
 			sunColorPreset = enumOrDefault(preferences[Keys.SUN_COLOR_PRESET], SunColorPreset.entries, defaults.sunColorPreset),
+			useCustomSunImage = preferences[Keys.USE_CUSTOM_SUN_IMAGE] ?: defaults.useCustomSunImage,
 			lensFlareEnabled = preferences[Keys.LENS_FLARE_ENABLED] ?: defaults.lensFlareEnabled,
 			sceneSimulatorEnabled = preferences[Keys.SCENE_SIMULATOR_ENABLED] ?: defaults.sceneSimulatorEnabled,
 			sceneSimulatorActive = preferences[Keys.SCENE_SIMULATOR_ACTIVE] ?: defaults.sceneSimulatorActive,
@@ -135,6 +137,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			preferences[Keys.MOON_VISIBLE] = settings.moonVisible
 			preferences[Keys.SUN_SIZE_SCALE] = settings.sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive)
 			preferences[Keys.SUN_COLOR_PRESET] = settings.sunColorPreset.name
+			preferences[Keys.USE_CUSTOM_SUN_IMAGE] = settings.useCustomSunImage
 			preferences[Keys.LENS_FLARE_ENABLED] = settings.lensFlareEnabled
 			preferences[Keys.SCENE_SIMULATOR_ENABLED] = settings.sceneSimulatorEnabled
 			preferences[Keys.SCENE_SIMULATOR_ACTIVE] = settings.sceneSimulatorActive

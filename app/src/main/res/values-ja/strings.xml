@@ -52,6 +52,12 @@
 	<string name="sun_color_orange">オレンジ</string>
 	<string name="label_lens_flare">レンズフレア</string>
 	<string name="subtitle_lens_flare">太陽の周囲にカメラ風の光条と反射を表示</string>
+	<string name="label_custom_sun_image">カスタム太陽画像</string>
+	<string name="subtitle_custom_sun_image">太陽の円盤に自分の画像を使用します</string>
+	<string name="sun_image_set">画像を選択済み</string>
+	<string name="sun_image_unset">画像が選択されていません</string>
+	<string name="hint_custom_sun_image">画像は Weatherd の太陽の直接的なエフェクトを置き換えます。画像は中央で切り抜かれ、円形にマスクされます。</string>
+	<string name="sun_image_import_failed">その画像を読み込めませんでした。別の画像を選んでください。</string>
 	<string name="section_labels">ラベル</string>
 	<string name="section_temperature_unit">温度単位</string>
 	<string name="section_location">位置情報</string>

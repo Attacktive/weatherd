@@ -18,11 +18,13 @@ import xyz.attacktive.weatherd.domain.render.SceneParams
 import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
+import xyz.attacktive.weatherd.domain.repository.SunImageRepository
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
 	private val sceneProvider: WeatherSceneProvider,
 	private val photoBackgroundRepository: PhotoBackgroundRepository,
+	private val sunImageRepository: SunImageRepository,
 	private val settingsRepository: SettingsRepository
 ): ViewModel() {
 	private val simulatorSettingsMutex = Mutex()
@@ -102,6 +104,11 @@ class HomeViewModel @Inject constructor(
 		.map { it.sunColorPreset }
 		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().sunColorPreset)
 
+	/** Whether the user's stored sun image replaces the direct disc, so debug mode matches the live wallpaper. */
+	val useCustomSunImage = settingsRepository.settings
+		.map { it.useCustomSunImage }
+		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().useCustomSunImage)
+
 	/** Whether camera-style lens flare is enabled, so debug mode matches the live wallpaper. */
 	val lensFlareEnabled = settingsRepository.settings
 		.map { it.lensFlareEnabled }
@@ -179,6 +186,9 @@ class HomeViewModel @Inject constructor(
 	 * Synchronous on purpose, and the caller owns the bitmap: it borrows it for one `renderBackdrop` call on the thread it rasterizes on, which is what `SceneRenderer.backgroundPhoto`'s unsynchronized shape requires, and must recycle it afterward.
 	 */
 	fun loadPhotoBackground(scene: BackdropScene, dayPhase: DayPhase) = photoBackgroundRepository.loadFor(scene, dayPhase)
+
+	/** Loads the stored custom solar-disc image for the preview. The caller owns and recycles the returned bitmap. */
+	fun loadCustomSunImage() = sunImageRepository.load()
 
 	/** Whether the preview will actually resolve [scene] to a stored photo for [dayPhase], without allocating that bitmap. */
 	fun hasPhotoBackground(scene: BackdropScene, dayPhase: DayPhase) = photoBackgroundRepository.hasFor(scene, dayPhase)

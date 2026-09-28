@@ -52,6 +52,12 @@
 	<string name="sun_color_orange">Arancione</string>
 	<string name="label_lens_flare">Riflesso dell’obiettivo</string>
 	<string name="subtitle_lens_flare">Scie luminose e riflessi in stile fotografico intorno al sole</string>
+	<string name="label_custom_sun_image">Immagine del sole personalizzata</string>
+	<string name="subtitle_custom_sun_image">Usa una tua immagine per il disco solare</string>
+	<string name="sun_image_set">Immagine selezionata</string>
+	<string name="sun_image_unset">Nessuna immagine selezionata</string>
+	<string name="hint_custom_sun_image">L’immagine sostituisce gli effetti diretti del sole di Weatherd. Viene ritagliata al centro e mascherata in un cerchio.</string>
+	<string name="sun_image_import_failed">Impossibile importare l’immagine. Scegline un’altra.</string>
 	<string name="section_labels">Etichette</string>
 	<string name="section_temperature_unit">Unità di temperatura</string>
 	<string name="section_location">Posizione</string>

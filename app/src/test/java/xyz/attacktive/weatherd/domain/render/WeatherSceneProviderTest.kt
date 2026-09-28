@@ -28,6 +28,7 @@ import xyz.attacktive.weatherd.domain.repository.LocationRepository
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.ReverseGeocodingRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
+import xyz.attacktive.weatherd.domain.repository.SunImageRepository
 import xyz.attacktive.weatherd.domain.repository.WeatherRepository
 import xyz.attacktive.weatherd.domain.weather.conditionForWmoCode
 import xyz.attacktive.weatherd.util.AppLogger
@@ -44,14 +45,18 @@ class WeatherSceneProviderTest {
 	private val photoBackgroundRepository = mockk<PhotoBackgroundRepository> {
 		every { revisionNow() } returns 0
 	}
+	private val sunImageRepository = mockk<SunImageRepository> {
+		every { revisionNow() } returns 0
+	}
 	private val logger = mockk<AppLogger>(relaxed = true)
 
-	private val provider = WeatherSceneProvider(context, locationRepository, weatherRepository, reverseGeocodingRepository, settingsRepository, photoBackgroundRepository, logger)
+	private val provider = WeatherSceneProvider(context, locationRepository, weatherRepository, reverseGeocodingRepository, settingsRepository, photoBackgroundRepository, sunImageRepository, logger)
 
 	@Test
 	fun `scene simulator override replaces weather without fetching`() = runTest {
 		val presetIndex = SCENE_PRESETS.indexOfFirst { it.name == "SNOW" }
 		val preset = SCENE_PRESETS[presetIndex]
+		every { sunImageRepository.revisionNow() } returns 7
 		every { settingsRepository.settings } returns flowOf(
 			AppSettings(
 				backdropScene = BackdropScene.BEACH,
@@ -69,6 +74,7 @@ class WeatherSceneProviderTest {
 				moonVisible = false,
 				sunSizeScale = 1.6f,
 				sunColorPreset = SunColorPreset.GOLDEN,
+				useCustomSunImage = true,
 				lensFlareEnabled = false,
 				sceneSimulatorActive = true,
 				sceneSimulatorPresetIndex = presetIndex,
@@ -99,6 +105,8 @@ class WeatherSceneProviderTest {
 		assertFalse(params.moonVisible)
 		assertEquals(1.6f, params.sunSizeScale, 0.0001f)
 		assertEquals(SunColorPreset.GOLDEN, params.sunColorPreset)
+		assertTrue(params.useCustomSunImage)
+		assertEquals(7, params.sunImageRevision)
 		assertFalse(params.lensFlareEnabled)
 		coVerify(exactly = 0) { locationRepository.currentLocation() }
 		coVerify(exactly = 0) { weatherRepository.current(any(), any()) }

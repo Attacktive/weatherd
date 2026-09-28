@@ -52,6 +52,12 @@
 	<string name="sun_color_orange">Orange</string>
 	<string name="label_lens_flare">Lens flare</string>
 	<string name="subtitle_lens_flare">Camera-style streak and reflections around the sun</string>
+	<string name="label_custom_sun_image">Custom sun image</string>
+	<string name="subtitle_custom_sun_image">Use your own image for the solar disc</string>
+	<string name="sun_image_set">Image selected</string>
+	<string name="sun_image_unset">No image selected</string>
+	<string name="hint_custom_sun_image">The image replaces Weatherd\'s direct sun effects. It is center-cropped and clipped to a circle.</string>
+	<string name="sun_image_import_failed">That image could not be imported. Pick a different one.</string>
 	<string name="section_labels">Labels</string>
 	<string name="section_temperature_unit">Temperature unit</string>
 	<string name="section_location">Location</string>

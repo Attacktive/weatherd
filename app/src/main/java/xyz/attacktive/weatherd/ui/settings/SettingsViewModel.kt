@@ -39,6 +39,7 @@ import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
 import xyz.attacktive.weatherd.domain.repository.GeocodingRepository
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
+import xyz.attacktive.weatherd.domain.repository.SunImageRepository
 
 /** UI state for the city-name search shown under the manual-location option. */
 sealed interface CitySearchState {
@@ -63,6 +64,7 @@ class SettingsViewModel @Inject constructor(
 	private val settingsRepository: SettingsRepository,
 	private val geocodingRepository: GeocodingRepository,
 	private val photoBackgroundRepository: PhotoBackgroundRepository,
+	private val sunImageRepository: SunImageRepository,
 	private val sceneProvider: WeatherSceneProvider,
 	@ApplicationScope private val applicationScope: CoroutineScope
 ): AndroidViewModel(application) {
@@ -102,6 +104,16 @@ class SettingsViewModel @Inject constructor(
 
 	private val _photoImportFailed = MutableStateFlow(false)
 	val photoImportFailed = _photoImportFailed.asStateFlow()
+
+	val sunImageAvailable = sunImageRepository.available
+
+	val sunImageThumbnail = sunImageRepository.revision
+		.mapLatest { sunImageRepository.loadThumbnail() }
+		.flowOn(Dispatchers.IO)
+		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+	private val _sunImageImportFailed = MutableStateFlow(false)
+	val sunImageImportFailed = _sunImageImportFailed.asStateFlow()
 
 	private val typingQueries = MutableSharedFlow<String>(replay = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 	private val immediateQueries = MutableSharedFlow<String>(replay = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
@@ -228,6 +240,30 @@ class SettingsViewModel @Inject constructor(
 		applicationScope.launch {
 			_photoImportFailed.value = photoBackgroundRepository.import(bucket, source).isFailure
 		}
+	}
+
+	/** Copies a picked image into the custom-sun slot and refreshes the shared scene when the stored pixels change. */
+	fun importSunImage(source: Uri) {
+		_sunImageImportFailed.value = false
+
+		applicationScope.launch {
+			val outcome = sunImageRepository.import(source)
+			_sunImageImportFailed.value = outcome.isFailure
+			if (outcome.isSuccess) {
+				sceneProvider.refresh(nowEpochSeconds())
+			}
+		}
+	}
+
+	fun clearSunImage() {
+		applicationScope.launch {
+			sunImageRepository.clear()
+			sceneProvider.refresh(nowEpochSeconds())
+		}
+	}
+
+	fun dismissSunImageImportFailure() {
+		_sunImageImportFailed.value = false
 	}
 
 	/** Lowers [photoImportFailed], so that a failure the user has already been shown does not come back with the section the next time it is opened. */

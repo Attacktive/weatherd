@@ -81,6 +81,7 @@ class SettingsRepositoryTest {
 		assertTrue(settings.moonVisible)
 		assertEquals(1f, settings.sunSizeScale, 0.0001f)
 		assertEquals(SunColorPreset.NATURAL, settings.sunColorPreset)
+		assertFalse(settings.useCustomSunImage)
 		assertTrue(settings.lensFlareEnabled)
 	}
 
@@ -118,6 +119,7 @@ class SettingsRepositoryTest {
 			moonVisible = false,
 			sunSizeScale = 1.65f,
 			sunColorPreset = SunColorPreset.GOLDEN,
+			useCustomSunImage = true,
 			lensFlareEnabled = false,
 			sceneSimulatorEnabled = true,
 			sceneSimulatorActive = true,

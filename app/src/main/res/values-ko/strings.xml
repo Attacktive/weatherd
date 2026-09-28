@@ -52,6 +52,12 @@
 	<string name="sun_color_orange">주황색</string>
 	<string name="label_lens_flare">렌즈 플레어</string>
 	<string name="subtitle_lens_flare">태양 주변의 카메라식 빛줄기와 반사 효과</string>
+	<string name="label_custom_sun_image">사용자 지정 태양 이미지</string>
+	<string name="subtitle_custom_sun_image">태양 원반에 원하는 이미지를 사용합니다</string>
+	<string name="sun_image_set">이미지 선택됨</string>
+	<string name="sun_image_unset">선택한 이미지 없음</string>
+	<string name="hint_custom_sun_image">이미지는 Weatherd의 직접적인 태양 효과를 대체합니다. 이미지는 중앙을 기준으로 잘라 원형으로 표시됩니다.</string>
+	<string name="sun_image_import_failed">이미지를 가져올 수 없습니다. 다른 이미지를 선택해 주세요.</string>
 	<string name="section_labels">라벨</string>
 	<string name="section_temperature_unit">온도 단위</string>
 	<string name="section_location">위치</string>

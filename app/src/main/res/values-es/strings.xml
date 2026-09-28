@@ -52,6 +52,12 @@
 	<string name="sun_color_orange">Naranja</string>
 	<string name="label_lens_flare">Destello de lente</string>
 	<string name="subtitle_lens_flare">Destellos y reflejos de cámara alrededor del sol</string>
+	<string name="label_custom_sun_image">Imagen de sol personalizada</string>
+	<string name="subtitle_custom_sun_image">Usa tu propia imagen para el disco solar</string>
+	<string name="sun_image_set">Imagen seleccionada</string>
+	<string name="sun_image_unset">Ninguna imagen seleccionada</string>
+	<string name="hint_custom_sun_image">La imagen sustituye los efectos directos del sol de Weatherd. Se recorta desde el centro y se enmascara en un círculo.</string>
+	<string name="sun_image_import_failed">No se pudo importar esa imagen. Elige otra.</string>
 	<string name="section_labels">Etiquetas</string>
 	<string name="section_temperature_unit">Unidad de temperatura</string>
 	<string name="section_location">Ubicación</string>

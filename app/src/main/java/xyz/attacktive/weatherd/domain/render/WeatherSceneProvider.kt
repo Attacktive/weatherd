@@ -23,6 +23,7 @@ import xyz.attacktive.weatherd.domain.repository.LocationRepository
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.ReverseGeocodingRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
+import xyz.attacktive.weatherd.domain.repository.SunImageRepository
 import xyz.attacktive.weatherd.domain.repository.WeatherRepository
 import xyz.attacktive.weatherd.domain.weather.moonPhaseFor
 import xyz.attacktive.weatherd.domain.weather.weatherLabelFor
@@ -35,7 +36,7 @@ data class WeatherSceneStatus(val locationLabel: String? = null, val lastRefresh
  * Thread-safe: [refresh] runs off the render thread and publishes weather, display settings and simulator state through volatile fields that [paramsFor] reads.
  */
 @Singleton
-class WeatherSceneProvider @Inject constructor(@ApplicationContext private val context: Context, private val locationRepository: LocationRepository, private val weatherRepository: WeatherRepository, private val reverseGeocodingRepository: ReverseGeocodingRepository, private val settingsRepository: SettingsRepository, private val photoBackgroundRepository: PhotoBackgroundRepository, private val logger: AppLogger) {
+class WeatherSceneProvider @Inject constructor(@ApplicationContext private val context: Context, private val locationRepository: LocationRepository, private val weatherRepository: WeatherRepository, private val reverseGeocodingRepository: ReverseGeocodingRepository, private val settingsRepository: SettingsRepository, private val photoBackgroundRepository: PhotoBackgroundRepository, private val sunImageRepository: SunImageRepository, private val logger: AppLogger) {
 	private val _status = MutableStateFlow(WeatherSceneStatus())
 	val status: StateFlow<WeatherSceneStatus> = _status.asStateFlow()
 
@@ -62,6 +63,8 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	@Volatile private var moonVisible = true
 	@Volatile private var sunSizeScale = 1f
 	@Volatile private var sunColorPreset = SunColorPreset.NATURAL
+	@Volatile private var useCustomSunImage = false
+	@Volatile private var sunImageRevision = 0
 	@Volatile private var lensFlareEnabled = true
 	@Volatile private var sceneSimulatorActive = false
 	@Volatile private var sceneSimulatorPresetIndex = 0
@@ -100,6 +103,8 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			moonVisible = moonVisible,
 			sunSizeScale = sunSizeScale,
 			sunColorPreset = sunColorPreset,
+			useCustomSunImage = useCustomSunImage,
+			sunImageRevision = sunImageRevision,
 			lensFlareEnabled = lensFlareEnabled
 		)
 	}
@@ -195,6 +200,13 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		moonVisible = settings.moonVisible
 		sunSizeScale = settings.sunSizeScale
 		sunColorPreset = settings.sunColorPreset
+		useCustomSunImage = settings.useCustomSunImage
+		sunImageRevision = if (settings.useCustomSunImage) {
+			sunImageRepository.revisionNow()
+		} else {
+			0
+		}
+
 		lensFlareEnabled = settings.lensFlareEnabled
 		sceneSimulatorActive = settings.sceneSimulatorActive
 		sceneSimulatorPresetIndex = settings.sceneSimulatorPresetIndex.coerceIn(0, SCENE_PRESETS.lastIndex)
@@ -220,6 +232,8 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		moonVisible = moonVisible,
 		sunSizeScale = sunSizeScale,
 		sunColorPreset = sunColorPreset,
+		useCustomSunImage = useCustomSunImage,
+		sunImageRevision = sunImageRevision,
 		lensFlareEnabled = lensFlareEnabled,
 		celestialProgress = sceneSimulatorCelestialProgress
 	)
@@ -407,6 +421,8 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			moonVisible = moonVisible,
 			sunSizeScale = sunSizeScale,
 			sunColorPreset = sunColorPreset,
+			useCustomSunImage = useCustomSunImage,
+			sunImageRevision = sunImageRevision,
 			lensFlareEnabled = lensFlareEnabled,
 			overlayLabels = fallbackOverlayLabels()
 		)

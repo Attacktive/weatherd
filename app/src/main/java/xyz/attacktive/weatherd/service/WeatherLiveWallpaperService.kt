@@ -22,6 +22,7 @@ import xyz.attacktive.weatherd.domain.render.backdropSignature
 import xyz.attacktive.weatherd.domain.render.sceneAnimationTimeSeconds
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
+import xyz.attacktive.weatherd.domain.repository.SunImageRepository
 import xyz.attacktive.weatherd.platform.currentHomeLauncher
 import xyz.attacktive.weatherd.platform.wallpaperScrollingSupportedBy
 
@@ -36,6 +37,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 	@Inject lateinit var sceneProvider: WeatherSceneProvider
 	@Inject lateinit var settingsRepository: SettingsRepository
 	@Inject lateinit var photoBackgroundRepository: PhotoBackgroundRepository
+	@Inject lateinit var sunImageRepository: SunImageRepository
 
 	override fun onCreateEngine(): Engine = SceneEngine()
 
@@ -50,6 +52,9 @@ class WeatherLiveWallpaperService: WallpaperService() {
 		private var fadeStartSeconds = 0f
 		private var activeParams: SceneParams? = null
 		private var paramsComputedAtSecond = 0L
+		private var loadedCustomSunRevision = -1
+		private var loadedCustomSunEnabled = false
+		private var customSunImage: Bitmap? = null
 		private var width = 0
 		private var height = 0
 		@Volatile private var visible = false
@@ -104,6 +109,9 @@ class WeatherLiveWallpaperService: WallpaperService() {
 		override fun onDestroy() {
 			choreographer.removeFrameCallback(this)
 			scope.cancel()
+			renderer.customSunImage = null
+			customSunImage?.recycle()
+			customSunImage = null
 		}
 
 		override fun doFrame(frameTimeNanos: Long) {
@@ -193,6 +201,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 
 		/** Draws one viewport into the wider virtual wallpaper scene without scaling it, so launcher offsets reveal real off-screen content instead of stretching the current frame. */
 		private fun drawViewport(canvas: Canvas, backdrop: Bitmap, params: SceneParams, timeSeconds: Float, viewportLeft: Float) {
+			updateCustomSunImage(params)
 			canvas.drawBitmap(backdrop, -viewportLeft, 0f, null)
 
 			val saved = canvas.save()
@@ -200,6 +209,24 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			renderer.renderForeground(canvas, backdrop.width, height, params, timeSeconds, includeOverlayLabels = false)
 			canvas.restoreToCount(saved)
 			renderer.renderOverlayLabels(canvas, width, height, params)
+		}
+
+		private fun updateCustomSunImage(params: SceneParams) {
+			if (loadedCustomSunEnabled == params.useCustomSunImage && loadedCustomSunRevision == params.sunImageRevision) {
+				return
+			}
+
+			val replacement = if (params.useCustomSunImage) {
+				sunImageRepository.load()
+			} else {
+				null
+			}
+
+			renderer.customSunImage = replacement
+			customSunImage?.recycle()
+			customSunImage = replacement
+			loadedCustomSunEnabled = params.useCustomSunImage
+			loadedCustomSunRevision = params.sunImageRevision
 		}
 
 		/** The scene params, recomputed at most once per second — the day phase can shift, but never per frame. */

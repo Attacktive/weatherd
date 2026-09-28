@@ -32,6 +32,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -98,6 +99,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	val moonVisible by viewModel.moonVisible.collectAsStateWithLifecycle()
 	val sunSizeScale by viewModel.sunSizeScale.collectAsStateWithLifecycle()
 	val sunColorPreset by viewModel.sunColorPreset.collectAsStateWithLifecycle()
+	val useCustomSunImage by viewModel.useCustomSunImage.collectAsStateWithLifecycle()
 	val lensFlareEnabled by viewModel.lensFlareEnabled.collectAsStateWithLifecycle()
 	val sceneSimulatorEnabled by viewModel.sceneSimulatorEnabled.collectAsStateWithLifecycle()
 	val persistedDebugEnabled by viewModel.sceneSimulatorActive.collectAsStateWithLifecycle()
@@ -129,12 +131,34 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 			moonVisible = moonVisible,
 			sunSizeScale = sunSizeScale,
 			sunColorPreset = sunColorPreset,
+			useCustomSunImage = useCustomSunImage,
+			sunImageRevision = liveParams.sunImageRevision,
 			lensFlareEnabled = lensFlareEnabled,
 			celestialProgress = debugCelestialProgress
 		)
 			.copy(backdropScene = liveParams.backdropScene, photoRevision = liveParams.photoRevision)
 	} else {
 		liveParams
+	}
+
+	val customSunImage = remember(params.useCustomSunImage, params.sunImageRevision) {
+		if (params.useCustomSunImage) {
+			viewModel.loadCustomSunImage()
+		} else {
+			null
+		}
+	}
+
+	DisposableEffect(renderer, customSunImage) {
+		renderer.customSunImage = customSunImage
+
+		onDispose {
+			if (renderer.customSunImage === customSunImage) {
+				renderer.customSunImage = null
+			}
+
+			customSunImage?.recycle()
+		}
 	}
 
 	LifecycleResumeEffect(Unit) {

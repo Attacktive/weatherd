@@ -52,6 +52,12 @@
 	<string name="sun_color_orange">橙色</string>
 	<string name="label_lens_flare">镜头光晕</string>
 	<string name="subtitle_lens_flare">太阳周围的相机风格光带和反射</string>
+	<string name="label_custom_sun_image">自定义太阳图像</string>
+	<string name="subtitle_custom_sun_image">使用你自己的图像作为太阳圆盘</string>
+	<string name="sun_image_set">已选择图像</string>
+	<string name="sun_image_unset">未选择图像</string>
+	<string name="hint_custom_sun_image">图像会替换 Weatherd 的直接太阳效果。图像会从中心裁剪并以圆形显示。</string>
+	<string name="sun_image_import_failed">无法导入该图像。请选择其他图像。</string>
 	<string name="section_labels">标签</string>
 	<string name="section_temperature_unit">温度单位</string>
 	<string name="section_location">位置</string>

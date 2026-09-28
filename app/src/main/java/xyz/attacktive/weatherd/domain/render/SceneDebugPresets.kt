@@ -64,6 +64,8 @@ fun debugSceneParams(
 	moonVisible: Boolean = true,
 	sunSizeScale: Float = 1f,
 	sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
+	useCustomSunImage: Boolean = false,
+	sunImageRevision: Int = 0,
 	lensFlareEnabled: Boolean = true,
 	celestialProgress: Float = 0.5f,
 ) = SceneParams(
@@ -87,6 +89,8 @@ fun debugSceneParams(
 	moonVisible = moonVisible,
 	sunSizeScale = sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive),
 	sunColorPreset = sunColorPreset,
+	useCustomSunImage = useCustomSunImage,
+	sunImageRevision = sunImageRevision,
 	lensFlareEnabled = lensFlareEnabled,
 	celestialProgress = celestialProgress,
 )
