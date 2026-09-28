@@ -3169,7 +3169,7 @@ class SceneRenderer(resources: Resources) {
 		 * The sun's optical radius as a fraction of the shorter side.
 		 * The direct disc feathers well inside this field, so the nominal size can stay comparable to the moon without returning to a flat painted ball.
 		 */
-		private const val SUN_RADIUS_FRACTION = 0.060f
+		private const val SUN_RADIUS_FRACTION = 0.108f
 
 		/** Edge length of the pre-rendered sun disc sprite, matching the moon's so both discs upscale identically. */
 		private const val SUN_SPRITE_SIZE = 256
@@ -3177,7 +3177,7 @@ class SceneRenderer(resources: Resources) {
 		/** The sun disc fills this fraction of its sprite radius; the remainder carries the feathered atmospheric edge. */
 		private const val SUN_DISC_MARGIN = 0.84f
 		private const val SUN_DIRECT_BODY_SCALE = 1.30f
-		private const val SUN_DIRECT_DISC_SCALE = 1.15f
+		private const val SUN_DIRECT_DISC_SCALE = 0.64f
 
 		/** Cached camera-glare geometry and on-screen reach around the compact overexposed source. */
 		private const val SUN_CORONA_SPRITE_SIZE = 512
