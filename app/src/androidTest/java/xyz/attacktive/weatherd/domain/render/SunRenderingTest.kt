@@ -619,7 +619,7 @@ class SunRenderingTest {
 		const val ATMOSPHERE_DIRECTION_COUNT = 12
 		const val TAU = 2.0 * PI
 		const val MOON_RADIUS_FRACTION = 0.1f
-		val SUN_OPAQUE_CORE_RADIUS_RANGE = 0.014f..0.028f
+		val SUN_OPAQUE_CORE_RADIUS_RANGE = 0.025f..0.051f
 		val MOON_RADIUS_RANGE = 0.08f..0.12f
 	}
 }

@@ -3177,7 +3177,7 @@ class SceneRenderer(resources: Resources) {
 		/** The sun disc fills this fraction of its sprite radius; the remainder carries the feathered atmospheric edge. */
 		private const val SUN_DISC_MARGIN = 0.84f
 		private const val SUN_DIRECT_BODY_SCALE = 1.30f
-		private const val SUN_DIRECT_DISC_SCALE = 0.64f
+		private const val SUN_DIRECT_DISC_SCALE = 1.15f
 
 		/** Cached camera-glare geometry and on-screen reach around the compact overexposed source. */
 		private const val SUN_CORONA_SPRITE_SIZE = 512
