@@ -3252,7 +3252,7 @@ class SceneRenderer(resources: Resources) {
 		private const val SUN_CORONA_DAY_WARMTH = 0.94f
 		private const val SUN_CORONA_TWILIGHT_WARMTH = 0.96f
 		private const val SUN_CORONA_GLOW_REACH = 0.46f
-		private const val SUN_CORONA_CLOUD_MIN_STRENGTH = 0.08f
+		private const val SUN_CORONA_CLOUD_MIN_STRENGTH = 0f
 		private const val SUN_CORONA_DAWN_SCALE = 0.92f
 		private const val SUN_CORONA_DAWN_ALPHA = 0.70f
 		private const val SUN_CORONA_DUSK_SCALE = 0.78f
