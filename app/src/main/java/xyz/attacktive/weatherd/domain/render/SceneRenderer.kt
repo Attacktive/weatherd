@@ -325,12 +325,13 @@ class SceneRenderer(resources: Resources) {
 		}
 
 		val gradient = skyGradientFor(params)
+		val twilightWarmth = twilightWarmthStrength(params.dayPhase, params.celestialProgress)
 		paint.style = Paint.Style.FILL
-		paint.shader = if (params.dayPhase == DayPhase.DAWN || params.dayPhase == DayPhase.DUSK) {
+		paint.shader = if ((params.dayPhase == DayPhase.DAWN || params.dayPhase == DayPhase.DUSK) && twilightWarmth > 0f) {
 			val middleBlend = lerp(
 				TWILIGHT_SKY_COLOR_MIDDLE_STOP,
 				TWILIGHT_SKY_COLOR_MIDDLE_BLEND,
-				twilightWarmthStrength(params.dayPhase, params.celestialProgress)
+				twilightWarmth
 			)
 			val middleColor = lerpColor(gradient.topColor, gradient.bottomColor, middleBlend)
 
