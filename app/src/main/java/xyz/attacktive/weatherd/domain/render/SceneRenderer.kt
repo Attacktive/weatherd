@@ -3488,6 +3488,7 @@ private const val PRECIPITATION_SCALE_EXPONENT = 0.5f
 
 private const val DIRECT_SUN_MAX_CLOUDINESS = 0.55f
 private const val SUNSET_FADE_START = 0.15f
+private const val SUNSET_FADE_END = 0.92f
 
 private const val CLOUD_DECK_THRESHOLD = 0.75f
 
@@ -3599,7 +3600,7 @@ private fun sunVisibility(dayPhase: DayPhase, progress: Float): Float {
 		return 1f
 	}
 
-	val fade = unlerp(SUNSET_FADE_START, 1f, progress)
+	val fade = unlerp(SUNSET_FADE_START, SUNSET_FADE_END, progress)
 	val eased = fade * fade
 
 	return 1f - eased

@@ -181,7 +181,7 @@ class SunRenderingTest {
 	fun duskSunFadesAwayAsItDescends() {
 		val earlyProgress = SUNSET_FADE_START
 		val middleProgress = 0.65f
-		val lateProgress = 1f
+		val lateProgress = 0.93f
 		val early = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams(dayPhase = DayPhase.DUSK, celestialProgress = earlyProgress))
 		val middle = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams(dayPhase = DayPhase.DUSK, celestialProgress = middleProgress))
 		val late = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams(dayPhase = DayPhase.DUSK, celestialProgress = lateProgress))
@@ -191,7 +191,7 @@ class SunRenderingTest {
 
 		assertTrue("Early dusk should keep the sun fully present, but alpha was $earlyAlpha", earlyAlpha >= 250)
 		assertTrue("The sun should fade continuously through dusk, but alpha moved $earlyAlpha -> $middleAlpha -> $lateAlpha", earlyAlpha > middleAlpha && middleAlpha > lateAlpha)
-		assertTrue("The sun should be gone by the end of dusk, but alpha was $lateAlpha", lateAlpha <= 2)
+		assertTrue("The sun should be effectively gone by late dusk, but alpha was $lateAlpha", lateAlpha <= 2)
 
 		early.recycle()
 		middle.recycle()
