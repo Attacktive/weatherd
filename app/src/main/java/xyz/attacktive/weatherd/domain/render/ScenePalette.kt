@@ -238,7 +238,7 @@ private fun overcastAmount(params: SceneParams): Float = when {
 /** Shared cloud-cover ramp for the gray sky blend and cached overcast ceiling, avoiding a hard visual jump at the threshold. */
 internal fun overcastCeilingStrength(cloudiness: Float) = ((cloudiness - OVERCAST_GRAY_FLOOR) / (OVERCAST_GRAY_FULL - OVERCAST_GRAY_FLOOR)).coerceIn(0f, 1f)
 
-/** The cloudiness at which a dry sky starts graying, matching where the renderer starts drawing an overcast ceiling. */
+/** Progress ranges that shape the procedural dawn and dusk palette transitions. */
 private const val DAWN_DAYLIGHT_START = 0.5f
 private const val DAWN_DAYLIGHT_FULL = 0.85f
 private const val DUSK_WARM_START = 0.15f
@@ -246,6 +246,7 @@ private const val DUSK_WARM_FULL = 0.5f
 private const val DUSK_NIGHT_START = 0.65f
 private const val DUSK_NIGHT_FULL = 1f
 
+/** The cloudiness at which a dry sky starts graying, matching where the renderer starts drawing an overcast ceiling. */
 private const val OVERCAST_GRAY_FLOOR = 0.55f
 
 /** The cloudiness at which a dry sky has given up its blue entirely. */
