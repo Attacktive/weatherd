@@ -326,7 +326,22 @@ class SceneRenderer(resources: Resources) {
 
 		val gradient = skyGradientFor(params)
 		paint.style = Paint.Style.FILL
-		paint.shader = LinearGradient(0f, 0f, 0f, height, gradient.topColor, gradient.bottomColor, Shader.TileMode.CLAMP)
+		paint.shader = if (params.dayPhase == DayPhase.DAWN || params.dayPhase == DayPhase.DUSK) {
+			val middleColor = lerpColor(gradient.topColor, gradient.bottomColor, TWILIGHT_SKY_COLOR_MIDDLE_BLEND)
+
+			LinearGradient(
+				0f,
+				0f,
+				0f,
+				height,
+				intArrayOf(gradient.topColor, middleColor, gradient.bottomColor),
+				floatArrayOf(0f, TWILIGHT_SKY_COLOR_MIDDLE_STOP, 1f),
+				Shader.TileMode.CLAMP
+			)
+		} else {
+			LinearGradient(0f, 0f, 0f, height, gradient.topColor, gradient.bottomColor, Shader.TileMode.CLAMP)
+		}
+
 		canvas.drawRect(0f, 0f, width, height, paint)
 		paint.shader = null
 
@@ -3566,12 +3581,12 @@ private fun unlerp(from: Float, to: Float, value: Float) = ((value - from) / (to
 
 /**
  * Where the sun/moon hangs, as a fraction of screen height.
- * The phase progress eases it along a continuous arc: it climbs through dawn, sweeps a shallow parabola across the day whose ends meet the twilight heights exactly, and sinks back through dusk — motion on the scale of minutes, so even a calm clear scene is never a still image.
+ * Dawn starts in the lower horizon band and dusk returns there; daylight still sweeps a shallow parabola whose endpoints meet the twilight arc exactly.
  */
-private fun celestialHeightFraction(dayPhase: DayPhase, progress: Float) = when (dayPhase) {
+internal fun celestialHeightFraction(dayPhase: DayPhase, progress: Float) = when (dayPhase) {
 	DayPhase.DAY -> 0.26f - 0.09f * (4f * progress * (1f - progress))
-	DayPhase.DAWN -> lerp(0.42f, 0.26f, progress)
-	DayPhase.DUSK -> lerp(0.26f, 0.42f, progress)
+	DayPhase.DAWN -> lerp(TWILIGHT_HORIZON_HEIGHT_FRACTION, 0.26f, progress)
+	DayPhase.DUSK -> lerp(0.26f, TWILIGHT_HORIZON_HEIGHT_FRACTION, progress)
 	DayPhase.NIGHT -> 0.24f
 }
 
@@ -3701,6 +3716,14 @@ internal fun warmHorizonGlowAlpha(dayPhase: DayPhase, celestialProgress: Float) 
 private fun withAlpha(color: Int, alpha: Int) = Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color))
 
 private const val WARM_HORIZON_GLOW_ALPHA = 96
+
+/** Keeps most twilight warmth below the middle of the frame instead of washing the upper sky brown. */
+private const val TWILIGHT_SKY_COLOR_MIDDLE_STOP = 0.72f
+private const val TWILIGHT_SKY_COLOR_MIDDLE_BLEND = 0.18f
+
+/** Lowest dawn/dusk sun position as a fraction of screen height, placing it in the horizon band rather than mid-sky. */
+private const val TWILIGHT_HORIZON_HEIGHT_FRACTION = 0.58f
+
 private const val TWILIGHT_SKY_GLOW_RADIUS = 1.05f
 private const val TWILIGHT_SKY_GLOW_INNER_ALPHA_SCALE = 1.15f
 private const val TWILIGHT_SKY_GLOW_MIDDLE_ALPHA_SCALE = 0.52f

@@ -199,6 +199,28 @@ class SunRenderingTest {
 	}
 
 	@Test
+	fun dawnAndDuskReachTheLowerHorizonBand() {
+		val dawnStart = celestialHeightFraction(DayPhase.DAWN, 0f)
+		val duskEnd = celestialHeightFraction(DayPhase.DUSK, 1f)
+
+		assertTrue("Sunrise should start near the horizon instead of high in the frame, but y fraction was $dawnStart", dawnStart in 0.55f..0.60f)
+		assertTrue("Sunset should end near the horizon instead of high in the frame, but y fraction was $duskEnd", duskEnd in 0.55f..0.60f)
+	}
+
+	@Test
+	fun duskBackdropKeepsTheUpperSkyCoolWhileTheHorizonStaysWarm() {
+		val bitmap = renderBackdrop(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams(dayPhase = DayPhase.DUSK, celestialProgress = 0.72f))
+		val sampleX = PORTRAIT_WIDTH / 10
+		val upper = bitmap.getPixel(sampleX, (PORTRAIT_HEIGHT * 0.28f).roundToInt())
+		val lower = bitmap.getPixel(sampleX, (PORTRAIT_HEIGHT * 0.88f).roundToInt())
+
+		assertTrue("Upper dusk should stay blue/purple instead of taking the horizon's brown-orange cast, but was (${Color.red(upper)}, ${Color.green(upper)}, ${Color.blue(upper)})", Color.blue(upper) > Color.red(upper))
+		assertTrue("Lower dusk should retain the warm sunset belt, but was (${Color.red(lower)}, ${Color.green(lower)}, ${Color.blue(lower)})", Color.red(lower) > Color.blue(lower))
+
+		bitmap.recycle()
+	}
+
+	@Test
 	fun fullMoonRetainsItsExistingSizeAndPosition() {
 		val bitmap = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams(dayPhase = DayPhase.NIGHT, moonPhase = 0.5f))
 		val expectedCenter = celestialCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, DayPhase.NIGHT)
@@ -493,15 +515,8 @@ class SunRenderingTest {
 
 	private fun celestialCenter(width: Int, height: Int, dayPhase: DayPhase, progress: Float = 0.5f) = PixelPoint(
 		x = (width * CELESTIAL_X_FRACTION).roundToInt(),
-		y = (height * celestialHeight(dayPhase, progress)).roundToInt(),
+		y = (height * celestialHeightFraction(dayPhase, progress)).roundToInt(),
 	)
-
-	private fun celestialHeight(dayPhase: DayPhase, progress: Float) = when (dayPhase) {
-		DayPhase.DAY -> 0.26f - 0.09f * (4f * progress * (1f - progress))
-		DayPhase.DAWN -> 0.42f + (0.26f - 0.42f) * progress
-		DayPhase.DUSK -> 0.26f + (0.42f - 0.26f) * progress
-		DayPhase.NIGHT -> NIGHT_HEIGHT_FRACTION
-	}
 
 	private fun clearParams(dayPhase: DayPhase = DayPhase.DAY, cloudiness: Float = 0f, fogDensity: Float = 0f, cloudScale: Float = 1f, precipitation: Precipitation? = null, moonPhase: Float = 0.5f, celestialProgress: Float = 0.5f, ) = SceneParams(
 		dayPhase = dayPhase,
@@ -514,6 +529,15 @@ class SunRenderingTest {
 		moonPhase = moonPhase,
 		celestialProgress = celestialProgress,
 	)
+
+	private fun renderBackdrop(width: Int, height: Int, params: SceneParams): Bitmap {
+		val bitmap = createBitmap(width, height)
+
+		SceneRenderer(resources)
+			.renderBackdrop(Canvas(bitmap), width, height, params)
+
+		return bitmap
+	}
 
 	private fun renderForeground(width: Int, height: Int, params: SceneParams, timeSeconds: Float = 0f): Bitmap {
 		val bitmap = createBitmap(width, height)
