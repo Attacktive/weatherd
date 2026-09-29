@@ -330,10 +330,26 @@ class SceneRenderer(resources: Resources) {
 		canvas.drawRect(0f, 0f, width, height, paint)
 		paint.shader = null
 
-		// A warm band above the horizon sells the low sun at dawn and dusk, then gets out of the way as dawn becomes a blue daytime sky.
+		// Twilight concentrates warm light around the low sun while preserving a cooler upper sky, with a softer spill along the horizon.
 		val horizonGlowAlpha = warmHorizonGlowAlpha(params.dayPhase, params.celestialProgress)
 		if (horizonGlowAlpha > 0 && showsCelestialBody(params)) {
 			val glow = sunColor(params.dayPhase, SunColorPreset.NATURAL)
+			val centerX = width * CELESTIAL_X_FRACTION
+			val centerY = height * celestialHeightFraction(params.dayPhase, params.celestialProgress)
+			val radius = min(width, height) * TWILIGHT_SKY_GLOW_RADIUS
+			paint.shader = RadialGradient(
+				centerX,
+				centerY,
+				radius,
+				intArrayOf(
+					withAlpha(lighten(glow, 0.18f), (horizonGlowAlpha * TWILIGHT_SKY_GLOW_INNER_ALPHA_SCALE).roundToInt()),
+					withAlpha(glow, (horizonGlowAlpha * TWILIGHT_SKY_GLOW_MIDDLE_ALPHA_SCALE).roundToInt()),
+					withAlpha(glow, 0)
+				),
+				floatArrayOf(0f, TWILIGHT_SKY_GLOW_MIDDLE_STOP, 1f),
+				Shader.TileMode.CLAMP
+			)
+			canvas.drawCircle(centerX, centerY, radius, paint)
 			paint.shader = LinearGradient(0f, height * 0.55f, 0f, height, withAlpha(glow, 0), withAlpha(glow, horizonGlowAlpha), Shader.TileMode.CLAMP)
 			canvas.drawRect(0f, height * 0.55f, width, height, paint)
 			paint.shader = null
@@ -1604,7 +1620,7 @@ class SceneRenderer(resources: Resources) {
 		castShadow: CloudLayer.CumulusShadow?
 	) {
 		val isPortrait = width < height
-		val tint = lerpColor(cumulusTint(params.dayPhase), skyGradientFor(params).topColor, CUMULUS_FAR_HAZE)
+		val tint = lerpColor(cumulusTint(params.dayPhase, params.celestialProgress), skyGradientFor(params).topColor, CUMULUS_FAR_HAZE)
 		val farCoverage = coverage * coverage
 		val alpha = ((CUMULUS_FAR_MIN_ALPHA + CUMULUS_FAR_ALPHA_RANGE * farCoverage) * params.cloudScale).roundToInt().coerceIn(0, 255)
 		val drop = if (isPortrait) {
@@ -1647,7 +1663,7 @@ class SceneRenderer(resources: Resources) {
 		val drift = surge * (0.6f * sin(timeSeconds * 0.19f) + 0.4f * sin(timeSeconds * 0.47f))
 		val offset = wrapOffset(timeSeconds * width * (0.0045f + params.windFactor * 0.009f) * params.windScale + drift * 0.60f - width * PARTLY_BANK_PHASE, period)
 		val bankHeight = overcastBankHeight(width, height, PARTLY_BANK_VIEWPORTS, PARTLY_BANK_HEIGHT_SCALE)
-		val tint = lerpColor(cumulusTint(params.dayPhase), skyGradientFor(params).topColor, PARTLY_BANK_HAZE)
+		val tint = lerpColor(cumulusTint(params.dayPhase, params.celestialProgress), skyGradientFor(params).topColor, PARTLY_BANK_HAZE)
 		val alpha = (255f * PARTLY_BANK_ALPHA * weight * params.cloudScale).roundToInt().coerceIn(0, 255)
 
 		heroOvercastBank.draw(
@@ -1664,7 +1680,7 @@ class SceneRenderer(resources: Resources) {
 	 * The steps share a noise field, so drawing the next one over the current at partial alpha grows each mass rather than dissolving it into a different sky.
 	 */
 	private fun drawNearCumulus(canvas: Canvas, width: Float, params: SceneParams, cloudTop: Float, state: NearCumulusState) {
-		val tint = cumulusTint(params.dayPhase)
+		val tint = cumulusTint(params.dayPhase, params.celestialProgress)
 		val geometry = cloudDrawGeometry.configure(width, state.deckHeight, state.offset, cloudTop, sizeScale = cloudSizeScale(params))
 		cumulusSteps[state.lower].value.draw(canvas, geometry, tint, state.alpha, contrast = params.cloudContrastScale)
 
@@ -3590,10 +3606,15 @@ private fun sunColor(dayPhase: DayPhase, preset: SunColorPreset) = when (preset)
  * The multiply a cumulus deck draws through.
  * The textures carry their own sunlit-to-shadow ramp, so daylight has to pass through untouched or the shading gets applied twice and the crowns go gray.
  */
-private fun cumulusTint(dayPhase: DayPhase) = when (dayPhase) {
+private fun cumulusTint(dayPhase: DayPhase, celestialProgress: Float) = when (dayPhase) {
 	DayPhase.DAY -> Color.WHITE
-	DayPhase.DAWN -> Color.rgb(252, 226, 224)
-	DayPhase.DUSK -> Color.rgb(246, 206, 198)
+	DayPhase.DAWN -> lerpColor(Color.rgb(252, 226, 224), Color.WHITE, dawnDaylightStrength(celestialProgress))
+	DayPhase.DUSK -> {
+		val sunset = lerpColor(Color.WHITE, Color.rgb(246, 206, 198), duskWarmStrength(celestialProgress))
+
+		lerpColor(sunset, Color.rgb(86, 96, 120), duskNightStrength(celestialProgress))
+	}
+
 	DayPhase.NIGHT -> Color.rgb(86, 96, 120)
 }
 
@@ -3666,12 +3687,19 @@ private fun lerpColor(from: Int, to: Int, fraction: Float) = Color.rgb(
 	(Color.blue(from) + (Color.blue(to) - Color.blue(from)) * fraction).roundToInt()
 )
 
-internal fun warmHorizonGlowAlpha(dayPhase: DayPhase, celestialProgress: Float) = when (dayPhase) {
-	DayPhase.DAWN -> (WARM_HORIZON_GLOW_ALPHA * (1f - dawnDaylightStrength(celestialProgress))).roundToInt()
-	DayPhase.DUSK -> WARM_HORIZON_GLOW_ALPHA
-	DayPhase.DAY, DayPhase.NIGHT -> 0
+internal fun twilightWarmthStrength(dayPhase: DayPhase, celestialProgress: Float) = when (dayPhase) {
+	DayPhase.DAWN -> 1f - dawnDaylightStrength(celestialProgress)
+	DayPhase.DUSK -> duskWarmStrength(celestialProgress) * (1f - duskNightStrength(celestialProgress))
+	DayPhase.DAY, DayPhase.NIGHT -> 0f
 }
+
+internal fun warmHorizonGlowAlpha(dayPhase: DayPhase, celestialProgress: Float) =
+	(WARM_HORIZON_GLOW_ALPHA * twilightWarmthStrength(dayPhase, celestialProgress)).roundToInt()
 
 private fun withAlpha(color: Int, alpha: Int) = Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color))
 
-private const val WARM_HORIZON_GLOW_ALPHA = 80
+private const val WARM_HORIZON_GLOW_ALPHA = 96
+private const val TWILIGHT_SKY_GLOW_RADIUS = 1.05f
+private const val TWILIGHT_SKY_GLOW_INNER_ALPHA_SCALE = 1.15f
+private const val TWILIGHT_SKY_GLOW_MIDDLE_ALPHA_SCALE = 0.52f
+private const val TWILIGHT_SKY_GLOW_MIDDLE_STOP = 0.42f

@@ -109,25 +109,46 @@ private fun atmosphereAmount(params: SceneParams, plane: SceneryPlane): Float {
 
 private fun basePhaseGradient(dayPhase: DayPhase, preset: SkyColorPreset, celestialProgress: Float): SkyGradient {
 	val phase = phaseGradient(dayPhase, preset)
-	if (dayPhase != DayPhase.DAWN) {
-		return phase
+
+	return when (dayPhase) {
+		DayPhase.DAWN -> {
+			val daylight = dawnDaylightStrength(celestialProgress)
+			val day = phaseGradient(DayPhase.DAY, preset)
+
+			SkyGradient(
+				lerpColor(phase.topColor, day.topColor, daylight),
+				lerpColor(phase.bottomColor, day.bottomColor, daylight)
+			)
+		}
+
+		DayPhase.DUSK -> {
+			val warmth = duskWarmStrength(celestialProgress)
+			val nightfall = duskNightStrength(celestialProgress)
+			val day = phaseGradient(DayPhase.DAY, preset)
+			val night = phaseGradient(DayPhase.NIGHT, preset)
+			val sunset = SkyGradient(
+				lerpColor(day.topColor, phase.topColor, warmth),
+				lerpColor(day.bottomColor, phase.bottomColor, warmth)
+			)
+
+			SkyGradient(
+				lerpColor(sunset.topColor, night.topColor, nightfall),
+				lerpColor(sunset.bottomColor, night.bottomColor, nightfall)
+			)
+		}
+
+		DayPhase.DAY, DayPhase.NIGHT -> phase
 	}
-
-	val daylight = dawnDaylightStrength(celestialProgress)
-	if (daylight <= 0f) {
-		return phase
-	}
-
-	val day = phaseGradient(DayPhase.DAY, preset)
-
-	return SkyGradient(
-		lerpColor(phase.topColor, day.topColor, daylight),
-		lerpColor(phase.bottomColor, day.bottomColor, daylight)
-	)
 }
 
-internal fun dawnDaylightStrength(celestialProgress: Float): Float {
-	val raw = ((celestialProgress - DAWN_DAYLIGHT_START) / (DAWN_DAYLIGHT_FULL - DAWN_DAYLIGHT_START)).coerceIn(0f, 1f)
+internal fun dawnDaylightStrength(celestialProgress: Float) = smoothStep(DAWN_DAYLIGHT_START, DAWN_DAYLIGHT_FULL, celestialProgress)
+
+internal fun duskWarmStrength(celestialProgress: Float) = smoothStep(DUSK_WARM_START, DUSK_WARM_FULL, celestialProgress)
+
+internal fun duskNightStrength(celestialProgress: Float) = smoothStep(DUSK_NIGHT_START, DUSK_NIGHT_FULL, celestialProgress)
+
+private fun smoothStep(from: Float, to: Float, value: Float): Float {
+	val raw = ((value - from) / (to - from)).coerceIn(0f, 1f)
 
 	return raw * raw * (3f - 2f * raw)
 }
@@ -220,6 +241,10 @@ internal fun overcastCeilingStrength(cloudiness: Float) = ((cloudiness - OVERCAS
 /** The cloudiness at which a dry sky starts graying, matching where the renderer starts drawing an overcast ceiling. */
 private const val DAWN_DAYLIGHT_START = 0.5f
 private const val DAWN_DAYLIGHT_FULL = 0.85f
+private const val DUSK_WARM_START = 0.15f
+private const val DUSK_WARM_FULL = 0.5f
+private const val DUSK_NIGHT_START = 0.65f
+private const val DUSK_NIGHT_FULL = 1f
 
 private const val OVERCAST_GRAY_FLOOR = 0.55f
 

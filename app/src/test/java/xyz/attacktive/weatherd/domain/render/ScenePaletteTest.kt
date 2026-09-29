@@ -125,11 +125,41 @@ class ScenePaletteTest {
 	}
 
 	@Test
-	fun `warm dawn horizon glow fades before the phase flips to day`() {
-		assertEquals(80, warmHorizonGlowAlpha(DayPhase.DAWN, 0.5f))
-		assertTrue(warmHorizonGlowAlpha(DayPhase.DAWN, 0.75f) in 1 until 80)
+	fun `dusk moves from day through sunset into night`() {
+		val early = skyGradientFor(clearParams(DayPhase.DUSK).copy(celestialProgress = 0f))
+		val sunset = skyGradientFor(clearParams(DayPhase.DUSK).copy(celestialProgress = 0.5f))
+		val late = skyGradientFor(clearParams(DayPhase.DUSK).copy(celestialProgress = 0.85f))
+		val day = skyGradientFor(clearParams(DayPhase.DAY))
+		val night = skyGradientFor(clearParams(DayPhase.NIGHT))
+
+		assertEquals(day, early)
+		assertEquals(0xFF26314F.toInt(), sunset.topColor)
+		assertEquals(0xFFE8825B.toInt(), sunset.bottomColor)
+		assertTrue("late dusk should darken toward night", channelSum(late.topColor) < channelSum(sunset.topColor))
+		assertEquals(night, skyGradientFor(clearParams(DayPhase.DUSK).copy(celestialProgress = 1f)))
+	}
+
+	@Test
+	fun `dusk warmth rises around sunset then fades into night`() {
+		assertEquals(0f, duskWarmStrength(0f), 0.0001f)
+		assertEquals(1f, duskWarmStrength(0.5f), 0.0001f)
+		assertEquals(0f, duskNightStrength(0.5f), 0.0001f)
+		assertTrue(duskNightStrength(0.85f) > 0f)
+		assertEquals(1f, duskNightStrength(1f), 0.0001f)
+		assertEquals(0f, twilightWarmthStrength(DayPhase.DUSK, 0f), 0.0001f)
+		assertEquals(1f, twilightWarmthStrength(DayPhase.DUSK, 0.5f), 0.0001f)
+		assertEquals(0f, twilightWarmthStrength(DayPhase.DUSK, 1f), 0.0001f)
+	}
+
+	@Test
+	fun `twilight horizon glow peaks while the warm sky is visible`() {
+		assertEquals(96, warmHorizonGlowAlpha(DayPhase.DAWN, 0.5f))
+		assertTrue(warmHorizonGlowAlpha(DayPhase.DAWN, 0.75f) in 1 until 96)
 		assertEquals(0, warmHorizonGlowAlpha(DayPhase.DAWN, 0.85f))
-		assertEquals(80, warmHorizonGlowAlpha(DayPhase.DUSK, 0.85f))
+		assertEquals(0, warmHorizonGlowAlpha(DayPhase.DUSK, 0f))
+		assertEquals(96, warmHorizonGlowAlpha(DayPhase.DUSK, 0.5f))
+		assertTrue(warmHorizonGlowAlpha(DayPhase.DUSK, 0.85f) in 1 until 96)
+		assertEquals(0, warmHorizonGlowAlpha(DayPhase.DUSK, 1f))
 		assertEquals(0, warmHorizonGlowAlpha(DayPhase.DAY, 0.5f))
 	}
 

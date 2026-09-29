@@ -261,6 +261,51 @@ class SceneParamsTest {
 	}
 
 	@Test
+	fun `dusk progress invalidates a procedural backdrop`() {
+		val early = fullyPopulatedParams().copy(
+			dayPhase = DayPhase.DUSK,
+			backdropScene = BackdropScene.NONE,
+			celestialProgress = 0.1f
+		)
+
+		val sunset = early.copy(celestialProgress = 0.5f)
+
+		assertNotEquals(backdropSignature(early), backdropSignature(sunset))
+	}
+
+	@Test
+	fun `dusk progress stays foreground-only when a photo actually resolves`() {
+		val early = fullyPopulatedParams().copy(
+			dayPhase = DayPhase.DUSK,
+			backdropScene = BackdropScene.PHOTO,
+			celestialProgress = 0.1f
+		)
+
+		val sunset = early.copy(celestialProgress = 0.5f)
+
+		assertEquals(
+			backdropSignature(early, backgroundPhotoAvailable = true),
+			backdropSignature(sunset, backgroundPhotoAvailable = true)
+		)
+	}
+
+	@Test
+	fun `dusk photo fallback keeps procedural progress in the signature`() {
+		val early = fullyPopulatedParams().copy(
+			dayPhase = DayPhase.DUSK,
+			backdropScene = BackdropScene.PHOTO,
+			celestialProgress = 0.1f
+		)
+
+		val sunset = early.copy(celestialProgress = 0.5f)
+
+		assertNotEquals(
+			backdropSignature(early, backgroundPhotoAvailable = false),
+			backdropSignature(sunset, backgroundPhotoAvailable = false)
+		)
+	}
+
+	@Test
 	fun `late dawn progress stays foreground-only when a photo actually resolves`() {
 		val sunrise = fullyPopulatedParams().copy(
 			dayPhase = DayPhase.DAWN,
@@ -306,6 +351,22 @@ class SceneParamsTest {
 		val morning = sunrise.copy(celestialProgress = 0.75f)
 
 		assertEquals(backdropSignature(sunrise), backdropSignature(morning))
+	}
+
+	@Test
+	fun `fully overcast dry dusk ignores invisible sky progress`() {
+		val early = fullyPopulatedParams().copy(
+			dayPhase = DayPhase.DUSK,
+			backdropScene = BackdropScene.NONE,
+			cloudiness = 0.85f,
+			fogDensity = 0f,
+			precipitation = null,
+			celestialProgress = 0.1f
+		)
+
+		val sunset = early.copy(celestialProgress = 0.5f)
+
+		assertEquals(backdropSignature(early), backdropSignature(sunset))
 	}
 
 	@Test
