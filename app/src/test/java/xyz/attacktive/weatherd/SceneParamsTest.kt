@@ -228,7 +228,7 @@ class SceneParamsTest {
 
 	@Test
 	fun `the backdrop signature excludes foreground-only fields`() {
-		val params = fullyPopulatedParams()
+		val params = fullyPopulatedParams().copy(dayPhase = DayPhase.DAY)
 
 		val signature = backdropSignature(params)
 
@@ -409,10 +409,10 @@ class SceneParamsTest {
 	}
 
 	@Test
-	fun `params differing only in the moon and the celestial arc share one signature`() {
-		val params = fullyPopulatedParams()
+	fun `params differing only in the moon and the daytime celestial arc share one signature`() {
+		val params = fullyPopulatedParams().copy(dayPhase = DayPhase.DAY)
 
-		// A celestial tick a few minutes into dusk: the foreground moves, the backdrop cannot show any of it.
+		// A daytime celestial tick moves the foreground only; unlike twilight, the painted sky does not follow progress.
 		val ticked = params.copy(moonPhase = 0.93f, celestialProgress = 0.78f)
 
 		assertNotEquals(params, ticked)
