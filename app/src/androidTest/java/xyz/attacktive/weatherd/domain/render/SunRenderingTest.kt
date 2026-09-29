@@ -208,6 +208,27 @@ class SunRenderingTest {
 	}
 
 	@Test
+	fun twilightBackdropMatchesAdjacentPhasesAtBoundaries() {
+		val sampleX = PORTRAIT_WIDTH / 10
+		val sampleY = (PORTRAIT_HEIGHT * 0.72f).roundToInt()
+		val dawnEnd = renderBackdrop(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams(dayPhase = DayPhase.DAWN, celestialProgress = 1f))
+		val day = renderBackdrop(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams(dayPhase = DayPhase.DAY))
+		val duskStart = renderBackdrop(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams(dayPhase = DayPhase.DUSK, celestialProgress = 0f))
+		val duskEnd = renderBackdrop(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams(dayPhase = DayPhase.DUSK, celestialProgress = 1f))
+		val night = renderBackdrop(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams(dayPhase = DayPhase.NIGHT))
+
+		assertEquals("Dawn should hand off to day without a sky-color step", day.getPixel(sampleX, sampleY), dawnEnd.getPixel(sampleX, sampleY))
+		assertEquals("Day should hand off to dusk without a sky-color step", day.getPixel(sampleX, sampleY), duskStart.getPixel(sampleX, sampleY))
+		assertEquals("Dusk should hand off to night without a sky-color step", night.getPixel(sampleX, sampleY), duskEnd.getPixel(sampleX, sampleY))
+
+		dawnEnd.recycle()
+		day.recycle()
+		duskStart.recycle()
+		duskEnd.recycle()
+		night.recycle()
+	}
+
+	@Test
 	fun duskBackdropKeepsTheUpperSkyCoolWhileTheHorizonStaysWarm() {
 		val bitmap = renderBackdrop(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams(dayPhase = DayPhase.DUSK, celestialProgress = 0.72f))
 		val sampleX = PORTRAIT_WIDTH / 10

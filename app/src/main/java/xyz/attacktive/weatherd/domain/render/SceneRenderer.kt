@@ -327,7 +327,12 @@ class SceneRenderer(resources: Resources) {
 		val gradient = skyGradientFor(params)
 		paint.style = Paint.Style.FILL
 		paint.shader = if (params.dayPhase == DayPhase.DAWN || params.dayPhase == DayPhase.DUSK) {
-			val middleColor = lerpColor(gradient.topColor, gradient.bottomColor, TWILIGHT_SKY_COLOR_MIDDLE_BLEND)
+			val middleBlend = lerp(
+				TWILIGHT_SKY_COLOR_MIDDLE_STOP,
+				TWILIGHT_SKY_COLOR_MIDDLE_BLEND,
+				twilightWarmthStrength(params.dayPhase, params.celestialProgress)
+			)
+			val middleColor = lerpColor(gradient.topColor, gradient.bottomColor, middleBlend)
 
 			LinearGradient(
 				0f,
