@@ -248,6 +248,19 @@ class SceneParamsTest {
 	}
 
 	@Test
+	fun `early dawn progress invalidates a procedural backdrop before the daylight blend changes`() {
+		val early = fullyPopulatedParams().copy(
+			dayPhase = DayPhase.DAWN,
+			backdropScene = BackdropScene.NONE,
+			celestialProgress = 0.1f
+		)
+
+		val later = early.copy(celestialProgress = 0.4f)
+
+		assertNotEquals(backdropSignature(early), backdropSignature(later))
+	}
+
+	@Test
 	fun `late dawn progress invalidates a procedural backdrop`() {
 		val sunrise = fullyPopulatedParams().copy(
 			dayPhase = DayPhase.DAWN,
@@ -338,7 +351,7 @@ class SceneParamsTest {
 	}
 
 	@Test
-	fun `fully overcast dry dawn ignores invisible sky progress`() {
+	fun `fully overcast dry dawn retains progress for the partially visible twilight glow`() {
 		val sunrise = fullyPopulatedParams().copy(
 			dayPhase = DayPhase.DAWN,
 			backdropScene = BackdropScene.NONE,
@@ -350,11 +363,11 @@ class SceneParamsTest {
 
 		val morning = sunrise.copy(celestialProgress = 0.75f)
 
-		assertEquals(backdropSignature(sunrise), backdropSignature(morning))
+		assertNotEquals(backdropSignature(sunrise), backdropSignature(morning))
 	}
 
 	@Test
-	fun `fully overcast dry dusk ignores invisible sky progress`() {
+	fun `fully overcast dry dusk retains progress for the partially visible twilight glow`() {
 		val early = fullyPopulatedParams().copy(
 			dayPhase = DayPhase.DUSK,
 			backdropScene = BackdropScene.NONE,
@@ -366,7 +379,7 @@ class SceneParamsTest {
 
 		val sunset = early.copy(celestialProgress = 0.5f)
 
-		assertEquals(backdropSignature(early), backdropSignature(sunset))
+		assertNotEquals(backdropSignature(early), backdropSignature(sunset))
 	}
 
 	@Test

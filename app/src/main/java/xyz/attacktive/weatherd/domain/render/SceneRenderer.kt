@@ -337,6 +337,7 @@ class SceneRenderer(resources: Resources) {
 			val centerX = width * CELESTIAL_X_FRACTION
 			val centerY = height * celestialHeightFraction(params.dayPhase, params.celestialProgress)
 			val radius = min(width, height) * TWILIGHT_SKY_GLOW_RADIUS
+
 			paint.shader = RadialGradient(
 				centerX,
 				centerY,
@@ -349,6 +350,7 @@ class SceneRenderer(resources: Resources) {
 				floatArrayOf(0f, TWILIGHT_SKY_GLOW_MIDDLE_STOP, 1f),
 				Shader.TileMode.CLAMP
 			)
+
 			canvas.drawCircle(centerX, centerY, radius, paint)
 			paint.shader = LinearGradient(0f, height * 0.55f, 0f, height, withAlpha(glow, 0), withAlpha(glow, horizonGlowAlpha), Shader.TileMode.CLAMP)
 			canvas.drawRect(0f, height * 0.55f, width, height, paint)
