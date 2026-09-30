@@ -12,13 +12,13 @@ import android.graphics.Canvas
 import android.service.wallpaper.WallpaperService
 import android.view.Choreographer
 import android.view.SurfaceHolder
-import androidx.core.graphics.createBitmap
 import dagger.hilt.android.AndroidEntryPoint
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
 import xyz.attacktive.weatherd.domain.render.SceneParams
 import xyz.attacktive.weatherd.domain.render.SceneRenderer
 import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
 import xyz.attacktive.weatherd.domain.render.backdropSignature
+import xyz.attacktive.weatherd.domain.render.renderImmutableBitmap
 import xyz.attacktive.weatherd.domain.render.sceneAnimationTimeSeconds
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
@@ -225,8 +225,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 				return current
 			}
 
-			val fresh = createBitmap(sceneWidth, height)
-			rasterizeBackdrop(fresh, params)
+			val fresh = rasterizeBackdrop(sceneWidth, height, params)
 			backdrop = fresh
 			renderedParams = signature
 
@@ -234,17 +233,19 @@ class WeatherLiveWallpaperService: WallpaperService() {
 		}
 
 		/**
-		 * Rasterizes the static backdrop into [target], lending the renderer the user's photo for exactly the length of that one call when the scene asks for one.
+		 * Rasterizes the static backdrop into an immutable bitmap, lending the renderer the user's photo for exactly the length of that one call when the scene asks for one.
 		 * A null photo is the ordinary case and not a failure — the user has not chosen a photo backdrop, the phase resolves to no filled bucket, or the stored file no longer decodes — and the renderer then paints its procedural sky exactly as it always has.
 		 * The load, the assignment, the rasterize and the release all run here on the render thread, synchronously: [SceneRenderer.backgroundPhoto] is an unsynchronized field the sky pass dereferences mid-blit, so decoding on [Dispatchers.IO] and assigning from there would both race that read and risk recycling the bitmap under it.
 		 * The decode costs one file read per backdrop invalidation, and the frame that pays it is already rebuilding the entire backdrop synchronously — sky gradients, overcast ceiling, fog base, haze, vignette — which dwarfs one file read of an already display-sized JPEG.
 		 */
-		private fun rasterizeBackdrop(target: Bitmap, params: SceneParams) {
+		private fun rasterizeBackdrop(width: Int, height: Int, params: SceneParams): Bitmap {
 			val photo = photoBackgroundRepository.loadFor(params.backdropScene, params.dayPhase)
 			renderer.backgroundPhoto = photo
 
 			try {
-				renderer.renderBackdrop(Canvas(target), target.width, target.height, params)
+				return renderImmutableBitmap(width, height) { canvas ->
+					renderer.renderBackdrop(canvas, width, height, params)
+				}
 			} finally {
 				// Clearing before recycling, and in a finally, so a throwing rasterize can neither leak the bitmap nor leave the renderer holding a reference to freed pixels.
 				renderer.backgroundPhoto = null

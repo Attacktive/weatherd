@@ -23,7 +23,6 @@ import android.graphics.RadialGradient
 import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
-import androidx.core.graphics.createBitmap
 import androidx.core.graphics.withClip
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.BackdropScene
@@ -2353,8 +2352,7 @@ class SceneRenderer(resources: Resources) {
 	private inline fun tile(name: String, width: Int, height: Int, build: (Canvas) -> Unit): Bitmap {
 		tiles[name]?.let { return it }
 
-		val bitmap = createBitmap(width.coerceAtLeast(1), height.coerceAtLeast(1))
-		build(Canvas(bitmap))
+		val bitmap = renderImmutableBitmap(width.coerceAtLeast(1), height.coerceAtLeast(1), build)
 		tiles[name] = bitmap
 
 		return bitmap
@@ -2367,11 +2365,9 @@ class SceneRenderer(resources: Resources) {
 		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
 		brush.shader = RadialGradient(center, center, center, intArrayOf(withAlpha(color, alpha), withAlpha(color, alpha), withAlpha(color, 0)), floatArrayOf(0f, DOT_CORE_STOP, 1f), Shader.TileMode.CLAMP)
 
-		val bitmap = createBitmap(SPRITE_SIZE, SPRITE_SIZE)
-		val canvas = Canvas(bitmap)
-		canvas.drawCircle(center, center, center, brush)
-
-		return bitmap
+		return renderImmutableBitmap(SPRITE_SIZE, SPRITE_SIZE) { canvas ->
+			canvas.drawCircle(center, center, center, brush)
+		}
 	}
 
 	/** Blits a soft-dot sprite scaled so its solid core spans [coreRadius]; the halo extends past that and fades to nothing. */

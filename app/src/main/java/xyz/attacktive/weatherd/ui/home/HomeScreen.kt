@@ -51,7 +51,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.createBitmap
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -62,9 +61,9 @@ import xyz.attacktive.weatherd.domain.render.SCENE_PRESETS
 import xyz.attacktive.weatherd.domain.render.SceneRenderer
 import xyz.attacktive.weatherd.domain.render.backdropSignature
 import xyz.attacktive.weatherd.domain.render.debugSceneParams
+import xyz.attacktive.weatherd.domain.render.renderImmutableBitmap
 import xyz.attacktive.weatherd.domain.render.sceneAnimationTimeSeconds
 import xyz.attacktive.weatherd.service.WeatherLiveWallpaperService
-import android.graphics.Canvas as AndroidCanvas
 
 /**
  * A live preview of the current scene — the same renderer and weather source the wallpaper uses, including the persisted scene-simulator override.
@@ -218,8 +217,9 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 			renderer.backgroundPhoto = photo
 
 			try {
-				createBitmap(widthPx, heightPx)
-					.also { renderer.renderBackdrop(AndroidCanvas(it), widthPx, heightPx, params) }
+				renderImmutableBitmap(widthPx, heightPx) { canvas ->
+					renderer.renderBackdrop(canvas, widthPx, heightPx, params)
+				}
 			} finally {
 				renderer.backgroundPhoto = null
 				photo?.recycle()
