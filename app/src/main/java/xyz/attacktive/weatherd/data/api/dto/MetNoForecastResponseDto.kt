@@ -10,7 +10,9 @@ import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 import xyz.attacktive.weatherd.domain.model.WeatherCondition
 import xyz.attacktive.weatherd.domain.model.WeatherLabel
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
+import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
+import xyz.attacktive.weatherd.domain.model.WeatherSource
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_DRIZZLE
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_HEAVY
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_STEADY
@@ -59,7 +61,7 @@ data class MetNoSummaryDto(@SerialName("symbol_code") val symbolCode: String? = 
 @Serializable
 data class MetNoPeriodDetailsDto(@SerialName("precipitation_amount") val precipitationAmount: Double? = null)
 
-fun MetNoForecastResponseDto.toSnapshot(sun: MetNoSunriseResponseDto): WeatherSnapshot {
+fun MetNoForecastResponseDto.toSnapshot(sun: MetNoSunriseResponseDto, source: WeatherSource = WeatherSource(WeatherProviderType.MET_NORWAY)): WeatherSnapshot {
 	val current = checkNotNull(properties.timeseries.firstOrNull()) { "MET Norway response contains no timeseries" }
 	val time = checkNotNull(current.time) { "MET Norway current timeseries has no time" }
 	val data = checkNotNull(current.data) { "MET Norway current timeseries has no data" }
@@ -67,7 +69,7 @@ fun MetNoForecastResponseDto.toSnapshot(sun: MetNoSunriseResponseDto): WeatherSn
 	val nextOneHour = checkNotNull(data.nextOneHour) { "MET Norway current timeseries has no next-hour forecast" }
 	val symbolCode = checkNotNull(nextOneHour.summary?.symbolCode) { "MET Norway current timeseries has no next-hour symbol" }
 	val periodDetails = checkNotNull(nextOneHour.details) { "MET Norway current timeseries has no next-hour details" }
-	val precipitation = periodDetails.precipitationAmount ?: 0.0
+	val precipitation = checkNotNull(periodDetails.precipitationAmount) { "MET Norway current timeseries has no next-hour precipitation" }
 	val airTemperature = checkNotNull(details.airTemperature) { "MET Norway current timeseries has no air temperature" }
 	val cloudAreaFraction = checkNotNull(details.cloudAreaFraction) { "MET Norway current timeseries has no cloud cover" }
 	val windSpeed = checkNotNull(details.windSpeed) { "MET Norway current timeseries has no wind speed" }
@@ -84,7 +86,8 @@ fun MetNoForecastResponseDto.toSnapshot(sun: MetNoSunriseResponseDto): WeatherSn
 		),
 		observedAtEpochSeconds = observedAtEpochSeconds,
 		sunriseEpochSeconds = sun.sunriseEpochSeconds(),
-		sunsetEpochSeconds = sun.sunsetEpochSeconds()
+		sunsetEpochSeconds = sun.sunsetEpochSeconds(),
+		source = source
 	)
 }
 
