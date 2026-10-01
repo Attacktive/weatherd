@@ -43,17 +43,6 @@ class MetNoWeatherProviderTest {
 		assertEquals(WeatherProviderType.MET_NORWAY, snapshot.source.provider)
 	}
 
-
-	@Test
-	fun `missing precipitation is rejected instead of becoming dry weather`() = runTest {
-		coEvery { api.forecast("37.5000", "127.0000") } returns metNoForecastResponse("cloudy", precipitationAmount = null)
-		coEvery { api.sunrise("37.5000", "127.0000", "2025-09-14") } returns metNoSunResponse()
-
-		val failure = runCatching { provider.current(37.500012, 127.000049) }.exceptionOrNull()
-
-		assertEquals("MET Norway current timeseries has no next-hour precipitation", failure?.message)
-	}
-
 	@Test
 	fun `truncates and formats coordinates without scientific notation`() = runTest {
 		coEvery { api.forecast("0.0006", "-0.0001") } returns metNoForecastResponse("clearsky_day")

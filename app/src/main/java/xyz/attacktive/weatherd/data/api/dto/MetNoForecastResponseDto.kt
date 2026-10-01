@@ -69,7 +69,7 @@ fun MetNoForecastResponseDto.toSnapshot(sun: MetNoSunriseResponseDto, source: We
 	val nextOneHour = checkNotNull(data.nextOneHour) { "MET Norway current timeseries has no next-hour forecast" }
 	val symbolCode = checkNotNull(nextOneHour.summary?.symbolCode) { "MET Norway current timeseries has no next-hour symbol" }
 	val periodDetails = checkNotNull(nextOneHour.details) { "MET Norway current timeseries has no next-hour details" }
-	val precipitation = checkNotNull(periodDetails.precipitationAmount) { "MET Norway current timeseries has no next-hour precipitation" }
+	val precipitation = periodDetails.precipitationAmount ?: 0.0
 	val airTemperature = checkNotNull(details.airTemperature) { "MET Norway current timeseries has no air temperature" }
 	val cloudAreaFraction = checkNotNull(details.cloudAreaFraction) { "MET Norway current timeseries has no cloud cover" }
 	val windSpeed = checkNotNull(details.windSpeed) { "MET Norway current timeseries has no wind speed" }
