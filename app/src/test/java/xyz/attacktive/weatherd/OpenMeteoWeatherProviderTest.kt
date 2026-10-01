@@ -21,7 +21,7 @@ class OpenMeteoWeatherProviderTest {
 
 	@Test
 	fun `maps a successful forecast into a snapshot`() = runTest {
-		coEvery { api.forecast(any(), any(), any(), any(), any(), any(), any()) } returns ForecastResponseDto(
+		coEvery { api.forecast(any(), any(), any(), any(), any(), any(), any(), any()) } returns ForecastResponseDto(
 			latitude = 37.5,
 			longitude = 127.0,
 			current = CurrentWeatherDto(
@@ -48,7 +48,7 @@ class OpenMeteoWeatherProviderTest {
 
 	@Test
 	fun `is day zero maps to night and missing daily leaves sun times null`() = runTest {
-		coEvery { api.forecast(any(), any(), any(), any(), any(), any(), any()) } returns ForecastResponseDto(
+		coEvery { api.forecast(any(), any(), any(), any(), any(), any(), any(), any()) } returns ForecastResponseDto(
 			latitude = 0.0,
 			longitude = 0.0,
 			current = CurrentWeatherDto(0L, 0, 0, 10.0, 0.0, 3.0, 5),

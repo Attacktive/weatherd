@@ -2,7 +2,7 @@
 
 [![Test](https://github.com/Attacktive/weatherd/actions/workflows/test.yaml/badge.svg)](https://github.com/Attacktive/weatherd/actions/workflows/test.yaml)
 
-Android live wallpaper that renders a procedural weather scene from your choice of [Open-Meteo](https://open-meteo.com) or [MET Norway](https://api.met.no).
+Android live wallpaper that renders a procedural weather scene from your choice of [Open-Meteo](https://open-meteo.com), [ItaliaMeteo ICON-2I](https://open-meteo.com/en/docs/italia-meteo-arpae-api) via Open-Meteo, or [MET Norway](https://api.met.no).
 
 Uses device location or a manually searched city, refreshes on a configurable interval (15 min – 6 hr), and mirrors the live scene in an in-app preview.
 
@@ -27,12 +27,14 @@ cd weatherd
 ./gradlew assembleDebug
 ```
 
-Debug builds need no secrets. Open-Meteo and MET Norway both work without API keys. `release.keystore` with `KEYSTORE_PASSWORD` are needed only for release signing.
+Debug builds need no secrets. All weather providers work without API keys. `release.keystore` with `KEYSTORE_PASSWORD` are needed only for release signing.
 
 Run the pull-request checks locally with `./gradlew test :app:lint :app:detekt`. Run instrumentation tests on a connected device or emulator with `./gradlew :app:connectedDebugAndroidTest`.
 
 ## Weather data attribution
 
-Weather data comes from [Open-Meteo](https://open-meteo.com) or [MET Norway](https://api.met.no), depending on the provider selected in Settings.
+Weather data comes from [Open-Meteo](https://open-meteo.com), [ItaliaMeteo ICON-2I](https://open-meteo.com/en/docs/italia-meteo-arpae-api) through Open-Meteo, or [MET Norway](https://api.met.no), depending on the provider selected in Settings.
 
-MET Norway data is provided by The Norwegian Meteorological Institute ("MET Norway") under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Weatherd modifies that data by normalizing provider-specific fields into its own weather-condition model and rendering the result as procedural scenes.
+Open-Meteo data is provided under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). When ItaliaMeteo (ICON-2I) is selected, Weatherd explicitly requests Open-Meteo's `italia_meteo_arpae_icon_2i` model instead of Open-Meteo's automatic model selection.
+
+MET Norway data is provided by The Norwegian Meteorological Institute ("MET Norway") under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Weatherd modifies provider data by normalizing provider-specific fields into its own weather-condition model and rendering the result as procedural scenes.

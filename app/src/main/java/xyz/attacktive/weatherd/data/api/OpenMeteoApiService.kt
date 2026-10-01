@@ -13,7 +13,8 @@ interface OpenMeteoApiService {
 		@Query("daily") daily: String = DAILY_FIELDS,
 		@Query("timeformat") timeFormat: String = "unixtime",
 		@Query("timezone") timezone: String = "auto",
-		@Query("wind_speed_unit") windSpeedUnit: String = "kmh"
+		@Query("wind_speed_unit") windSpeedUnit: String = "kmh",
+		@Query("models") models: String? = null
 	): ForecastResponseDto
 
 	companion object {

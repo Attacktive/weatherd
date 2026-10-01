@@ -2,6 +2,7 @@ package xyz.attacktive.weatherd.domain.model
 
 enum class WeatherProviderType {
 	OPEN_METEO,
+	ITALIA_METEO,
 	MET_NORWAY;
 
 	companion object {

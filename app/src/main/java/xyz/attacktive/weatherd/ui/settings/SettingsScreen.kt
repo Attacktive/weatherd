@@ -1307,6 +1307,7 @@ private fun ErrorText(text: String) {
 @Composable
 private fun formatWeatherProvider(provider: WeatherProviderType) = when (provider) {
 	WeatherProviderType.OPEN_METEO -> stringResource(R.string.provider_open_meteo)
+	WeatherProviderType.ITALIA_METEO -> stringResource(R.string.provider_italia_meteo)
 	WeatherProviderType.MET_NORWAY -> stringResource(R.string.provider_met_norway)
 }
 

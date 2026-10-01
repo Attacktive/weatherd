@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Weatherd** is an Android live wallpaper that renders a procedural weather scene using [Open-Meteo](https://open-meteo.com) or [MET Norway](https://api.met.no), selected by the user. This policy explains what data the app uses and how.
+**Weatherd** is an Android live wallpaper that renders a procedural weather scene using [Open-Meteo](https://open-meteo.com), ItaliaMeteo ICON-2I via Open-Meteo, or [MET Norway](https://api.met.no), selected by the user. This policy explains what data the app uses and how.
 
 ## Data collected and stored
 
@@ -22,7 +22,7 @@ A photo you pick for a part of the day is copied into the app's own private stor
 
 The app communicates with **[Open-Meteo](https://open-meteo.com)**:
 
-- Forecast API — current weather for your chosen coordinates when Open-Meteo is selected
+- Forecast API — current weather for your chosen coordinates when Open-Meteo or ItaliaMeteo (ICON-2I) is selected; the ItaliaMeteo option explicitly requests the `italia_meteo_arpae_icon_2i` model
 - Geocoding API — city name search when you pick a place manually
 
 The app also communicates with **[MET Norway](https://api.met.no)** when MET Norway is selected:
@@ -30,7 +30,7 @@ The app also communicates with **[MET Norway](https://api.met.no)** when MET Nor
 - Locationforecast API — current weather for your chosen coordinates
 - Sunrise API — sunrise, sunset, and solar state for your chosen coordinates
 
-Latitude and longitude are sent to the selected weather provider for forecast requests. City search queries are sent to Open-Meteo regardless of the selected forecast provider. MET Norway states that direct API access logs may contain the user's IP address and requested geocoordinates; those logs are operated by MET Norway and are subject to its own privacy policy and terms. Open-Meteo's own privacy policy applies to Open-Meteo traffic. Neither weather provider requires an API key or user account in Weatherd.
+Latitude and longitude are sent to the selected weather provider for forecast requests. City search queries are sent to Open-Meteo regardless of the selected forecast provider. MET Norway states that direct API access logs may contain the user's IP address and requested geocoordinates; those logs are operated by MET Norway and are subject to its own privacy policy and terms. Open-Meteo's own privacy policy applies to Open-Meteo traffic. Neither weather service requires an API key or user account in Weatherd.
 
 No analytics, advertising, or tracking services are used.
 

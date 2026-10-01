@@ -9,6 +9,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertSame
 import org.junit.Test
 import xyz.attacktive.weatherd.data.provider.ConfiguredWeatherProvider
+import xyz.attacktive.weatherd.data.provider.ItaliaMeteoWeatherProvider
 import xyz.attacktive.weatherd.data.provider.MetNoWeatherProvider
 import xyz.attacktive.weatherd.data.provider.OpenMeteoWeatherProvider
 import xyz.attacktive.weatherd.domain.model.AppSettings
@@ -19,8 +20,9 @@ import xyz.attacktive.weatherd.domain.repository.SettingsRepository
 class ConfiguredWeatherProviderTest {
 	private val settingsRepository = mockk<SettingsRepository>()
 	private val openMeteo = mockk<OpenMeteoWeatherProvider>()
+	private val italiaMeteo = mockk<ItaliaMeteoWeatherProvider>()
 	private val metNo = mockk<MetNoWeatherProvider>()
-	private val provider = ConfiguredWeatherProvider(settingsRepository, openMeteo, metNo)
+	private val provider = ConfiguredWeatherProvider(settingsRepository, openMeteo, italiaMeteo, metNo)
 
 	@Test
 	fun `uses Open-Meteo by default`() = runTest {
@@ -32,6 +34,21 @@ class ConfiguredWeatherProviderTest {
 
 		assertSame(expected, actual)
 		coVerify(exactly = 1) { openMeteo.current(37.5, 127.0) }
+		coVerify(exactly = 0) { italiaMeteo.current(any(), any()) }
+		coVerify(exactly = 0) { metNo.current(any(), any()) }
+	}
+
+	@Test
+	fun `uses ItaliaMeteo when selected`() = runTest {
+		val expected = mockk<WeatherSnapshot>()
+		every { settingsRepository.settings } returns flowOf(AppSettings(weatherProvider = WeatherProviderType.ITALIA_METEO))
+		coEvery { italiaMeteo.current(44.5, 11.34) } returns expected
+
+		val actual = provider.current(44.5, 11.34)
+
+		assertSame(expected, actual)
+		coVerify(exactly = 0) { openMeteo.current(any(), any()) }
+		coVerify(exactly = 1) { italiaMeteo.current(44.5, 11.34) }
 		coVerify(exactly = 0) { metNo.current(any(), any()) }
 	}
 
@@ -45,6 +62,7 @@ class ConfiguredWeatherProviderTest {
 
 		assertSame(expected, actual)
 		coVerify(exactly = 0) { openMeteo.current(any(), any()) }
+		coVerify(exactly = 0) { italiaMeteo.current(any(), any()) }
 		coVerify(exactly = 1) { metNo.current(37.5, 127.0) }
 	}
 }
