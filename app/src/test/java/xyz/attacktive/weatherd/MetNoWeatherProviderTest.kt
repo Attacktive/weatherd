@@ -13,6 +13,7 @@ import xyz.attacktive.weatherd.data.api.MetNoApiService
 import xyz.attacktive.weatherd.data.provider.MetNoWeatherProvider
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 import xyz.attacktive.weatherd.domain.model.WeatherLabel
+import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_HEAVY
 
 class MetNoWeatherProviderTest {
@@ -39,6 +40,18 @@ class MetNoWeatherProviderTest {
 		assertEquals(18.0, snapshot.observation.windSpeedKilometersPerHour, 0.0001)
 		assertEquals(77, snapshot.observation.cloudCoverPercent)
 		assertEquals(1_757_818_800L, snapshot.observedAtEpochSeconds)
+		assertEquals(WeatherProviderType.MET_NORWAY, snapshot.source.provider)
+	}
+
+
+	@Test
+	fun `missing precipitation is rejected instead of becoming dry weather`() = runTest {
+		coEvery { api.forecast("37.5000", "127.0000") } returns metNoForecastResponse("cloudy", precipitationAmount = null)
+		coEvery { api.sunrise("37.5000", "127.0000", "2025-09-14") } returns metNoSunResponse()
+
+		val failure = runCatching { provider.current(37.500012, 127.000049) }.exceptionOrNull()
+
+		assertEquals("MET Norway current timeseries has no next-hour precipitation", failure?.message)
 	}
 
 	@Test

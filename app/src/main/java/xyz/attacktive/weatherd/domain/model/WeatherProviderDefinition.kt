@@ -5,7 +5,7 @@ import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
 
-data class WeatherProviderDefinition(
+internal data class WeatherProviderDefinition(
 	val model: String?,
 	val isGlobal: Boolean,
 	private val coverage: WeatherCoverage
@@ -13,10 +13,10 @@ data class WeatherProviderDefinition(
 	fun supports(latitude: Double, longitude: Double) = coverage.contains(latitude, longitude)
 }
 
-val WeatherProviderType.definition: WeatherProviderDefinition
+internal val WeatherProviderType.definition: WeatherProviderDefinition
 	get() = WEATHER_PROVIDER_DEFINITIONS.getValue(this)
 
-val globalWeatherProviders: List<WeatherProviderType>
+internal val globalWeatherProviders: List<WeatherProviderType>
 	get() = WeatherProviderType.entries.filter { it.definition.isGlobal }
 
 private val WEATHER_PROVIDER_DEFINITIONS = mapOf(
@@ -42,7 +42,7 @@ private val WEATHER_PROVIDER_DEFINITIONS = mapOf(
 	WeatherProviderType.METEOSWISS_ICON_CH2 to WeatherProviderDefinition(model = "meteoswiss_icon_ch2", isGlobal = false, coverage = MeteoSwissCoverage)
 )
 
-private fun interface WeatherCoverage {
+internal fun interface WeatherCoverage {
 	fun contains(latitude: Double, longitude: Double): Boolean
 }
 

@@ -98,6 +98,7 @@ class SettingsRepositoryTest {
 		val repository = SettingsRepository(dataStore())
 		val updated = AppSettings(
 			weatherProvider = WeatherProviderType.MET_NORWAY,
+			weatherFallbackProvider = WeatherProviderType.DWD_ICON_GLOBAL,
 			updateIntervalMinutes = 120,
 			useDeviceLocation = false,
 			manualLatitude = 35.68,
@@ -138,6 +139,25 @@ class SettingsRepositoryTest {
 		dataStore.edit { it[stringPreferencesKey("weather_provider")] = "WEATHER_9000" }
 
 		assertEquals(defaultAppSettings().weatherProvider, repository.settings.first().weatherProvider)
+	}
+
+
+	@Test
+	fun `a stored regional fallback is replaced by the global default`() = runTest {
+		val dataStore = dataStore()
+		val repository = SettingsRepository(dataStore)
+		dataStore.edit { it[stringPreferencesKey("weather_fallback_provider")] = WeatherProviderType.ITALIA_METEO.name }
+
+		assertEquals(defaultAppSettings().weatherFallbackProvider, repository.settings.first().weatherFallbackProvider)
+	}
+
+	@Test
+	fun `saving a regional fallback persists the global default instead`() = runTest {
+		val repository = SettingsRepository(dataStore())
+
+		repository.save(AppSettings(weatherFallbackProvider = WeatherProviderType.DWD_ICON_D2))
+
+		assertEquals(defaultAppSettings().weatherFallbackProvider, repository.settings.first().weatherFallbackProvider)
 	}
 
 	@Test

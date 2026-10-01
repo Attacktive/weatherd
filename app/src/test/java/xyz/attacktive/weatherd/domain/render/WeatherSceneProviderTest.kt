@@ -1,5 +1,8 @@
 package xyz.attacktive.weatherd.domain.render
 
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import android.content.Context
@@ -24,6 +27,7 @@ import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
+import xyz.attacktive.weatherd.domain.model.WeatherSource
 import xyz.attacktive.weatherd.domain.repository.LocationRepository
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.ReverseGeocodingRepository
@@ -156,6 +160,58 @@ class WeatherSceneProviderTest {
 		provider.refresh(1_000_060L)
 
 		coVerify(exactly = 2) { weatherRepository.current(52.52, 13.40) }
+	}
+
+
+	@Test
+	fun `an obsolete location response cannot replace a newer request`() = runTest {
+		val settings = MutableStateFlow(
+			AppSettings(
+				useDeviceLocation = false,
+				manualLatitude = 44.5,
+				manualLongitude = 11.34,
+				weatherProvider = WeatherProviderType.ITALIA_METEO
+			)
+		)
+		every { settingsRepository.settings } returns settings
+		val firstStarted = CompletableDeferred<Unit>()
+		val releaseFirst = CompletableDeferred<Unit>()
+		coEvery { weatherRepository.current(44.5, 11.34) } coAnswers {
+			firstStarted.complete(Unit)
+			releaseFirst.await()
+			Result.success(snapshotWith(weatherCode = 3, source = WeatherSource(WeatherProviderType.ITALIA_METEO)))
+		}
+		coEvery { weatherRepository.current(55.75, 37.61) } returns Result.success(snapshotWith(weatherCode = 61, source = WeatherSource(WeatherProviderType.OPEN_METEO)))
+
+		val obsoleteRefresh = async { provider.refresh(1_000_000L, force = true) }
+		firstStarted.await()
+
+		settings.value = settings.value.copy(manualLatitude = 55.75, manualLongitude = 37.61)
+		provider.refresh(1_000_060L, force = true)
+		releaseFirst.complete(Unit)
+		obsoleteRefresh.await()
+
+		assertEquals(1_000_060L, provider.status.value.lastRefreshEpochSeconds)
+		assertEquals(WeatherProviderType.OPEN_METEO, provider.status.value.weatherSource?.provider)
+	}
+
+	@Test
+	fun `a failed provider switch keeps the cached snapshot attribution`() = runTest {
+		val settings = MutableStateFlow(AppSettings(useDeviceLocation = true, weatherProvider = WeatherProviderType.OPEN_METEO))
+		every { settingsRepository.settings } returns settings
+		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
+		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(
+			snapshotWith(
+				weatherCode = 3,
+				source = WeatherSource(WeatherProviderType.OPEN_METEO)
+			)
+		) andThen Result.failure(IllegalStateException("provider unavailable"))
+
+		provider.refresh(1_000_000L)
+		settings.value = settings.value.copy(weatherProvider = WeatherProviderType.MET_NORWAY)
+		provider.refresh(1_000_060L)
+
+		assertEquals(WeatherProviderType.OPEN_METEO, provider.status.value.weatherSource?.provider)
 	}
 
 	@Test
@@ -453,7 +509,7 @@ class WeatherSceneProviderTest {
 		coVerify(exactly = 0) { locationRepository.currentLocation(force = true) }
 		coVerify(exactly = 2) { weatherRepository.current(37.57, 126.98) }
 		assertEquals(
-			WeatherSceneStatus(locationLabel = "Seoul", lastRefreshEpochSeconds = 1_000_060L),
+			WeatherSceneStatus(locationLabel = "Seoul", lastRefreshEpochSeconds = 1_000_060L, weatherSource = WeatherSource(WeatherProviderType.OPEN_METEO)),
 			provider.status.value
 		)
 	}
@@ -562,12 +618,12 @@ class WeatherSceneProviderTest {
 		provider.refresh(1_000_000L, resolveLocationName = true)
 
 		assertEquals(
-			WeatherSceneStatus(locationLabel = "Seoul", lastRefreshEpochSeconds = 1_000_000L),
+			WeatherSceneStatus(locationLabel = "Seoul", lastRefreshEpochSeconds = 1_000_000L, weatherSource = WeatherSource(WeatherProviderType.OPEN_METEO)),
 			provider.status.value
 		)
 	}
 
-	private fun snapshotWith(weatherCode: Int) = WeatherSnapshot(
+	private fun snapshotWith(weatherCode: Int, source: WeatherSource = WeatherSource(WeatherProviderType.OPEN_METEO)) = WeatherSnapshot(
 		observation = WeatherObservation(
 			condition = conditionForWmoCode(weatherCode),
 			isDay = true,
@@ -578,6 +634,7 @@ class WeatherSceneProviderTest {
 		),
 		observedAtEpochSeconds = 1_000_000L,
 		sunriseEpochSeconds = null,
-		sunsetEpochSeconds = null
+		sunsetEpochSeconds = null,
+		source = source
 	)
 }
