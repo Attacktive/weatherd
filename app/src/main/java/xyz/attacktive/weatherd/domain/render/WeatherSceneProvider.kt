@@ -1,6 +1,7 @@
 package xyz.attacktive.weatherd.domain.render
 
 import java.time.LocalTime
+import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,6 +20,7 @@ import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
+import xyz.attacktive.weatherd.domain.model.WeatherSource
 import xyz.attacktive.weatherd.domain.repository.LocationRepository
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.ReverseGeocodingRepository
@@ -28,7 +30,7 @@ import xyz.attacktive.weatherd.domain.weather.moonPhaseFor
 import xyz.attacktive.weatherd.domain.weather.weatherLabelFor
 import xyz.attacktive.weatherd.util.AppLogger
 
-data class WeatherSceneStatus(val locationLabel: String? = null, val lastRefreshEpochSeconds: Long? = null)
+data class WeatherSceneStatus(val locationLabel: String? = null, val lastRefreshEpochSeconds: Long? = null, val weatherSource: WeatherSource? = null)
 
 /**
  * Shared source of truth for the current [SceneParams], so the live wallpaper and the in-app preview never disagree about what to draw. Live weather is fetched lazily and cached; while the persisted scene simulator is active, its preset, phase and progress replace those meteorological fields for both consumers.
@@ -43,6 +45,8 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	@Volatile private var lastRefreshEpochSeconds = 0L
 	@Volatile private var lastLocationKey: String? = null
 	@Volatile private var lastAttemptedWeatherProvider: WeatherProviderType? = null
+	@Volatile private var lastAttemptedWeatherFallbackProvider: WeatherProviderType? = null
+	private val weatherRequestGeneration = AtomicLong(0)
 	@Volatile private var backdropScene = BackdropScene.NONE
 	@Volatile private var photoRevision = 0
 	@Volatile private var showWeatherLabel = false
@@ -132,7 +136,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 
 		val locationKey = locationKey(settings)
 		val locationChanged = locationKey != lastLocationKey
-		val weatherProviderChanged = settings.weatherProvider != lastAttemptedWeatherProvider
+		val weatherProviderChanged = settings.weatherProvider != lastAttemptedWeatherProvider || settings.weatherFallbackProvider != lastAttemptedWeatherFallbackProvider
 		val minRefreshSeconds = settings.updateIntervalMinutes * SECONDS_PER_MINUTE
 		if (!force && !locationChanged && !weatherProviderChanged && nowEpochSeconds - lastRefreshEpochSeconds < minRefreshSeconds) {
 			return Result.success(Unit)
@@ -159,14 +163,26 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		 * Consume it when the request is attempted so a failing provider does not bypass the normal interval on every visibility change.
 		 */
 		lastAttemptedWeatherProvider = settings.weatherProvider
+		lastAttemptedWeatherFallbackProvider = settings.weatherFallbackProvider
+		val requestGeneration = weatherRequestGeneration.incrementAndGet()
+		val weatherResult = weatherRepository.current(location.latitude, location.longitude)
+		if (weatherResult.isFailure) {
+			return weatherResult.map { Unit }
+		}
 
-		return weatherRepository.current(location.latitude, location.longitude).map { weather ->
+		val latestSettings = settingsRepository.settings.first()
+		if (requestGeneration != weatherRequestGeneration.get() || !sameWeatherRequest(settings, latestSettings)) {
+			logger.debug(TAG, "discarding obsolete weather response")
+			return Result.success(Unit)
+		}
+
+		return weatherResult.map { weather ->
 			snapshot = weather
 			lastRefreshEpochSeconds = nowEpochSeconds
 			lastLocationKey = locationKey
 			lastRefreshLocation = location
 			publishStatus(settings)
-			logger.debug(TAG, "weather refreshed: condition=${weather.observation.condition.label}, cloud=${weather.observation.cloudCoverPercent}%")
+			logger.debug(TAG, "weather refreshed: provider=${weather.source.provider}, condition=${weather.observation.condition.label}, cloud=${weather.observation.cloudCoverPercent}%")
 		}
 	}
 
@@ -322,17 +338,26 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		val currentLocation = manual ?: lastDeviceFix
 		val currentFixKey = currentLocation?.let(::locationFixKey)
 		val statusLabel = manual?.let { settings.manualLocationLabel } ?: deviceLocationLabel(currentFixKey)
-		val lastUpdated = lastRefreshEpochSeconds.takeIf { currentLocation != null && currentLocation == lastRefreshLocation }
+		val hasCurrentSnapshot = currentLocation != null && currentLocation == lastRefreshLocation
+		val lastUpdated = lastRefreshEpochSeconds.takeIf { hasCurrentSnapshot }
+		val weatherSource = snapshot?.source.takeIf { hasCurrentSnapshot }
 
 		_status.value = WeatherSceneStatus(
 			locationLabel = statusLabel,
-			lastRefreshEpochSeconds = lastUpdated
+			lastRefreshEpochSeconds = lastUpdated,
+			weatherSource = weatherSource
 		)
 	}
 
 	private fun deviceLocationLabel(currentFixKey: String?) = locationLabel.takeIf { currentFixKey != null && currentFixKey == geocodedKey }
 
 	private fun locationFixKey(location: GeoLocation) = "${location.latitude},${location.longitude}"
+
+	private fun sameWeatherRequest(first: AppSettings, second: AppSettings) = first.weatherProvider == second.weatherProvider &&
+		first.weatherFallbackProvider == second.weatherFallbackProvider &&
+		first.useDeviceLocation == second.useDeviceLocation &&
+		first.manualLatitude == second.manualLatitude &&
+		first.manualLongitude == second.manualLongitude
 
 	/** The formatted overlay lines, or null when nothing is toggled on — the renderer skips the text pass entirely. */
 	private fun overlayLabels(snapshot: WeatherSnapshot): OverlayLabels? {

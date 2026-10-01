@@ -156,7 +156,12 @@ class SettingsViewModel @Inject constructor(
 
 	fun save(settings: AppSettings) {
 		viewModelScope.launch {
+			val current = settingsRepository.settings.first()
 			settingsRepository.save(settings)
+
+			if (current.weatherProvider != settings.weatherProvider || current.weatherFallbackProvider != settings.weatherFallbackProvider) {
+				refreshWeatherStatus(force = true)
+			}
 		}
 	}
 

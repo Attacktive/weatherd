@@ -29,6 +29,7 @@ import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.defaultAppSettings
+import xyz.attacktive.weatherd.domain.model.definition
 
 /** Persists [AppSettings] to a DataStore; defaults are resolved once when the repository is created and reused for absent keys. */
 @Singleton
@@ -37,6 +38,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 
 	private object Keys {
 		val WEATHER_PROVIDER = stringPreferencesKey("weather_provider")
+		val WEATHER_FALLBACK_PROVIDER = stringPreferencesKey("weather_fallback_provider")
 		val UPDATE_INTERVAL_MINUTES = intPreferencesKey("update_interval_minutes")
 		val USE_DEVICE_LOCATION = booleanPreferencesKey("use_device_location")
 		val MANUAL_LATITUDE = doublePreferencesKey("manual_latitude")
@@ -73,6 +75,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 	val settings: Flow<AppSettings> = dataStore.data.map { preferences ->
 		AppSettings(
 			weatherProvider = enumOrDefault(preferences[Keys.WEATHER_PROVIDER], WeatherProviderType.entries, defaults.weatherProvider),
+			weatherFallbackProvider = globalWeatherProviderOrDefault(preferences[Keys.WEATHER_FALLBACK_PROVIDER], defaults.weatherFallbackProvider),
 			updateIntervalMinutes = preferences[Keys.UPDATE_INTERVAL_MINUTES] ?: defaults.updateIntervalMinutes,
 			useDeviceLocation = preferences[Keys.USE_DEVICE_LOCATION] ?: defaults.useDeviceLocation,
 			manualLatitude = preferences[Keys.MANUAL_LATITUDE],
@@ -110,6 +113,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 	suspend fun save(settings: AppSettings) {
 		dataStore.edit { preferences ->
 			preferences[Keys.WEATHER_PROVIDER] = settings.weatherProvider.name
+			preferences[Keys.WEATHER_FALLBACK_PROVIDER] = settings.weatherFallbackProvider.takeIf { it.definition.isGlobal }?.name ?: defaults.weatherFallbackProvider.name
 			preferences[Keys.UPDATE_INTERVAL_MINUTES] = settings.updateIntervalMinutes
 			preferences[Keys.USE_DEVICE_LOCATION] = settings.useDeviceLocation
 			preferences.putOrRemove(Keys.MANUAL_LATITUDE, settings.manualLatitude)
@@ -143,6 +147,12 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			preferences[Keys.SCENE_SIMULATOR_CELESTIAL_PROGRESS] = settings.sceneSimulatorCelestialProgress.coerceIn(0f, 1f)
 		}
 	}
+}
+
+private fun globalWeatherProviderOrDefault(name: String?, default: WeatherProviderType): WeatherProviderType {
+	val provider = enumOrDefault(name, WeatherProviderType.entries, default)
+
+	return if (provider.definition.isGlobal) provider else default
 }
 
 private fun <T : Enum<T>> enumOrDefault(name: String?, values: Iterable<T>, default: T) = values.firstOrNull { it.name == name } ?: default

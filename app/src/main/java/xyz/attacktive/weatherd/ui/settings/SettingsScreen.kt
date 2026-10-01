@@ -106,7 +106,10 @@ import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
+import xyz.attacktive.weatherd.domain.model.WeatherFallbackReason
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
+import xyz.attacktive.weatherd.domain.model.WeatherSource
+import xyz.attacktive.weatherd.domain.model.globalWeatherProviders
 import xyz.attacktive.weatherd.domain.render.WeatherSceneStatus
 import xyz.attacktive.weatherd.domain.model.UPDATE_INTERVAL_OPTIONS
 import xyz.attacktive.weatherd.domain.model.drawsScenery
@@ -206,6 +209,10 @@ private fun WeatherSettingsTab(viewModel: SettingsViewModel, scrollState: Scroll
 
 		Spacer(modifier = Modifier.height(24.dp))
 
+		WeatherFallbackProviderSection(settings = settings, defaults = viewModel.defaults, onSave = viewModel::save)
+
+		Spacer(modifier = Modifier.height(24.dp))
+
 		RefreshIntervalSection(settings = settings, defaults = viewModel.defaults, onSave = viewModel::save)
 	}
 }
@@ -277,7 +284,7 @@ private fun AdvancedSettingsTab(viewModel: SettingsViewModel, scrollState: Scrol
 	SettingsTabContent(scrollState) {
 		SceneSimulatorSection(settings = settings, onSave = viewModel::save)
 
-		if (settings.weatherProvider == WeatherProviderType.MET_NORWAY) {
+		if (settings.weatherProvider == WeatherProviderType.MET_NORWAY || settings.weatherFallbackProvider == WeatherProviderType.MET_NORWAY) {
 			Spacer(modifier = Modifier.height(24.dp))
 
 			MetNoAttributionSection()
@@ -319,6 +326,7 @@ private data class CitySearchActions(
 private data class CurrentLocationSummaryState(
 	val locationLabel: String?,
 	val lastRefreshEpochSeconds: Long?,
+	val weatherSource: WeatherSource?,
 	val refreshInProgress: Boolean,
 	val onClear: (() -> Unit)?
 )
@@ -382,6 +390,47 @@ private fun WeatherProviderSection(settings: AppSettings, defaults: AppSettings,
 	}
 
 	HintText(stringResource(R.string.hint_weather_provider))
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun WeatherFallbackProviderSection(settings: AppSettings, defaults: AppSettings, onSave: (AppSettings) -> Unit) {
+	var expanded by remember { mutableStateOf(false) }
+
+	ResettableSectionLabel(
+		text = stringResource(R.string.section_weather_fallback_provider),
+		isDefault = settings.weatherFallbackProvider == defaults.weatherFallbackProvider,
+		onReset = { onSave(settings.copy(weatherFallbackProvider = defaults.weatherFallbackProvider)) }
+	)
+
+	ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+		OutlinedTextField(
+			value = formatWeatherProvider(settings.weatherFallbackProvider),
+			onValueChange = {},
+			readOnly = true,
+			trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+			modifier = Modifier
+				.fillMaxWidth()
+				.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+		)
+
+		ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+			globalWeatherProviders.forEach { provider ->
+				DropdownMenuItem(
+					text = { Text(formatWeatherProvider(provider)) },
+					onClick = {
+						if (provider != settings.weatherFallbackProvider) {
+							onSave(settings.copy(weatherFallbackProvider = provider))
+						}
+
+						expanded = false
+					}
+				)
+			}
+		}
+	}
+
+	HintText(stringResource(R.string.hint_weather_fallback_provider))
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1053,6 +1102,7 @@ private fun LocationSection(
 	val summaryState = CurrentLocationSummaryState(
 		locationLabel = if (manualLocationSelected) settings.manualLocationLabel else state.weatherStatus.locationLabel,
 		lastRefreshEpochSeconds = state.weatherStatus.lastRefreshEpochSeconds,
+		weatherSource = state.weatherStatus.weatherSource,
 		refreshInProgress = state.weatherRefreshInProgress,
 		onClear = locationActions.onClearManualLocation.takeIf { manualLocationSelected }
 	)
@@ -1168,6 +1218,7 @@ private fun CitySearchResults(state: CitySearchState, onSelectPlace: (GeoPlace) 
 @Composable
 private fun CurrentLocationSummary(state: CurrentLocationSummaryState, onRefresh: () -> Unit) {
 	val lastUpdated = formatLastUpdated(state.lastRefreshEpochSeconds)
+	val weatherSource = state.weatherSource?.let { formatWeatherSource(it) }
 
 	Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
 		Column(modifier = Modifier.weight(1f)) {
@@ -1178,6 +1229,14 @@ private fun CurrentLocationSummary(state: CurrentLocationSummaryState, onRefresh
 				style = MaterialTheme.typography.bodySmall,
 				color = MaterialTheme.colorScheme.onSurfaceVariant
 			)
+
+			if (weatherSource != null) {
+				Text(
+					weatherSource,
+					style = MaterialTheme.typography.bodySmall,
+					color = MaterialTheme.colorScheme.onSurfaceVariant
+				)
+			}
 		}
 
 		state.onClear?.let { onClear ->
@@ -1307,8 +1366,24 @@ private fun ErrorText(text: String) {
 @Composable
 private fun formatWeatherProvider(provider: WeatherProviderType) = when (provider) {
 	WeatherProviderType.OPEN_METEO -> stringResource(R.string.provider_open_meteo)
-	WeatherProviderType.ITALIA_METEO -> stringResource(R.string.provider_italia_meteo)
 	WeatherProviderType.MET_NORWAY -> stringResource(R.string.provider_met_norway)
+	WeatherProviderType.DWD_ICON_GLOBAL -> stringResource(R.string.provider_dwd_icon_global)
+	WeatherProviderType.DWD_ICON_EU -> stringResource(R.string.provider_dwd_icon_eu)
+	WeatherProviderType.DWD_ICON_D2 -> stringResource(R.string.provider_dwd_icon_d2)
+	WeatherProviderType.ITALIA_METEO -> stringResource(R.string.provider_italia_meteo)
+	WeatherProviderType.METEOSWISS_ICON_CH1 -> stringResource(R.string.provider_meteoswiss_icon_ch1)
+	WeatherProviderType.METEOSWISS_ICON_CH2 -> stringResource(R.string.provider_meteoswiss_icon_ch2)
+}
+
+@Composable
+private fun formatWeatherSource(source: WeatherSource): String {
+	val provider = formatWeatherProvider(source.provider)
+
+	return when (source.fallbackReason) {
+		null -> stringResource(R.string.weather_source, provider)
+		WeatherFallbackReason.OUTSIDE_COVERAGE -> stringResource(R.string.weather_source_fallback_outside_coverage, provider)
+		WeatherFallbackReason.PRIMARY_FAILED -> stringResource(R.string.weather_source_fallback_primary_failed, provider)
+	}
 }
 
 @Composable
