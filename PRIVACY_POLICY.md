@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Weatherd** is an Android live wallpaper that renders a procedural weather scene using [Open-Meteo](https://open-meteo.com), ItaliaMeteo ICON-2I via Open-Meteo, or [MET Norway](https://api.met.no), selected by the user. This policy explains what data the app uses and how.
+**Weatherd** is an Android live wallpaper that renders a procedural weather scene using [Open-Meteo](https://open-meteo.com), explicit ICON-family models served through Open-Meteo, or [MET Norway](https://api.met.no). The user chooses a primary weather provider and a global fallback. This policy explains what data the app uses and how.
 
 ## Data collected and stored
 
@@ -8,7 +8,7 @@ Settings are stored **locally on your device only** and are never transmitted to
 
 | Data                                      | Purpose                                   | Where stored                       |
 |-------------------------------------------|-------------------------------------------|------------------------------------|
-| Weather provider                         | Choose the service used for weather       | Device storage (DataStore)         |
+| Primary and fallback weather providers   | Choose the preferred model and global fallback | Device storage (DataStore)    |
 | Refresh interval                          | How often weather is re-fetched           | Device storage (DataStore)         |
 | Location mode (device vs manual)          | Choose approximate GPS or a searched city | Device storage (DataStore)         |
 | Manual place (label, latitude, longitude) | Remember a city you picked                | Device storage (DataStore)         |
@@ -22,15 +22,17 @@ A photo you pick for a part of the day is copied into the app's own private stor
 
 The app communicates with **[Open-Meteo](https://open-meteo.com)**:
 
-- Forecast API — current weather for your chosen coordinates when Open-Meteo or ItaliaMeteo (ICON-2I) is selected; the ItaliaMeteo option explicitly requests the `italia_meteo_arpae_icon_2i` model
+- Forecast API — current weather for your chosen coordinates when Open-Meteo Best Match or an explicit DWD, ItaliaMeteo, or MeteoSwiss ICON model is used, including when one of those options is the configured fallback
 - Geocoding API — city name search when you pick a place manually
 
-The app also communicates with **[MET Norway](https://api.met.no)** when MET Norway is selected:
+The app also communicates with **[MET Norway](https://api.met.no)** when MET Norway is the effective primary or fallback provider:
 
 - Locationforecast API — current weather for your chosen coordinates
 - Sunrise API — sunrise, sunset, and solar state for your chosen coordinates
 
-Latitude and longitude are sent to the selected weather provider for forecast requests. City search queries are sent to Open-Meteo regardless of the selected forecast provider. MET Norway states that direct API access logs may contain the user's IP address and requested geocoordinates; those logs are operated by MET Norway and are subject to its own privacy policy and terms. Open-Meteo's own privacy policy applies to Open-Meteo traffic. Neither weather service requires an API key or user account in Weatherd.
+Regional models are used only within their supported geographic coverage. If the primary model does not cover the chosen coordinates or its request fails, Weatherd may make one request to the configured global fallback without changing either saved preference.
+
+Latitude and longitude are sent to the weather service actually used for a forecast request. City search queries are sent to Open-Meteo regardless of the selected forecast providers. MET Norway states that direct API access logs may contain the user's IP address and requested geocoordinates; those logs are operated by MET Norway and are subject to its own privacy policy and terms. Open-Meteo's own privacy policy applies to Open-Meteo traffic. Neither weather service requires an API key or user account in Weatherd.
 
 No analytics, advertising, or tracking services are used.
 

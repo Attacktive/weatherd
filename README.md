@@ -2,7 +2,7 @@
 
 [![Test](https://github.com/Attacktive/weatherd/actions/workflows/test.yaml/badge.svg)](https://github.com/Attacktive/weatherd/actions/workflows/test.yaml)
 
-Android live wallpaper that renders a procedural weather scene from your choice of [Open-Meteo](https://open-meteo.com), [ItaliaMeteo ICON-2I](https://open-meteo.com/en/docs/italia-meteo-arpae-api) via Open-Meteo, or [MET Norway](https://api.met.no).
+Android live wallpaper that renders a procedural weather scene from Open-Meteo Best Match, [MET Norway](https://api.met.no), or explicit ICON models from DWD, ItaliaMeteo, and MeteoSwiss through [Open-Meteo](https://open-meteo.com). Regional models automatically use a user-configured global fallback outside their coverage or when their request fails.
 
 Uses device location or a manually searched city, refreshes on a configurable interval (15 min – 6 hr), and mirrors the live scene in an in-app preview.
 
@@ -33,8 +33,14 @@ Run the pull-request checks locally with `./gradlew test :app:lint :app:detekt`.
 
 ## Weather data attribution
 
-Weather data comes from [Open-Meteo](https://open-meteo.com), [ItaliaMeteo ICON-2I](https://open-meteo.com/en/docs/italia-meteo-arpae-api) through Open-Meteo, or [MET Norway](https://api.met.no), depending on the provider selected in Settings.
+Weatherd offers Open-Meteo Best Match, [MET Norway](https://api.met.no), and explicit ICON-family forecasts served through [Open-Meteo](https://open-meteo.com):
 
-Open-Meteo data is provided under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). When ItaliaMeteo (ICON-2I) is selected, Weatherd explicitly requests Open-Meteo's `italia_meteo_arpae_icon_2i` model instead of Open-Meteo's automatic model selection.
+- DWD ICON Global (~11 km), ICON EU (~7 km), and ICON D2 (~2 km)
+- [ItaliaMeteo ICON-2I](https://open-meteo.com/en/docs/italia-meteo-arpae-api) (~2 km)
+- [MeteoSwiss ICON CH1 and CH2](https://open-meteo.com/en/docs/meteoswiss-api) (~1 km and ~2 km)
+
+Regional models are selected only for coordinates inside their published grids. Outside that coverage, or if the primary request fails, Weatherd makes at most one request to the user's configured global fallback. The primary and fallback preferences remain unchanged, and cached weather retains the source that actually produced it.
+
+Open-Meteo data is provided under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Explicit ICON choices request their corresponding Open-Meteo model identifier instead of automatic model selection.
 
 MET Norway data is provided by The Norwegian Meteorological Institute ("MET Norway") under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Weatherd modifies provider data by normalizing provider-specific fields into its own weather-condition model and rendering the result as procedural scenes.
