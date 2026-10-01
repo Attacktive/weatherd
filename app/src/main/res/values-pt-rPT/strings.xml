@@ -24,8 +24,9 @@
 	<string name="content_description_reset_to_default">Repor %1$s para a predefinição</string>
 	<string name="reset_to_default">Repor</string>
 	<string name="section_weather_provider">Fornecedor meteorológico</string>
-	<string name="hint_weather_provider">Escolha o serviço que o Weatherd utiliza para dados meteorológicos. Ambas as opções funcionam sem chave de API.</string>
+	<string name="hint_weather_provider">Escolha o serviço que o Weatherd utiliza para dados meteorológicos. Todas as opções funcionam sem chave de API.</string>
 	<string name="provider_open_meteo">Open-Meteo</string>
+	<string name="provider_italia_meteo">ItaliaMeteo (ICON-2I)</string>
 	<string name="provider_met_norway">MET Norway</string>
 	<string name="section_data_attribution">Atribuição dos dados</string>
 	<string name="attribution_met_norway">Baseado em dados do MET Norway</string>

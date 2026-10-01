@@ -24,8 +24,9 @@
 	<string name="content_description_reset_to_default">%1$sをデフォルトに戻す</string>
 	<string name="reset_to_default">リセット</string>
 	<string name="section_weather_provider">天気プロバイダー</string>
-	<string name="hint_weather_provider">Weatherd が天気データに使用するサービスを選択します。どちらも API キーなしで利用できます。</string>
+	<string name="hint_weather_provider">Weatherd が天気データに使用するサービスを選択します。すべてのオプションは API キーなしで利用できます。</string>
 	<string name="provider_open_meteo">Open-Meteo</string>
+	<string name="provider_italia_meteo">ItaliaMeteo (ICON-2I)</string>
 	<string name="provider_met_norway">MET Norway</string>
 	<string name="section_data_attribution">データの帰属</string>
 	<string name="attribution_met_norway">MET Norway のデータに基づく</string>

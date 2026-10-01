@@ -24,8 +24,9 @@
 	<string name="content_description_reset_to_default">将%1$s重置为默认值</string>
 	<string name="reset_to_default">重置</string>
 	<string name="section_weather_provider">天气提供商</string>
-	<string name="hint_weather_provider">选择 Weatherd 获取天气数据所使用的服务。两种选项都无需 API 密钥。</string>
+	<string name="hint_weather_provider">选择 Weatherd 获取天气数据所使用的服务。所有选项都无需 API 密钥。</string>
 	<string name="provider_open_meteo">Open-Meteo</string>
+	<string name="provider_italia_meteo">ItaliaMeteo (ICON-2I)</string>
 	<string name="provider_met_norway">MET Norway</string>
 	<string name="section_data_attribution">数据署名</string>
 	<string name="attribution_met_norway">基于 MET Norway 数据</string>
