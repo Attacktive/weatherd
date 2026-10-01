@@ -170,15 +170,19 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			return Result.success(Unit)
 		}
 
-		val latestSettingsBeforeRequest = settingsRepository.settings.first()
-		if (!sameWeatherRequest(settings, latestSettingsBeforeRequest)) {
-			logger.debug(TAG, "discarding obsolete weather request before fetch")
+		if (!weatherRequestIsCurrent(settings)) {
+			logger.debug(TAG, "discarding obsolete weather request before location update")
 			return Result.success(Unit)
 		}
 
 		// The device fix is remembered and the label refreshed again now that one exists — the first refresh has nothing cached for the pre-throttle pass to geocode.
 		rememberDeviceFix(settings, location)
 		refreshLocationLabel(settings, resolveLocationName)
+
+		if (!weatherRequestIsCurrent(settings)) {
+			logger.debug(TAG, "discarding obsolete weather request before fetch")
+			return Result.success(Unit)
+		}
 
 		/*
 		 * A provider change is an immediate-refresh trigger, not a retry policy.
@@ -420,6 +424,8 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	private fun deviceLocationLabel(currentFixKey: String?) = locationLabel.takeIf { currentFixKey != null && currentFixKey == geocodedKey }
 
 	private fun locationFixKey(location: GeoLocation) = "${location.latitude},${location.longitude}"
+
+	private suspend fun weatherRequestIsCurrent(settings: AppSettings) = sameWeatherRequest(settings, settingsRepository.settings.first())
 
 	private fun sameWeatherRequest(first: AppSettings, second: AppSettings) = first.weatherProvider == second.weatherProvider &&
 		first.weatherFallbackProvider == second.weatherFallbackProvider &&
