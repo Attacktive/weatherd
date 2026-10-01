@@ -46,11 +46,12 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 		setOnClickPendingIntent(R.id.weather_refresh_widget, refreshPendingIntent(context))
 	}
 
-	private fun refreshPendingIntent(context: Context): PendingIntent {
+	internal fun refreshPendingIntent(context: Context, requestCode: Int = 0): PendingIntent {
 		val intent = Intent(context, WeatherRefreshWidgetProvider::class.java)
 			.setAction(ACTION_REFRESH)
+			.addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
 
-		return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+		return PendingIntent.getBroadcast(context, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 	}
 
 	private companion object {

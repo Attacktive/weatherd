@@ -391,7 +391,6 @@ class WeatherSceneProviderTest {
 	fun `the reverse geocode is cached per location fix`() = runTest {
 		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = true, showLocationLabel = true))
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(37.57, 126.98)
-		coEvery { locationRepository.currentLocation(force = true) } returns GeoLocation(37.57, 126.98)
 		coEvery { weatherRepository.current(37.57, 126.98) } returns Result.success(snapshotWith(weatherCode = 63))
 		coEvery { reverseGeocodingRepository.placeName(37.57, 126.98) } returns "Seoul"
 
@@ -441,21 +440,20 @@ class WeatherSceneProviderTest {
 	}
 
 	@Test
-	fun `a forced refresh requests a fresh device fix and publishes the new place`() = runTest {
+	fun `a forced refresh bypasses the weather interval without forcing a device fix`() = runTest {
 		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = true, updateIntervalMinutes = 30))
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(37.57, 126.98)
-		coEvery { locationRepository.currentLocation(force = true) } returns GeoLocation(35.68, 139.69)
-		coEvery { weatherRepository.current(37.57, 126.98) } returns Result.success(snapshotWith(weatherCode = 63))
-		coEvery { weatherRepository.current(35.68, 139.69) } returns Result.success(snapshotWith(weatherCode = 3))
+		coEvery { weatherRepository.current(37.57, 126.98) } returns Result.success(snapshotWith(weatherCode = 63)) andThen Result.success(snapshotWith(weatherCode = 3))
 		coEvery { reverseGeocodingRepository.placeName(37.57, 126.98) } returns "Seoul"
-		coEvery { reverseGeocodingRepository.placeName(35.68, 139.69) } returns "Tokyo"
 
 		provider.refresh(1_000_000L, resolveLocationName = true)
 		provider.refresh(1_000_060L, force = true, resolveLocationName = true)
 
-		coVerify(exactly = 1) { locationRepository.currentLocation(force = true) }
+		coVerify(exactly = 2) { locationRepository.currentLocation() }
+		coVerify(exactly = 0) { locationRepository.currentLocation(force = true) }
+		coVerify(exactly = 2) { weatherRepository.current(37.57, 126.98) }
 		assertEquals(
-			WeatherSceneStatus(locationLabel = "Tokyo", lastRefreshEpochSeconds = 1_000_060L),
+			WeatherSceneStatus(locationLabel = "Seoul", lastRefreshEpochSeconds = 1_000_060L),
 			provider.status.value
 		)
 	}

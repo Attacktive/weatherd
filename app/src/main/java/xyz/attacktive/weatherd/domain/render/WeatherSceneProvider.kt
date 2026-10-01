@@ -105,7 +105,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	}
 
 	/**
-	 * Fetches fresh weather for the current location, unless a fetch succeeded within the user's configured refresh interval (bypass with [force]).
+	 * Fetches fresh weather for the current location, unless a fetch succeeded within the user's configured refresh interval; [force] bypasses only that weather throttle and keeps the normal device-location freshness policy.
 	 * A change in location settings (device↔manual, or a new city) or weather provider also bypasses the interval, so the scene tracks the new source on the next refresh instead of waiting out the throttle.
 	 * No-ops without a location fix or permission, leaving the last known scene in place.
 	 */
@@ -124,7 +124,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		 */
 		applyRenderSettings(settings)
 		if (sceneSimulatorActive) {
-			refreshSimulatorStatus(settings, force, resolveLocationName)
+			refreshSimulatorStatus(settings, resolveLocationName)
 			return Result.success(Unit)
 		}
 
@@ -138,7 +138,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			return Result.success(Unit)
 		}
 
-		val location = resolveLocation(settings, force)
+		val location = resolveLocation(settings)
 		if (location == null) {
 			val fallbackLocation = if (snapshot == null) {
 				"fallback scene"
@@ -226,17 +226,13 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		.copy(backdropScene = backdropScene, photoRevision = photoRevision)
 
 	/** Manual coordinates win only when the user opted out of device location and actually set a place; otherwise the device fix. */
-	private suspend fun resolveLocation(settings: AppSettings, forceDeviceFix: Boolean): GeoLocation? {
+	private suspend fun resolveLocation(settings: AppSettings): GeoLocation? {
 		val manual = selectedManualLocation(settings)
 		if (manual != null) {
 			return manual
 		}
 
-		return if (forceDeviceFix) {
-			locationRepository.currentLocation(force = true)
-		} else {
-			locationRepository.currentLocation()
-		}
+		return locationRepository.currentLocation()
 	}
 
 	private fun manualLocation(settings: AppSettings): GeoLocation? {
@@ -291,16 +287,16 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		publishStatus(settings)
 	}
 
-	private suspend fun refreshSimulatorStatus(settings: AppSettings, forceDeviceFix: Boolean, resolveLocationName: Boolean) {
+	private suspend fun refreshSimulatorStatus(settings: AppSettings, resolveLocationName: Boolean) {
 		if (!resolveLocationName) {
 			return
 		}
 
-		refreshStatusLocation(settings, forceDeviceFix)
+		refreshStatusLocation(settings)
 	}
 
-	private suspend fun refreshStatusLocation(settings: AppSettings, forceDeviceFix: Boolean) {
-		val location = resolveLocation(settings, forceDeviceFix)
+	private suspend fun refreshStatusLocation(settings: AppSettings) {
+		val location = resolveLocation(settings)
 		if (location != null) {
 			rememberDeviceFix(settings, location)
 		}
