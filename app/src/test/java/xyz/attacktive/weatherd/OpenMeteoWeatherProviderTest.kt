@@ -50,7 +50,6 @@ class OpenMeteoWeatherProviderTest {
 		assertNull(snapshot.source.model)
 	}
 
-
 	@Test
 	fun `explicit ICON choices request their exact models and keep attribution`() = runTest {
 		coEvery { api.forecast(any(), any(), any(), any(), any(), any(), any(), any()) } returns ForecastResponseDto(

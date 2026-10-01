@@ -162,7 +162,6 @@ class WeatherSceneProviderTest {
 		coVerify(exactly = 2) { weatherRepository.current(52.52, 13.40) }
 	}
 
-
 	@Test
 	fun `an obsolete location response cannot replace a newer request`() = runTest {
 		val settings = MutableStateFlow(
@@ -181,6 +180,7 @@ class WeatherSceneProviderTest {
 			releaseFirst.await()
 			Result.success(snapshotWith(weatherCode = 3, source = WeatherSource(WeatherProviderType.ITALIA_METEO)))
 		}
+
 		coEvery { weatherRepository.current(55.75, 37.61) } returns Result.success(snapshotWith(weatherCode = 61, source = WeatherSource(WeatherProviderType.OPEN_METEO)))
 
 		val obsoleteRefresh = async { provider.refresh(1_000_000L, force = true) }
@@ -193,6 +193,38 @@ class WeatherSceneProviderTest {
 
 		assertEquals(1_000_060L, provider.status.value.lastRefreshEpochSeconds)
 		assertEquals(WeatherProviderType.OPEN_METEO, provider.status.value.weatherSource?.provider)
+	}
+
+	@Test
+	fun `a newer failed same-target request does not discard an older success`() = runTest {
+		val settings = AppSettings(useDeviceLocation = true)
+		every { settingsRepository.settings } returns flowOf(settings)
+		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
+		val firstStarted = CompletableDeferred<Unit>()
+		val releaseFirst = CompletableDeferred<Unit>()
+		var requestCount = 0
+		coEvery { weatherRepository.current(52.52, 13.40) } coAnswers {
+			requestCount += 1
+			if (requestCount == 1) {
+				firstStarted.complete(Unit)
+				releaseFirst.await()
+				Result.success(snapshotWith(weatherCode = 3, source = WeatherSource(WeatherProviderType.OPEN_METEO)))
+			} else {
+				Result.failure(IllegalStateException("provider unavailable"))
+			}
+		}
+
+		val firstRefresh = async { provider.refreshWithResult(1_000_000L, force = true) }
+		firstStarted.await()
+		val newerFailure = provider.refreshWithResult(1_000_060L, force = true)
+		releaseFirst.complete(Unit)
+		val olderSuccess = firstRefresh.await()
+
+		assertTrue(newerFailure.isFailure)
+		assertTrue(olderSuccess.isSuccess)
+		assertEquals(1_000_000L, provider.status.value.lastRefreshEpochSeconds)
+		assertEquals(WeatherProviderType.OPEN_METEO, provider.status.value.weatherSource?.provider)
+		coVerify(exactly = 2) { weatherRepository.current(52.52, 13.40) }
 	}
 
 	@Test

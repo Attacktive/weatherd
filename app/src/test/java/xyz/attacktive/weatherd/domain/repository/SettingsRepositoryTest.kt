@@ -141,7 +141,6 @@ class SettingsRepositoryTest {
 		assertEquals(defaultAppSettings().weatherProvider, repository.settings.first().weatherProvider)
 	}
 
-
 	@Test
 	fun `a stored regional fallback is replaced by the global default`() = runTest {
 		val dataStore = dataStore()

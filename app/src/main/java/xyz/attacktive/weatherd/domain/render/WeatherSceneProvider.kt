@@ -1,7 +1,6 @@
 package xyz.attacktive.weatherd.domain.render
 
 import java.time.LocalTime
-import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,6 +31,19 @@ import xyz.attacktive.weatherd.util.AppLogger
 
 data class WeatherSceneStatus(val locationLabel: String? = null, val lastRefreshEpochSeconds: Long? = null, val weatherSource: WeatherSource? = null)
 
+private data class WeatherRequestKey(
+	val latitude: Double,
+	val longitude: Double,
+	val provider: WeatherProviderType,
+	val fallbackProvider: WeatherProviderType
+)
+
+private data class WeatherRequestToken(
+	val key: WeatherRequestKey,
+	val generation: Long,
+	val sequence: Long
+)
+
 /**
  * Shared source of truth for the current [SceneParams], so the live wallpaper and the in-app preview never disagree about what to draw. Live weather is fetched lazily and cached; while the persisted scene simulator is active, its preset, phase and progress replace those meteorological fields for both consumers.
  * Thread-safe: [refresh] runs off the render thread and publishes weather, display settings and simulator state through volatile fields that [paramsFor] reads.
@@ -46,7 +58,11 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	@Volatile private var lastLocationKey: String? = null
 	@Volatile private var lastAttemptedWeatherProvider: WeatherProviderType? = null
 	@Volatile private var lastAttemptedWeatherFallbackProvider: WeatherProviderType? = null
-	private val weatherRequestGeneration = AtomicLong(0)
+	private val weatherRequestLock = Any()
+	private var activeWeatherRequestKey: WeatherRequestKey? = null
+	private var weatherRequestGeneration = 0L
+	private var weatherRequestSequence = 0L
+	private var lastPublishedWeatherRequestSequence = 0L
 	@Volatile private var backdropScene = BackdropScene.NONE
 	@Volatile private var photoRevision = 0
 	@Volatile private var showWeatherLabel = false
@@ -164,25 +180,71 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		 */
 		lastAttemptedWeatherProvider = settings.weatherProvider
 		lastAttemptedWeatherFallbackProvider = settings.weatherFallbackProvider
-		val requestGeneration = weatherRequestGeneration.incrementAndGet()
+		val request = beginWeatherRequest(settings, location)
 		val weatherResult = weatherRepository.current(location.latitude, location.longitude)
 		if (weatherResult.isFailure) {
-			return weatherResult.map { Unit }
+			return weatherResult.map { }
 		}
 
 		val latestSettings = settingsRepository.settings.first()
-		if (requestGeneration != weatherRequestGeneration.get() || !sameWeatherRequest(settings, latestSettings)) {
-			logger.debug(TAG, "discarding obsolete weather response")
-			return Result.success(Unit)
-		}
 
 		return weatherResult.map { weather ->
-			snapshot = weather
-			lastRefreshEpochSeconds = nowEpochSeconds
-			lastLocationKey = locationKey
-			lastRefreshLocation = location
-			publishStatus(settings)
+			if (!publishWeatherResponse(request, settings, latestSettings, weather, nowEpochSeconds, locationKey, location)) {
+				logger.debug(TAG, "discarding obsolete weather response")
+				return@map
+			}
+
 			logger.debug(TAG, "weather refreshed: provider=${weather.source.provider}, condition=${weather.observation.condition.label}, cloud=${weather.observation.cloudCoverPercent}%")
+		}
+	}
+
+	private fun beginWeatherRequest(settings: AppSettings, location: GeoLocation) = synchronized(weatherRequestLock) {
+		val key = WeatherRequestKey(
+			latitude = location.latitude,
+			longitude = location.longitude,
+			provider = settings.weatherProvider,
+			fallbackProvider = settings.weatherFallbackProvider
+		)
+		if (key != activeWeatherRequestKey) {
+			activeWeatherRequestKey = key
+			weatherRequestGeneration += 1
+			lastPublishedWeatherRequestSequence = 0
+		}
+
+		weatherRequestSequence += 1
+
+		WeatherRequestToken(
+			key = key,
+			generation = weatherRequestGeneration,
+			sequence = weatherRequestSequence
+		)
+	}
+
+	private fun publishWeatherResponse(
+		request: WeatherRequestToken,
+		requestSettings: AppSettings,
+		latestSettings: AppSettings,
+		weather: WeatherSnapshot,
+		nowEpochSeconds: Long,
+		locationKey: String,
+		location: GeoLocation
+	): Boolean {
+		if (!sameWeatherRequest(requestSettings, latestSettings)) {
+			return false
+		}
+
+		return synchronized(weatherRequestLock) {
+			if (request.generation != weatherRequestGeneration || request.key != activeWeatherRequestKey || request.sequence <= lastPublishedWeatherRequestSequence) {
+				false
+			} else {
+				lastPublishedWeatherRequestSequence = request.sequence
+				snapshot = weather
+				lastRefreshEpochSeconds = nowEpochSeconds
+				lastLocationKey = locationKey
+				lastRefreshLocation = location
+				publishStatus(requestSettings)
+				true
+			}
 		}
 	}
 

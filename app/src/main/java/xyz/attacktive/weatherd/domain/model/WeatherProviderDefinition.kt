@@ -31,7 +31,7 @@ private val WEATHER_PROVIDER_DEFINITIONS = mapOf(
 	WeatherProviderType.DWD_ICON_D2 to WeatherProviderDefinition(
 		model = "dwd_icon_d2",
 		isGlobal = false,
-		coverage = RectangularCoverage(latitudeMin = 43.18, latitudeMax = 58.08, longitudeMin = -3.94, longitudeMax = 20.34)
+		coverage = DwdIconD2Coverage
 	),
 	WeatherProviderType.ITALIA_METEO to WeatherProviderDefinition(
 		model = "italia_meteo_arpae_icon_2i",
@@ -57,6 +57,26 @@ private data class RectangularCoverage(
 	val longitudeMax: Double
 ): WeatherCoverage {
 	override fun contains(latitude: Double, longitude: Double) = latitude in latitudeMin..latitudeMax && longitude in longitudeMin..longitudeMax
+}
+
+/**
+ * DWD publishes ICON-D2 on a rotated latitude/longitude grid whose pole is 170°W, 40°N.
+ * Checking the native rotated bounds avoids treating empty corners of Open-Meteo's remapped storage rectangle as forecast coverage.
+ */
+private object DwdIconD2Coverage: WeatherCoverage {
+	override fun contains(latitude: Double, longitude: Double): Boolean {
+		val geographicLongitude = Math.toRadians(longitude)
+		val geographicLatitude = Math.toRadians(latitude)
+		val poleLongitude = Math.toRadians(-170.0)
+		val poleLatitude = Math.toRadians(40.0)
+		val longitudeDelta = geographicLongitude - poleLongitude
+		val rotatedLongitudeNumerator = -cos(geographicLatitude) * sin(longitudeDelta)
+		val rotatedLongitudeDenominator = -cos(geographicLatitude) * sin(poleLatitude) * cos(longitudeDelta) + sin(geographicLatitude) * cos(poleLatitude)
+		val rotatedLongitude = Math.toDegrees(atan2(rotatedLongitudeNumerator, rotatedLongitudeDenominator))
+		val rotatedLatitude = Math.toDegrees(asin(sin(geographicLatitude) * sin(poleLatitude) + cos(geographicLatitude) * cos(poleLatitude) * cos(longitudeDelta)))
+
+		return rotatedLongitude in -7.5..5.5 && rotatedLatitude in -6.3..8.0
+	}
 }
 
 /**

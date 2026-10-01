@@ -151,7 +151,6 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 
 private fun globalWeatherProviderOrDefault(name: String?, default: WeatherProviderType): WeatherProviderType {
 	val provider = enumOrDefault(name, WeatherProviderType.entries, default)
-
 	return if (provider.definition.isGlobal) provider else default
 }
 

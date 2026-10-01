@@ -39,6 +39,7 @@ class WeatherProviderDefinitionTest {
 	fun `DWD regional domains match their published grids`() {
 		assertTrue(WeatherProviderType.DWD_ICON_EU.definition.supports(41.90, 12.50))
 		assertTrue(WeatherProviderType.DWD_ICON_D2.definition.supports(52.52, 13.40))
+		assertFalse(WeatherProviderType.DWD_ICON_D2.definition.supports(43.26, -2.93))
 		assertFalse(WeatherProviderType.DWD_ICON_D2.definition.supports(41.90, 12.50))
 	}
 
