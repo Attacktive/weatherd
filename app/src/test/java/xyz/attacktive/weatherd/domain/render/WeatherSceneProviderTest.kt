@@ -196,6 +196,49 @@ class WeatherSceneProviderTest {
 	}
 
 	@Test
+	fun `obsolete device settings cannot invalidate a newer manual-location request`() = runTest {
+		val settings = MutableStateFlow(AppSettings(useDeviceLocation = true))
+		every { settingsRepository.settings } returns settings
+		val deviceLocationStarted = CompletableDeferred<Unit>()
+		val releaseDeviceLocation = CompletableDeferred<Unit>()
+		coEvery { locationRepository.currentLocation() } coAnswers {
+			deviceLocationStarted.complete(Unit)
+			releaseDeviceLocation.await()
+			GeoLocation(37.57, 126.98)
+		}
+
+		val manualRequestStarted = CompletableDeferred<Unit>()
+		val releaseManualRequest = CompletableDeferred<Unit>()
+		coEvery { weatherRepository.current(44.5, 11.34) } coAnswers {
+			manualRequestStarted.complete(Unit)
+			releaseManualRequest.await()
+			Result.success(snapshotWith(weatherCode = 3, source = WeatherSource(WeatherProviderType.ITALIA_METEO)))
+		}
+
+		val obsoleteRefresh = async { provider.refreshWithResult(1_000_000L, force = true) }
+		deviceLocationStarted.await()
+		settings.value = settings.value.copy(
+			useDeviceLocation = false,
+			manualLatitude = 44.5,
+			manualLongitude = 11.34,
+			weatherProvider = WeatherProviderType.ITALIA_METEO
+		)
+		val currentRefresh = async { provider.refreshWithResult(1_000_060L, force = true) }
+		manualRequestStarted.await()
+		releaseDeviceLocation.complete(Unit)
+		val obsoleteResult = obsoleteRefresh.await()
+		releaseManualRequest.complete(Unit)
+		val currentResult = currentRefresh.await()
+
+		assertTrue(obsoleteResult.isSuccess)
+		assertTrue(currentResult.isSuccess)
+		assertEquals(1_000_060L, provider.status.value.lastRefreshEpochSeconds)
+		assertEquals(WeatherProviderType.ITALIA_METEO, provider.status.value.weatherSource?.provider)
+		coVerify(exactly = 0) { weatherRepository.current(37.57, 126.98) }
+		coVerify(exactly = 1) { weatherRepository.current(44.5, 11.34) }
+	}
+
+	@Test
 	fun `a newer failed same-target request does not discard an older success`() = runTest {
 		val settings = AppSettings(useDeviceLocation = true)
 		every { settingsRepository.settings } returns flowOf(settings)

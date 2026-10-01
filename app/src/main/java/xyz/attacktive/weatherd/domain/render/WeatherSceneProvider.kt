@@ -170,6 +170,12 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			return Result.success(Unit)
 		}
 
+		val latestSettingsBeforeRequest = settingsRepository.settings.first()
+		if (!sameWeatherRequest(settings, latestSettingsBeforeRequest)) {
+			logger.debug(TAG, "discarding obsolete weather request before fetch")
+			return Result.success(Unit)
+		}
+
 		// The device fix is remembered and the label refreshed again now that one exists — the first refresh has nothing cached for the pre-throttle pass to geocode.
 		rememberDeviceFix(settings, location)
 		refreshLocationLabel(settings, resolveLocationName)
