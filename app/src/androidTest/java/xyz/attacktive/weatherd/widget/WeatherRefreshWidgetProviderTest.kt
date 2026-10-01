@@ -1,31 +1,23 @@
 package xyz.attacktive.weatherd.widget
 
-import android.os.Build
+import android.view.View
+import android.widget.FrameLayout
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
-import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import xyz.attacktive.weatherd.R
 
 @RunWith(AndroidJUnit4::class)
 class WeatherRefreshWidgetProviderTest {
 	@Test
-	fun refreshPendingIntentRemainsBroadcastOnly() {
-		assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+	fun wholeWidgetCellAndArtworkTriggerRefresh() {
 		val context = InstrumentationRegistry.getInstrumentation().targetContext
-		val pendingIntent = WeatherRefreshWidgetProvider().refreshPendingIntent(context, requestCode = TEST_REQUEST_CODE)
+		val parent = FrameLayout(context)
+		val widget = WeatherRefreshWidgetProvider().widgetViews(context).apply(context, parent)
 
-		try {
-			assertTrue(pendingIntent.isBroadcast)
-			assertFalse(pendingIntent.isActivity)
-		} finally {
-			pendingIntent.cancel()
-		}
-	}
-
-	private companion object {
-		const val TEST_REQUEST_CODE = 198
+		assertTrue(widget.findViewById<View>(R.id.weather_refresh_widget_container).hasOnClickListeners())
+		assertTrue(widget.findViewById<View>(R.id.weather_refresh_widget).hasOnClickListeners())
 	}
 }

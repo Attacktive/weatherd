@@ -42,16 +42,18 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 		WorkManager.getInstance(context).enqueueUniqueWork(REFRESH_WORK_NAME, ExistingWorkPolicy.KEEP, request)
 	}
 
-	private fun widgetViews(context: Context) = RemoteViews(context.packageName, R.layout.widget_weather_refresh).apply {
-		setOnClickPendingIntent(R.id.weather_refresh_widget, refreshPendingIntent(context))
+	internal fun widgetViews(context: Context) = RemoteViews(context.packageName, R.layout.widget_weather_refresh).apply {
+		val refresh = refreshPendingIntent(context)
+		setOnClickPendingIntent(R.id.weather_refresh_widget_container, refresh)
+		setOnClickPendingIntent(R.id.weather_refresh_widget, refresh)
 	}
 
-	internal fun refreshPendingIntent(context: Context, requestCode: Int = 0): PendingIntent {
+	private fun refreshPendingIntent(context: Context): PendingIntent {
 		val intent = Intent(context, WeatherRefreshWidgetProvider::class.java)
 			.setAction(ACTION_REFRESH)
 			.addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
 
-		return PendingIntent.getBroadcast(context, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+		return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 	}
 
 	private companion object {
