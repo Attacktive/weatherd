@@ -5,7 +5,6 @@ import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
-import kotlin.math.sqrt
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -112,8 +111,8 @@ class SunRenderingTest {
 		val middleLift = averageAlphaInAnnulus(enabled, center, radius * LENS_HALO_INNER_END, radius * LENS_HALO_MIDDLE_END) - averageAlphaInAnnulus(disabled, center, radius * LENS_HALO_INNER_END, radius * LENS_HALO_MIDDLE_END)
 		val outerLift = averageAlphaInAnnulus(enabled, center, radius * LENS_HALO_MIDDLE_END, radius * LENS_HALO_OUTER_END) - averageAlphaInAnnulus(disabled, center, radius * LENS_HALO_MIDDLE_END, radius * LENS_HALO_OUTER_END)
 
-		assertTrue("Lens haze should remain present away from the sun, but outer alpha lift was only $outerLift", outerLift > 0f)
-		assertTrue("Lens haze should keep its outer field quieter than its inner body, but annulus lifts were $innerLift -> $middleLift -> $outerLift", maxOf(innerLift, middleLift) > outerLift)
+		assertTrue("Lens haze should remain present away from the sun before the separate chromatic ring begins, but outer alpha lift was only $outerLift", outerLift > 0f)
+		assertTrue("Lens haze should keep fading before the separate chromatic ring begins, but annulus lifts were $innerLift -> $middleLift -> $outerLift", maxOf(innerLift, middleLift) > outerLift)
 
 		enabled.recycle()
 		disabled.recycle()
@@ -161,25 +160,50 @@ class SunRenderingTest {
 	}
 
 	@Test
-	fun lensFlarePrismaticOverlayKeepsMainGhostGeometryAndAddsSubtleSpectrum() {
-		val bitmap = renderScene(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams())
-		val center = lensGhostCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, LENS_GHOST_SECONDARY_TEST_DISTANCE)
-		val radius = minOf(PORTRAIT_WIDTH, PORTRAIT_HEIGHT) * SUN_RADIUS_FRACTION * LENS_GHOST_SECONDARY_TEST_SCALE
-		val sun = celestialCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, DayPhase.DAY)
-		val axisX = PORTRAIT_WIDTH / 2f - sun.x
-		val axisY = PORTRAIT_HEIGHT / 2f - sun.y
-		val axisLength = sqrt(axisX * axisX + axisY * axisY)
-		val unitX = axisX / axisLength
-		val unitY = axisY / axisLength
-		val sampleOffset = radius * LENS_GHOST_SPECTRUM_SAMPLE_FRACTION
-		val warm = bitmap.getPixel((center.x - unitX * sampleOffset).roundToInt(), (center.y - unitY * sampleOffset).roundToInt())
-		val cool = bitmap.getPixel((center.x + unitX * sampleOffset).roundToInt(), (center.y + unitY * sampleOffset).roundToInt())
-		val warmBalance = Color.blue(warm) - Color.red(warm)
-		val coolBalance = Color.blue(cool) - Color.red(cool)
+	fun lensFlareBuildsASequenceOfDiscreteGhostsAlongTheOpticalAxis() {
+		val enabledParams = clearParams()
+		val enabled = renderScene(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams)
+		val disabled = renderScene(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams.copy(lensFlareEnabled = false))
+		val distances = listOf(
+			LENS_GHOST_NEAR_TEST_DISTANCE,
+			LENS_GHOST_INTERMEDIATE_TEST_DISTANCE,
+			LENS_GHOST_LOWER_TEST_DISTANCE,
+			LENS_GHOST_FARTHEST_TEST_DISTANCE
+		)
+		val contrasts = distances.map { distance ->
+			averageColorDistance(
+				enabled,
+				disabled,
+				lensGhostCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, distance),
+				LENS_GHOST_TRAIN_SAMPLE_RADIUS
+			)
+		}
 
-		assertTrue("The prismatic overlay should create a subtle warm-to-cool shift without replacing the main ghost, but blue-red balance only moved from $warmBalance to $coolBalance", coolBalance - warmBalance >= MIN_LENS_GHOST_SPECTRUM_BALANCE_DELTA)
+		assertTrue("The photographic flare should keep a visible train of discrete ghosts along the optical axis, but sampled contrasts were $contrasts", contrasts.all { it >= MIN_LENS_GHOST_TRAIN_CONTRAST })
 
-		bitmap.recycle()
+		enabled.recycle()
+		disabled.recycle()
+	}
+
+	@Test
+	fun lensFlareAddsALargeChromaticRingAroundTheSun() {
+		val enabledParams = clearParams()
+		val enabled = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams)
+		val disabled = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams.copy(lensFlareEnabled = false))
+		val center = celestialCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, DayPhase.DAY)
+		val radius = lensHaloRadius(PORTRAIT_WIDTH, PORTRAIT_HEIGHT) * RAINBOW_HALO_RADIUS_SCALE
+		val left = PixelPoint((center.x - radius).roundToInt(), center.y)
+		val bottom = PixelPoint(center.x, (center.y + radius).roundToInt())
+		val leftAlphaLift = Color.alpha(enabled.getPixel(left.x, left.y)) - Color.alpha(disabled.getPixel(left.x, left.y))
+		val bottomAlphaLift = Color.alpha(enabled.getPixel(bottom.x, bottom.y)) - Color.alpha(disabled.getPixel(bottom.x, bottom.y))
+		val hueDistance = colorDistance(enabled.getPixel(left.x, left.y), enabled.getPixel(bottom.x, bottom.y))
+
+		assertTrue("The rainbow halo should remain visible on the left arc, but alpha only lifted by $leftAlphaLift", leftAlphaLift >= MIN_RAINBOW_HALO_ALPHA_LIFT)
+		assertTrue("The rainbow halo should remain visible on the lower arc, but alpha only lifted by $bottomAlphaLift", bottomAlphaLift >= MIN_RAINBOW_HALO_ALPHA_LIFT)
+		assertTrue("The large halo should vary chromatically around the ring instead of reading as a monochrome glow, but channel distance was only $hueDistance", hueDistance >= MIN_RAINBOW_HALO_HUE_DISTANCE)
+
+		enabled.recycle()
+		disabled.recycle()
 	}
 
 	@Test
@@ -190,12 +214,12 @@ class SunRenderingTest {
 		val primaryCenter = lensGhostCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, LENS_GHOST_TEST_DISTANCE)
 		val primaryRadius = minOf(PORTRAIT_WIDTH, PORTRAIT_HEIGHT) * SUN_RADIUS_FRACTION * LENS_GHOST_TEST_SCALE * LENS_GHOST_DAY_SKY_SAMPLE_RADIUS
 		val primaryContrast = averageColorDistance(enabled, disabled, primaryCenter, primaryRadius)
-		val secondaryCenter = lensGhostCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, LENS_GHOST_SECONDARY_TEST_DISTANCE)
-		val secondaryRadius = minOf(PORTRAIT_WIDTH, PORTRAIT_HEIGHT) * SUN_RADIUS_FRACTION * LENS_GHOST_SECONDARY_TEST_SCALE * LENS_GHOST_DAY_SKY_SAMPLE_RADIUS
-		val secondaryContrast = averageColorDistance(enabled, disabled, secondaryCenter, secondaryRadius)
+		val farCenter = lensGhostCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, LENS_GHOST_FAR_TEST_DISTANCE)
+		val farRadius = minOf(PORTRAIT_WIDTH, PORTRAIT_HEIGHT) * SUN_RADIUS_FRACTION * LENS_GHOST_FAR_TEST_SCALE * LENS_GHOST_DAY_SKY_SAMPLE_RADIUS
+		val farContrast = averageColorDistance(enabled, disabled, farCenter, farRadius)
 
 		assertTrue("The primary daytime lens ghost should remain visibly distinct from the rendered blue sky, but average channel contrast was only $primaryContrast", primaryContrast >= MIN_LENS_GHOST_DAY_SKY_CONTRAST)
-		assertTrue("The secondary daytime lens ghost should remain visibly distinct from the rendered blue sky, but average channel contrast was only $secondaryContrast", secondaryContrast >= MIN_LENS_GHOST_SECONDARY_DAY_SKY_CONTRAST)
+		assertTrue("The far daytime lens ghost should stay visible without competing with the primary reflection, but average channel contrast was only $farContrast", farContrast >= MIN_LENS_GHOST_FAR_DAY_SKY_CONTRAST)
 
 		enabled.recycle()
 		disabled.recycle()
@@ -653,20 +677,25 @@ class SunRenderingTest {
 		const val LENS_HALO_REACH = 5.6f
 		const val LENS_HALO_AXIS_OFFSET = 0.18f
 		const val LENS_HALO_RADIUS_FRACTION = 0.72f
-		const val LENS_HALO_INNER_START = 0.20f
-		const val LENS_HALO_INNER_END = 0.45f
-		const val LENS_HALO_MIDDLE_END = 0.70f
-		const val LENS_HALO_OUTER_END = 0.92f
+		const val LENS_HALO_INNER_START = 0.15f
+		const val LENS_HALO_INNER_END = 0.32f
+		const val LENS_HALO_MIDDLE_END = 0.50f
+		const val LENS_HALO_OUTER_END = 0.68f
 		const val LENS_HALO_DAY_SKY_SAMPLE_OFFSET = 0.42f
 		const val LENS_HALO_DAY_SKY_SAMPLE_RADIUS = 0.06f
-		const val LENS_GHOST_TEST_DISTANCE = 0.76f
-		const val LENS_GHOST_TEST_SCALE = 0.72f
-		const val LENS_GHOST_SECONDARY_TEST_DISTANCE = 1.34f
-		const val LENS_GHOST_SECONDARY_TEST_SCALE = 0.62f
-		const val LENS_GHOST_SPECTRUM_SAMPLE_FRACTION = 0.42f
-		const val MIN_LENS_GHOST_SPECTRUM_BALANCE_DELTA = 8
-		const val LENS_GHOST_FAR_TEST_DISTANCE = 1.82f
-		const val LENS_GHOST_FAR_TEST_SCALE = 0.56f
+		const val LENS_GHOST_TEST_DISTANCE = 1.08f
+		const val LENS_GHOST_TEST_SCALE = 0.58f
+		const val LENS_GHOST_NEAR_TEST_DISTANCE = 0.42f
+		const val LENS_GHOST_INTERMEDIATE_TEST_DISTANCE = 1.08f
+		const val LENS_GHOST_LOWER_TEST_DISTANCE = 1.55f
+		const val LENS_GHOST_FARTHEST_TEST_DISTANCE = 2.18f
+		const val LENS_GHOST_TRAIN_SAMPLE_RADIUS = 3f
+		const val MIN_LENS_GHOST_TRAIN_CONTRAST = 3f
+		const val RAINBOW_HALO_RADIUS_SCALE = 0.78f / LENS_HALO_RADIUS_FRACTION
+		const val MIN_RAINBOW_HALO_ALPHA_LIFT = 1
+		const val MIN_RAINBOW_HALO_HUE_DISTANCE = 4
+		const val LENS_GHOST_FAR_TEST_DISTANCE = 2.18f
+		const val LENS_GHOST_FAR_TEST_SCALE = 0.44f
 		const val LENS_GHOST_FAR_EDGE_SAMPLE_FRACTION = 0.75f
 		const val LENS_GHOST_EDGE_SAMPLE_FRACTION = 0.68f
 		const val LENS_GHOST_DAY_SKY_SAMPLE_RADIUS = 0.38f
@@ -680,7 +709,7 @@ class SunRenderingTest {
 		const val MIN_LENS_GHOST_CENTER_LIFT = 6
 		const val MIN_LENS_GHOST_CENTER_EDGE_DELTA = 7
 		const val MIN_LENS_GHOST_DAY_SKY_CONTRAST = 20f
-		const val MIN_LENS_GHOST_SECONDARY_DAY_SKY_CONTRAST = 21f
+		const val MIN_LENS_GHOST_FAR_DAY_SKY_CONTRAST = 8f
 		const val POSITION_TOLERANCE_PIXELS = 2
 		const val MIN_CLOUD_ATTENUATION = 2f
 		const val MIN_VEILED_DISPLACEMENT = 1.5f

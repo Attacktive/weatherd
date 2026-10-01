@@ -23,6 +23,7 @@ import android.graphics.RadialGradient
 import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
+import android.graphics.SweepGradient
 import androidx.core.graphics.withClip
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.BackdropScene
@@ -1269,9 +1270,15 @@ class SceneRenderer(resources: Resources) {
 	private fun drawSunLensFlare(canvas: Canvas, sun: SunRenderContext, radius: Float, core: Int) {
 		val axisX = sun.width / 2f - sun.centerX
 		val axisY = sun.height / 2f - sun.centerY
+		val haloCenterX = sun.centerX + axisX * SUN_LENS_HALO_AXIS_OFFSET
+		val haloCenterY = sun.centerY + axisY * SUN_LENS_HALO_AXIS_OFFSET
+		val haloPhaseStrength = lensHaloPhaseStrength(sun.params.dayPhase, sun.params.celestialProgress)
 		val lensHalo = tile("sunLensHalo-reference", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildLensHaloSprite(it) }
-		val lensHaloAlpha = SUN_LENS_HALO_ALPHA * lensHaloPhaseStrength(sun.params.dayPhase, sun.params.celestialProgress)
-		blitGlow(canvas, lensHalo, sun.centerX + axisX * SUN_LENS_HALO_AXIS_OFFSET, sun.centerY + axisY * SUN_LENS_HALO_AXIS_OFFSET, radius * SUN_LENS_HALO_REACH, sunAlpha(lensHaloAlpha, sun.visibility))
+		val lensHaloAlpha = SUN_LENS_HALO_ALPHA * haloPhaseStrength
+		blitGlow(canvas, lensHalo, haloCenterX, haloCenterY, radius * SUN_LENS_HALO_REACH, sunAlpha(lensHaloAlpha, sun.visibility))
+
+		val rainbowHalo = tile("sunRainbowHalo-reference", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildLensRainbowHaloSprite(it) }
+		blitGlow(canvas, rainbowHalo, sun.centerX, sun.centerY, radius * SUN_LENS_HALO_REACH, sunAlpha(SUN_RAINBOW_HALO_ALPHA * haloPhaseStrength, sun.visibility))
 
 		val streak = tile("sunStreak", SUN_STREAK_SPRITE_WIDTH, SUN_STREAK_SPRITE_HEIGHT) { buildSunStreakSprite(it, core) }
 		val streakHalfWidth = radius * SUN_STREAK_REACH
@@ -1282,11 +1289,6 @@ class SceneRenderer(resources: Resources) {
 			val centerY = sun.centerY + axisY * ghost.distance
 			val tint = tile("sunGhost-$index", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildLensGhostSprite(it, ghost.tint) }
 			blitGlow(canvas, tint, centerX, centerY, radius * ghost.scale, sunAlpha(ghost.strength * 255f, sun.visibility))
-			if (index == PRISMATIC_LENS_GHOST_INDEX) {
-				val spectrum = tile("sunGhostSpectrum", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildLensGhostSpectrumSprite(it) }
-				val axisAngleDegrees = atan2(axisY, axisX) / DEGREES_TO_RADIANS
-				blitGlowRotated(canvas, spectrum, centerX, centerY, radius * ghost.scale, sunAlpha(LENS_GHOST_SPECTRUM_ALPHA, sun.visibility), axisAngleDegrees)
-			}
 		}
 	}
 
@@ -2400,17 +2402,6 @@ class SceneRenderer(resources: Resources) {
 		glowPaint.alpha = 255
 	}
 
-	/** [blitGlow] with the cached sprite rotated around its optical center. */
-	private fun blitGlowRotated(canvas: Canvas, sprite: Bitmap, centerX: Float, centerY: Float, radius: Float, alpha: Int, degrees: Float) {
-		glowPaint.alpha = alpha.coerceIn(0, 255)
-		spriteDest.set(centerX - radius, centerY - radius, centerX + radius, centerY + radius)
-		val saveCount = canvas.save()
-		canvas.rotate(degrees, centerX, centerY)
-		canvas.drawBitmap(sprite, null, spriteDest, glowPaint)
-		canvas.restoreToCount(saveCount)
-		glowPaint.alpha = 255
-	}
-
 	/** [blitGlow] for sprites that are not square — the anamorphic streak is far wider than it is tall. */
 	private fun blitGlowRect(canvas: Canvas, sprite: Bitmap, centerX: Float, centerY: Float, halfWidth: Float, halfHeight: Float, alpha: Int) {
 		glowPaint.alpha = alpha.coerceIn(0, 255)
@@ -3022,37 +3013,45 @@ class SceneRenderer(resources: Resources) {
 			center,
 			center,
 			center,
-			intArrayOf(tint, withAlpha(tint, 232), withAlpha(tint, 170), withAlpha(tint, 54), withAlpha(tint, 0)),
-			floatArrayOf(0f, 0.10f, 0.24f, 0.40f, 0.62f),
+			intArrayOf(
+				withAlpha(tint, 178),
+				withAlpha(tint, 168),
+				withAlpha(tint, 152),
+				withAlpha(tint, 110),
+				withAlpha(tint, 84),
+				withAlpha(tint, 0)
+			),
+			floatArrayOf(0f, 0.30f, 0.62f, 0.82f, 0.90f, 0.96f),
 			Shader.TileMode.CLAMP
 		)
 
 		canvas.drawCircle(center, center, center, brush)
 	}
 
-	/** A faint full-spectrum sheen layered over the existing main lens ghost without replacing its body. */
-	private fun buildLensGhostSpectrumSprite(canvas: Canvas) {
+	/** A broad, softly blurred chromatic ring matching the camera-lens rainbow in the ColorOS reference. */
+	private fun buildLensRainbowHaloSprite(canvas: Canvas) {
 		val center = HALO_SPRITE_SIZE / 2f
+		val radius = center * SUN_RAINBOW_HALO_RADIUS_FRACTION
 		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
-
-		drawLensSpectrumLobe(canvas, brush, center - center * 0.34f, center - center * 0.04f, center * 0.70f, Color.rgb(255, 92, 92), 88)
-		drawLensSpectrumLobe(canvas, brush, center - center * 0.12f, center + center * 0.06f, center * 0.72f, Color.rgb(255, 205, 92), 70)
-		drawLensSpectrumLobe(canvas, brush, center + center * 0.05f, center - center * 0.05f, center * 0.76f, Color.rgb(104, 226, 154), 72)
-		drawLensSpectrumLobe(canvas, brush, center + center * 0.22f, center + center * 0.05f, center * 0.74f, Color.rgb(76, 200, 255), 82)
-		drawLensSpectrumLobe(canvas, brush, center + center * 0.38f, center - center * 0.03f, center * 0.68f, Color.rgb(150, 104, 255), 76)
-	}
-
-	private fun drawLensSpectrumLobe(canvas: Canvas, brush: Paint, centerX: Float, centerY: Float, radius: Float, color: Int, alpha: Int) {
-		brush.shader = RadialGradient(
-			centerX,
-			centerY,
-			radius,
-			intArrayOf(withAlpha(color, alpha), withAlpha(color, (alpha * 0.44f).roundToInt()), withAlpha(color, 0)),
-			floatArrayOf(0f, 0.48f, 1f),
-			Shader.TileMode.CLAMP
+		brush.style = Paint.Style.STROKE
+		brush.strokeWidth = center * SUN_RAINBOW_HALO_STROKE_FRACTION
+		brush.maskFilter = BlurMaskFilter(center * SUN_RAINBOW_HALO_BLUR_FRACTION, BlurMaskFilter.Blur.NORMAL)
+		brush.shader = SweepGradient(
+			center,
+			center,
+			intArrayOf(
+				withAlpha(Color.rgb(82, 202, 255), SUN_RAINBOW_HALO_SPRITE_ALPHA),
+				withAlpha(Color.rgb(126, 138, 255), SUN_RAINBOW_HALO_SPRITE_ALPHA),
+				withAlpha(Color.rgb(235, 108, 205), SUN_RAINBOW_HALO_SPRITE_ALPHA),
+				withAlpha(Color.rgb(255, 126, 92), SUN_RAINBOW_HALO_SPRITE_ALPHA),
+				withAlpha(Color.rgb(235, 210, 92), SUN_RAINBOW_HALO_SPRITE_ALPHA),
+				withAlpha(Color.rgb(112, 222, 150), SUN_RAINBOW_HALO_SPRITE_ALPHA),
+				withAlpha(Color.rgb(82, 202, 255), SUN_RAINBOW_HALO_SPRITE_ALPHA)
+			),
+			floatArrayOf(0f, 0.16f, 0.34f, 0.52f, 0.68f, 0.84f, 1f)
 		)
 
-		canvas.drawCircle(centerX, centerY, radius, brush)
+		canvas.drawCircle(center, center, radius, brush)
 	}
 
 	/**
@@ -3431,9 +3430,12 @@ class SceneRenderer(resources: Resources) {
 		private const val SUN_LENS_HALO_MIDDLE_STOP = 0.42f
 		private const val SUN_LENS_HALO_OUTER_STOP = 0.66f
 
-		/** Low-opacity chromatic sheen layered over the third main lens ghost. */
-		private const val PRISMATIC_LENS_GHOST_INDEX = 2
-		private const val LENS_GHOST_SPECTRUM_ALPHA = 150f
+		/** Large but quiet chromatic ring around the sun's optical halo, modeled after the ColorOS camera-lens reference. */
+		private const val SUN_RAINBOW_HALO_ALPHA = 112f
+		private const val SUN_RAINBOW_HALO_RADIUS_FRACTION = 0.78f
+		private const val SUN_RAINBOW_HALO_STROKE_FRACTION = 0.10f
+		private const val SUN_RAINBOW_HALO_BLUR_FRACTION = 0.075f
+		private const val SUN_RAINBOW_HALO_SPRITE_ALPHA = 82
 
 		/** Fraction of a soft-dot sprite's radius that is solid color before the fade to transparent begins. */
 		private const val DOT_CORE_STOP = 0.5f
@@ -3731,10 +3733,10 @@ private data class LensGhost(val distance: Float, val scale: Float, val strength
  * They stay subtle at ordinary brightness, but remain intentionally readable against a clear daytime sky.
  */
 private val LENS_GHOSTS = listOf(
-	LensGhost(-0.72f, 0.82f, 0.20f, Color.rgb(255, 238, 204)),
-	LensGhost(0.76f, 0.72f, 0.34f, Color.rgb(255, 232, 202)),
-	LensGhost(1.34f, 0.62f, 0.40f, Color.rgb(196, 228, 248)),
-	LensGhost(1.82f, 0.56f, 0.22f, Color.rgb(214, 232, 215))
+	LensGhost(0.42f, 0.22f, 0.11f, Color.rgb(222, 234, 255)),
+	LensGhost(1.08f, 0.58f, 0.34f, Color.rgb(218, 238, 255)),
+	LensGhost(1.55f, 0.24f, 0.13f, Color.rgb(188, 236, 226)),
+	LensGhost(2.18f, 0.44f, 0.20f, Color.rgb(202, 226, 244))
 )
 
 internal fun darken(color: Int, factor: Float) =
