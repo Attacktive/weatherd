@@ -1278,8 +1278,15 @@ class SceneRenderer(resources: Resources) {
 		blitGlowRect(canvas, streak, sun.centerX, sun.centerY, streakHalfWidth, streakHalfWidth * SUN_STREAK_ASPECT, sunAlpha(SUN_STREAK_ALPHA * (0.9f + 0.1f * sun.pulse), sun.visibility))
 		for (index in LENS_GHOSTS.indices) {
 			val ghost = LENS_GHOSTS[index]
+			val centerX = sun.centerX + axisX * ghost.distance
+			val centerY = sun.centerY + axisY * ghost.distance
 			val tint = tile("sunGhost-$index", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildLensGhostSprite(it, ghost.tint) }
-			blitGlow(canvas, tint, sun.centerX + axisX * ghost.distance, sun.centerY + axisY * ghost.distance, radius * ghost.scale, sunAlpha(ghost.strength * 255f, sun.visibility))
+			blitGlow(canvas, tint, centerX, centerY, radius * ghost.scale, sunAlpha(ghost.strength * 255f, sun.visibility))
+			if (index == PRISMATIC_LENS_GHOST_INDEX) {
+				val spectrum = tile("sunGhostSpectrum", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildLensGhostSpectrumSprite(it) }
+				val axisAngleDegrees = atan2(axisY, axisX) / DEGREES_TO_RADIANS
+				blitGlowRotated(canvas, spectrum, centerX, centerY, radius * ghost.scale, sunAlpha(LENS_GHOST_SPECTRUM_ALPHA, sun.visibility), axisAngleDegrees)
+			}
 		}
 	}
 
@@ -2393,6 +2400,17 @@ class SceneRenderer(resources: Resources) {
 		glowPaint.alpha = 255
 	}
 
+	/** [blitGlow] with the cached sprite rotated around its optical center. */
+	private fun blitGlowRotated(canvas: Canvas, sprite: Bitmap, centerX: Float, centerY: Float, radius: Float, alpha: Int, degrees: Float) {
+		glowPaint.alpha = alpha.coerceIn(0, 255)
+		spriteDest.set(centerX - radius, centerY - radius, centerX + radius, centerY + radius)
+		val saveCount = canvas.save()
+		canvas.rotate(degrees, centerX, centerY)
+		canvas.drawBitmap(sprite, null, spriteDest, glowPaint)
+		canvas.restoreToCount(saveCount)
+		glowPaint.alpha = 255
+	}
+
 	/** [blitGlow] for sprites that are not square — the anamorphic streak is far wider than it is tall. */
 	private fun blitGlowRect(canvas: Canvas, sprite: Bitmap, centerX: Float, centerY: Float, halfWidth: Float, halfHeight: Float, alpha: Int) {
 		glowPaint.alpha = alpha.coerceIn(0, 255)
@@ -3012,6 +3030,31 @@ class SceneRenderer(resources: Resources) {
 		canvas.drawCircle(center, center, center, brush)
 	}
 
+	/** A faint full-spectrum sheen layered over the existing main lens ghost without replacing its body. */
+	private fun buildLensGhostSpectrumSprite(canvas: Canvas) {
+		val center = HALO_SPRITE_SIZE / 2f
+		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
+
+		drawLensSpectrumLobe(canvas, brush, center - center * 0.34f, center - center * 0.04f, center * 0.70f, Color.rgb(255, 92, 92), 88)
+		drawLensSpectrumLobe(canvas, brush, center - center * 0.12f, center + center * 0.06f, center * 0.72f, Color.rgb(255, 205, 92), 70)
+		drawLensSpectrumLobe(canvas, brush, center + center * 0.05f, center - center * 0.05f, center * 0.76f, Color.rgb(104, 226, 154), 72)
+		drawLensSpectrumLobe(canvas, brush, center + center * 0.22f, center + center * 0.05f, center * 0.74f, Color.rgb(76, 200, 255), 82)
+		drawLensSpectrumLobe(canvas, brush, center + center * 0.38f, center - center * 0.03f, center * 0.68f, Color.rgb(150, 104, 255), 76)
+	}
+
+	private fun drawLensSpectrumLobe(canvas: Canvas, brush: Paint, centerX: Float, centerY: Float, radius: Float, color: Int, alpha: Int) {
+		brush.shader = RadialGradient(
+			centerX,
+			centerY,
+			radius,
+			intArrayOf(withAlpha(color, alpha), withAlpha(color, (alpha * 0.44f).roundToInt()), withAlpha(color, 0)),
+			floatArrayOf(0f, 0.48f, 1f),
+			Shader.TileMode.CLAMP
+		)
+
+		canvas.drawCircle(centerX, centerY, radius, brush)
+	}
+
 	/**
 	 * The sun disc rasterized once per scene, the moon's counterpart.
 	 * A clipped-white center falls quickly into a warm shoulder and soft limb so the source reads as camera overexposure rather than a painted solar surface.
@@ -3387,6 +3430,10 @@ class SceneRenderer(resources: Resources) {
 		private const val SUN_LENS_HALO_OUTER_ALPHA_SCALE = 0.04f
 		private const val SUN_LENS_HALO_MIDDLE_STOP = 0.42f
 		private const val SUN_LENS_HALO_OUTER_STOP = 0.66f
+
+		/** Low-opacity chromatic sheen layered over the third main lens ghost. */
+		private const val PRISMATIC_LENS_GHOST_INDEX = 2
+		private const val LENS_GHOST_SPECTRUM_ALPHA = 150f
 
 		/** Fraction of a soft-dot sprite's radius that is solid color before the fade to transparent begins. */
 		private const val DOT_CORE_STOP = 0.5f

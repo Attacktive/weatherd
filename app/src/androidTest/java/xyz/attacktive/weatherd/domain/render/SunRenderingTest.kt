@@ -5,6 +5,7 @@ import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
+import kotlin.math.sqrt
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -157,6 +158,28 @@ class SunRenderingTest {
 
 		enabled.recycle()
 		disabled.recycle()
+	}
+
+	@Test
+	fun lensFlarePrismaticOverlayKeepsMainGhostGeometryAndAddsSubtleSpectrum() {
+		val bitmap = renderScene(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams())
+		val center = lensGhostCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, LENS_GHOST_SECONDARY_TEST_DISTANCE)
+		val radius = minOf(PORTRAIT_WIDTH, PORTRAIT_HEIGHT) * SUN_RADIUS_FRACTION * LENS_GHOST_SECONDARY_TEST_SCALE
+		val sun = celestialCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, DayPhase.DAY)
+		val axisX = PORTRAIT_WIDTH / 2f - sun.x
+		val axisY = PORTRAIT_HEIGHT / 2f - sun.y
+		val axisLength = sqrt(axisX * axisX + axisY * axisY)
+		val unitX = axisX / axisLength
+		val unitY = axisY / axisLength
+		val sampleOffset = radius * LENS_GHOST_SPECTRUM_SAMPLE_FRACTION
+		val warm = bitmap.getPixel((center.x - unitX * sampleOffset).roundToInt(), (center.y - unitY * sampleOffset).roundToInt())
+		val cool = bitmap.getPixel((center.x + unitX * sampleOffset).roundToInt(), (center.y + unitY * sampleOffset).roundToInt())
+		val warmBalance = Color.blue(warm) - Color.red(warm)
+		val coolBalance = Color.blue(cool) - Color.red(cool)
+
+		assertTrue("The prismatic overlay should create a subtle warm-to-cool shift without replacing the main ghost, but blue-red balance only moved from $warmBalance to $coolBalance", coolBalance - warmBalance >= MIN_LENS_GHOST_SPECTRUM_BALANCE_DELTA)
+
+		bitmap.recycle()
 	}
 
 	@Test
@@ -640,6 +663,8 @@ class SunRenderingTest {
 		const val LENS_GHOST_TEST_SCALE = 0.72f
 		const val LENS_GHOST_SECONDARY_TEST_DISTANCE = 1.34f
 		const val LENS_GHOST_SECONDARY_TEST_SCALE = 0.62f
+		const val LENS_GHOST_SPECTRUM_SAMPLE_FRACTION = 0.42f
+		const val MIN_LENS_GHOST_SPECTRUM_BALANCE_DELTA = 8
 		const val LENS_GHOST_FAR_TEST_DISTANCE = 1.82f
 		const val LENS_GHOST_FAR_TEST_SCALE = 0.56f
 		const val LENS_GHOST_FAR_EDGE_SAMPLE_FRACTION = 0.75f
