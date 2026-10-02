@@ -46,6 +46,9 @@ import xyz.attacktive.weatherd.domain.weather.SEVERITY_STORM
  * Cloud sheets are decoded once and sampled through repeating bitmap shaders; fog uses cached scrolling veil tiles, so neither regenerates textures per frame.
  */
 class SceneRenderer(resources: Resources) {
+	var lensFlareOffsetX: Float = 0f
+	var lensFlareOffsetY: Float = 0f
+
 	private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG)
 	private val blitPaint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
 	private val blitDest = RectF()
@@ -1267,8 +1270,24 @@ class SceneRenderer(resources: Resources) {
 	private fun sunCoronaCloudStrength(cloudiness: Float) = lerp(1f, SUN_CORONA_CLOUD_MIN_STRENGTH, unlerp(0f, DIRECT_SUN_MAX_CLOUDINESS, cloudiness))
 
 	private fun drawSunLensFlare(canvas: Canvas, sun: SunRenderContext, radius: Float, core: Int) {
-		val axisX = sun.width / 2f - sun.centerX
-		val axisY = sun.height / 2f - sun.centerY
+		val motionX = if (sun.params.lensFlareMotionEnabled && lensFlareOffsetX.isFinite()) {
+			lensFlareOffsetX.coerceIn(-1f, 1f)
+		} else {
+			0f
+		}
+
+		val motionY = if (sun.params.lensFlareMotionEnabled && lensFlareOffsetY.isFinite()) {
+			lensFlareOffsetY.coerceIn(-1f, 1f)
+		} else {
+			0f
+		}
+
+		val displacementX = motionX * sun.span * LENS_FLARE_MOTION_MAX_SHIFT
+		val displacementY = motionY * sun.span * LENS_FLARE_MOTION_MAX_SHIFT
+		val opticalCenterX = sun.width / 2f + displacementX
+		val opticalCenterY = sun.height / 2f + displacementY
+		val axisX = opticalCenterX - sun.centerX
+		val axisY = opticalCenterY - sun.centerY
 		val haloCenterX = sun.centerX + axisX * SUN_LENS_HALO_AXIS_OFFSET
 		val haloCenterY = sun.centerY + axisY * SUN_LENS_HALO_AXIS_OFFSET
 		val haloPhaseStrength = lensHaloPhaseStrength(sun.params.dayPhase, sun.params.celestialProgress)
@@ -1276,8 +1295,10 @@ class SceneRenderer(resources: Resources) {
 		val lensHaloAlpha = SUN_LENS_HALO_ALPHA * haloPhaseStrength
 		blitGlow(canvas, lensHalo, haloCenterX, haloCenterY, radius * SUN_LENS_HALO_REACH, sunAlpha(lensHaloAlpha, sun.visibility))
 
+		val rainbowCenterX = sun.centerX + displacementX * LENS_FLARE_RAINBOW_SHIFT_FACTOR
+		val rainbowCenterY = sun.centerY + displacementY * LENS_FLARE_RAINBOW_SHIFT_FACTOR
 		val rainbowHalo = tile("sunRainbowHalo-reference", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildLensRainbowHaloSprite(it) }
-		blitGlow(canvas, rainbowHalo, sun.centerX, sun.centerY, radius * SUN_LENS_HALO_REACH, sunAlpha(SUN_RAINBOW_HALO_ALPHA * haloPhaseStrength, sun.visibility))
+		blitGlow(canvas, rainbowHalo, rainbowCenterX, rainbowCenterY, radius * SUN_LENS_HALO_REACH, sunAlpha(SUN_RAINBOW_HALO_ALPHA * haloPhaseStrength, sun.visibility))
 
 		val streak = tile("sunStreak", SUN_STREAK_SPRITE_WIDTH, SUN_STREAK_SPRITE_HEIGHT) { buildSunStreakSprite(it, core) }
 		val streakHalfWidth = radius * SUN_STREAK_REACH
@@ -3357,6 +3378,8 @@ class SceneRenderer(resources: Resources) {
 
 		/** Peak alpha of the streak before the restrained breathing scales it. */
 		private const val SUN_STREAK_ALPHA = 36f
+		private const val LENS_FLARE_MOTION_MAX_SHIFT = 0.12f
+		private const val LENS_FLARE_RAINBOW_SHIFT_FACTOR = 0.35f
 
 		/** Large optical haze around the direct sun; its cached sprite is brightest inside and fades continuously through the outer atmosphere. */
 		private const val SUN_LENS_HALO_REACH = 5.6f
@@ -3463,6 +3486,16 @@ private fun showsBirds(params: SceneParams) = params.precipitation == null && pa
 
 /** The chromatic halo follows direct daylight visibility and disappears with the user's sun visibility preference. */
 internal fun showsRainbow(params: SceneParams) = params.sunVisible && params.dayPhase != DayPhase.NIGHT && params.precipitation == null && params.fogDensity <= 0f && effectiveCloudiness(params) <= DIRECT_SUN_MAX_CLOUDINESS
+
+/**
+ * Whether sensor-driven lens flare reflections can currently be drawn.
+ * Gates collection to scenes where the optical reflections are actually visible so sensors don't stay active needlessly.
+ */
+internal fun lensFlareMotionActive(params: SceneParams) =
+	params.lensFlareMotionEnabled &&
+		params.lensFlareEnabled &&
+		showsRainbow(params) &&
+		sunVisibility(params.dayPhase, params.celestialProgress) > 0f
 
 /** Helicopters fly in weather birds won't — night included, that's when the blinking light pays off — but storms, fog, and a heavy deck still ground them. */
 private fun showsHelicopter(params: SceneParams) = params.precipitation == null && params.fogDensity <= 0f && effectiveCloudiness(params) < 0.55f && !params.thunder
@@ -3585,7 +3618,7 @@ internal fun celestialHeightFraction(dayPhase: DayPhase, progress: Float) = when
  * Dusk fades every sun component together while leaving the independently rendered orange sky intact.
  * A smooth curve keeps the source nearly steady at the start of dusk, then eases it completely away before night.
  */
-private fun sunVisibility(dayPhase: DayPhase, progress: Float): Float {
+internal fun sunVisibility(dayPhase: DayPhase, progress: Float): Float {
 	if (dayPhase != DayPhase.DUSK) {
 		return 1f
 	}

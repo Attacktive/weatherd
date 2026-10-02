@@ -63,6 +63,9 @@
 	<string name="sun_color_orange">Orange</string>
 	<string name="label_lens_flare">Lens flare</string>
 	<string name="subtitle_lens_flare">Camera-style streak and reflections around the sun</string>
+	<string name="label_lens_flare_motion">Motion-responsive reflections</string>
+	<string name="subtitle_lens_flare_motion">Shift reflections as you tilt your phone. Uses more battery while visible and requires Lens flare.</string>
+	<string name="subtitle_lens_flare_motion_unsupported">This device does not have a compatible motion sensor</string>
 	<string name="section_labels">Labels</string>
 	<string name="section_temperature_unit">Temperature unit</string>
 	<string name="section_location">Location</string>

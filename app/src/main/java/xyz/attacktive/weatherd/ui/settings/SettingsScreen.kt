@@ -115,6 +115,7 @@ import xyz.attacktive.weatherd.domain.model.UPDATE_INTERVAL_OPTIONS
 import xyz.attacktive.weatherd.domain.model.drawsScenery
 import xyz.attacktive.weatherd.platform.HomeLauncher
 import xyz.attacktive.weatherd.platform.currentHomeLauncher
+import xyz.attacktive.weatherd.platform.lensFlareMotionSupported
 import xyz.attacktive.weatherd.platform.wallpaperScrollingSupportedBy
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -764,6 +765,14 @@ private fun rememberCurrentHomeLauncher(): HomeLauncher? {
 
 @Composable
 private fun SunEffectsSection(settings: AppSettings, defaults: AppSettings, onSave: (AppSettings) -> Unit) {
+	val context = LocalContext.current
+	val motionSupported = remember(context) { lensFlareMotionSupported(context) }
+	val motionSubtitle = if (motionSupported) {
+		stringResource(R.string.subtitle_lens_flare_motion)
+	} else {
+		stringResource(R.string.subtitle_lens_flare_motion_unsupported)
+	}
+
 	SectionLabel(stringResource(R.string.section_sun_effects))
 
 	ToggleSetting(
@@ -793,6 +802,14 @@ private fun SunEffectsSection(settings: AppSettings, defaults: AppSettings, onSa
 				subtitle = stringResource(R.string.subtitle_lens_flare),
 				checked = settings.lensFlareEnabled,
 				onToggle = { onSave(settings.copy(lensFlareEnabled = it)) },
+			)
+
+			ToggleSetting(
+				label = stringResource(R.string.label_lens_flare_motion),
+				subtitle = motionSubtitle,
+				checked = settings.lensFlareMotionEnabled,
+				onToggle = { onSave(settings.copy(lensFlareMotionEnabled = it)) },
+				enabled = motionSupported && settings.lensFlareEnabled,
 			)
 		}
 	}

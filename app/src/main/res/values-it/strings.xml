@@ -63,6 +63,9 @@
 	<string name="sun_color_orange">Arancione</string>
 	<string name="label_lens_flare">Riflesso dell’obiettivo</string>
 	<string name="subtitle_lens_flare">Scie luminose e riflessi in stile fotografico intorno al sole</string>
+	<string name="label_lens_flare_motion">Riflessi sensibili al movimento</string>
+	<string name="subtitle_lens_flare_motion">Sposta i riflessi quando inclini il telefono. Consuma più batteria quando visibile e richiede Riflesso dell’obiettivo.</string>
+	<string name="subtitle_lens_flare_motion_unsupported">Questo dispositivo non dispone di un sensore di movimento compatibile</string>
 	<string name="section_labels">Etichette</string>
 	<string name="section_temperature_unit">Unità di temperatura</string>
 	<string name="section_location">Posizione</string>

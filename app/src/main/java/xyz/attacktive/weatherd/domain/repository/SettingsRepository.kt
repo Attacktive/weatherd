@@ -65,6 +65,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		val SUN_SIZE_SCALE = floatPreferencesKey("sun_size_scale")
 		val SUN_COLOR_PRESET = stringPreferencesKey("sun_color_preset")
 		val LENS_FLARE_ENABLED = booleanPreferencesKey("lens_flare_enabled")
+		val LENS_FLARE_MOTION_ENABLED = booleanPreferencesKey("lens_flare_motion_enabled")
 		val SCENE_SIMULATOR_ENABLED = booleanPreferencesKey("scene_simulator_enabled")
 		val SCENE_SIMULATOR_ACTIVE = booleanPreferencesKey("scene_simulator_active")
 		val SCENE_SIMULATOR_PRESET_INDEX = intPreferencesKey("scene_simulator_preset_index")
@@ -102,6 +103,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			sunSizeScale = (preferences[Keys.SUN_SIZE_SCALE] ?: defaults.sunSizeScale).coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive),
 			sunColorPreset = enumOrDefault(preferences[Keys.SUN_COLOR_PRESET], SunColorPreset.entries, defaults.sunColorPreset),
 			lensFlareEnabled = preferences[Keys.LENS_FLARE_ENABLED] ?: defaults.lensFlareEnabled,
+			lensFlareMotionEnabled = preferences[Keys.LENS_FLARE_MOTION_ENABLED] ?: defaults.lensFlareMotionEnabled,
 			sceneSimulatorEnabled = preferences[Keys.SCENE_SIMULATOR_ENABLED] ?: defaults.sceneSimulatorEnabled,
 			sceneSimulatorActive = preferences[Keys.SCENE_SIMULATOR_ACTIVE] ?: defaults.sceneSimulatorActive,
 			sceneSimulatorPresetIndex = (preferences[Keys.SCENE_SIMULATOR_PRESET_INDEX] ?: defaults.sceneSimulatorPresetIndex).coerceAtLeast(0),
@@ -140,6 +142,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			preferences[Keys.SUN_SIZE_SCALE] = settings.sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive)
 			preferences[Keys.SUN_COLOR_PRESET] = settings.sunColorPreset.name
 			preferences[Keys.LENS_FLARE_ENABLED] = settings.lensFlareEnabled
+			preferences[Keys.LENS_FLARE_MOTION_ENABLED] = settings.lensFlareMotionEnabled
 			preferences[Keys.SCENE_SIMULATOR_ENABLED] = settings.sceneSimulatorEnabled
 			preferences[Keys.SCENE_SIMULATOR_ACTIVE] = settings.sceneSimulatorActive
 			preferences[Keys.SCENE_SIMULATOR_PRESET_INDEX] = settings.sceneSimulatorPresetIndex

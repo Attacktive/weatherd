@@ -34,6 +34,7 @@ import xyz.attacktive.weatherd.domain.weather.precipitationIntensity
  * [nightBrightnessScale] dims the completed static night backdrop after weather transforms, so 0 makes the background black without dimming dawn, day, dusk, stars, celestial bodies or animated weather.
  * [sunVisible], [moonVisible], [sunSizeScale] and [sunColorPreset] customize the celestial bodies without changing the time-of-day lighting.
  * [lensFlareEnabled] is a display preference for camera-style streaks and optical ghosts around the sun; it does not disable the physical corona or atmospheric light shafts.
+ * [lensFlareMotionEnabled] allows device tilt and motion sensors to subtly deflect camera optical reflections when [lensFlareEnabled] and direct sun are visible.
  */
 data class SceneParams(
 	val dayPhase: DayPhase,
@@ -61,7 +62,8 @@ data class SceneParams(
 	val moonVisible: Boolean = true,
 	val sunSizeScale: Float = 1f,
 	val sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
-	val lensFlareEnabled: Boolean = true
+	val lensFlareEnabled: Boolean = true,
+	val lensFlareMotionEnabled: Boolean = false
 )
 
 /** The two overlay text lines — the current weather ("Rain · 10°") and the place name — each omissible on its own. */
@@ -92,7 +94,8 @@ fun backdropSignature(params: SceneParams, backgroundPhotoAvailable: Boolean = f
 		moonVisible = true,
 		sunSizeScale = 1f,
 		sunColorPreset = SunColorPreset.NATURAL,
-		lensFlareEnabled = true
+		lensFlareEnabled = true,
+		lensFlareMotionEnabled = false
 	)
 }
 
@@ -124,6 +127,7 @@ fun sceneParamsFor(
 	sunSizeScale: Float = 1f,
 	sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
 	lensFlareEnabled: Boolean = true,
+	lensFlareMotionEnabled: Boolean = false
 ): SceneParams {
 	val observation = snapshot.observation
 	val condition = observation.condition
@@ -162,7 +166,8 @@ fun sceneParamsFor(
 		backdropScene = backdropScene,
 		photoRevision = photoRevision,
 		overlayLabels = overlayLabels,
-		lensFlareEnabled = lensFlareEnabled
+		lensFlareEnabled = lensFlareEnabled,
+		lensFlareMotionEnabled = lensFlareMotionEnabled
 	)
 }
 

@@ -63,6 +63,9 @@
 	<string name="sun_color_orange">橙色</string>
 	<string name="label_lens_flare">镜头光晕</string>
 	<string name="subtitle_lens_flare">太阳周围的相机风格光带和反射</string>
+	<string name="label_lens_flare_motion">动作感应反射</string>
+	<string name="subtitle_lens_flare_motion">倾斜手机时平移反射效果。显示时会消耗更多电量，且需要开启镜头光晕。</string>
+	<string name="subtitle_lens_flare_motion_unsupported">此设备没有兼容的运动传感器</string>
 	<string name="section_labels">标签</string>
 	<string name="section_temperature_unit">温度单位</string>
 	<string name="section_location">位置</string>

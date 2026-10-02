@@ -83,6 +83,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	@Volatile private var sunSizeScale = 1f
 	@Volatile private var sunColorPreset = SunColorPreset.NATURAL
 	@Volatile private var lensFlareEnabled = true
+	@Volatile private var lensFlareMotionEnabled = false
 	@Volatile private var sceneSimulatorActive = false
 	@Volatile private var sceneSimulatorPresetIndex = 0
 	@Volatile private var sceneSimulatorDayPhase = DayPhase.DAY
@@ -120,7 +121,8 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			moonVisible = moonVisible,
 			sunSizeScale = sunSizeScale,
 			sunColorPreset = sunColorPreset,
-			lensFlareEnabled = lensFlareEnabled
+			lensFlareEnabled = lensFlareEnabled,
+			lensFlareMotionEnabled = lensFlareMotionEnabled
 		)
 	}
 
@@ -284,6 +286,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		sunSizeScale = settings.sunSizeScale
 		sunColorPreset = settings.sunColorPreset
 		lensFlareEnabled = settings.lensFlareEnabled
+		lensFlareMotionEnabled = settings.lensFlareMotionEnabled
 		sceneSimulatorActive = settings.sceneSimulatorActive
 		sceneSimulatorPresetIndex = settings.sceneSimulatorPresetIndex.coerceIn(0, SCENE_PRESETS.lastIndex)
 		sceneSimulatorDayPhase = settings.sceneSimulatorDayPhase
@@ -309,7 +312,8 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		sunSizeScale = sunSizeScale,
 		sunColorPreset = sunColorPreset,
 		lensFlareEnabled = lensFlareEnabled,
-		celestialProgress = sceneSimulatorCelestialProgress
+		celestialProgress = sceneSimulatorCelestialProgress,
+		lensFlareMotionEnabled = lensFlareMotionEnabled
 	)
 		.copy(backdropScene = backdropScene, photoRevision = photoRevision)
 
@@ -503,6 +507,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			sunSizeScale = sunSizeScale,
 			sunColorPreset = sunColorPreset,
 			lensFlareEnabled = lensFlareEnabled,
+			lensFlareMotionEnabled = lensFlareMotionEnabled,
 			overlayLabels = fallbackOverlayLabels()
 		)
 	}

@@ -61,6 +61,7 @@ import xyz.attacktive.weatherd.domain.render.SCENE_PRESETS
 import xyz.attacktive.weatherd.domain.render.SceneRenderer
 import xyz.attacktive.weatherd.domain.render.backdropSignature
 import xyz.attacktive.weatherd.domain.render.debugSceneParams
+import xyz.attacktive.weatherd.domain.render.lensFlareMotionActive
 import xyz.attacktive.weatherd.domain.render.renderImmutableBitmap
 import xyz.attacktive.weatherd.domain.render.sceneAnimationTimeSeconds
 import xyz.attacktive.weatherd.service.WeatherLiveWallpaperService
@@ -74,6 +75,8 @@ import xyz.attacktive.weatherd.service.WeatherLiveWallpaperService
 fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hiltViewModel()) {
 	val context = LocalContext.current
 	val renderer = remember { SceneRenderer(context.resources) }
+	val motionSensor = viewModel.lensFlareMotionSensor
+	val motionOwner = remember { Any() }
 	var timeSeconds by remember { mutableFloatStateOf(0f) }
 	var liveParams by remember { mutableStateOf(viewModel.currentParams()) }
 	var debugEnabled by remember { mutableStateOf(false) }
@@ -98,6 +101,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	val sunSizeScale by viewModel.sunSizeScale.collectAsStateWithLifecycle()
 	val sunColorPreset by viewModel.sunColorPreset.collectAsStateWithLifecycle()
 	val lensFlareEnabled by viewModel.lensFlareEnabled.collectAsStateWithLifecycle()
+	val lensFlareMotionEnabled by viewModel.lensFlareMotionEnabled.collectAsStateWithLifecycle()
 	val sceneSimulatorEnabled by viewModel.sceneSimulatorEnabled.collectAsStateWithLifecycle()
 	val persistedDebugEnabled by viewModel.sceneSimulatorActive.collectAsStateWithLifecycle()
 	val persistedDebugSceneIndex by viewModel.sceneSimulatorPresetIndex.collectAsStateWithLifecycle()
@@ -129,11 +133,18 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 			sunSizeScale = sunSizeScale,
 			sunColorPreset = sunColorPreset,
 			lensFlareEnabled = lensFlareEnabled,
+			lensFlareMotionEnabled = lensFlareMotionEnabled,
 			celestialProgress = debugCelestialProgress
 		)
 			.copy(backdropScene = liveParams.backdropScene, photoRevision = liveParams.photoRevision)
 	} else {
 		liveParams
+	}
+
+	val motionActive = lensFlareMotionActive(params)
+	LifecycleResumeEffect(motionSensor, motionActive) {
+		motionSensor.setActive(motionOwner, motionActive)
+		onPauseOrDispose { motionSensor.setActive(motionOwner, false) }
 	}
 
 	LifecycleResumeEffect(Unit) {
@@ -237,6 +248,8 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 		) {
 			drawIntoCanvas { canvas ->
 				canvas.nativeCanvas.drawBitmap(backdrop, 0f, 0f, null)
+				renderer.lensFlareOffsetX = motionSensor.offsetX
+				renderer.lensFlareOffsetY = motionSensor.offsetY
 				renderer.renderForeground(canvas.nativeCanvas, widthPx, heightPx, params, timeSeconds)
 			}
 		}

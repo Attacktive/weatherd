@@ -18,12 +18,14 @@ import xyz.attacktive.weatherd.domain.render.SceneParams
 import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
+import xyz.attacktive.weatherd.platform.LensFlareMotionSensor
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
 	private val sceneProvider: WeatherSceneProvider,
 	private val photoBackgroundRepository: PhotoBackgroundRepository,
-	private val settingsRepository: SettingsRepository
+	private val settingsRepository: SettingsRepository,
+	val lensFlareMotionSensor: LensFlareMotionSensor
 ): ViewModel() {
 	private val simulatorSettingsMutex = Mutex()
 
@@ -106,6 +108,11 @@ class HomeViewModel @Inject constructor(
 	val lensFlareEnabled = settingsRepository.settings
 		.map { it.lensFlareEnabled }
 		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().lensFlareEnabled)
+
+	/** Whether phone tilt moves lens reflections, so the simulator preserves the user's opt-in. */
+	val lensFlareMotionEnabled = settingsRepository.settings
+		.map { it.lensFlareMotionEnabled }
+		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().lensFlareMotionEnabled)
 
 	/** Whether release builds should expose the scene simulator controls on the home preview. */
 	val sceneSimulatorEnabled = settingsRepository.settings

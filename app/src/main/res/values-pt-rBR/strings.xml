@@ -63,6 +63,9 @@
 	<string name="sun_color_orange">Laranja</string>
 	<string name="label_lens_flare">Reflexo de lente</string>
 	<string name="subtitle_lens_flare">Faixas de luz e reflexos de câmera ao redor do sol</string>
+	<string name="label_lens_flare_motion">Reflexos responsivos ao movimento</string>
+	<string name="subtitle_lens_flare_motion">Move os reflexos ao inclinar o telefone. Consome mais bateria enquanto visível e requer Reflexo de lente.</string>
+	<string name="subtitle_lens_flare_motion_unsupported">Este dispositivo não possui um sensor de movimento compatível</string>
 	<string name="section_labels">Rótulos</string>
 	<string name="section_temperature_unit">Unidade de temperatura</string>
 	<string name="section_location">Localização</string>

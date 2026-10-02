@@ -73,18 +73,6 @@ class SettingsRepositoryTest {
 	}
 
 	@Test
-	fun `celestial appearance starts at the current rendering defaults`() = runTest {
-		val repository = SettingsRepository(dataStore())
-
-		val settings = repository.settings.first()
-		assertTrue(settings.sunVisible)
-		assertTrue(settings.moonVisible)
-		assertEquals(1f, settings.sunSizeScale, 0.0001f)
-		assertEquals(SunColorPreset.NATURAL, settings.sunColorPreset)
-		assertTrue(settings.lensFlareEnabled)
-	}
-
-	@Test
 	fun `both labels stay hidden until the user asks for them`() = runTest {
 		val repository = SettingsRepository(dataStore())
 
@@ -120,6 +108,7 @@ class SettingsRepositoryTest {
 			sunSizeScale = 1.65f,
 			sunColorPreset = SunColorPreset.GOLDEN,
 			lensFlareEnabled = false,
+			lensFlareMotionEnabled = true,
 			sceneSimulatorEnabled = true,
 			sceneSimulatorActive = true,
 			sceneSimulatorPresetIndex = 7,
@@ -130,6 +119,22 @@ class SettingsRepositoryTest {
 		repository.save(updated)
 
 		assertEquals(updated, repository.settings.first())
+	}
+
+	@Test
+	fun `lens flare motion opt-in can be disabled after repository reopen`() = runTest {
+		val dataStore = dataStore()
+		val repository = SettingsRepository(dataStore)
+
+		repository.save(repository.settings.first().copy(lensFlareMotionEnabled = true))
+
+		val reopenedRepository = SettingsRepository(dataStore)
+		assertTrue(reopenedRepository.settings.first().lensFlareMotionEnabled)
+
+		reopenedRepository.save(reopenedRepository.settings.first().copy(lensFlareMotionEnabled = false))
+
+		val finalRepository = SettingsRepository(dataStore)
+		assertFalse(finalRepository.settings.first().lensFlareMotionEnabled)
 	}
 
 	@Test

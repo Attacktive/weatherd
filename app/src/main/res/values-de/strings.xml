@@ -63,6 +63,9 @@
 	<string name="sun_color_orange">Orange</string>
 	<string name="label_lens_flare">Linsenreflexion</string>
 	<string name="subtitle_lens_flare">Kameraartige Lichtstreifen und Reflexionen um die Sonne</string>
+	<string name="label_lens_flare_motion">Bewegungsreaktive Reflexionen</string>
+	<string name="subtitle_lens_flare_motion">Verschiebt Reflexionen beim Neigen des Telefons. Verbraucht bei Sichtbarkeit mehr Akku und erfordert Linsenreflexion.</string>
+	<string name="subtitle_lens_flare_motion_unsupported">Dieses Gerät verfügt über keinen kompatiblen Bewegungssensor</string>
 	<string name="section_labels">Beschriftungen</string>
 	<string name="section_temperature_unit">Temperatureinheit</string>
 	<string name="section_location">Standort</string>

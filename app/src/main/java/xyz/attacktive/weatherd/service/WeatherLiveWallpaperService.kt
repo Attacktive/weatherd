@@ -18,10 +18,12 @@ import xyz.attacktive.weatherd.domain.render.SceneParams
 import xyz.attacktive.weatherd.domain.render.SceneRenderer
 import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
 import xyz.attacktive.weatherd.domain.render.backdropSignature
+import xyz.attacktive.weatherd.domain.render.lensFlareMotionActive
 import xyz.attacktive.weatherd.domain.render.renderImmutableBitmap
 import xyz.attacktive.weatherd.domain.render.sceneAnimationTimeSeconds
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
+import xyz.attacktive.weatherd.platform.LensFlareMotionSensor
 import xyz.attacktive.weatherd.platform.currentHomeLauncher
 import xyz.attacktive.weatherd.platform.wallpaperScrollingSupportedBy
 
@@ -36,6 +38,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 	@Inject lateinit var sceneProvider: WeatherSceneProvider
 	@Inject lateinit var settingsRepository: SettingsRepository
 	@Inject lateinit var photoBackgroundRepository: PhotoBackgroundRepository
+	@Inject lateinit var lensFlareMotionSensor: LensFlareMotionSensor
 
 	override fun onCreateEngine(): Engine = SceneEngine()
 
@@ -52,6 +55,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 		private var paramsComputedAtSecond = 0L
 		private var width = 0
 		private var height = 0
+		private var reflectionMotionActive = false
 		@Volatile private var visible = false
 		@Volatile private var frameRateCap = FrameRateCap.UNCAPPED
 		@Volatile private var wallpaperScrollingPreferenceEnabled = false
@@ -77,6 +81,9 @@ class WeatherLiveWallpaperService: WallpaperService() {
 		override fun onVisibilityChanged(visible: Boolean) {
 			this.visible = visible
 			choreographer.removeFrameCallback(this)
+			if (!visible) {
+				updateReflectionMotion(false)
+			}
 
 			if (visible) {
 				wallpaperScrollingSupported = wallpaperScrollingSupportedBy(currentHomeLauncher(this@WeatherLiveWallpaperService)?.packageName)
@@ -95,14 +102,23 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			backdrop = null
 			renderedParams = null
 			previousBackdrop = null
+
+			if (visible) {
+				choreographer.removeFrameCallback(this)
+				choreographer.postFrameCallback(this)
+			}
 		}
 
 		override fun onSurfaceDestroyed(holder: SurfaceHolder) {
 			choreographer.removeFrameCallback(this)
+			width = 0
+			height = 0
+			updateReflectionMotion(false)
 		}
 
 		override fun onDestroy() {
 			choreographer.removeFrameCallback(this)
+			updateReflectionMotion(false)
 			scope.cancel()
 		}
 
@@ -132,6 +148,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			}
 
 			val params = currentParams()
+			updateReflectionMotion(lensFlareMotionActive(params))
 			val wallpaperScrollingEnabled = wallpaperScrollingPreferenceEnabled && wallpaperScrollingSupported
 			val sceneWidth = wallpaperSceneWidth(width, wallpaperScrollingEnabled)
 			val outgoing = backdrop
@@ -197,9 +214,21 @@ class WeatherLiveWallpaperService: WallpaperService() {
 
 			val saved = canvas.save()
 			canvas.translate(-viewportLeft, 0f)
+			renderer.lensFlareOffsetX = lensFlareMotionSensor.offsetX
+			renderer.lensFlareOffsetY = lensFlareMotionSensor.offsetY
 			renderer.renderForeground(canvas, backdrop.width, height, params, timeSeconds, includeOverlayLabels = false)
 			canvas.restoreToCount(saved)
 			renderer.renderOverlayLabels(canvas, width, height, params)
+		}
+
+		/** Repeated frames do not add leases; only eligibility and lifecycle transitions touch the sensor. */
+		private fun updateReflectionMotion(active: Boolean) {
+			if (reflectionMotionActive == active) {
+				return
+			}
+
+			reflectionMotionActive = active
+			lensFlareMotionSensor.setActive(this, active)
 		}
 
 		/** The scene params, recomputed at most once per second — the day phase can shift, but never per frame. */

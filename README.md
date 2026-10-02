@@ -6,6 +6,11 @@ Android live wallpaper that renders a procedural weather scene from Open-Meteo B
 
 Uses device location or a manually searched city, refreshes on a configurable interval (15 min – 6 hr), and mirrors the live scene in an in-app preview.
 
+Enable **Settings → Appearance → Sun and moon → Motion-responsive reflections** to move the sun's optical reflections as you tilt your phone, in both the preview and the live wallpaper.
+The option is off by default, requires **Lens flare**, and is disabled on devices without a compatible motion sensor.
+It uses a gravity sensor or an accelerometer fallback only while a visible scene can draw sun reflections; collection stops when the scene is hidden, the screen is off, or weather/night hides the reflections.
+Motion can use extra battery while active, and the reflections recenter after collection stops or the display rotates.
+
 **Min SDK:** Android 8.0 (API 26)
 
 <a href="https://play.google.com/store/apps/details?id=xyz.attacktive.weatherd">

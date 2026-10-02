@@ -102,11 +102,28 @@ class SceneDebugPresetsTest {
 	}
 
 	@Test
-	fun `lens flare preference reaches debug scene params`() {
-		val preset = SCENE_PRESETS.first { it.name == "PARTLY CLOUDY" }
-		val params = debugSceneParams(preset, DayPhase.DAY, lensFlareEnabled = false)
+	fun `lens flare motion preference reaches debug scene params and gates sensor collection`() {
+		val preset = SCENE_PRESETS.first { it.name == "CLEAR" }
+		val defaultParams = debugSceneParams(preset, DayPhase.DAY)
 
-		assertFalse(params.lensFlareEnabled)
+		assertFalse(defaultParams.lensFlareMotionEnabled)
+		assertFalse(lensFlareMotionActive(defaultParams))
+
+		val enabledParams = debugSceneParams(preset, DayPhase.DAY, lensFlareMotionEnabled = true)
+
+		assertTrue(enabledParams.lensFlareMotionEnabled)
+		assertTrue(lensFlareMotionActive(enabledParams))
+
+		val flareDisabled = debugSceneParams(preset, DayPhase.DAY, lensFlareEnabled = false, lensFlareMotionEnabled = true)
+
+		assertTrue(flareDisabled.lensFlareMotionEnabled)
+		assertFalse(flareDisabled.lensFlareEnabled)
+		assertFalse(lensFlareMotionActive(flareDisabled))
+
+		val night = debugSceneParams(preset, DayPhase.NIGHT, lensFlareMotionEnabled = true)
+
+		assertTrue(night.lensFlareMotionEnabled)
+		assertFalse(lensFlareMotionActive(night))
 	}
 
 	@Test

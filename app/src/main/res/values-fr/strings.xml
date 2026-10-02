@@ -63,6 +63,9 @@
 	<string name="sun_color_orange">Orange</string>
 	<string name="label_lens_flare">Reflets d’objectif</string>
 	<string name="subtitle_lens_flare">Traînées lumineuses et reflets de type appareil photo autour du soleil</string>
+	<string name="label_lens_flare_motion">Reflets réactifs au mouvement</string>
+	<string name="subtitle_lens_flare_motion">Déplace les reflets lorsque vous inclinez le téléphone. Consomme plus de batterie lorsqu’il est visible et nécessite Reflets d’objectif.</string>
+	<string name="subtitle_lens_flare_motion_unsupported">Cet appareil ne dispose pas d’un capteur de mouvement compatible</string>
 	<string name="section_labels">Libellés</string>
 	<string name="section_temperature_unit">Unité de température</string>
 	<string name="section_location">Emplacement</string>
