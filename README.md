@@ -36,6 +36,25 @@ Debug builds need no secrets. All weather providers work without API keys. `rele
 
 Run the pull-request checks locally with `./gradlew test :app:lint :app:detekt`. Run instrumentation tests on a connected device or emulator with `./gradlew :app:connectedDebugAndroidTest`.
 
+## Daytime rendering performance
+
+The corona and optical halos cache disjoint alpha-coverage strips and clip drawing to them, skipping transparent overdraw while retaining the original bitmap sampling, SCREEN compositing, colors, opacity, and time-based animation.
+Coverage metadata is built once per source sprite and invalidated with its tile cache; the decoded atmospheric rainbow keeps its coverage for the layer's lifetime.
+Frame-rate caps and non-sun rendering paths are unchanged.
+
+For [#206](https://github.com/Attacktive/weatherd/issues/206), the Pixel emulator (API 36) at 1600×2560 produced these median frame times after eight warm-up frames and 60 measured frames:
+
+| Scene / measurement | Before | After |
+| --- | ---: | ---: |
+| Software foreground: sun without lens flare | 24.82 ms | 15.26 ms |
+| Software foreground: sun with lens flare | 38.24 ms | 22.12 ms |
+| Software foreground: sun and 0.5 cloud cover | 45.57 ms | 30.03 ms |
+| Hardware canvas: sun with lens flare, through image delivery/readback | 23.02 ms | 17.67 ms |
+
+The software measurements exclude backdrop restoration; the hardware measurements include backdrop drawing, submission, and waiting for a readable frame.
+These are renderer measurements, not launcher-jank or input-latency measurements.
+Full-resolution software comparisons kept clouds, moon, overcast, mountains, and rain pixel-identical; clear-day lens flare differed at nine pixels by at most one channel value.
+
 ## Weather data attribution
 
 Weatherd offers Open-Meteo Best Match, [MET Norway](https://api.met.no), and explicit ICON-family forecasts served through [Open-Meteo](https://open-meteo.com):

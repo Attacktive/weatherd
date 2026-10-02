@@ -1,5 +1,6 @@
 package xyz.attacktive.weatherd.domain.render
 
+import java.util.IdentityHashMap
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -103,6 +104,7 @@ class SceneRenderer(resources: Resources) {
 	private var sceneryGlyphPaths: List<SceneryLayerPath> = emptyList()
 	private var sceneryWindmill: SceneryWindmill? = null
 	private val tiles = HashMap<String, Bitmap>()
+	private val sunSpriteCoverage = IdentityHashMap<Bitmap, SunSpriteCoverage>()
 	private val farOvercastBankDelegate = lazy { CloudLayer(resources, R.drawable.cloud_overcast_veil) }
 	private val supportOvercastBankDelegate = lazy { CloudLayer(resources, R.drawable.cloud_overcast_support) }
 	private val heroOvercastBankDelegate = lazy { CloudLayer(resources, R.drawable.cloud_overcast_hero) }
@@ -225,6 +227,7 @@ class SceneRenderer(resources: Resources) {
 		val key = "${width}x$height-${params.dayPhase}-$precipKey-f${(params.fogDensity * 100f).toInt()}-t${params.thunder}-sun${params.sunColorPreset}"
 		if (key != tilesKey) {
 			tiles.clear()
+			sunSpriteCoverage.clear()
 			tilesKey = key
 		}
 
@@ -1242,9 +1245,9 @@ class SceneRenderer(resources: Resources) {
 		val cloudStrength = sunCoronaCloudStrength(effectiveCloudiness(sun.params))
 		val coronaAlpha = SUN_CORONA_ALPHA * alpha * cloudStrength * (0.92f + 0.08f * sun.pulse)
 		val coronaRadius = radius * SUN_CORONA_REACH * scale
-		blitGlow(canvas, beams, sun.centerX, sun.centerY, coronaRadius, sunAlpha(coronaAlpha * SUN_CORONA_BEAM_GLOW_ALPHA_SCALE, sun.visibility))
-		blitSprite(canvas, corona, sun.centerX, sun.centerY, coronaRadius, sunAlpha(coronaAlpha * SUN_CORONA_COLOR_ALPHA_SCALE, sun.visibility))
-		blitGlow(canvas, corona, sun.centerX, sun.centerY, coronaRadius, sunAlpha(coronaAlpha * SUN_CORONA_GLOW_ALPHA_SCALE, sun.visibility))
+		blitCoveredSunSprite(canvas, beams, sun.centerX, sun.centerY, coronaRadius, sunAlpha(coronaAlpha * SUN_CORONA_BEAM_GLOW_ALPHA_SCALE, sun.visibility), glowPaint)
+		blitCoveredSunSprite(canvas, corona, sun.centerX, sun.centerY, coronaRadius, sunAlpha(coronaAlpha * SUN_CORONA_COLOR_ALPHA_SCALE, sun.visibility), spritePaint)
+		blitCoveredSunSprite(canvas, corona, sun.centerX, sun.centerY, coronaRadius, sunAlpha(coronaAlpha * SUN_CORONA_GLOW_ALPHA_SCALE, sun.visibility), glowPaint)
 	}
 
 	private fun sunCoronaScale(dayPhase: DayPhase, celestialProgress: Float) = when (dayPhase) {
@@ -1293,12 +1296,12 @@ class SceneRenderer(resources: Resources) {
 		val haloPhaseStrength = lensHaloPhaseStrength(sun.params.dayPhase, sun.params.celestialProgress)
 		val lensHalo = tile("sunLensHalo-reference", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildLensHaloSprite(it) }
 		val lensHaloAlpha = SUN_LENS_HALO_ALPHA * haloPhaseStrength
-		blitGlow(canvas, lensHalo, haloCenterX, haloCenterY, radius * SUN_LENS_HALO_REACH, sunAlpha(lensHaloAlpha, sun.visibility))
+		blitCoveredSunSprite(canvas, lensHalo, haloCenterX, haloCenterY, radius * SUN_LENS_HALO_REACH, sunAlpha(lensHaloAlpha, sun.visibility), glowPaint)
 
 		val rainbowCenterX = sun.centerX + displacementX * LENS_FLARE_RAINBOW_SHIFT_FACTOR
 		val rainbowCenterY = sun.centerY + displacementY * LENS_FLARE_RAINBOW_SHIFT_FACTOR
 		val rainbowHalo = tile("sunRainbowHalo-reference", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildLensRainbowHaloSprite(it) }
-		blitGlow(canvas, rainbowHalo, rainbowCenterX, rainbowCenterY, radius * SUN_LENS_HALO_REACH, sunAlpha(SUN_RAINBOW_HALO_ALPHA * haloPhaseStrength, sun.visibility))
+		blitCoveredSunSprite(canvas, rainbowHalo, rainbowCenterX, rainbowCenterY, radius * SUN_LENS_HALO_REACH, sunAlpha(SUN_RAINBOW_HALO_ALPHA * haloPhaseStrength, sun.visibility), glowPaint)
 
 		val streak = tile("sunStreak", SUN_STREAK_SPRITE_WIDTH, SUN_STREAK_SPRITE_HEIGHT) { buildSunStreakSprite(it, core) }
 		val streakHalfWidth = radius * SUN_STREAK_REACH
@@ -2353,6 +2356,15 @@ class SceneRenderer(resources: Resources) {
 		spriteDest.set(centerX - radius, centerY - radius, centerX + radius, centerY + radius)
 		canvas.drawBitmap(sprite, null, spriteDest, spritePaint)
 		spritePaint.alpha = 255
+	}
+
+	/** Sparse corona and lens sprites keep their original compositing but skip cached transparent sampling regions. */
+	private fun blitCoveredSunSprite(canvas: Canvas, sprite: Bitmap, centerX: Float, centerY: Float, radius: Float, alpha: Int, brush: Paint) {
+		brush.alpha = alpha.coerceIn(0, 255)
+		spriteDest.set(centerX - radius, centerY - radius, centerX + radius, centerY + radius)
+		val coverage = sunSpriteCoverage.getOrPut(sprite) { SunSpriteCoverage(sprite) }
+		coverage.draw(canvas, spriteDest, brush)
+		brush.alpha = 255
 	}
 
 	/** [blitSprite] through [glowPaint], so the sprite adds light to the sky underneath instead of painting over it. */

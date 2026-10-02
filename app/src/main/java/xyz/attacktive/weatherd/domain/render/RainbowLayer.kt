@@ -9,6 +9,7 @@ import android.graphics.ColorMatrixColorFilter
 import android.graphics.LightingColorFilter
 import android.graphics.Matrix
 import android.graphics.Paint
+import android.graphics.RectF
 import androidx.annotation.DrawableRes
 import kotlin.math.roundToInt
 import xyz.attacktive.weatherd.domain.model.DayPhase
@@ -16,6 +17,8 @@ import xyz.attacktive.weatherd.domain.model.DayPhase
 /** Reuses decoded chromatic halo pixels, a sampling transform, and day-phase tint state between frames. */
 internal class RainbowLayer(resources: Resources, @DrawableRes texture: Int) {
 	private val bitmap = checkNotNull(BitmapFactory.decodeResource(resources, texture, BitmapFactory.Options().apply { inScaled = false }))
+	private val coverage = SunSpriteCoverage(bitmap)
+	private val destination = RectF()
 	private val transform = Matrix()
 	private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
 	private val daytimeColorFilter = ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(DAY_SATURATION) })
@@ -35,6 +38,7 @@ internal class RainbowLayer(resources: Resources, @DrawableRes texture: Int) {
 
 		transform.setScale(scale, scale)
 		transform.postTranslate(left, top)
+		destination.set(left, top, left + drawWidth, top + drawHeight)
 		paint.alpha = (255f * haloStrength(dayPhase) * visibility).roundToInt().coerceIn(0, 255)
 
 		val tint = rainbowTint(dayPhase)
@@ -48,7 +52,7 @@ internal class RainbowLayer(resources: Resources, @DrawableRes texture: Int) {
 			previousTint = tint
 		}
 
-		canvas.drawBitmap(bitmap, transform, paint)
+		coverage.draw(canvas, transform, destination, paint)
 	}
 
 	companion object {
