@@ -34,7 +34,18 @@ cd weatherd
 
 Debug builds need no secrets. All weather providers work without API keys. `release.keystore` with `KEYSTORE_PASSWORD` are needed only for release signing.
 
-Run the pull-request checks locally with `./gradlew test :app:lint :app:detekt`. Run instrumentation tests on a connected device or emulator with `./gradlew :app:connectedDebugAndroidTest`.
+Run the pull-request checks locally with `./gradlew test :app:lint :app:detekt`.
+Run `./gradlew :app:connectedDebugAndroidTest` only on a disposable device or emulator: the current runner removes Weatherd during teardown, including its app data.
+For an emulator with an existing installation, preserve app data by updating both APKs in place and invoking instrumentation directly:
+
+```sh
+./gradlew :app:assembleDebug :app:assembleDebugAndroidTest
+adb -s emulator-5554 install -r -t app/build/outputs/apk/debug/app-debug.apk
+adb -s emulator-5554 install -r -t app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb -s emulator-5554 shell am instrument -w xyz.attacktive.weatherd.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+Replace `emulator-5554` with the intended device serial; back up app data separately from the APK before a workflow that uninstalls packages.
 
 ## Daytime rendering performance
 

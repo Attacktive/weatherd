@@ -60,17 +60,7 @@ internal class SunSpriteCoverage(private val bitmap: Bitmap) {
 				val sampleTop = maxOf(0, top - 1)
 				val sampleHeight = minOf(height, bottom + 1) - sampleTop
 				bitmap.getPixels(pixels, 0, width, 0, sampleTop, width, sampleHeight)
-				columns.fill(false)
-				for (y in 0 until sampleHeight) {
-					for (x in 0 until width) {
-						if (Color.alpha(pixels[y * width + x]) > 0) {
-							// Include neighboring texels so bilinear filtering keeps faint edges and isolated ray tips.
-							columns[maxOf(0, x - 1)] = true
-							columns[x] = true
-							columns[minOf(width - 1, x + 1)] = true
-						}
-					}
-				}
+				markCoveredColumns(pixels, width, sampleHeight, columns)
 
 				var x = 0
 				while (x < width) {
@@ -89,6 +79,20 @@ internal class SunSpriteCoverage(private val bitmap: Bitmap) {
 			}
 
 			return regions
+		}
+
+		private fun markCoveredColumns(pixels: IntArray, width: Int, sampleHeight: Int, columns: BooleanArray) {
+			columns.fill(false)
+			for (y in 0 until sampleHeight) {
+				for (x in 0 until width) {
+					if (Color.alpha(pixels[y * width + x]) > 0) {
+						// Include neighboring texels so bilinear filtering keeps faint edges and isolated ray tips.
+						columns[maxOf(0, x - 1)] = true
+						columns[x] = true
+						columns[minOf(width - 1, x + 1)] = true
+					}
+				}
+			}
 		}
 	}
 }
