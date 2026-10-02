@@ -10,6 +10,9 @@ Instructions and architectural invariants for agents working in the Weatherd cod
 Agents use standard file inspection, editing tools, and Gradle tasks (`./gradlew check`).
 - The JDK is installed via SDKMAN.
 - Before Gradle tasks in non-interactive shells, source `"$HOME/.sdkman/bin/sdkman-init.sh"`.
+- In the current setup, `connectedDebugAndroidTest` removes the target Weatherd installation during teardown (observed on Pixel); use it only on a disposable device or emulator.
+- To preserve an existing installation, build the app and test APKs, install both with `adb install -r -t`, and run `adb shell am instrument -w xyz.attacktive.weatherd.test/androidx.test.runner.AndroidJUnitRunner` directly.
+- Back up app data separately from the APK before any test workflow that removes packages; saving the APK does not preserve settings or photos.
 
 ### GitHub Actions Are Not a General-Purpose Remote Shell
 
