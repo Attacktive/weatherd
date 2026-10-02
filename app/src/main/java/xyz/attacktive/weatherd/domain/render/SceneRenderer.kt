@@ -49,8 +49,7 @@ class SceneRenderer(resources: Resources) {
 	private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG)
 	private val blitPaint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
 	private val blitDest = RectF()
-	private val boltPath = Path()
-	private val forkPath = Path()
+	private val lightningBolt by lazy(LazyThreadSafetyMode.NONE) { LightningBoltLayer() }
 	private val birdPath = Path()
 	private val lightShaftPath = Path()
 	private val sunCloudUpperSamples = FloatArray(SUN_SHAFT_PROFILE_SAMPLES)
@@ -2212,10 +2211,11 @@ class SceneRenderer(resources: Resources) {
 		}
 
 		// Geometry gets its own seed stride so it never replays the schedule draws consumed in [updateLightning].
-		val random = Random((BOLT_SEED + flashSlot) * GEOMETRY_SEED_STRIDE)
+		val geometrySeed = (BOLT_SEED + flashSlot) * GEOMETRY_SEED_STRIDE
 		paint.style = Paint.Style.FILL
 
 		if (flashSheet) {
+			val random = Random(geometrySeed)
 			// The distant strike: a soft wash plus a broad glow low in the deck, as if a cloud lit up from within.
 			paint.color = Color.argb((30f * flashWash).roundToInt(), 236, 238, 255)
 			canvas.drawRect(0f, 0f, width, height, paint)
@@ -2236,106 +2236,7 @@ class SceneRenderer(resources: Resources) {
 			return
 		}
 
-		buildBolt(width, height, random)
-
-		val strokeScale = min(width, height) / LIGHTNING_REFERENCE_WIDTH
-		paint.style = Paint.Style.STROKE
-		paint.strokeCap = Paint.Cap.ROUND
-		paint.strokeJoin = Paint.Join.ROUND
-
-		paint.strokeWidth = LIGHTNING_OUTER_GLOW_WIDTH * strokeScale
-		paint.color = Color.argb((18f * flashBolt).roundToInt(), 176, 196, 255)
-		canvas.drawPath(boltPath, paint)
-
-		paint.strokeWidth = LIGHTNING_BRANCH_OUTER_GLOW_WIDTH * strokeScale
-		paint.color = Color.argb((14f * flashBolt).roundToInt(), 176, 196, 255)
-		canvas.drawPath(forkPath, paint)
-
-		paint.strokeWidth = LIGHTNING_GLOW_WIDTH * strokeScale
-		paint.color = Color.argb((58f * flashBolt).roundToInt(), 196, 211, 255)
-		canvas.drawPath(boltPath, paint)
-
-		paint.strokeWidth = LIGHTNING_BRANCH_GLOW_WIDTH * strokeScale
-		paint.color = Color.argb((48f * flashBolt).roundToInt(), 196, 211, 255)
-		canvas.drawPath(forkPath, paint)
-
-		paint.strokeWidth = LIGHTNING_CORE_WIDTH * strokeScale
-		paint.color = Color.argb((255f * flashBolt).roundToInt(), 249, 251, 255)
-		canvas.drawPath(boltPath, paint)
-
-		paint.strokeWidth = LIGHTNING_BRANCH_CORE_WIDTH * strokeScale
-		paint.color = Color.argb((220f * flashBolt).roundToInt(), 242, 247, 255)
-		canvas.drawPath(forkPath, paint)
-
-		paint.style = Paint.Style.FILL
-	}
-
-	/**
-	 * Regenerates the main channel plus several shorter side channels from the slot's geometry seed.
-	 * The main path uses many small, downward-biased steps while the branches peel away from real channel vertices, avoiding the regular saw-tooth silhouette of the old six-segment bolt.
-	 */
-	private fun buildBolt(width: Float, height: Float, random: Random) {
-		var x = width * random.nextFloat(0.32f, 0.68f)
-		var y = -height * random.nextFloat(0f, 0.04f)
-		boltPath.reset()
-		boltPath.moveTo(x, y)
-		forkPath.reset()
-
-		val segment = height * LIGHTNING_LENGTH_FRACTION / BOLT_STEPS
-		repeat(BOLT_STEPS) { step ->
-			val previousX = x
-			val previousY = y
-			val lateralReach = width * if (step < BOLT_STEPS / 2) {
-				0.045f
-			} else {
-				0.065f
-			}
-
-			x = (x + random.nextFloat(-lateralReach, lateralReach)).coerceIn(width * 0.08f, width * 0.92f)
-			y += segment * random.nextFloat(0.72f, 1.3f)
-			boltPath.lineTo(x, y)
-
-			if (step == BOLT_STEPS * 3 / 10 || step == BOLT_STEPS * 5 / 10 || step == BOLT_STEPS * 7 / 10) {
-				buildBoltBranch(
-					width,
-					segment,
-					previousX,
-					previousY,
-					x,
-					y,
-					random
-				)
-			}
-		}
-	}
-
-	private fun buildBoltBranch(
-		width: Float,
-		segment: Float,
-		parentStartX: Float,
-		parentStartY: Float,
-		parentEndX: Float,
-		parentEndY: Float,
-		random: Random
-	) {
-		val branchPosition = random.nextFloat(0.45f, 0.9f)
-		var x = parentStartX + (parentEndX - parentStartX) * branchPosition
-		var y = parentStartY + (parentEndY - parentStartY) * branchPosition
-		forkPath.moveTo(x, y)
-
-		val direction = if (random.nextFloat() < 0.5f) {
-			-1f
-		} else {
-			1f
-		}
-
-		val steps = random.nextInt(LIGHTNING_BRANCH_MIN_STEPS, LIGHTNING_BRANCH_MAX_STEPS + 1)
-		repeat(steps) { step ->
-			val taper = 1f - step.toFloat() / steps
-			x += direction * random.nextFloat(width * 0.025f, width * 0.075f) * taper
-			y += segment * random.nextFloat(0.42f, 0.78f)
-			forkPath.lineTo(x, y)
-		}
+		lightningBolt.draw(canvas, width, height, geometrySeed, flashBolt)
 	}
 
 	private fun drawHaze(canvas: Canvas, width: Float, height: Float, params: SceneParams) {
@@ -3159,17 +3060,6 @@ class SceneRenderer(resources: Resources) {
 		private const val HELICOPTER_SEED = 13L
 		private const val SUN_CORONA_SEED = 17L
 		private const val STAR_AREA_PER_STAR = 22_000f
-		private const val BOLT_STEPS = 14
-		private const val LIGHTNING_REFERENCE_WIDTH = 360f
-		private const val LIGHTNING_LENGTH_FRACTION = 0.66f
-		private const val LIGHTNING_OUTER_GLOW_WIDTH = 24f
-		private const val LIGHTNING_BRANCH_OUTER_GLOW_WIDTH = 13f
-		private const val LIGHTNING_GLOW_WIDTH = 12f
-		private const val LIGHTNING_BRANCH_GLOW_WIDTH = 7f
-		private const val LIGHTNING_CORE_WIDTH = 3.2f
-		private const val LIGHTNING_BRANCH_CORE_WIDTH = 1.8f
-		private const val LIGHTNING_BRANCH_MIN_STEPS = 2
-		private const val LIGHTNING_BRANCH_MAX_STEPS = 4
 
 		/** Length of one lightning scheduling slot; each slot hosts at most one strike, fired at a random moment within it. */
 		private const val STRIKE_SLOT_SECONDS = 4.6f
