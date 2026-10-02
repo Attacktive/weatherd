@@ -18,29 +18,12 @@ internal class LensFlareTilt {
 	private var previousTimestampNanos = 0L
 
 	fun update(gravityX: Float, gravityY: Float, gravityZ: Float, displayRotation: Int, timestampNanos: Long) {
-		if (!gravityX.isFinite() || !gravityY.isFinite() || !gravityZ.isFinite() || timestampNanos <= previousTimestampNanos) {
+		if (!isValidGravitySample(gravityX, gravityY, gravityZ, timestampNanos, previousTimestampNanos)) {
 			return
 		}
 
-		val magnitudeSquared = gravityX * gravityX + gravityY * gravityY + gravityZ * gravityZ
-		if (magnitudeSquared < MIN_GRAVITY_SQUARED || !magnitudeSquared.isFinite()) {
-			return
-		}
-
-		val screenX = when (displayRotation) {
-			1 -> gravityY
-			2 -> -gravityX
-			3 -> -gravityY
-			else -> gravityX
-		}
-
-		val screenY = when (displayRotation) {
-			1 -> -gravityX
-			2 -> -gravityY
-			3 -> gravityX
-			else -> gravityY
-		}
-
+		val screenX = screenGravityX(gravityX, gravityY, displayRotation)
+		val screenY = screenGravityY(gravityX, gravityY, displayRotation)
 		val angleX = atan2(screenX, sqrt(screenY * screenY + gravityZ * gravityZ))
 		val angleY = atan2(gravityZ, screenY)
 		if (rotation != displayRotation) {
@@ -69,6 +52,30 @@ internal class LensFlareTilt {
 		rotation = -1
 		previousTimestampNanos = 0L
 	}
+}
+
+private fun isValidGravitySample(gravityX: Float, gravityY: Float, gravityZ: Float, timestampNanos: Long, previousTimestampNanos: Long): Boolean {
+	if (!gravityX.isFinite() || !gravityY.isFinite() || !gravityZ.isFinite() || timestampNanos <= previousTimestampNanos) {
+		return false
+	}
+
+	val magnitudeSquared = gravityX * gravityX + gravityY * gravityY + gravityZ * gravityZ
+
+	return magnitudeSquared >= MIN_GRAVITY_SQUARED && magnitudeSquared.isFinite()
+}
+
+private fun screenGravityX(gravityX: Float, gravityY: Float, displayRotation: Int) = when (displayRotation) {
+	1 -> gravityY
+	2 -> -gravityX
+	3 -> -gravityY
+	else -> gravityX
+}
+
+private fun screenGravityY(gravityX: Float, gravityY: Float, displayRotation: Int) = when (displayRotation) {
+	1 -> -gravityX
+	2 -> -gravityY
+	3 -> gravityX
+	else -> gravityY
 }
 
 private fun normalizeAngleDifference(delta: Float): Float {
