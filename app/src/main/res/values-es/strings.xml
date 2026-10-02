@@ -64,7 +64,7 @@
 	<string name="label_lens_flare">Destello de lente</string>
 	<string name="subtitle_lens_flare">Destellos y reflejos de cámara alrededor del sol</string>
 	<string name="label_lens_flare_motion">Reflejos sensibles al movimiento</string>
-	<string name="subtitle_lens_flare_motion">Mueve los reflejos al inclinar el teléfono. Consume más batería mientras está visible y requiere Destello de lente.</string>
+	<string name="subtitle_lens_flare_motion">Mueve los reflejos al inclinar el teléfono. Consume más batería, puede afectar el rendimiento mientras está visible y requiere Destello de lente.</string>
 	<string name="subtitle_lens_flare_motion_unsupported">Este dispositivo no cuenta con un sensor de movimiento compatible</string>
 	<string name="section_labels">Etiquetas</string>
 	<string name="section_temperature_unit">Unidad de temperatura</string>

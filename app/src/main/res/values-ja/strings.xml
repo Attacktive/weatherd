@@ -64,7 +64,7 @@
 	<string name="label_lens_flare">レンズフレア</string>
 	<string name="subtitle_lens_flare">太陽の周囲にカメラ風の光条と反射を表示</string>
 	<string name="label_lens_flare_motion">モーション連動反射</string>
-	<string name="subtitle_lens_flare_motion">端末を傾けると反射が移動します。表示中はバッテリー消費が増加し、レンズフレアの有効化が必要です。</string>
+	<string name="subtitle_lens_flare_motion">端末を傾けると反射が移動します。表示中はバッテリー消費が増加しパフォーマンスが低下する場合があり、レンズフレアの有効化が必要です。</string>
 	<string name="subtitle_lens_flare_motion_unsupported">この端末には対応するモーションセンサーがありません</string>
 	<string name="section_labels">ラベル</string>
 	<string name="section_temperature_unit">温度単位</string>

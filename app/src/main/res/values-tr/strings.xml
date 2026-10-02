@@ -64,7 +64,7 @@
 	<string name="label_lens_flare">Mercek parlaması</string>
 	<string name="subtitle_lens_flare">Güneşin etrafında kamera tarzı ışık çizgileri ve yansımalar</string>
 	<string name="label_lens_flare_motion">Harekete duyarlı yansımalar</string>
-	<string name="subtitle_lens_flare_motion">Telefonu eğdiğinizde yansımaları kaydırır. Görünür durumdayken daha fazla pil tüketir ve Mercek parlaması gerektirir.</string>
+	<string name="subtitle_lens_flare_motion">Telefonu eğdiğinizde yansımaları kaydırır. Görünür durumdayken daha fazla pil tüketir, performansı etkileyebilir ve Mercek parlaması gerektirir.</string>
 	<string name="subtitle_lens_flare_motion_unsupported">Bu cihazda uyumlu bir hareket sensörü bulunmuyor</string>
 	<string name="section_labels">Etiketler</string>
 	<string name="section_temperature_unit">Sıcaklık birimi</string>

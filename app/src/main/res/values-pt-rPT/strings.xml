@@ -64,7 +64,7 @@
 	<string name="label_lens_flare">Reflexo da lente</string>
 	<string name="subtitle_lens_flare">Rastos de luz e reflexos de câmara em redor do sol</string>
 	<string name="label_lens_flare_motion">Reflexos responsivos ao movimento</string>
-	<string name="subtitle_lens_flare_motion">Move os reflexos ao inclinar o telemóvel. Consome mais bateria enquanto visível e requer Reflexo da lente.</string>
+	<string name="subtitle_lens_flare_motion">Move os reflexos ao inclinar o telemóvel. Consome mais bateria e pode afetar o desempenho enquanto visível. Requer Reflexo da lente.</string>
 	<string name="subtitle_lens_flare_motion_unsupported">Este dispositivo não possui um sensor de movimento compatível</string>
 	<string name="section_labels">Etiquetas</string>
 	<string name="section_temperature_unit">Unidade de temperatura</string>
