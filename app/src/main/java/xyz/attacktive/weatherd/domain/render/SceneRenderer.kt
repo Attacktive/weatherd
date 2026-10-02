@@ -2243,12 +2243,20 @@ class SceneRenderer(resources: Resources) {
 		paint.strokeCap = Paint.Cap.ROUND
 		paint.strokeJoin = Paint.Join.ROUND
 
+		paint.strokeWidth = LIGHTNING_OUTER_GLOW_WIDTH * strokeScale
+		paint.color = Color.argb((18f * flashBolt).roundToInt(), 176, 196, 255)
+		canvas.drawPath(boltPath, paint)
+
+		paint.strokeWidth = LIGHTNING_BRANCH_OUTER_GLOW_WIDTH * strokeScale
+		paint.color = Color.argb((14f * flashBolt).roundToInt(), 176, 196, 255)
+		canvas.drawPath(forkPath, paint)
+
 		paint.strokeWidth = LIGHTNING_GLOW_WIDTH * strokeScale
-		paint.color = Color.argb((70f * flashBolt).roundToInt(), 188, 205, 255)
+		paint.color = Color.argb((58f * flashBolt).roundToInt(), 196, 211, 255)
 		canvas.drawPath(boltPath, paint)
 
 		paint.strokeWidth = LIGHTNING_BRANCH_GLOW_WIDTH * strokeScale
-		paint.color = Color.argb((58f * flashBolt).roundToInt(), 188, 205, 255)
+		paint.color = Color.argb((48f * flashBolt).roundToInt(), 196, 211, 255)
 		canvas.drawPath(forkPath, paint)
 
 		paint.strokeWidth = LIGHTNING_CORE_WIDTH * strokeScale
@@ -2310,8 +2318,9 @@ class SceneRenderer(resources: Resources) {
 		parentEndY: Float,
 		random: Random
 	) {
-		var x = parentStartX + (parentEndX - parentStartX) * random.nextFloat(0.45f, 0.9f)
-		var y = parentStartY + (parentEndY - parentStartY) * random.nextFloat(0.45f, 0.9f)
+		val branchPosition = random.nextFloat(0.45f, 0.9f)
+		var x = parentStartX + (parentEndX - parentStartX) * branchPosition
+		var y = parentStartY + (parentEndY - parentStartY) * branchPosition
 		forkPath.moveTo(x, y)
 
 		val direction = if (random.nextFloat() < 0.5f) {
@@ -3153,7 +3162,9 @@ class SceneRenderer(resources: Resources) {
 		private const val BOLT_STEPS = 14
 		private const val LIGHTNING_REFERENCE_WIDTH = 360f
 		private const val LIGHTNING_LENGTH_FRACTION = 0.66f
-		private const val LIGHTNING_GLOW_WIDTH = 13f
+		private const val LIGHTNING_OUTER_GLOW_WIDTH = 24f
+		private const val LIGHTNING_BRANCH_OUTER_GLOW_WIDTH = 13f
+		private const val LIGHTNING_GLOW_WIDTH = 12f
 		private const val LIGHTNING_BRANCH_GLOW_WIDTH = 7f
 		private const val LIGHTNING_CORE_WIDTH = 3.2f
 		private const val LIGHTNING_BRANCH_CORE_WIDTH = 1.8f
