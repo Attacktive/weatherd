@@ -36,6 +36,26 @@ class SceneDebugPresetsTest {
 	}
 
 	@Test
+	fun `existing persisted preset indices remain stable`() {
+		val persistedPresetNames = listOf(
+			"CLEAR",
+			"MOSTLY CLEAR",
+			"PARTLY CLOUDY",
+			"OVERCAST",
+			"FOG",
+			"DRIZZLE",
+			"RAIN",
+			"HEAVY RAIN",
+			"SLEET",
+			"SNOW",
+			"HEAVY SNOW",
+			"THUNDERSTORM"
+		)
+
+		assertEquals(persistedPresetNames, SCENE_PRESETS.take(persistedPresetNames.size).map { it.name })
+	}
+
+	@Test
 	fun `equal total cloud presets preserve distinct altitude profiles`() {
 		val low = debugSceneParams(SCENE_PRESETS.first { it.name == "LOW CLOUDS" }, DayPhase.DAY)
 		val mid = debugSceneParams(SCENE_PRESETS.first { it.name == "MID CLOUDS" }, DayPhase.DAY)

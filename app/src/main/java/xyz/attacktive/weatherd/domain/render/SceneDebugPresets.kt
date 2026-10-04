@@ -32,6 +32,16 @@ data class ScenePreset(
 val SCENE_PRESETS = listOf(
 	ScenePreset("CLEAR", cloudiness = 0.05f),
 	ScenePreset("MOSTLY CLEAR", cloudiness = 0.2f),
+	ScenePreset("PARTLY CLOUDY", cloudiness = 0.7f),
+	ScenePreset("OVERCAST", cloudiness = 0.85f),
+	ScenePreset("FOG", cloudiness = 0.85f, fogDensity = 1f),
+	ScenePreset("DRIZZLE", cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.RAIN, SEVERITY_DRIZZLE, observed = 0.35f), windFactor = 0.45f),
+	ScenePreset("RAIN", cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.RAIN, SEVERITY_STEADY, observed = 0.65f), windFactor = 0.45f),
+	ScenePreset("HEAVY RAIN", cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.RAIN, SEVERITY_HEAVY, observed = 0.9f), windFactor = 0.65f),
+	ScenePreset("SLEET", cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.SLEET, SEVERITY_STEADY, observed = 0.65f), windFactor = 0.45f),
+	ScenePreset("SNOW", cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.SNOW, SEVERITY_STEADY, observed = 0.65f), windFactor = 0.45f),
+	ScenePreset("HEAVY SNOW", cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.SNOW, SEVERITY_HEAVY, observed = 0.9f), windFactor = 0.45f),
+	ScenePreset("THUNDERSTORM", cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.RAIN, SEVERITY_STORM, observed = 0.9f), thunder = true, windFactor = 0.85f),
 	ScenePreset(
 		"LOW CLOUDS",
 		cloudiness = 0.8f,
@@ -46,17 +56,7 @@ val SCENE_PRESETS = listOf(
 		"HIGH CLOUDS",
 		cloudiness = 0.8f,
 		cloudLayers = SceneCloudLayers(low = 0.05f, mid = 0.05f, high = 0.8f)
-	),
-	ScenePreset("PARTLY CLOUDY", cloudiness = 0.7f),
-	ScenePreset("OVERCAST", cloudiness = 0.85f),
-	ScenePreset("FOG", cloudiness = 0.85f, fogDensity = 1f),
-	ScenePreset("DRIZZLE", cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.RAIN, SEVERITY_DRIZZLE, observed = 0.35f), windFactor = 0.45f),
-	ScenePreset("RAIN", cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.RAIN, SEVERITY_STEADY, observed = 0.65f), windFactor = 0.45f),
-	ScenePreset("HEAVY RAIN", cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.RAIN, SEVERITY_HEAVY, observed = 0.9f), windFactor = 0.65f),
-	ScenePreset("SLEET", cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.SLEET, SEVERITY_STEADY, observed = 0.65f), windFactor = 0.45f),
-	ScenePreset("SNOW", cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.SNOW, SEVERITY_STEADY, observed = 0.65f), windFactor = 0.45f),
-	ScenePreset("HEAVY SNOW", cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.SNOW, SEVERITY_HEAVY, observed = 0.9f), windFactor = 0.45f),
-	ScenePreset("THUNDERSTORM", cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.RAIN, SEVERITY_STORM, observed = 0.9f), thunder = true, windFactor = 0.85f)
+	)
 )
 
 /**

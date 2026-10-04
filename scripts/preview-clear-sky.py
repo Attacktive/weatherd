@@ -495,6 +495,7 @@ def main():
 		clear_sky(cloudiness, cloud_size_scale=args.cloud_size, cloud_count_scale=args.cloud_count)
 		for cloudiness in (0.2, 0.4, 0.55, 0.7, 0.75)
 	]
+	# LOW and MID stay inside the runtime scattered-cloud range because this clear-sky design aid does not implement overcast banks.
 	layered = [
 		clear_sky(
 			0.8,
@@ -502,7 +503,7 @@ def main():
 			cloud_count_scale=args.cloud_count,
 			cloud_layers=layers
 		)
-		for layers in ((0.8, 0.05, 0.05), (0.05, 0.8, 0.05), (0.05, 0.05, 0.8))
+		for layers in ((0.7, 0.05, 0.05), (0.05, 0.7, 0.05), (0.05, 0.05, 0.8))
 	]
 	strip = np.concatenate(legacy + layered, axis=1)
 	image = Image.fromarray(np.clip(strip, 0, 255).astype(np.uint8))
