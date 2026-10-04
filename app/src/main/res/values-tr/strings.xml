@@ -209,7 +209,7 @@
 	<string name="preset_delete_title">Ön ayar silinsin mi?</string>
 	<string name="preset_delete_message">“%1$s” silinsin mi?</string>
 	<string name="preset_name_exists">Bu ada sahip bir ön ayar zaten var.</string>
-	<string name="preset_storage_unreadable">Weatherd'ın bu sürümü kayıtlı ön ayarları okuyamıyor. Veriler değiştirilmeden bırakıldı.</string>
+	<string name="preset_storage_unreadable">Weatherd’ın bu sürümü kayıtlı ön ayarları okuyamıyor. Veriler değiştirilmeden bırakıldı.</string>
 	<string name="content_description_preset_options">%1$s için diğer seçenekler</string>
 	<string name="save">Kaydet</string>
 	<string name="cancel">İptal</string>
