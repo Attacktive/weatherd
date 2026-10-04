@@ -226,12 +226,12 @@ def report(path, image):
 def main():
 	OUTPUT.mkdir(parents=True, exist_ok=True)
 	for name, coverage_cut in CUMULUS_COVERAGE:
-		imae = cumulus_texture(CUMULUS_SEED, coverage_cut)
+		image = cumulus_texture(CUMULUS_SEED, coverage_cut)
 		path = OUTPUT / f'{name}.png'
 		image.save(path, optimize=True)
 		report(path, image)
 
-	image = cumulus_texture(CUMULUS_FAR_SEED 0.56, CUMULUS_FAR_CELLS)
+	image = cumulus_texture(CUMULUS_FAR_SEED, 0.56, CUMULUS_FAR_CELLS)
 	path = OUTPUT / 'cloud_cumulus_far.png'
 	image.save(path, optimize=True)
 	report(path, image)
