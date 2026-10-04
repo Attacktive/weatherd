@@ -400,74 +400,89 @@ def draw_cumulus(destination, profile, geometry, multiply, alpha):
 				composite_sprite(destination, sprite, sprite_geometry, multiply, sprite_alpha)
 
 
-def clear_sky(cloudiness, cloud_scale=1.0, cloud_size_scale=1.0, cloud_count_scale=1.0, cloud_layers=None):
-	"""Mirrors layered dry-cloud rendering at timeSeconds = 0 with no wind."""
+def preview_cloud_layers(cloudiness, cloud_count_scale, cloud_layers):
 	effective = effective_cloudiness(cloudiness, cloud_count_scale)
 	if cloud_layers is None:
-		low = effective
-		mid = effective
-		high = 0.0
-	else:
-		low = effective_cloudiness(cloud_layers[0], cloud_count_scale)
-		mid = effective_cloudiness(cloud_layers[1], cloud_count_scale)
-		high = effective_cloudiness(cloud_layers[2], cloud_count_scale)
+		return effective, effective, effective, 0.0
 
-	opaque = max(low, mid)
-	canvas, top, _ = sky(opaque)
-	near_coverage = float(np.clip((low - SCATTERED_FLOOR) / (DECK_THRESHOLD - SCATTERED_FLOOR), 0, 1))
-	mid_coverage = float(np.clip((mid - SCATTERED_FLOOR) / (DECK_THRESHOLD - SCATTERED_FLOOR), 0, 1))
-	draw_cirrus(canvas, high, cloud_scale)
-	coverage = near_coverage
-	size_scale = float(np.clip(cloud_size_scale, CLOUD_SIZE_SCALE_MIN, CLOUD_SIZE_SCALE_MAX))
+	return (
+		effective,
+		effective_cloudiness(cloud_layers[0], cloud_count_scale),
+		effective_cloudiness(cloud_layers[1], cloud_count_scale),
+		effective_cloudiness(cloud_layers[2], cloud_count_scale),
+	)
+
+
+def draw_preview_far_clouds(destination, mid_cloudiness, cloud_scale, size_scale, far_color, cloud_top):
+	if mid_cloudiness <= SCATTERED_FLOOR:
+		return
+
+	mid_coverage = float(np.clip((mid_cloudiness - SCATTERED_FLOOR) / (DECK_THRESHOLD - SCATTERED_FLOOR), 0, 1))
+	far_coverage = mid_coverage * mid_coverage
+	far_alpha = min(max(kotlin_round((60 + 120 * far_coverage) * cloud_scale), 0), 255)
+	far_geometry = CumulusGeometry(HEIGHT * 0.34, -WIDTH * 0.34, cloud_top + HEIGHT * 0.22, size_scale)
+	draw_cumulus(destination, FAR_PROFILE, far_geometry, far_color, far_alpha)
+
+
+def draw_preview_partly_bank(destination, coverage, cloud_scale, top):
+	partly_bank_weight = float(np.clip((coverage - PARTLY_BANK_START_COVERAGE) / (PARTLY_BANK_FULL_COVERAGE - PARTLY_BANK_START_COVERAGE), 0, 1))
+	if partly_bank_weight <= 0:
+		return
+
+	partly_bank_height = min(WIDTH * PARTLY_BANK_VIEWPORTS / 3.0 * PARTLY_BANK_HEIGHT_SCALE, HEIGHT * 0.55)
+	partly_bank_color = lerp(CUMULUS_TINT, top, PARTLY_BANK_HAZE)
+	partly_bank_alpha = kotlin_round(255 * PARTLY_BANK_ALPHA * partly_bank_weight * cloud_scale)
+	draw_bank(
+		destination,
+		PARTLY_BANK_SPRITE,
+		PARTLY_BANK_VIEWPORTS,
+		partly_bank_height,
+		-WIDTH * PARTLY_BANK_PHASE,
+		HEIGHT * PARTLY_BANK_TOP,
+		partly_bank_color,
+		partly_bank_alpha,
+	)
+
+
+def draw_preview_near_clouds(destination, low_cloudiness, coverage, cloud_scale, size_scale, cloud_top):
 	step = near_cumulus_step(coverage)
 	lower = int(np.floor(step))
 	blend = step - lower
-	near_color = CUMULUS_TINT
-	far_color = lerp(CUMULUS_TINT, top, 0.35)
+	if low_cloudiness <= SCATTERED_FLOOR:
+		return lower, blend
 
-	# Mirrors SceneRenderer's portrait geometry at this preview's fixed 1080x2340 surface.
-	cloud_top = max(HEIGHT * 0.10, HEIGHT * 0.17 + WIDTH * 0.072 * 1.8 - HEIGHT * 0.08)
-	far_top = cloud_top + HEIGHT * 0.22
-	far_height = HEIGHT * 0.34
-	near_height = HEIGHT * 0.46
 	near_alpha = min(max(kotlin_round(NEAR_ALPHA * cloud_scale), 0), 255)
-	far_coverage = mid_coverage * mid_coverage
-	far_alpha = min(max(kotlin_round((60 + 120 * far_coverage) * cloud_scale), 0), 255)
-
-	far_geometry = CumulusGeometry(far_height, -WIDTH * 0.34, far_top, size_scale)
-	if mid > SCATTERED_FLOOR:
-		draw_cumulus(canvas, FAR_PROFILE, far_geometry, far_color, far_alpha)
-
-	partly_bank_weight = float(np.clip((coverage - PARTLY_BANK_START_COVERAGE) / (PARTLY_BANK_FULL_COVERAGE - PARTLY_BANK_START_COVERAGE), 0, 1))
-	if partly_bank_weight > 0:
-		partly_bank_height = min(WIDTH * PARTLY_BANK_VIEWPORTS / 3.0 * PARTLY_BANK_HEIGHT_SCALE, HEIGHT * 0.55)
-		partly_bank_color = lerp(CUMULUS_TINT, top, PARTLY_BANK_HAZE)
-		partly_bank_alpha = kotlin_round(255 * PARTLY_BANK_ALPHA * partly_bank_weight * cloud_scale)
-		draw_bank(
-			canvas,
-			PARTLY_BANK_SPRITE,
-			PARTLY_BANK_VIEWPORTS,
-			partly_bank_height,
-			-WIDTH * PARTLY_BANK_PHASE,
-			HEIGHT * PARTLY_BANK_TOP,
-			partly_bank_color,
-			partly_bank_alpha,
-		)
-
+	near_geometry = CumulusGeometry(HEIGHT * 0.46, -WIDTH * 0.78, cloud_top, size_scale)
 	for index, weight in ((lower, 1.0), (lower + 1, blend)):
-		if low <= SCATTERED_FLOOR or index >= len(COVERAGE_STEPS) or weight < 0.02:
+		if index >= len(COVERAGE_STEPS) or weight < 0.02:
 			continue
 
 		profile = COVERAGE_STEPS[index]
 		alpha = near_alpha if weight == 1.0 else min(max(kotlin_round(NEAR_ALPHA * cloud_scale * weight), 0), 255)
-		near_geometry = CumulusGeometry(near_height, -WIDTH * 0.78, cloud_top, size_scale)
-		draw_cumulus(canvas, profile, near_geometry, near_color, alpha)
+		draw_cumulus(destination, profile, near_geometry, CUMULUS_TINT, alpha)
+
+	return lower, blend
+
+
+def clear_sky(cloudiness, cloud_scale=1.0, cloud_size_scale=1.0, cloud_count_scale=1.0, cloud_layers=None):
+	"""Mirrors layered dry-cloud rendering at timeSeconds = 0 with no wind."""
+	effective, low, mid, high = preview_cloud_layers(cloudiness, cloud_count_scale, cloud_layers)
+	opaque = max(low, mid)
+	canvas, top, _ = sky(opaque)
+	coverage = float(np.clip((low - SCATTERED_FLOOR) / (DECK_THRESHOLD - SCATTERED_FLOOR), 0, 1))
+	size_scale = float(np.clip(cloud_size_scale, CLOUD_SIZE_SCALE_MIN, CLOUD_SIZE_SCALE_MAX))
+	cloud_top = max(HEIGHT * 0.10, HEIGHT * 0.17 + WIDTH * 0.072 * 1.8 - HEIGHT * 0.08)
+	far_color = lerp(CUMULUS_TINT, top, 0.35)
+
+	draw_cirrus(canvas, high, cloud_scale)
+	draw_preview_far_clouds(canvas, mid, cloud_scale, size_scale, far_color, cloud_top)
+	draw_preview_partly_bank(canvas, coverage, cloud_scale, top)
+	lower, blend = draw_preview_near_clouds(canvas, low, coverage, cloud_scale, size_scale, cloud_top)
 
 	luma = 0.2126 * canvas[:, :, 0] + 0.7152 * canvas[:, :, 1] + 0.0722 * canvas[:, :, 2]
 	print(f'cloudiness={cloudiness:.2f} effective={effective:.2f} low={low:.2f} mid={mid:.2f} high={high:.2f} coverage={coverage:.2f} size={size_scale:.2f} count={cloud_count_scale:.2f} step={COVERAGE_STEPS[lower].kind}+{blend:.2f}', end=' ')
 	print(f'luma p5={np.percentile(luma, 5):5.1f} p99={np.percentile(luma, 99):5.1f} above200={(luma > 200).mean() * 100:5.2f}%')
 	return canvas
-
 
 def main():
 	parser = argparse.ArgumentParser(description='Preview Weatherd clear-sky cloud rendering.')
