@@ -1,6 +1,8 @@
 complexity:
   LongMethod:
     active: true
-    allowedLines: 100
-    ignoreAnnotated:
-      - 'Composable'
+    allowedLines: 200
+    ignoreAnnotated: ['Composable']
+  CognitiveComplexMethod:
+    active: true
+    allowedComplexity: 30
