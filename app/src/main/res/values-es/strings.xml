@@ -210,6 +210,7 @@
 	<string name="preset_delete_message">¿Eliminar «%1$s»?</string>
 	<string name="preset_name_exists">Ya existe un preajuste con ese nombre.</string>
 	<string name="preset_storage_unreadable">Esta versión de Weatherd no puede leer los preajustes guardados. Se han dejado sin cambios.</string>
+	<string name="preset_operation_failed">No se pudo guardar el cambio del preajuste. Inténtalo de nuevo.</string>
 	<string name="content_description_preset_options">Más opciones para %1$s</string>
 	<string name="save">Guardar</string>
 	<string name="cancel">Cancelar</string>

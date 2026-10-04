@@ -210,6 +210,7 @@
 	<string name="preset_delete_message">「%1$s」を削除しますか？</string>
 	<string name="preset_name_exists">同じ名前のプリセットがすでに存在します。</string>
 	<string name="preset_storage_unreadable">このバージョンのWeatherdでは保存済みプリセットを読み取れません。データは変更されていません。</string>
+	<string name="preset_operation_failed">プリセットの変更を保存できませんでした。もう一度お試しください。</string>
 	<string name="content_description_preset_options">%1$sのその他のオプション</string>
 	<string name="save">保存</string>
 	<string name="cancel">キャンセル</string>

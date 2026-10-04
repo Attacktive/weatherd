@@ -210,6 +210,7 @@
 	<string name="preset_delete_message">Supprimer « %1$s » ?</string>
 	<string name="preset_name_exists">Un préréglage portant ce nom existe déjà.</string>
 	<string name="preset_storage_unreadable">Cette version de Weatherd ne peut pas lire les préréglages enregistrés. Ils ont été laissés inchangés.</string>
+	<string name="preset_operation_failed">La modification du préréglage n’a pas pu être enregistrée. Réessayez.</string>
 	<string name="content_description_preset_options">Plus d’options pour %1$s</string>
 	<string name="save">Enregistrer</string>
 	<string name="cancel">Annuler</string>

@@ -210,6 +210,7 @@
 	<string name="preset_delete_message">Excluir “%1$s”?</string>
 	<string name="preset_name_exists">Já existe uma predefinição com esse nome.</string>
 	<string name="preset_storage_unreadable">Esta versão do Weatherd não consegue ler as predefinições salvas. Elas foram mantidas sem alterações.</string>
+	<string name="preset_operation_failed">Não foi possível salvar a alteração da predefinição. Tente novamente.</string>
 	<string name="content_description_preset_options">Mais opções para %1$s</string>
 	<string name="save">Salvar</string>
 	<string name="cancel">Cancelar</string>

@@ -1,5 +1,7 @@
 package xyz.attacktive.weatherd.domain.repository
 
+import java.text.Normalizer
+import java.util.Locale
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -130,7 +132,7 @@ class AppearancePresetRepository @Inject constructor(private val dataStore: Data
 	private fun decodeVersionOne(envelope: StoredEnvelope): AppearancePresetStorageState {
 		val presets = envelope.presets.map { it.toDomain() }
 		require(presets.map { it.id }.distinct().size == presets.size)
-		require(presets.map { it.name.lowercase() }.distinct().size == presets.size)
+		require(presets.map { appearancePresetNameKey(it.name) }.distinct().size == presets.size)
 
 		return AppearancePresetStorageState.Ready(presets)
 	}
@@ -143,7 +145,7 @@ class AppearancePresetRepository @Inject constructor(private val dataStore: Data
 		return normalized
 	}
 
-	private fun sameName(first: String, second: String) = first.equals(second, ignoreCase = true)
+	private fun sameName(first: String, second: String) = appearancePresetNameKey(first) == appearancePresetNameKey(second)
 }
 
 @Serializable
@@ -242,6 +244,8 @@ private fun AppearancePresetSnapshot.toStored() = StoredSnapshot(
 )
 
 private fun <T : Enum<T>> enumValue(name: String, values: Iterable<T>) = values.firstOrNull { it.name == name } ?: throw IllegalArgumentException("Unknown enum value")
+
+internal fun appearancePresetNameKey(name: String) = Normalizer.normalize(name.trim().lowercase(Locale.ROOT), Normalizer.Form.NFC)
 
 /** Bump whenever persisted preset snapshot fields are added, removed, renamed, or change meaning. */
 internal const val APPEARANCE_PRESET_SCHEMA_VERSION = 1

@@ -60,6 +60,19 @@ class AppearancePresetRepositoryTest {
 	}
 
 	@Test
+	fun `unicode-equivalent names are rejected without corrupting the preset bank`() = runTest {
+		val repository = AppearancePresetRepository(dataStore())
+		val snapshot = AppSettings().toAppearancePresetSnapshot()
+
+		assertTrue(repository.create("İstanbul", snapshot).isSuccess)
+		assertTrue(repository.create("i\u0307stanbul", snapshot).isFailure)
+
+		val state = repository.state.first()
+		assertTrue(state is AppearancePresetStorageState.Ready)
+		assertEquals(listOf("İstanbul"), (state as AppearancePresetStorageState.Ready).presets.map { it.name })
+	}
+
+	@Test
 	fun `malformed storage is reported and mutations leave the bytes untouched`() = runTest {
 		val dataStore = dataStore()
 		val key = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)

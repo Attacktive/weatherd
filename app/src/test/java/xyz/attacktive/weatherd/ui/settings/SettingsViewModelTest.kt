@@ -30,6 +30,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import xyz.attacktive.weatherd.domain.model.AppSettings
+import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.GeoPlace
 import xyz.attacktive.weatherd.domain.model.PhotoBucket
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
@@ -41,6 +42,7 @@ import xyz.attacktive.weatherd.domain.repository.GeocodingRepository
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsMutation
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
+import xyz.attacktive.weatherd.domain.repository.settingsMutationsBetween
 
 /**
  * The photo side of the view model: what the failure flag is allowed to say, and what survives the screen going away.
@@ -122,6 +124,26 @@ class SettingsViewModelTest {
 	}
 
 	@Test
+	fun `settings callback keeps the composition snapshot after newer settings arrive`() {
+		var latest = AppSettings(backdropScene = BackdropScene.BEACH)
+		lateinit var previousSeen: AppSettings
+		lateinit var updatedSeen: AppSettings
+		val onSave = settingsChangeCallback(latest) { previous, updated ->
+			previousSeen = previous
+			updatedSeen = updated
+		}
+
+		latest = latest.copy(backdropScene = BackdropScene.MOUNTAINS)
+		onSave(AppSettings(backdropScene = BackdropScene.BEACH, showWeatherLabel = true))
+
+		assertEquals(BackdropScene.MOUNTAINS, latest.backdropScene)
+		assertEquals(
+			listOf(SettingsMutation.ShowWeatherLabel(true)),
+			settingsMutationsBetween(previousSeen, updatedSeen)
+		)
+	}
+
+	@Test
 	fun `a stale settings callback mutates only the field the user changed`() = runTest {
 		val current = AppSettings(backdropScene = xyz.attacktive.weatherd.domain.model.BackdropScene.MOUNTAINS)
 		val stale = AppSettings(backdropScene = xyz.attacktive.weatherd.domain.model.BackdropScene.BEACH)
@@ -133,6 +155,32 @@ class SettingsViewModelTest {
 		runCurrent()
 
 		coVerify(exactly = 1) { settingsRepository.update(listOf(SettingsMutation.FrameRate(xyz.attacktive.weatherd.domain.model.FrameRateCap.FPS_10))) }
+	}
+
+	@Test
+	fun `failed preset mutation exposes retry feedback until dismissed`() = runTest {
+		coEvery { appearancePresetRepository.create("Storm", any()) } returns Result.failure(IllegalStateException("disk full"))
+		val viewModel = viewModel()
+
+		viewModel.createAppearancePreset("Storm")
+		runCurrent()
+
+		assertEquals(AppearancePresetMutationState.Failed, viewModel.appearancePresetMutationState.value)
+
+		viewModel.clearAppearancePresetMutationState()
+
+		assertEquals(AppearancePresetMutationState.Idle, viewModel.appearancePresetMutationState.value)
+	}
+
+	@Test
+	fun `successful preset mutation reports success so the dialog can close`() = runTest {
+		coEvery { appearancePresetRepository.create("Storm", any()) } returns Result.success(Unit)
+		val viewModel = viewModel()
+
+		viewModel.createAppearancePreset("Storm")
+		runCurrent()
+
+		assertEquals(AppearancePresetMutationState.Succeeded, viewModel.appearancePresetMutationState.value)
 	}
 
 	@Test

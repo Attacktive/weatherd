@@ -55,6 +55,13 @@ sealed interface CitySearchState {
 	data class Error(val message: String): CitySearchState
 }
 
+sealed interface AppearancePresetMutationState {
+	data object Idle: AppearancePresetMutationState
+	data object InProgress: AppearancePresetMutationState
+	data object Succeeded: AppearancePresetMutationState
+	data object Failed: AppearancePresetMutationState
+}
+
 private sealed interface SearchTrigger {
 	val query: String
 
@@ -79,6 +86,9 @@ class SettingsViewModel @Inject constructor(
 	val weatherStatus = sceneProvider.status
 	val appearancePresets = appearancePresetRepository.state
 		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppearancePresetStorageState.Ready(emptyList()))
+
+	private val _appearancePresetMutationState = MutableStateFlow<AppearancePresetMutationState>(AppearancePresetMutationState.Idle)
+	val appearancePresetMutationState = _appearancePresetMutationState.asStateFlow()
 
 	private val weatherRefreshMutex = Mutex()
 	private val _weatherRefreshInProgress = MutableStateFlow(false)
@@ -191,29 +201,35 @@ class SettingsViewModel @Inject constructor(
 
 
 	fun createAppearancePreset(name: String) {
-		viewModelScope.launch {
+		mutateAppearancePreset {
 			val snapshot = settingsRepository.settings.first().toAppearancePresetSnapshot()
+
 			appearancePresetRepository.create(name, snapshot)
 		}
 	}
 
 	fun replaceAppearancePreset(id: String, name: String) {
-		viewModelScope.launch {
+		mutateAppearancePreset {
 			val snapshot = settingsRepository.settings.first().toAppearancePresetSnapshot()
+
 			appearancePresetRepository.replace(id, name, snapshot)
 		}
 	}
 
 	fun renameAppearancePreset(id: String, name: String) {
-		viewModelScope.launch {
+		mutateAppearancePreset {
 			appearancePresetRepository.rename(id, name)
 		}
 	}
 
 	fun deleteAppearancePreset(id: String) {
-		viewModelScope.launch {
+		mutateAppearancePreset {
 			appearancePresetRepository.delete(id)
 		}
+	}
+
+	fun clearAppearancePresetMutationState() {
+		_appearancePresetMutationState.value = AppearancePresetMutationState.Idle
 	}
 
 	fun applyAppearancePreset(preset: SavedAppearancePreset) {
@@ -300,6 +316,26 @@ class SettingsViewModel @Inject constructor(
 	fun clearPhoto(bucket: PhotoBucket) {
 		applicationScope.launch {
 			photoBackgroundRepository.clear(bucket)
+		}
+	}
+
+	private fun mutateAppearancePreset(mutation: suspend () -> Result<Unit>) {
+		_appearancePresetMutationState.value = AppearancePresetMutationState.InProgress
+
+		viewModelScope.launch {
+			val succeeded = try {
+				mutation().isSuccess
+			} catch (cancellationException: CancellationException) {
+				throw cancellationException
+			} catch (_: Exception) {
+				false
+			}
+
+			_appearancePresetMutationState.value = if (succeeded) {
+				AppearancePresetMutationState.Succeeded
+			} else {
+				AppearancePresetMutationState.Failed
+			}
 		}
 	}
 

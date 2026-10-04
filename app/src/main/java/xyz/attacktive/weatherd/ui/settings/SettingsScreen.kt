@@ -65,6 +65,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -117,6 +118,7 @@ import xyz.attacktive.weatherd.domain.model.globalWeatherProviders
 import xyz.attacktive.weatherd.domain.render.WeatherSceneStatus
 import xyz.attacktive.weatherd.domain.repository.APPEARANCE_PRESET_NAME_MAX_LENGTH
 import xyz.attacktive.weatherd.domain.repository.AppearancePresetStorageState
+import xyz.attacktive.weatherd.domain.repository.appearancePresetNameKey
 import xyz.attacktive.weatherd.domain.model.UPDATE_INTERVAL_OPTIONS
 import xyz.attacktive.weatherd.domain.model.drawsScenery
 import xyz.attacktive.weatherd.platform.HomeLauncher
@@ -184,7 +186,9 @@ private fun SettingsTopBar(selectedTabIndex: Int, onNavigateBack: () -> Unit, on
 
 @Composable
 private fun WeatherSettingsTab(viewModel: SettingsViewModel, scrollState: ScrollState) {
-	val settings by viewModel.settings.collectAsStateWithLifecycle()
+	val settingsState = viewModel.settings.collectAsStateWithLifecycle()
+	val settings = settingsState.value
+	val onSave = settingsChangeCallback(settings, viewModel::applySettingsChange)
 	val citySearch by viewModel.citySearch.collectAsStateWithLifecycle()
 	val weatherStatus by viewModel.weatherStatus.collectAsStateWithLifecycle()
 	val weatherRefreshInProgress by viewModel.weatherRefreshInProgress.collectAsStateWithLifecycle()
@@ -212,21 +216,24 @@ private fun WeatherSettingsTab(viewModel: SettingsViewModel, scrollState: Scroll
 
 		Spacer(modifier = Modifier.height(24.dp))
 
-		WeatherProviderSection(settings = settings, defaults = viewModel.defaults, onSave = { updated -> viewModel.applySettingsChange(settings, updated) })
+		WeatherProviderSection(settings = settings, defaults = viewModel.defaults, onSave = onSave)
 
 		Spacer(modifier = Modifier.height(24.dp))
 
-		WeatherFallbackProviderSection(settings = settings, defaults = viewModel.defaults, onSave = { updated -> viewModel.applySettingsChange(settings, updated) })
+		WeatherFallbackProviderSection(settings = settings, defaults = viewModel.defaults, onSave = onSave)
 
 		Spacer(modifier = Modifier.height(24.dp))
 
-		RefreshIntervalSection(settings = settings, defaults = viewModel.defaults, onSave = { updated -> viewModel.applySettingsChange(settings, updated) })
+		RefreshIntervalSection(settings = settings, defaults = viewModel.defaults, onSave = onSave)
 	}
 }
 
 @Composable
 private fun AppearanceSettingsTab(viewModel: SettingsViewModel, scrollState: ScrollState) {
-	val settings by viewModel.settings.collectAsStateWithLifecycle()
+	val settingsState = viewModel.settings.collectAsStateWithLifecycle()
+	val settings = settingsState.value
+	val presetMutationState by viewModel.appearancePresetMutationState.collectAsStateWithLifecycle()
+	val onSave = settingsChangeCallback(settings, viewModel::applySettingsChange)
 	val presetState by viewModel.appearancePresets.collectAsStateWithLifecycle()
 	val photoBuckets by viewModel.photoBuckets.collectAsStateWithLifecycle()
 	val photoThumbnails by viewModel.photoThumbnails.collectAsStateWithLifecycle()
@@ -235,6 +242,8 @@ private fun AppearanceSettingsTab(viewModel: SettingsViewModel, scrollState: Scr
 	SettingsTabContent(scrollState) {
 		PresetsSection(
 			state = presetState,
+			mutationState = presetMutationState,
+			onMutationHandled = viewModel::clearAppearancePresetMutationState,
 			onCreate = viewModel::createAppearancePreset,
 			onReplace = viewModel::replaceAppearancePreset,
 			onApply = viewModel::applyAppearancePreset,
@@ -244,7 +253,7 @@ private fun AppearanceSettingsTab(viewModel: SettingsViewModel, scrollState: Scr
 
 		Spacer(modifier = Modifier.height(24.dp))
 
-		BackdropSection(settings = settings, defaults = viewModel.defaults, onSave = { updated -> viewModel.applySettingsChange(settings, updated) })
+		BackdropSection(settings = settings, defaults = viewModel.defaults, onSave = onSave)
 
 		AnimatedVisibility(visible = settings.backdropScene == BackdropScene.PHOTO) {
 			Column {
@@ -263,45 +272,49 @@ private fun AppearanceSettingsTab(viewModel: SettingsViewModel, scrollState: Scr
 
 		Spacer(modifier = Modifier.height(24.dp))
 
-		SkyAppearanceSection(settings = settings, defaults = viewModel.defaults, onSave = { updated -> viewModel.applySettingsChange(settings, updated) })
+		SkyAppearanceSection(settings = settings, defaults = viewModel.defaults, onSave = onSave)
 
 		Spacer(modifier = Modifier.height(24.dp))
 
-		CloudAppearanceSection(settings = settings, defaults = viewModel.defaults, onSave = { updated -> viewModel.applySettingsChange(settings, updated) })
+		CloudAppearanceSection(settings = settings, defaults = viewModel.defaults, onSave = onSave)
 
 		Spacer(modifier = Modifier.height(24.dp))
 
-		SunEffectsSection(settings = settings, defaults = viewModel.defaults, onSave = { updated -> viewModel.applySettingsChange(settings, updated) })
+		SunEffectsSection(settings = settings, defaults = viewModel.defaults, onSave = onSave)
 
 		Spacer(modifier = Modifier.height(24.dp))
 
-		IntensitySection(settings = settings, defaults = viewModel.defaults, onSave = { updated -> viewModel.applySettingsChange(settings, updated) })
+		IntensitySection(settings = settings, defaults = viewModel.defaults, onSave = onSave)
 
 		Spacer(modifier = Modifier.height(24.dp))
 
-		LabelsSection(settings = settings, defaults = viewModel.defaults, onSave = { updated -> viewModel.applySettingsChange(settings, updated) })
+		LabelsSection(settings = settings, defaults = viewModel.defaults, onSave = onSave)
 	}
 }
 
 @Composable
 private fun WallpaperSettingsTab(viewModel: SettingsViewModel, scrollState: ScrollState) {
-	val settings by viewModel.settings.collectAsStateWithLifecycle()
+	val settingsState = viewModel.settings.collectAsStateWithLifecycle()
+	val settings = settingsState.value
+	val onSave = settingsChangeCallback(settings, viewModel::applySettingsChange)
 
 	SettingsTabContent(scrollState) {
-		WallpaperMotionSection(settings = settings, onSave = { updated -> viewModel.applySettingsChange(settings, updated) })
+		WallpaperMotionSection(settings = settings, onSave = onSave)
 
 		Spacer(modifier = Modifier.height(24.dp))
 
-		FrameRateSection(settings = settings, defaults = viewModel.defaults, onSave = { updated -> viewModel.applySettingsChange(settings, updated) })
+		FrameRateSection(settings = settings, defaults = viewModel.defaults, onSave = onSave)
 	}
 }
 
 @Composable
 private fun AdvancedSettingsTab(viewModel: SettingsViewModel, scrollState: ScrollState) {
-	val settings by viewModel.settings.collectAsStateWithLifecycle()
+	val settingsState = viewModel.settings.collectAsStateWithLifecycle()
+	val settings = settingsState.value
+	val onSave = settingsChangeCallback(settings, viewModel::applySettingsChange)
 
 	SettingsTabContent(scrollState) {
-		SceneSimulatorSection(settings = settings, onSave = { updated -> viewModel.applySettingsChange(settings, updated) })
+		SceneSimulatorSection(settings = settings, onSave = onSave)
 
 		if (settings.weatherProvider == WeatherProviderType.MET_NORWAY || settings.weatherFallbackProvider == WeatherProviderType.MET_NORWAY) {
 			Spacer(modifier = Modifier.height(24.dp))
@@ -342,6 +355,10 @@ private data class CitySearchActions(
 	val onSelectPlace: (GeoPlace) -> Unit
 )
 
+internal fun settingsChangeCallback(settings: AppSettings, apply: (AppSettings, AppSettings) -> Unit): (AppSettings) -> Unit = { updated ->
+	apply(settings, updated)
+}
+
 private data class CurrentLocationSummaryState(
 	val locationLabel: String?,
 	val lastRefreshEpochSeconds: Long?,
@@ -381,6 +398,8 @@ private data class PendingPresetReplacement(val preset: SavedAppearancePreset, v
 @Composable
 private fun PresetsSection(
 	state: AppearancePresetStorageState,
+	mutationState: AppearancePresetMutationState,
+	onMutationHandled: () -> Unit,
 	onCreate: (String) -> Unit,
 	onReplace: (String, String) -> Unit,
 	onApply: (SavedAppearancePreset) -> Unit,
@@ -397,8 +416,25 @@ private fun PresetsSection(
 			var nameEditor by remember { mutableStateOf<PresetNameEditor?>(null) }
 			var pendingReplacement by remember { mutableStateOf<PendingPresetReplacement?>(null) }
 			var pendingDelete by remember { mutableStateOf<SavedAppearancePreset?>(null) }
+			val mutationInProgress = mutationState == AppearancePresetMutationState.InProgress
+			val mutationFailed = mutationState == AppearancePresetMutationState.Failed
 
-			TextButton(onClick = { nameEditor = PresetNameEditor.Create }) {
+			LaunchedEffect(mutationState) {
+				if (mutationState == AppearancePresetMutationState.Succeeded) {
+					nameEditor = null
+					pendingReplacement = null
+					pendingDelete = null
+					onMutationHandled()
+				}
+			}
+
+			TextButton(
+				onClick = {
+					onMutationHandled()
+					nameEditor = PresetNameEditor.Create
+				},
+				enabled = !mutationInProgress
+			) {
 				Text(stringResource(R.string.preset_save_current))
 			}
 
@@ -409,8 +445,14 @@ private fun PresetsSection(
 					PresetRow(
 						preset = preset,
 						onApply = { onApply(preset) },
-						onRename = { nameEditor = PresetNameEditor.Rename(preset) },
-						onDelete = { pendingDelete = preset }
+						onRename = {
+							onMutationHandled()
+							nameEditor = PresetNameEditor.Rename(preset)
+						},
+						onDelete = {
+							onMutationHandled()
+							pendingDelete = preset
+						}
 					)
 				}
 			}
@@ -424,44 +466,68 @@ private fun PresetsSection(
 					initialName = renamedPreset?.name.orEmpty(),
 					nameExists = { candidate ->
 						renamedPreset != null && state.presets.any { preset ->
-							preset.id != renamedPreset.id && preset.name.equals(candidate, ignoreCase = true)
+							preset.id != renamedPreset.id && appearancePresetNameKey(preset.name) == appearancePresetNameKey(candidate)
 						}
 					},
-					onDismiss = { nameEditor = null },
+					operationInProgress = mutationInProgress,
+					operationFailed = mutationFailed,
+					onDismiss = {
+						nameEditor = null
+						onMutationHandled()
+					},
 					onConfirm = { name ->
 						if (renamedPreset != null) {
 							onRename(renamedPreset.id, name)
 						} else {
-							val existing = state.presets.firstOrNull { preset -> preset.name.equals(name, ignoreCase = true) }
+							val existing = state.presets.firstOrNull { preset ->
+								appearancePresetNameKey(preset.name) == appearancePresetNameKey(name)
+							}
 							if (existing != null) {
 								pendingReplacement = PendingPresetReplacement(existing, name)
+								nameEditor = null
 							} else {
 								onCreate(name)
 							}
 						}
-
-						nameEditor = null
 					}
 				)
 			}
 
 			pendingReplacement?.let { replacement ->
 				AlertDialog(
-					onDismissRequest = { pendingReplacement = null },
+					onDismissRequest = {
+						if (!mutationInProgress) {
+							pendingReplacement = null
+							onMutationHandled()
+						}
+					},
 					title = { Text(stringResource(R.string.preset_replace_title)) },
-					text = { Text(stringResource(R.string.preset_replace_message, replacement.preset.name)) },
+					text = {
+						Column {
+							Text(stringResource(R.string.preset_replace_message, replacement.preset.name))
+
+							if (mutationFailed) {
+								Spacer(modifier = Modifier.height(8.dp))
+								ErrorText(stringResource(R.string.preset_operation_failed))
+							}
+						}
+					},
 					confirmButton = {
 						TextButton(
-							onClick = {
-								onReplace(replacement.preset.id, replacement.name)
-								pendingReplacement = null
-							}
+							onClick = { onReplace(replacement.preset.id, replacement.name) },
+							enabled = !mutationInProgress
 						) {
 							Text(stringResource(R.string.preset_replace))
 						}
 					},
 					dismissButton = {
-						TextButton(onClick = { pendingReplacement = null }) {
+						TextButton(
+							onClick = {
+								pendingReplacement = null
+								onMutationHandled()
+							},
+							enabled = !mutationInProgress
+						) {
 							Text(stringResource(R.string.cancel))
 						}
 					}
@@ -470,21 +536,39 @@ private fun PresetsSection(
 
 			pendingDelete?.let { preset ->
 				AlertDialog(
-					onDismissRequest = { pendingDelete = null },
+					onDismissRequest = {
+						if (!mutationInProgress) {
+							pendingDelete = null
+							onMutationHandled()
+						}
+					},
 					title = { Text(stringResource(R.string.preset_delete_title)) },
-					text = { Text(stringResource(R.string.preset_delete_message, preset.name)) },
+					text = {
+						Column {
+							Text(stringResource(R.string.preset_delete_message, preset.name))
+
+							if (mutationFailed) {
+								Spacer(modifier = Modifier.height(8.dp))
+								ErrorText(stringResource(R.string.preset_operation_failed))
+							}
+						}
+					},
 					confirmButton = {
 						TextButton(
-							onClick = {
-								onDelete(preset.id)
-								pendingDelete = null
-							}
+							onClick = { onDelete(preset.id) },
+							enabled = !mutationInProgress
 						) {
 							Text(stringResource(R.string.preset_delete))
 						}
 					},
 					dismissButton = {
-						TextButton(onClick = { pendingDelete = null }) {
+						TextButton(
+							onClick = {
+								pendingDelete = null
+								onMutationHandled()
+							},
+							enabled = !mutationInProgress
+						) {
 							Text(stringResource(R.string.cancel))
 						}
 					}
@@ -532,32 +616,52 @@ private fun PresetRow(preset: SavedAppearancePreset, onApply: () -> Unit, onRena
 }
 
 @Composable
-private fun PresetNameDialog(title: String, initialName: String, nameExists: (String) -> Boolean, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+private fun PresetNameDialog(
+	title: String,
+	initialName: String,
+	nameExists: (String) -> Boolean,
+	operationInProgress: Boolean,
+	operationFailed: Boolean,
+	onDismiss: () -> Unit,
+	onConfirm: (String) -> Unit
+) {
 	var name by remember(initialName) { mutableStateOf(initialName) }
 	val normalized = name.trim()
 	val duplicate = normalized.isNotEmpty() && nameExists(normalized)
-	val canConfirm = normalized.isNotEmpty() && !duplicate
+	val canConfirm = normalized.isNotEmpty() && !duplicate && !operationInProgress
 
 	AlertDialog(
-		onDismissRequest = onDismiss,
+		onDismissRequest = {
+			if (!operationInProgress) {
+				onDismiss()
+			}
+		},
 		title = { Text(title) },
 		text = {
-			OutlinedTextField(
-				value = name,
-				onValueChange = { value ->
-					if (value.length <= APPEARANCE_PRESET_NAME_MAX_LENGTH) {
-						name = value
+			Column {
+				OutlinedTextField(
+					value = name,
+					onValueChange = { value ->
+						if (value.length <= APPEARANCE_PRESET_NAME_MAX_LENGTH) {
+							name = value
+						}
+					},
+					label = { Text(stringResource(R.string.preset_name)) },
+					singleLine = true,
+					enabled = !operationInProgress,
+					isError = duplicate,
+					supportingText = if (duplicate) {
+						{ Text(stringResource(R.string.preset_name_exists)) }
+					} else {
+						null
 					}
-				},
-				label = { Text(stringResource(R.string.preset_name)) },
-				singleLine = true,
-				isError = duplicate,
-				supportingText = if (duplicate) {
-					{ Text(stringResource(R.string.preset_name_exists)) }
-				} else {
-					null
+				)
+
+				if (operationFailed) {
+					Spacer(modifier = Modifier.height(8.dp))
+					ErrorText(stringResource(R.string.preset_operation_failed))
 				}
-			)
+			}
 		},
 		confirmButton = {
 			TextButton(onClick = { onConfirm(normalized) }, enabled = canConfirm) {
@@ -565,7 +669,7 @@ private fun PresetNameDialog(title: String, initialName: String, nameExists: (St
 			}
 		},
 		dismissButton = {
-			TextButton(onClick = onDismiss) {
+			TextButton(onClick = onDismiss, enabled = !operationInProgress) {
 				Text(stringResource(R.string.cancel))
 			}
 		}
