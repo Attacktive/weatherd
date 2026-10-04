@@ -160,22 +160,13 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		refreshLocationLabel(settings, resolveLocationName)
 
 		val locationKey = locationKey(settings)
-		val locationChanged = locationKey != lastLocationKey
-		val weatherProviderChanged = settings.weatherProvider != lastAttemptedWeatherProvider || settings.weatherFallbackProvider != lastAttemptedWeatherFallbackProvider
-		val minRefreshSeconds = settings.updateIntervalMinutes * SECONDS_PER_MINUTE
-		if (!force && !locationChanged && !weatherProviderChanged && nowEpochSeconds - lastRefreshEpochSeconds < minRefreshSeconds) {
+		if (weatherRefreshIsThrottled(settings, locationKey, nowEpochSeconds, force)) {
 			return Result.success(Unit)
 		}
 
 		val location = resolveLocation(settings)
 		if (location == null) {
-			val fallbackLocation = if (snapshot == null) {
-				"fallback scene"
-			} else {
-				"last snapshot"
-			}
-
-			logger.debug(TAG, "no location fix; keeping $fallbackLocation")
+			logger.debug(TAG, "no location fix; keeping ${weatherFallbackDescription()}")
 			return Result.success(Unit)
 		}
 
@@ -214,10 +205,28 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			}
 
 			val cloudCover = weather.observation.cloudCover
-			val cloudLayers = cloudCover.layers?.let { ", low=${it.lowPercent}%, mid=${it.midPercent}%, high=${it.highPercent}%" } ?: ", layers=unavailable"
-
-			logger.debug(TAG, "weather refreshed: provider=${weather.source.provider}, condition=${weather.observation.condition.label}, cloud=${cloudCover.totalPercent}%$cloudLayers")
+			logger.debug(TAG, "weather refreshed: provider=${weather.source.provider}, condition=${weather.observation.condition.label}, cloud=${cloudCover.totalPercent}%${cloudLayerDescription(weather)}")
 		}
+	}
+
+	private fun weatherRefreshIsThrottled(settings: AppSettings, locationKey: String, nowEpochSeconds: Long, force: Boolean): Boolean {
+		val locationChanged = locationKey != lastLocationKey
+		val weatherProviderChanged = settings.weatherProvider != lastAttemptedWeatherProvider || settings.weatherFallbackProvider != lastAttemptedWeatherFallbackProvider
+		val minRefreshSeconds = settings.updateIntervalMinutes * SECONDS_PER_MINUTE
+
+		return !force && !locationChanged && !weatherProviderChanged && nowEpochSeconds - lastRefreshEpochSeconds < minRefreshSeconds
+	}
+
+	private fun weatherFallbackDescription() = if (snapshot == null) {
+		"fallback scene"
+	} else {
+		"last snapshot"
+	}
+
+	private fun cloudLayerDescription(weather: WeatherSnapshot): String {
+		val layers = weather.observation.cloudCover.layers ?: return ", layers=unavailable"
+
+		return ", low=${layers.lowPercent}%, mid=${layers.midPercent}%, high=${layers.highPercent}%"
 	}
 
 	private fun beginWeatherRequest(settings: AppSettings, location: GeoLocation) = synchronized(weatherRequestLock) {
