@@ -2563,7 +2563,7 @@ class SceneRenderer(resources: Resources) {
 			return false
 		}
 
-		val coverage = ((effectiveOpaqueCloudiness(sun.params) - SCATTERED_CLOUD_FLOOR) / (CLOUD_DECK_THRESHOLD - SCATTERED_CLOUD_FLOOR)).coerceIn(0f, 1f)
+		val coverage = ((effectiveLowCloudiness(sun.params) - SCATTERED_CLOUD_FLOOR) / (CLOUD_DECK_THRESHOLD - SCATTERED_CLOUD_FLOOR)).coerceIn(0f, 1f)
 		val cloudTop = scatteredCloudTop(sun.width, sun.height, sun.params)
 		val offset = cumulusOffset(sun.width, sun.params, sun.timeSeconds, 0.008f + sun.params.windFactor * 0.016f, 1.5f, 0.78f, CLOUD_TEXTURE_VIEWPORTS)
 		val deckHeight = if (sun.width < sun.height) sun.height * 0.46f else sun.height * 0.40f
@@ -2582,7 +2582,7 @@ class SceneRenderer(resources: Resources) {
 	}
 
 	private fun canSampleSunCloudProfile(params: SceneParams) =
-		params.precipitation == null && effectiveOpaqueCloudiness(params) > SCATTERED_CLOUD_FLOOR && effectiveOpaqueCloudiness(params) <= CLOUD_DECK_THRESHOLD && params.cloudScale > 0f
+		params.precipitation == null && effectiveLowCloudiness(params) > SCATTERED_CLOUD_FLOOR && effectiveLowCloudiness(params) <= CLOUD_DECK_THRESHOLD && params.cloudScale > 0f
 
 	private fun sunCloudUpperAlpha(upperIndex: Int, blend: Float, cloudScale: Float): Int {
 		if (upperIndex >= cumulusSteps.size || blend < CUMULUS_BLEND_FLOOR) {
