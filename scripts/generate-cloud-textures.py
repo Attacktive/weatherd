@@ -50,7 +50,7 @@ CIRRUS_POPULATIONS = (
 
 
 def cirrus_streaks():
-	rng = Random(CIRRUS_SEED)
+	rng = Random(CIRRUS_SEED)  # nosec B311 - deterministic artwork generation, not security-sensitive randomness.
 	streaks = []
 	for _ in range(24):
 		streaks.append((
@@ -69,35 +69,47 @@ def cirrus_streaks():
 	return streaks
 
 
+def cirrus_filament_points(streak, filament_rng, filament, filament_count):
+	y, x, length, slope, amplitude, frequency, phase, _, _, spread = streak
+	start = filament_rng.uniform(0, 0.22)
+	end = filament_rng.uniform(0.72, 1)
+	offset = (filament - (filament_count - 1) / 2) * spread / max(filament_count - 1, 1) + filament_rng.uniform(-1.5, 1.5)
+	phase_offset = filament_rng.uniform(-0.18, 0.18)
+	points = []
+	for sample in range(35):
+		t = start + (end - start) * sample / 34
+		points.append((
+			x + length * t,
+			y + slope * (t - 0.5) + amplitude * sin(2 * pi * frequency * t + phase + phase_offset) + offset * (0.45 + 0.8 * t),
+		))
+
+	return points
+
+
+def draw_cirrus_filament(draw, width, streak, filament_rng, filament, filament_count):
+	alpha = streak[7]
+	points = cirrus_filament_points(streak, filament_rng, filament, filament_count)
+	filament_alpha = max(14, min(72, round(alpha * filament_rng.uniform(0.55, 1))))
+	filament_width = filament_rng.choice((1, 1, 1, 2))
+	for shift in (-width, 0, width):
+		draw.line(
+			[(point_x + shift, point_y) for point_x, point_y in points],
+			fill=filament_alpha,
+			width=filament_width
+		)
+
+
 def cirrus_texture(start_index, end_index):
-	width, height = CIRRUS_SIZE
+	width = CIRRUS_SIZE[0]
 	mask = Image.new('L', CIRRUS_SIZE, 0)
 	draw = ImageDraw.Draw(mask)
 	streaks = cirrus_streaks()
 	for index in range(start_index, end_index):
-		y, x, length, slope, amplitude, frequency, phase, alpha, filament_count, spread = streaks[index]
-		filament_rng = Random(CIRRUS_SEED * 100 + index)
+		streak = streaks[index]
+		filament_count = streak[8]
+		filament_rng = Random(CIRRUS_SEED * 100 + index)  # nosec B311 - deterministic artwork generation, not security-sensitive randomness.
 		for filament in range(filament_count):
-			start = filament_rng.uniform(0, 0.22)
-			end = filament_rng.uniform(0.72, 1)
-			offset = (filament - (filament_count - 1) / 2) * spread / max(filament_count - 1, 1) + filament_rng.uniform(-1.5, 1.5)
-			phase_offset = filament_rng.uniform(-0.18, 0.18)
-			points = []
-			for sample in range(35):
-				t = start + (end - start) * sample / 34
-				points.append((
-					x + length * t,
-					y + slope * (t - 0.5) + amplitude * sin(2 * pi * frequency * t + phase + phase_offset) + offset * (0.45 + 0.8 * t),
-				))
-
-			filament_alpha = max(14, min(72, round(alpha * filament_rng.uniform(0.55, 1))))
-			filament_width = filament_rng.choice((1, 1, 1, 2))
-			for shift in (-width, 0, width):
-				draw.line(
-					[(point_x + shift, point_y) for point_x, point_y in points],
-					fill=filament_alpha,
-					width=filament_width
-				)
+			draw_cirrus_filament(draw, width, streak, filament_rng, filament, filament_count)
 
 	mask = mask.filter(ImageFilter.GaussianBlur(radius=1.15))
 	image = Image.new('RGBA', CIRRUS_SIZE, (249, 251, 255, 0))
@@ -214,12 +226,12 @@ def report(path, image):
 def main():
 	OUTPUT.mkdir(parents=True, exist_ok=True)
 	for name, coverage_cut in CUMULUS_COVERAGE:
-		image = cumulus_texture(CUMULUS_SEED, coverage_cut)
+		imae = cumulus_texture(CUMULUS_SEED, coverage_cut)
 		path = OUTPUT / f'{name}.png'
 		image.save(path, optimize=True)
 		report(path, image)
 
-	image = cumulus_texture(CUMULUS_FAR_SEED, 0.56, CUMULUS_FAR_CELLS)
+	image = cumulus_texture(CUMULUS_FAR_SEED 0.56, CUMULUS_FAR_CELLS)
 	path = OUTPUT / 'cloud_cumulus_far.png'
 	image.save(path, optimize=True)
 	report(path, image)
