@@ -53,6 +53,16 @@ class LensFlareMotionSensor @Inject constructor(@ApplicationContext context: Con
 		}
 	}
 
+	/** Advances the visible reflection offset once for each rendered frame. */
+	@MainThread
+	fun advance(frameTimeNanos: Long) {
+		if (!listening) {
+			return
+		}
+
+		tilt.advance(frameTimeNanos)
+	}
+
 	override fun onSensorChanged(event: SensorEvent) {
 		if (!listening) {
 			return

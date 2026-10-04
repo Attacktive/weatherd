@@ -66,6 +66,20 @@ The software measurements exclude backdrop restoration; the hardware measurement
 These are renderer measurements, not launcher-jank or input-latency measurements.
 Full-resolution software comparisons kept clouds, moon, overcast, mountains, and rain pixel-identical; clear-day lens flare differed at nine pixels by at most one channel value.
 
+### Motion-responsive reflections
+
+Sensor callbacks update normalized target offsets, while each rendered preview or wallpaper frame advances the visible offsets with the same time-based exponential filter.
+This prevents a low-rate sensor stream from making reflections jump between otherwise smooth frames without increasing the sensor request rate or changing visibility-based sensor lifecycle gating.
+
+For [#206](https://github.com/Attacktive/weatherd/issues/206), the Galaxy S23 at 1080×2340 with an uncapped clear-day simulator produced:
+
+| Build | Instrumented gravity sample cadence | Instrumented longest continuous wallpaper render segment | User-observed reflection motion |
+| --- | ---: | ---: | --- |
+| 3.8.1 Play baseline | 66.35 ms / 15.07 Hz | 118.75 jobs/s | Stepped |
+| Patched side-by-side debug build | 66.35 ms / 15.07 Hz | 117.50 jobs/s | Smooth |
+
+The unchanged instrumented cadences and the user's before/after observation are consistent with frame-driven interpolation removing the stepping without faster sensor sampling or a lower frame-rate cap.
+
 ## Weather data attribution
 
 Weatherd offers Open-Meteo Best Match, [MET Norway](https://api.met.no), and explicit ICON-family forecasts served through [Open-Meteo](https://open-meteo.com):

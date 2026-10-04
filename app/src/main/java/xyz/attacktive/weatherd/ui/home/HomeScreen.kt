@@ -161,6 +161,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	LaunchedEffect(Unit) {
 		while (true) {
 			withFrameNanos { frameNanos ->
+				motionSensor.advance(frameNanos)
 				timeSeconds = sceneAnimationTimeSeconds(frameNanos)
 			}
 

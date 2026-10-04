@@ -128,7 +128,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			}
 
 			// Use the shared monotonic frame clock so every scene surface renders the same animation phase.
-			drawFrame(sceneAnimationTimeSeconds(frameTimeNanos))
+			drawFrame(frameTimeNanos, sceneAnimationTimeSeconds(frameTimeNanos))
 			scheduleNextFrame()
 		}
 
@@ -142,13 +142,14 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			}
 		}
 
-		private fun drawFrame(timeSeconds: Float) {
+		private fun drawFrame(frameTimeNanos: Long, timeSeconds: Float) {
 			if (width == 0 || height == 0) {
 				return
 			}
 
 			val params = currentParams()
 			updateReflectionMotion(lensFlareMotionActive(params))
+			lensFlareMotionSensor.advance(frameTimeNanos)
 			val wallpaperScrollingEnabled = wallpaperScrollingPreferenceEnabled && wallpaperScrollingSupported
 			val sceneWidth = wallpaperSceneWidth(width, wallpaperScrollingEnabled)
 			val outgoing = backdrop

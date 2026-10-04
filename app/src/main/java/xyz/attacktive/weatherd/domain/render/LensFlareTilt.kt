@@ -5,20 +5,23 @@ import kotlin.math.atan2
 import kotlin.math.exp
 import kotlin.math.sqrt
 
-/** Allocation-free, screen-relative gravity tilt shared by every active scene surface. */
+/** Allocation-free, screen-relative gravity targets with frame-driven smoothing shared by every active scene surface. */
 internal class LensFlareTilt {
 	var offsetX = 0f
 		private set
 	var offsetY = 0f
 		private set
 
+	private var targetX = 0f
+	private var targetY = 0f
 	private var baselineX = 0f
 	private var baselineY = 0f
 	private var rotation = -1
-	private var previousTimestampNanos = 0L
+	private var previousSensorTimestampNanos = 0L
+	private var previousFrameTimestampNanos = 0L
 
 	fun update(gravityX: Float, gravityY: Float, gravityZ: Float, displayRotation: Int, timestampNanos: Long) {
-		if (!isValidGravitySample(gravityX, gravityY, gravityZ, timestampNanos, previousTimestampNanos)) {
+		if (!isValidGravitySample(gravityX, gravityY, gravityZ, timestampNanos, previousSensorTimestampNanos)) {
 			return
 		}
 
@@ -30,27 +33,46 @@ internal class LensFlareTilt {
 			baselineX = angleX
 			baselineY = angleY
 			rotation = displayRotation
-			previousTimestampNanos = timestampNanos
+			previousSensorTimestampNanos = timestampNanos
+			previousFrameTimestampNanos = 0L
+			targetX = 0f
+			targetY = 0f
 			offsetX = 0f
 			offsetY = 0f
 			return
 		}
 
-		val elapsedSeconds = (timestampNanos - previousTimestampNanos) / NANOS_PER_SECOND
+		targetX = (normalizeAngleDifference(angleX - baselineX) / FULL_TRAVEL_RADIANS).coerceIn(-1f, 1f)
+		targetY = (normalizeAngleDifference(angleY - baselineY) / FULL_TRAVEL_RADIANS).coerceIn(-1f, 1f)
+		previousSensorTimestampNanos = timestampNanos
+	}
+
+	fun advance(timestampNanos: Long) {
+		if (rotation == -1 || timestampNanos <= previousFrameTimestampNanos) {
+			return
+		}
+
+		if (previousFrameTimestampNanos == 0L) {
+			previousFrameTimestampNanos = timestampNanos
+			return
+		}
+
+		val elapsedSeconds = (timestampNanos - previousFrameTimestampNanos) / NANOS_PER_SECOND
 		val blend = 1f - exp(-elapsedSeconds / SMOOTHING_SECONDS)
-		val targetX = (normalizeAngleDifference(angleX - baselineX) / FULL_TRAVEL_RADIANS).coerceIn(-1f, 1f)
-		val targetY = (normalizeAngleDifference(angleY - baselineY) / FULL_TRAVEL_RADIANS).coerceIn(-1f, 1f)
 		offsetX += (targetX - offsetX) * blend
 		offsetY += (targetY - offsetY) * blend
-		previousTimestampNanos = timestampNanos
+		previousFrameTimestampNanos = timestampNanos
 	}
 
 	/** The next valid reading becomes the neutral pose after the last surface stops rendering. */
 	fun reset() {
 		offsetX = 0f
 		offsetY = 0f
+		targetX = 0f
+		targetY = 0f
 		rotation = -1
-		previousTimestampNanos = 0L
+		previousSensorTimestampNanos = 0L
+		previousFrameTimestampNanos = 0L
 	}
 }
 
