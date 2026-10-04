@@ -1,5 +1,6 @@
 package xyz.attacktive.weatherd.domain.repository
 
+import java.lang.reflect.Modifier
 import java.util.Locale
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -18,6 +19,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import xyz.attacktive.weatherd.domain.model.AppSettings
+import xyz.attacktive.weatherd.domain.model.AppearancePresetSnapshot
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
@@ -25,6 +27,7 @@ import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
+import xyz.attacktive.weatherd.domain.model.appliedTo
 import xyz.attacktive.weatherd.domain.model.defaultAppSettings
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -258,4 +261,141 @@ class SettingsRepositoryTest {
 		assertEquals(1f, settings.skySaturationScale, 0.0001f)
 		assertEquals(SkyColorPreset.NATURAL, settings.skyColorPreset)
 	}
+
+	@Test
+	fun `applying a preset changes only appearance-owned settings`() = runTest {
+		val repository = SettingsRepository(dataStore())
+		val original = AppSettings(
+			weatherProvider = WeatherProviderType.MET_NORWAY,
+			weatherFallbackProvider = WeatherProviderType.DWD_ICON_GLOBAL,
+			updateIntervalMinutes = 120,
+			useDeviceLocation = false,
+			manualLatitude = 35.68,
+			manualLongitude = 139.69,
+			manualLocationLabel = "Tokyo, Japan",
+			temperatureUnit = TemperatureUnit.FAHRENHEIT,
+			frameRateCap = FrameRateCap.FPS_10,
+			wallpaperScrollingEnabled = true,
+			sceneSimulatorEnabled = true,
+			sceneSimulatorActive = true,
+			sceneSimulatorPresetIndex = 4,
+			sceneSimulatorDayPhase = DayPhase.NIGHT,
+			sceneSimulatorCelestialProgress = 0.8f
+		)
+		val preset = AppearancePresetSnapshot(
+			backdropScene = BackdropScene.BEACH,
+			showWeatherLabel = true,
+			showLocationLabel = true,
+			precipitationIntensityScale = 0.4f,
+			windIntensityScale = 1.7f,
+			cloudIntensityScale = 0.6f,
+			cloudSizeScale = 1.4f,
+			cloudCountScale = 1.5f,
+			cloudContrastScale = 1.3f,
+			skyBrightnessScale = 0.8f,
+			nightBrightnessScale = 0.3f,
+			skySaturationScale = 1.2f,
+			skyColorPreset = SkyColorPreset.PASTEL,
+			sunVisible = false,
+			moonVisible = false,
+			sunSizeScale = 1.6f,
+			sunColorPreset = SunColorPreset.GOLDEN,
+			lensFlareEnabled = false,
+			lensFlareMotionEnabled = true
+		)
+
+		repository.save(original)
+		repository.applyAppearancePreset(preset)
+
+		assertEquals(preset.appliedTo(original), repository.settings.first())
+	}
+
+	@Test
+	fun `excluded settings and preset appearance survive either transaction order`() = runTest {
+		val repository = SettingsRepository(dataStore())
+		val original = AppSettings(frameRateCap = FrameRateCap.FPS_30)
+		val preset = AppearancePresetSnapshot(
+			backdropScene = BackdropScene.MOUNTAINS,
+			showWeatherLabel = true,
+			showLocationLabel = true,
+			precipitationIntensityScale = 0.7f,
+			windIntensityScale = 1.4f,
+			cloudIntensityScale = 0.8f,
+			cloudSizeScale = 1.3f,
+			cloudCountScale = 1.2f,
+			cloudContrastScale = 1.1f,
+			skyBrightnessScale = 0.9f,
+			nightBrightnessScale = 0.4f,
+			skySaturationScale = 1.1f,
+			skyColorPreset = SkyColorPreset.WARM,
+			sunVisible = false,
+			moonVisible = true,
+			sunSizeScale = 1.2f,
+			sunColorPreset = SunColorPreset.ORANGE,
+			lensFlareEnabled = true,
+			lensFlareMotionEnabled = true
+		)
+		val excludedMutation = SettingsMutation.FrameRate(FrameRateCap.FPS_10)
+		val expected = preset.appliedTo(original).copy(frameRateCap = FrameRateCap.FPS_10)
+
+		repository.save(original)
+		repository.applyAppearancePreset(preset)
+		repository.update(listOf(excludedMutation))
+		assertEquals(expected, repository.settings.first())
+
+		repository.save(original)
+		repository.update(listOf(excludedMutation))
+		repository.applyAppearancePreset(preset)
+		assertEquals(expected, repository.settings.first())
+	}
+
+	@Test
+	fun `every AppSettings property is classified as preset-owned or excluded`() {
+		val owned = setOf(
+			"backdropScene",
+			"showWeatherLabel",
+			"showLocationLabel",
+			"precipitationIntensityScale",
+			"windIntensityScale",
+			"cloudIntensityScale",
+			"cloudSizeScale",
+			"cloudCountScale",
+			"cloudContrastScale",
+			"skyBrightnessScale",
+			"nightBrightnessScale",
+			"skySaturationScale",
+			"skyColorPreset",
+			"sunVisible",
+			"moonVisible",
+			"sunSizeScale",
+			"sunColorPreset",
+			"lensFlareEnabled",
+			"lensFlareMotionEnabled"
+		)
+		val excluded = setOf(
+			"weatherProvider",
+			"weatherFallbackProvider",
+			"updateIntervalMinutes",
+			"useDeviceLocation",
+			"manualLatitude",
+			"manualLongitude",
+			"manualLocationLabel",
+			"temperatureUnit",
+			"frameRateCap",
+			"wallpaperScrollingEnabled",
+			"sceneSimulatorEnabled",
+			"sceneSimulatorActive",
+			"sceneSimulatorPresetIndex",
+			"sceneSimulatorDayPhase",
+			"sceneSimulatorCelestialProgress"
+		)
+		val actual = AppSettings::class.java.declaredFields
+			.filterNot { field -> field.isSynthetic || Modifier.isStatic(field.modifiers) }
+			.map { field -> field.name }
+			.toSet()
+
+		assertTrue(owned.intersect(excluded).isEmpty())
+		assertEquals(actual, owned + excluded)
+	}
+
 }

@@ -14,6 +14,7 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import xyz.attacktive.weatherd.domain.model.AppSettings
+import xyz.attacktive.weatherd.domain.model.AppearancePresetSnapshot
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.CLOUD_COUNT_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_CONTRAST_SCALE_RANGE
@@ -30,6 +31,43 @@ import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.defaultAppSettings
 import xyz.attacktive.weatherd.domain.model.definition
+
+
+sealed interface SettingsMutation {
+	data class WeatherProvider(val value: WeatherProviderType): SettingsMutation
+	data class WeatherFallbackProvider(val value: WeatherProviderType): SettingsMutation
+	data class UpdateIntervalMinutes(val value: Int): SettingsMutation
+	data class UseDeviceLocation(val enabled: Boolean): SettingsMutation
+	data class ManualLocation(val latitude: Double, val longitude: Double, val label: String?): SettingsMutation
+	data object ClearManualLocation: SettingsMutation
+	data class Backdrop(val value: BackdropScene): SettingsMutation
+	data class ShowWeatherLabel(val enabled: Boolean): SettingsMutation
+	data class ShowLocationLabel(val enabled: Boolean): SettingsMutation
+	data class TemperatureUnitValue(val value: TemperatureUnit): SettingsMutation
+	data class FrameRate(val value: FrameRateCap): SettingsMutation
+	data class WallpaperScrolling(val enabled: Boolean): SettingsMutation
+	data class PrecipitationIntensity(val value: Float): SettingsMutation
+	data class WindIntensity(val value: Float): SettingsMutation
+	data class CloudIntensity(val value: Float): SettingsMutation
+	data class CloudSize(val value: Float): SettingsMutation
+	data class CloudCount(val value: Float): SettingsMutation
+	data class CloudContrast(val value: Float): SettingsMutation
+	data class SkyBrightness(val value: Float): SettingsMutation
+	data class NightBrightness(val value: Float): SettingsMutation
+	data class SkySaturation(val value: Float): SettingsMutation
+	data class SkyColor(val value: SkyColorPreset): SettingsMutation
+	data class SunVisible(val visible: Boolean): SettingsMutation
+	data class MoonVisible(val visible: Boolean): SettingsMutation
+	data class SunSize(val value: Float): SettingsMutation
+	data class SunColor(val value: SunColorPreset): SettingsMutation
+	data class LensFlareEnabled(val enabled: Boolean): SettingsMutation
+	data class LensFlareMotionEnabled(val enabled: Boolean): SettingsMutation
+	data class SceneSimulatorEnabled(val enabled: Boolean): SettingsMutation
+	data class SceneSimulatorActive(val active: Boolean): SettingsMutation
+	data class SceneSimulatorPresetIndex(val index: Int): SettingsMutation
+	data class SceneSimulatorDayPhase(val dayPhase: DayPhase): SettingsMutation
+	data class SceneSimulatorCelestialProgress(val progress: Float): SettingsMutation
+}
 
 /** Persists [AppSettings] to a DataStore; defaults are resolved once when the repository is created and reused for absent keys. */
 @Singleton
@@ -112,7 +150,26 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		)
 	}
 
-	suspend fun save(settings: AppSettings) {
+
+	suspend fun update(mutations: List<SettingsMutation>) {
+		if (mutations.isEmpty()) {
+			return
+		}
+
+		dataStore.edit { preferences ->
+			mutations.forEach { mutation ->
+				preferences.applyMutation(mutation)
+			}
+		}
+	}
+
+	suspend fun applyAppearancePreset(snapshot: AppearancePresetSnapshot) {
+		dataStore.edit { preferences ->
+			preferences.writeAppearancePreset(snapshot)
+		}
+	}
+
+	internal suspend fun save(settings: AppSettings) {
 		dataStore.edit { preferences ->
 			preferences[Keys.WEATHER_PROVIDER] = settings.weatherProvider.name
 			preferences[Keys.WEATHER_FALLBACK_PROVIDER] = settings.weatherFallbackProvider.takeIf { it.definition.isGlobal }?.name ?: defaults.weatherFallbackProvider.name
@@ -150,6 +207,81 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			preferences[Keys.SCENE_SIMULATOR_CELESTIAL_PROGRESS] = settings.sceneSimulatorCelestialProgress.coerceIn(0f, 1f)
 		}
 	}
+
+	private fun MutablePreferences.applyMutation(mutation: SettingsMutation) {
+		when (mutation) {
+			is SettingsMutation.WeatherProvider -> this[Keys.WEATHER_PROVIDER] = mutation.value.name
+			is SettingsMutation.WeatherFallbackProvider -> this[Keys.WEATHER_FALLBACK_PROVIDER] = mutation.value.takeIf { it.definition.isGlobal }?.name ?: defaults.weatherFallbackProvider.name
+			is SettingsMutation.UpdateIntervalMinutes -> this[Keys.UPDATE_INTERVAL_MINUTES] = mutation.value
+			is SettingsMutation.UseDeviceLocation -> this[Keys.USE_DEVICE_LOCATION] = mutation.enabled
+			is SettingsMutation.ManualLocation -> {
+				this[Keys.USE_DEVICE_LOCATION] = false
+				this[Keys.MANUAL_LATITUDE] = mutation.latitude
+				this[Keys.MANUAL_LONGITUDE] = mutation.longitude
+				putOrRemove(Keys.MANUAL_LOCATION_LABEL, mutation.label)
+			}
+			SettingsMutation.ClearManualLocation -> {
+				remove(Keys.MANUAL_LATITUDE)
+				remove(Keys.MANUAL_LONGITUDE)
+				remove(Keys.MANUAL_LOCATION_LABEL)
+			}
+			is SettingsMutation.Backdrop -> this[Keys.BACKDROP_SCENE] = mutation.value.name
+			is SettingsMutation.ShowWeatherLabel -> this[Keys.SHOW_WEATHER_LABEL] = mutation.enabled
+			is SettingsMutation.ShowLocationLabel -> this[Keys.SHOW_LOCATION_LABEL] = mutation.enabled
+			is SettingsMutation.TemperatureUnitValue -> this[Keys.TEMPERATURE_UNIT] = mutation.value.name
+			is SettingsMutation.FrameRate -> this[Keys.FRAME_RATE_CAP] = mutation.value.name
+			is SettingsMutation.WallpaperScrolling -> this[Keys.WALLPAPER_SCROLLING_ENABLED] = mutation.enabled
+			is SettingsMutation.PrecipitationIntensity -> this[Keys.PRECIPITATION_INTENSITY_SCALE] = mutation.value
+			is SettingsMutation.WindIntensity -> this[Keys.WIND_INTENSITY_SCALE] = mutation.value
+			is SettingsMutation.CloudIntensity -> this[Keys.CLOUD_INTENSITY_SCALE] = mutation.value
+			is SettingsMutation.CloudSize -> this[Keys.CLOUD_SIZE_SCALE] = mutation.value.coerceIn(CLOUD_SIZE_SCALE_RANGE.start, CLOUD_SIZE_SCALE_RANGE.endInclusive)
+			is SettingsMutation.CloudCount -> this[Keys.CLOUD_COUNT_SCALE] = mutation.value.coerceIn(CLOUD_COUNT_SCALE_RANGE.start, CLOUD_COUNT_SCALE_RANGE.endInclusive)
+			is SettingsMutation.CloudContrast -> this[Keys.CLOUD_CONTRAST_SCALE] = mutation.value.coerceIn(CLOUD_CONTRAST_SCALE_RANGE.start, CLOUD_CONTRAST_SCALE_RANGE.endInclusive)
+			is SettingsMutation.SkyBrightness -> this[Keys.SKY_BRIGHTNESS_SCALE] = mutation.value.coerceIn(SKY_BRIGHTNESS_SCALE_RANGE.start, SKY_BRIGHTNESS_SCALE_RANGE.endInclusive)
+			is SettingsMutation.NightBrightness -> this[Keys.NIGHT_BRIGHTNESS_SCALE] = mutation.value.coerceIn(NIGHT_BRIGHTNESS_SCALE_RANGE.start, NIGHT_BRIGHTNESS_SCALE_RANGE.endInclusive)
+			is SettingsMutation.SkySaturation -> this[Keys.SKY_SATURATION_SCALE] = mutation.value.coerceIn(SKY_SATURATION_SCALE_RANGE.start, SKY_SATURATION_SCALE_RANGE.endInclusive)
+			is SettingsMutation.SkyColor -> this[Keys.SKY_COLOR_PRESET] = mutation.value.name
+			is SettingsMutation.SunVisible -> this[Keys.SUN_VISIBLE] = mutation.visible
+			is SettingsMutation.MoonVisible -> this[Keys.MOON_VISIBLE] = mutation.visible
+			is SettingsMutation.SunSize -> this[Keys.SUN_SIZE_SCALE] = mutation.value.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive)
+			is SettingsMutation.SunColor -> this[Keys.SUN_COLOR_PRESET] = mutation.value.name
+			is SettingsMutation.LensFlareEnabled -> this[Keys.LENS_FLARE_ENABLED] = mutation.enabled
+			is SettingsMutation.LensFlareMotionEnabled -> this[Keys.LENS_FLARE_MOTION_ENABLED] = mutation.enabled
+			is SettingsMutation.SceneSimulatorEnabled -> {
+				this[Keys.SCENE_SIMULATOR_ENABLED] = mutation.enabled
+				if (!mutation.enabled) {
+					this[Keys.SCENE_SIMULATOR_ACTIVE] = false
+				}
+			}
+			is SettingsMutation.SceneSimulatorActive -> this[Keys.SCENE_SIMULATOR_ACTIVE] = mutation.active
+			is SettingsMutation.SceneSimulatorPresetIndex -> this[Keys.SCENE_SIMULATOR_PRESET_INDEX] = mutation.index.coerceAtLeast(0)
+			is SettingsMutation.SceneSimulatorDayPhase -> this[Keys.SCENE_SIMULATOR_DAY_PHASE] = mutation.dayPhase.name
+			is SettingsMutation.SceneSimulatorCelestialProgress -> this[Keys.SCENE_SIMULATOR_CELESTIAL_PROGRESS] = mutation.progress.coerceIn(0f, 1f)
+		}
+	}
+
+	private fun MutablePreferences.writeAppearancePreset(snapshot: AppearancePresetSnapshot) {
+		this[Keys.BACKDROP_SCENE] = snapshot.backdropScene.name
+		this[Keys.SHOW_WEATHER_LABEL] = snapshot.showWeatherLabel
+		this[Keys.SHOW_LOCATION_LABEL] = snapshot.showLocationLabel
+		this[Keys.PRECIPITATION_INTENSITY_SCALE] = snapshot.precipitationIntensityScale
+		this[Keys.WIND_INTENSITY_SCALE] = snapshot.windIntensityScale
+		this[Keys.CLOUD_INTENSITY_SCALE] = snapshot.cloudIntensityScale
+		this[Keys.CLOUD_SIZE_SCALE] = snapshot.cloudSizeScale.coerceIn(CLOUD_SIZE_SCALE_RANGE.start, CLOUD_SIZE_SCALE_RANGE.endInclusive)
+		this[Keys.CLOUD_COUNT_SCALE] = snapshot.cloudCountScale.coerceIn(CLOUD_COUNT_SCALE_RANGE.start, CLOUD_COUNT_SCALE_RANGE.endInclusive)
+		this[Keys.CLOUD_CONTRAST_SCALE] = snapshot.cloudContrastScale.coerceIn(CLOUD_CONTRAST_SCALE_RANGE.start, CLOUD_CONTRAST_SCALE_RANGE.endInclusive)
+		this[Keys.SKY_BRIGHTNESS_SCALE] = snapshot.skyBrightnessScale.coerceIn(SKY_BRIGHTNESS_SCALE_RANGE.start, SKY_BRIGHTNESS_SCALE_RANGE.endInclusive)
+		this[Keys.NIGHT_BRIGHTNESS_SCALE] = snapshot.nightBrightnessScale.coerceIn(NIGHT_BRIGHTNESS_SCALE_RANGE.start, NIGHT_BRIGHTNESS_SCALE_RANGE.endInclusive)
+		this[Keys.SKY_SATURATION_SCALE] = snapshot.skySaturationScale.coerceIn(SKY_SATURATION_SCALE_RANGE.start, SKY_SATURATION_SCALE_RANGE.endInclusive)
+		this[Keys.SKY_COLOR_PRESET] = snapshot.skyColorPreset.name
+		this[Keys.SUN_VISIBLE] = snapshot.sunVisible
+		this[Keys.MOON_VISIBLE] = snapshot.moonVisible
+		this[Keys.SUN_SIZE_SCALE] = snapshot.sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive)
+		this[Keys.SUN_COLOR_PRESET] = snapshot.sunColorPreset.name
+		this[Keys.LENS_FLARE_ENABLED] = snapshot.lensFlareEnabled
+		this[Keys.LENS_FLARE_MOTION_ENABLED] = snapshot.lensFlareMotionEnabled
+	}
+
 }
 
 private fun globalWeatherProviderOrDefault(name: String?, default: WeatherProviderType): WeatherProviderType {
