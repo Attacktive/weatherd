@@ -191,4 +191,26 @@
 	<string name="weather_heavy_snow_showers">Aguaceiros de neve fortes</string>
 	<string name="weather_thunderstorm">Trovoada</string>
 	<string name="weather_thunderstorm_with_hail">Trovoada com granizo</string>
+	<!-- Appearance presets -->
+	<string name="section_presets">Predefinições</string>
+	<string name="hint_presets">Guarde e volte a aplicar definições de aparência. A fonte meteorológica, a localização, a unidade de temperatura, o desempenho e as definições do simulador não estão incluídos.</string>
+	<string name="hint_preset_photos">As predefinições com fotografias utilizam as fotografias atualmente guardadas em cada espaço. Os ficheiros de fotografia são partilhados e não são copiados para uma predefinição.</string>
+	<string name="preset_save_current">Guardar atual</string>
+	<string name="preset_empty">Ainda não há predefinições guardadas.</string>
+	<string name="preset_apply">Aplicar</string>
+	<string name="preset_rename">Mudar nome</string>
+	<string name="preset_delete">Eliminar</string>
+	<string name="preset_name">Nome da predefinição</string>
+	<string name="preset_save_title">Guardar predefinição</string>
+	<string name="preset_rename_title">Mudar nome da predefinição</string>
+	<string name="preset_replace_title">Substituir predefinição?</string>
+	<string name="preset_replace_message">«%1$s» já existe. Substituir a aparência guardada pela atual?</string>
+	<string name="preset_replace">Substituir</string>
+	<string name="preset_delete_title">Eliminar predefinição?</string>
+	<string name="preset_delete_message">Eliminar «%1$s»?</string>
+	<string name="preset_name_exists">Já existe uma predefinição com esse nome.</string>
+	<string name="preset_storage_unreadable">Esta versão do Weatherd não consegue ler as predefinições guardadas. Foram mantidas sem alterações.</string>
+	<string name="content_description_preset_options">Mais opções para %1$s</string>
+	<string name="save">Guardar</string>
+	<string name="cancel">Cancelar</string>
 </resources>

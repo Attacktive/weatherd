@@ -191,4 +191,26 @@
 	<string name="weather_heavy_snow_showers">激しいにわか雪</string>
 	<string name="weather_thunderstorm">雷雨</string>
 	<string name="weather_thunderstorm_with_hail">雹を伴う雷雨</string>
+	<!-- Appearance presets -->
+	<string name="section_presets">プリセット</string>
+	<string name="hint_presets">外観設定を保存して再適用できます。天気のデータ元、場所、温度単位、パフォーマンス、シミュレーター設定は含まれません。</string>
+	<string name="hint_preset_photos">写真プリセットでは、各スロットに現在保存されている写真を使用します。写真ファイルは共有され、プリセットにはコピーされません。</string>
+	<string name="preset_save_current">現在の設定を保存</string>
+	<string name="preset_empty">保存済みのプリセットはありません。</string>
+	<string name="preset_apply">適用</string>
+	<string name="preset_rename">名前を変更</string>
+	<string name="preset_delete">削除</string>
+	<string name="preset_name">プリセット名</string>
+	<string name="preset_save_title">プリセットを保存</string>
+	<string name="preset_rename_title">プリセット名を変更</string>
+	<string name="preset_replace_title">プリセットを置き換えますか？</string>
+	<string name="preset_replace_message">「%1$s」はすでに存在します。保存済みの外観を現在の外観で置き換えますか？</string>
+	<string name="preset_replace">置き換え</string>
+	<string name="preset_delete_title">プリセットを削除しますか？</string>
+	<string name="preset_delete_message">「%1$s」を削除しますか？</string>
+	<string name="preset_name_exists">同じ名前のプリセットがすでに存在します。</string>
+	<string name="preset_storage_unreadable">このバージョンのWeatherdでは保存済みプリセットを読み取れません。データは変更されていません。</string>
+	<string name="content_description_preset_options">%1$sのその他のオプション</string>
+	<string name="save">保存</string>
+	<string name="cancel">キャンセル</string>
 </resources>

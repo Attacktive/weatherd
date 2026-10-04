@@ -191,4 +191,26 @@
 	<string name="weather_heavy_snow_showers">Fortes averses de neige</string>
 	<string name="weather_thunderstorm">Orage</string>
 	<string name="weather_thunderstorm_with_hail">Orage de grêle</string>
+	<!-- Appearance presets -->
+	<string name="section_presets">Préréglages</string>
+	<string name="hint_presets">Enregistrez et réappliquez les réglages d’apparence. La source météo, la localisation, l’unité de température, les performances et les réglages du simulateur ne sont pas inclus.</string>
+	<string name="hint_preset_photos">Les préréglages photo utilisent les photos actuellement enregistrées dans chaque emplacement. Les fichiers photo sont partagés et ne sont pas copiés dans un préréglage.</string>
+	<string name="preset_save_current">Enregistrer l’actuel</string>
+	<string name="preset_empty">Aucun préréglage enregistré.</string>
+	<string name="preset_apply">Appliquer</string>
+	<string name="preset_rename">Renommer</string>
+	<string name="preset_delete">Supprimer</string>
+	<string name="preset_name">Nom du préréglage</string>
+	<string name="preset_save_title">Enregistrer le préréglage</string>
+	<string name="preset_rename_title">Renommer le préréglage</string>
+	<string name="preset_replace_title">Remplacer le préréglage ?</string>
+	<string name="preset_replace_message">« %1$s » existe déjà. Remplacer son apparence enregistrée par l’apparence actuelle ?</string>
+	<string name="preset_replace">Remplacer</string>
+	<string name="preset_delete_title">Supprimer le préréglage ?</string>
+	<string name="preset_delete_message">Supprimer « %1$s » ?</string>
+	<string name="preset_name_exists">Un préréglage portant ce nom existe déjà.</string>
+	<string name="preset_storage_unreadable">Cette version de Weatherd ne peut pas lire les préréglages enregistrés. Ils ont été laissés inchangés.</string>
+	<string name="content_description_preset_options">Plus d’options pour %1$s</string>
+	<string name="save">Enregistrer</string>
+	<string name="cancel">Annuler</string>
 </resources>

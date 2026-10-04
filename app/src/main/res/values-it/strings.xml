@@ -191,4 +191,26 @@
 	<string name="weather_heavy_snow_showers">Forti rovesci di neve</string>
 	<string name="weather_thunderstorm">Temporale</string>
 	<string name="weather_thunderstorm_with_hail">Temporale con grandine</string>
+	<!-- Appearance presets -->
+	<string name="section_presets">Preimpostazioni</string>
+	<string name="hint_presets">Salva e riapplica le impostazioni di aspetto. Fonte meteo, posizione, unità di temperatura, prestazioni e impostazioni del simulatore non sono incluse.</string>
+	<string name="hint_preset_photos">Le preimpostazioni fotografiche usano le foto attualmente salvate in ogni spazio. I file delle foto sono condivisi e non vengono copiati in una preimpostazione.</string>
+	<string name="preset_save_current">Salva corrente</string>
+	<string name="preset_empty">Nessuna preimpostazione salvata.</string>
+	<string name="preset_apply">Applica</string>
+	<string name="preset_rename">Rinomina</string>
+	<string name="preset_delete">Elimina</string>
+	<string name="preset_name">Nome preimpostazione</string>
+	<string name="preset_save_title">Salva preimpostazione</string>
+	<string name="preset_rename_title">Rinomina preimpostazione</string>
+	<string name="preset_replace_title">Sostituire la preimpostazione?</string>
+	<string name="preset_replace_message">«%1$s» esiste già. Sostituire il suo aspetto salvato con quello corrente?</string>
+	<string name="preset_replace">Sostituisci</string>
+	<string name="preset_delete_title">Eliminare la preimpostazione?</string>
+	<string name="preset_delete_message">Eliminare «%1$s»?</string>
+	<string name="preset_name_exists">Esiste già una preimpostazione con questo nome.</string>
+	<string name="preset_storage_unreadable">Questa versione di Weatherd non può leggere le preimpostazioni salvate. Sono state lasciate invariate.</string>
+	<string name="content_description_preset_options">Altre opzioni per %1$s</string>
+	<string name="save">Salva</string>
+	<string name="cancel">Annulla</string>
 </resources>

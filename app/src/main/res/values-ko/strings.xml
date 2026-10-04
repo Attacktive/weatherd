@@ -191,4 +191,26 @@
 	<string name="weather_heavy_snow_showers">강한 눈 소나기</string>
 	<string name="weather_thunderstorm">뇌우</string>
 	<string name="weather_thunderstorm_with_hail">우박을 동반한 뇌우</string>
+	<!-- Appearance presets -->
+	<string name="section_presets">프리셋</string>
+	<string name="hint_presets">화면 모양 설정을 저장하고 다시 적용합니다. 날씨 제공자, 위치, 온도 단위, 성능 및 시뮬레이터 설정은 포함되지 않습니다.</string>
+	<string name="hint_preset_photos">사진 프리셋은 각 슬롯에 현재 저장된 사진을 사용합니다. 사진 파일은 공유되며 프리셋에 복사되지 않습니다.</string>
+	<string name="preset_save_current">현재 설정 저장</string>
+	<string name="preset_empty">저장된 프리셋이 없습니다.</string>
+	<string name="preset_apply">적용</string>
+	<string name="preset_rename">이름 변경</string>
+	<string name="preset_delete">삭제</string>
+	<string name="preset_name">프리셋 이름</string>
+	<string name="preset_save_title">프리셋 저장</string>
+	<string name="preset_rename_title">프리셋 이름 변경</string>
+	<string name="preset_replace_title">프리셋을 교체할까요?</string>
+	<string name="preset_replace_message">‘%1$s’ 프리셋이 이미 있습니다. 저장된 화면 모양을 현재 설정으로 교체할까요?</string>
+	<string name="preset_replace">교체</string>
+	<string name="preset_delete_title">프리셋을 삭제할까요?</string>
+	<string name="preset_delete_message">‘%1$s’ 프리셋을 삭제할까요?</string>
+	<string name="preset_name_exists">같은 이름의 프리셋이 이미 있습니다.</string>
+	<string name="preset_storage_unreadable">이 버전의 Weatherd에서는 저장된 프리셋을 읽을 수 없습니다. 기존 데이터는 변경하지 않았습니다.</string>
+	<string name="content_description_preset_options">%1$s 추가 옵션</string>
+	<string name="save">저장</string>
+	<string name="cancel">취소</string>
 </resources>
