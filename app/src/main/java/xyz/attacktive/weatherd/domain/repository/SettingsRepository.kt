@@ -69,6 +69,193 @@ sealed interface SettingsMutation {
 	data class SceneSimulatorCelestialProgress(val progress: Float): SettingsMutation
 }
 
+
+internal fun settingsMutationsBetween(previous: AppSettings, updated: AppSettings): List<SettingsMutation> {
+	val mutations = buildList {
+		if (previous.weatherProvider != updated.weatherProvider) {
+			add(SettingsMutation.WeatherProvider(updated.weatherProvider))
+		}
+
+		if (previous.weatherFallbackProvider != updated.weatherFallbackProvider) {
+			add(SettingsMutation.WeatherFallbackProvider(updated.weatherFallbackProvider))
+		}
+
+		if (previous.updateIntervalMinutes != updated.updateIntervalMinutes) {
+			add(SettingsMutation.UpdateIntervalMinutes(updated.updateIntervalMinutes))
+		}
+
+		val manualLocationChanged = previous.manualLatitude != updated.manualLatitude || previous.manualLongitude != updated.manualLongitude || previous.manualLocationLabel != updated.manualLocationLabel
+		if (manualLocationChanged) {
+			if (updated.manualLatitude == null && updated.manualLongitude == null && updated.manualLocationLabel == null) {
+				add(SettingsMutation.ClearManualLocation)
+			} else {
+				add(
+					SettingsMutation.ManualLocation(
+						latitude = requireNotNull(updated.manualLatitude),
+						longitude = requireNotNull(updated.manualLongitude),
+						label = updated.manualLocationLabel
+					)
+				)
+			}
+		}
+
+		if (previous.useDeviceLocation != updated.useDeviceLocation) {
+			add(SettingsMutation.UseDeviceLocation(updated.useDeviceLocation))
+		}
+
+		if (previous.backdropScene != updated.backdropScene) {
+			add(SettingsMutation.Backdrop(updated.backdropScene))
+		}
+
+		if (previous.showWeatherLabel != updated.showWeatherLabel) {
+			add(SettingsMutation.ShowWeatherLabel(updated.showWeatherLabel))
+		}
+
+		if (previous.showLocationLabel != updated.showLocationLabel) {
+			add(SettingsMutation.ShowLocationLabel(updated.showLocationLabel))
+		}
+
+		if (previous.temperatureUnit != updated.temperatureUnit) {
+			add(SettingsMutation.TemperatureUnitValue(updated.temperatureUnit))
+		}
+
+		if (previous.frameRateCap != updated.frameRateCap) {
+			add(SettingsMutation.FrameRate(updated.frameRateCap))
+		}
+
+		if (previous.wallpaperScrollingEnabled != updated.wallpaperScrollingEnabled) {
+			add(SettingsMutation.WallpaperScrolling(updated.wallpaperScrollingEnabled))
+		}
+
+		if (previous.precipitationIntensityScale != updated.precipitationIntensityScale) {
+			add(SettingsMutation.PrecipitationIntensity(updated.precipitationIntensityScale))
+		}
+
+		if (previous.windIntensityScale != updated.windIntensityScale) {
+			add(SettingsMutation.WindIntensity(updated.windIntensityScale))
+		}
+
+		if (previous.cloudIntensityScale != updated.cloudIntensityScale) {
+			add(SettingsMutation.CloudIntensity(updated.cloudIntensityScale))
+		}
+
+		if (previous.cloudSizeScale != updated.cloudSizeScale) {
+			add(SettingsMutation.CloudSize(updated.cloudSizeScale))
+		}
+
+		if (previous.cloudCountScale != updated.cloudCountScale) {
+			add(SettingsMutation.CloudCount(updated.cloudCountScale))
+		}
+
+		if (previous.cloudContrastScale != updated.cloudContrastScale) {
+			add(SettingsMutation.CloudContrast(updated.cloudContrastScale))
+		}
+
+		if (previous.skyBrightnessScale != updated.skyBrightnessScale) {
+			add(SettingsMutation.SkyBrightness(updated.skyBrightnessScale))
+		}
+
+		if (previous.nightBrightnessScale != updated.nightBrightnessScale) {
+			add(SettingsMutation.NightBrightness(updated.nightBrightnessScale))
+		}
+
+		if (previous.skySaturationScale != updated.skySaturationScale) {
+			add(SettingsMutation.SkySaturation(updated.skySaturationScale))
+		}
+
+		if (previous.skyColorPreset != updated.skyColorPreset) {
+			add(SettingsMutation.SkyColor(updated.skyColorPreset))
+		}
+
+		if (previous.sunVisible != updated.sunVisible) {
+			add(SettingsMutation.SunVisible(updated.sunVisible))
+		}
+
+		if (previous.moonVisible != updated.moonVisible) {
+			add(SettingsMutation.MoonVisible(updated.moonVisible))
+		}
+
+		if (previous.sunSizeScale != updated.sunSizeScale) {
+			add(SettingsMutation.SunSize(updated.sunSizeScale))
+		}
+
+		if (previous.sunColorPreset != updated.sunColorPreset) {
+			add(SettingsMutation.SunColor(updated.sunColorPreset))
+		}
+
+		if (previous.lensFlareEnabled != updated.lensFlareEnabled) {
+			add(SettingsMutation.LensFlareEnabled(updated.lensFlareEnabled))
+		}
+
+		if (previous.lensFlareMotionEnabled != updated.lensFlareMotionEnabled) {
+			add(SettingsMutation.LensFlareMotionEnabled(updated.lensFlareMotionEnabled))
+		}
+
+		if (previous.sceneSimulatorEnabled != updated.sceneSimulatorEnabled) {
+			add(SettingsMutation.SceneSimulatorEnabled(updated.sceneSimulatorEnabled))
+		}
+
+		if (previous.sceneSimulatorActive != updated.sceneSimulatorActive) {
+			add(SettingsMutation.SceneSimulatorActive(updated.sceneSimulatorActive))
+		}
+
+		if (previous.sceneSimulatorPresetIndex != updated.sceneSimulatorPresetIndex) {
+			add(SettingsMutation.SceneSimulatorPresetIndex(updated.sceneSimulatorPresetIndex))
+		}
+
+		if (previous.sceneSimulatorDayPhase != updated.sceneSimulatorDayPhase) {
+			add(SettingsMutation.SceneSimulatorDayPhase(updated.sceneSimulatorDayPhase))
+		}
+
+		if (previous.sceneSimulatorCelestialProgress != updated.sceneSimulatorCelestialProgress) {
+			add(SettingsMutation.SceneSimulatorCelestialProgress(updated.sceneSimulatorCelestialProgress))
+		}
+	}
+
+	val replayed = mutations.fold(previous) { settings, mutation ->
+		mutation.appliedTo(settings)
+	}
+	check(replayed == updated) { "Settings mutation mapping is incomplete" }
+
+	return mutations
+}
+
+private fun SettingsMutation.appliedTo(settings: AppSettings) = when (this) {
+	is SettingsMutation.WeatherProvider -> settings.copy(weatherProvider = value)
+	is SettingsMutation.WeatherFallbackProvider -> settings.copy(weatherFallbackProvider = value)
+	is SettingsMutation.UpdateIntervalMinutes -> settings.copy(updateIntervalMinutes = value)
+	is SettingsMutation.UseDeviceLocation -> settings.copy(useDeviceLocation = enabled)
+	is SettingsMutation.ManualLocation -> settings.copy(useDeviceLocation = false, manualLatitude = latitude, manualLongitude = longitude, manualLocationLabel = label)
+	SettingsMutation.ClearManualLocation -> settings.copy(manualLatitude = null, manualLongitude = null, manualLocationLabel = null)
+	is SettingsMutation.Backdrop -> settings.copy(backdropScene = value)
+	is SettingsMutation.ShowWeatherLabel -> settings.copy(showWeatherLabel = enabled)
+	is SettingsMutation.ShowLocationLabel -> settings.copy(showLocationLabel = enabled)
+	is SettingsMutation.TemperatureUnitValue -> settings.copy(temperatureUnit = value)
+	is SettingsMutation.FrameRate -> settings.copy(frameRateCap = value)
+	is SettingsMutation.WallpaperScrolling -> settings.copy(wallpaperScrollingEnabled = enabled)
+	is SettingsMutation.PrecipitationIntensity -> settings.copy(precipitationIntensityScale = value)
+	is SettingsMutation.WindIntensity -> settings.copy(windIntensityScale = value)
+	is SettingsMutation.CloudIntensity -> settings.copy(cloudIntensityScale = value)
+	is SettingsMutation.CloudSize -> settings.copy(cloudSizeScale = value)
+	is SettingsMutation.CloudCount -> settings.copy(cloudCountScale = value)
+	is SettingsMutation.CloudContrast -> settings.copy(cloudContrastScale = value)
+	is SettingsMutation.SkyBrightness -> settings.copy(skyBrightnessScale = value)
+	is SettingsMutation.NightBrightness -> settings.copy(nightBrightnessScale = value)
+	is SettingsMutation.SkySaturation -> settings.copy(skySaturationScale = value)
+	is SettingsMutation.SkyColor -> settings.copy(skyColorPreset = value)
+	is SettingsMutation.SunVisible -> settings.copy(sunVisible = visible)
+	is SettingsMutation.MoonVisible -> settings.copy(moonVisible = visible)
+	is SettingsMutation.SunSize -> settings.copy(sunSizeScale = value)
+	is SettingsMutation.SunColor -> settings.copy(sunColorPreset = value)
+	is SettingsMutation.LensFlareEnabled -> settings.copy(lensFlareEnabled = enabled)
+	is SettingsMutation.LensFlareMotionEnabled -> settings.copy(lensFlareMotionEnabled = enabled)
+	is SettingsMutation.SceneSimulatorEnabled -> settings.copy(sceneSimulatorEnabled = enabled, sceneSimulatorActive = settings.sceneSimulatorActive && enabled)
+	is SettingsMutation.SceneSimulatorActive -> settings.copy(sceneSimulatorActive = active)
+	is SettingsMutation.SceneSimulatorPresetIndex -> settings.copy(sceneSimulatorPresetIndex = index.coerceAtLeast(0))
+	is SettingsMutation.SceneSimulatorDayPhase -> settings.copy(sceneSimulatorDayPhase = dayPhase)
+	is SettingsMutation.SceneSimulatorCelestialProgress -> settings.copy(sceneSimulatorCelestialProgress = progress.coerceIn(0f, 1f))
+}
+
 /** Persists [AppSettings] to a DataStore; defaults are resolved once when the repository is created and reused for absent keys. */
 @Singleton
 class SettingsRepository @Inject constructor(private val dataStore: DataStore<Preferences>) {

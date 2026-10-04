@@ -35,8 +35,11 @@ import xyz.attacktive.weatherd.domain.model.PhotoBucket
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
 import xyz.attacktive.weatherd.domain.render.WeatherSceneStatus
+import xyz.attacktive.weatherd.domain.repository.AppearancePresetRepository
+import xyz.attacktive.weatherd.domain.repository.AppearancePresetStorageState
 import xyz.attacktive.weatherd.domain.repository.GeocodingRepository
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
+import xyz.attacktive.weatherd.domain.repository.SettingsMutation
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
 
 /**
@@ -46,6 +49,7 @@ import xyz.attacktive.weatherd.domain.repository.SettingsRepository
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsViewModelTest {
 	private val settingsRepository = mockk<SettingsRepository>()
+	private val appearancePresetRepository = mockk<AppearancePresetRepository>()
 	private val geocodingRepository = mockk<GeocodingRepository>()
 	private val photoBackgroundRepository = mockk<PhotoBackgroundRepository>()
 	private val sceneProvider = mockk<WeatherSceneProvider>()
@@ -54,6 +58,7 @@ class SettingsViewModelTest {
 	fun stubRepositories() {
 		every { settingsRepository.defaults } returns AppSettings()
 		every { settingsRepository.settings } returns flowOf(AppSettings())
+		every { appearancePresetRepository.state } returns flowOf(AppearancePresetStorageState.Ready(emptyList()))
 		every { photoBackgroundRepository.available } returns MutableStateFlow(emptySet())
 		every { photoBackgroundRepository.revision } returns MutableStateFlow(0)
 		every { sceneProvider.status } returns MutableStateFlow(WeatherSceneStatus())
@@ -77,6 +82,7 @@ class SettingsViewModelTest {
 		return SettingsViewModel(
 			application = mockk<Application>(relaxed = true),
 			settingsRepository = settingsRepository,
+			appearancePresetRepository = appearancePresetRepository,
 			geocodingRepository = geocodingRepository,
 			photoBackgroundRepository = photoBackgroundRepository,
 			sceneProvider = sceneProvider,
@@ -99,20 +105,34 @@ class SettingsViewModelTest {
 	}
 
 	@Test
-	fun `regional defaults survive a save before persisted settings emit`() = runTest {
+	fun `regional defaults survive a settings change before persisted settings emit`() = runTest {
 		val delayedSettings = MutableSharedFlow<AppSettings>()
 		val defaults = AppSettings(temperatureUnit = TemperatureUnit.FAHRENHEIT)
 		every { settingsRepository.defaults } returns defaults
 		every { settingsRepository.settings } returns delayedSettings
-		coEvery { settingsRepository.save(any()) } returns Unit
+		coEvery { settingsRepository.update(any()) } returns Unit
 		val viewModel = viewModel()
 
 		assertEquals(defaults, viewModel.settings.value)
 
-		viewModel.save(viewModel.settings.value.copy(showWeatherLabel = true))
+		viewModel.applySettingsChange(defaults, defaults.copy(showWeatherLabel = true))
 		runCurrent()
 
-		coVerify(exactly = 1) { settingsRepository.save(defaults.copy(showWeatherLabel = true)) }
+		coVerify(exactly = 1) { settingsRepository.update(listOf(SettingsMutation.ShowWeatherLabel(true))) }
+	}
+
+	@Test
+	fun `a stale settings callback mutates only the field the user changed`() = runTest {
+		val current = AppSettings(backdropScene = xyz.attacktive.weatherd.domain.model.BackdropScene.MOUNTAINS)
+		val stale = AppSettings(backdropScene = xyz.attacktive.weatherd.domain.model.BackdropScene.BEACH)
+		every { settingsRepository.settings } returns flowOf(current)
+		coEvery { settingsRepository.update(any()) } returns Unit
+		val viewModel = viewModel()
+
+		viewModel.applySettingsChange(stale, stale.copy(frameRateCap = xyz.attacktive.weatherd.domain.model.FrameRateCap.FPS_10))
+		runCurrent()
+
+		coVerify(exactly = 1) { settingsRepository.update(listOf(SettingsMutation.FrameRate(xyz.attacktive.weatherd.domain.model.FrameRateCap.FPS_10))) }
 	}
 
 	@Test

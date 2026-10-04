@@ -2,7 +2,6 @@ package xyz.attacktive.weatherd.ui.home
 
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -17,6 +16,7 @@ import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.render.SceneParams
 import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
+import xyz.attacktive.weatherd.domain.repository.SettingsMutation
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
 import xyz.attacktive.weatherd.platform.LensFlareMotionSensor
 
@@ -137,26 +137,25 @@ class HomeViewModel @Inject constructor(
 		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().sceneSimulatorCelestialProgress)
 
 	fun setSceneSimulatorActive(active: Boolean) {
-		updateSceneSimulator { it.copy(sceneSimulatorActive = active) }
+		updateSceneSimulator(SettingsMutation.SceneSimulatorActive(active))
 	}
 
 	fun setSceneSimulatorPresetIndex(index: Int) {
-		updateSceneSimulator { it.copy(sceneSimulatorPresetIndex = index.coerceAtLeast(0)) }
+		updateSceneSimulator(SettingsMutation.SceneSimulatorPresetIndex(index))
 	}
 
 	fun setSceneSimulatorDayPhase(dayPhase: DayPhase) {
-		updateSceneSimulator { it.copy(sceneSimulatorDayPhase = dayPhase) }
+		updateSceneSimulator(SettingsMutation.SceneSimulatorDayPhase(dayPhase))
 	}
 
 	fun setSceneSimulatorCelestialProgress(progress: Float) {
-		updateSceneSimulator { it.copy(sceneSimulatorCelestialProgress = progress.coerceIn(0f, 1f)) }
+		updateSceneSimulator(SettingsMutation.SceneSimulatorCelestialProgress(progress))
 	}
 
-	private fun updateSceneSimulator(transform: (AppSettings) -> AppSettings) {
+	private fun updateSceneSimulator(mutation: SettingsMutation) {
 		viewModelScope.launch {
 			simulatorSettingsMutex.withLock {
-				val current = settingsRepository.settings.first()
-				settingsRepository.save(transform(current))
+				settingsRepository.update(listOf(mutation))
 				sceneProvider.refresh(nowEpochSeconds())
 			}
 		}

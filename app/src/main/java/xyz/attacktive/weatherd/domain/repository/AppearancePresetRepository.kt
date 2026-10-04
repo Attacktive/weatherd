@@ -9,6 +9,9 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -113,11 +116,12 @@ class AppearancePresetRepository @Inject constructor(private val dataStore: Data
 		}
 
 		return try {
-			val envelope = json.decodeFromString<StoredEnvelope>(raw)
-			when (envelope.schemaVersion) {
-				APPEARANCE_PRESET_SCHEMA_VERSION -> decodeVersionOne(envelope)
-				else -> AppearancePresetStorageState.Unreadable(AppearancePresetUnreadableReason.UnsupportedVersion(envelope.schemaVersion))
+			val version = json.parseToJsonElement(raw).jsonObject["schemaVersion"]?.jsonPrimitive?.int ?: throw IllegalArgumentException("Missing schema version")
+			if (version != APPEARANCE_PRESET_SCHEMA_VERSION) {
+				return AppearancePresetStorageState.Unreadable(AppearancePresetUnreadableReason.UnsupportedVersion(version))
 			}
+
+			decodeVersionOne(json.decodeFromString<StoredEnvelope>(raw))
 		} catch (_: Exception) {
 			AppearancePresetStorageState.Unreadable(AppearancePresetUnreadableReason.Malformed)
 		}

@@ -33,12 +33,18 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.di.ApplicationScope
 import xyz.attacktive.weatherd.domain.model.AppSettings
+import xyz.attacktive.weatherd.domain.model.SavedAppearancePreset
+import xyz.attacktive.weatherd.domain.model.toAppearancePresetSnapshot
 import xyz.attacktive.weatherd.domain.model.GeoPlace
 import xyz.attacktive.weatherd.domain.model.PhotoBucket
 import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
+import xyz.attacktive.weatherd.domain.repository.AppearancePresetRepository
+import xyz.attacktive.weatherd.domain.repository.AppearancePresetStorageState
 import xyz.attacktive.weatherd.domain.repository.GeocodingRepository
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
+import xyz.attacktive.weatherd.domain.repository.SettingsMutation
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
+import xyz.attacktive.weatherd.domain.repository.settingsMutationsBetween
 
 /** UI state for the city-name search shown under the manual-location option. */
 sealed interface CitySearchState {
@@ -61,6 +67,7 @@ private sealed interface SearchTrigger {
 class SettingsViewModel @Inject constructor(
 	application: Application,
 	private val settingsRepository: SettingsRepository,
+	private val appearancePresetRepository: AppearancePresetRepository,
 	private val geocodingRepository: GeocodingRepository,
 	private val photoBackgroundRepository: PhotoBackgroundRepository,
 	private val sceneProvider: WeatherSceneProvider,
@@ -70,6 +77,8 @@ class SettingsViewModel @Inject constructor(
 	val settings = settingsRepository.settings
 		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), defaults)
 	val weatherStatus = sceneProvider.status
+	val appearancePresets = appearancePresetRepository.state
+		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppearancePresetStorageState.Ready(emptyList()))
 
 	private val weatherRefreshMutex = Mutex()
 	private val _weatherRefreshInProgress = MutableStateFlow(false)
@@ -154,11 +163,18 @@ class SettingsViewModel @Inject constructor(
 		}
 	}
 
-	fun save(settings: AppSettings) {
-		val weatherProviderChanged = this.settings.value.weatherProvider != settings.weatherProvider || this.settings.value.weatherFallbackProvider != settings.weatherFallbackProvider
+	fun applySettingsChange(previous: AppSettings, updated: AppSettings) {
+		val mutations = settingsMutationsBetween(previous, updated)
+		if (mutations.isEmpty()) {
+			return
+		}
+
+		val weatherProviderChanged = mutations.any { mutation ->
+			mutation is SettingsMutation.WeatherProvider || mutation is SettingsMutation.WeatherFallbackProvider
+		}
 
 		viewModelScope.launch {
-			settingsRepository.save(settings)
+			settingsRepository.update(mutations)
 
 			if (weatherProviderChanged) {
 				refreshWeatherStatus(force = true)
@@ -168,9 +184,46 @@ class SettingsViewModel @Inject constructor(
 
 	fun setUseDeviceLocation(enabled: Boolean) {
 		viewModelScope.launch {
-			val current = settingsRepository.settings.first()
-			settingsRepository.save(current.copy(useDeviceLocation = enabled))
+			settingsRepository.update(listOf(SettingsMutation.UseDeviceLocation(enabled)))
 			refreshWeatherStatus(force = true)
+		}
+	}
+
+
+	fun createAppearancePreset(name: String) {
+		viewModelScope.launch {
+			val snapshot = settingsRepository.settings.first().toAppearancePresetSnapshot()
+			appearancePresetRepository.create(name, snapshot)
+		}
+	}
+
+	fun replaceAppearancePreset(id: String, name: String) {
+		viewModelScope.launch {
+			val snapshot = settingsRepository.settings.first().toAppearancePresetSnapshot()
+			appearancePresetRepository.replace(id, name, snapshot)
+		}
+	}
+
+	fun renameAppearancePreset(id: String, name: String) {
+		viewModelScope.launch {
+			appearancePresetRepository.rename(id, name)
+		}
+	}
+
+	fun deleteAppearancePreset(id: String) {
+		viewModelScope.launch {
+			appearancePresetRepository.delete(id)
+		}
+	}
+
+	fun applyAppearancePreset(preset: SavedAppearancePreset) {
+		val current = appearancePresets.value
+		if (current !is AppearancePresetStorageState.Ready || current.presets.none { it.id == preset.id }) {
+			return
+		}
+
+		viewModelScope.launch {
+			settingsRepository.applyAppearancePreset(preset.snapshot)
 		}
 	}
 
@@ -197,13 +250,13 @@ class SettingsViewModel @Inject constructor(
 	/** Persists the chosen place as the manual location; the live wallpaper picks it up on its next refresh. */
 	fun selectPlace(place: GeoPlace) {
 		viewModelScope.launch {
-			val current = settingsRepository.settings.first()
-			settingsRepository.save(
-				current.copy(
-					useDeviceLocation = false,
-					manualLatitude = place.latitude,
-					manualLongitude = place.longitude,
-					manualLocationLabel = place.label
+			settingsRepository.update(
+				listOf(
+					SettingsMutation.ManualLocation(
+						latitude = place.latitude,
+						longitude = place.longitude,
+						label = place.label
+					)
 				)
 			)
 			refreshWeatherStatus(force = true)
@@ -214,8 +267,7 @@ class SettingsViewModel @Inject constructor(
 
 	fun clearManualLocation() {
 		viewModelScope.launch {
-			val current = settingsRepository.settings.first()
-			settingsRepository.save(current.copy(manualLatitude = null, manualLongitude = null, manualLocationLabel = null))
+			settingsRepository.update(listOf(SettingsMutation.ClearManualLocation))
 			refreshWeatherStatus(force = true)
 
 			_citySearch.value = CitySearchState.Idle

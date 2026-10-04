@@ -398,4 +398,25 @@ class SettingsRepositoryTest {
 		assertEquals(actual, owned + excluded)
 	}
 
+
+	@Test
+	fun `settings snapshot diff is replayable as field-specific mutations`() {
+		val before = AppSettings(
+			backdropScene = BackdropScene.BEACH,
+			frameRateCap = FrameRateCap.FPS_30,
+			sceneSimulatorEnabled = true,
+			sceneSimulatorActive = true
+		)
+		val after = before.copy(frameRateCap = FrameRateCap.FPS_10, sceneSimulatorEnabled = false, sceneSimulatorActive = false)
+
+		assertEquals(
+			listOf(
+				SettingsMutation.FrameRate(FrameRateCap.FPS_10),
+				SettingsMutation.SceneSimulatorEnabled(false),
+				SettingsMutation.SceneSimulatorActive(false)
+			),
+			settingsMutationsBetween(before, after)
+		)
+	}
+
 }
