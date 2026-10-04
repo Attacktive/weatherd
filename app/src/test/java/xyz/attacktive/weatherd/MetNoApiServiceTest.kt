@@ -30,7 +30,7 @@ class MetNoApiServiceTest {
 			val response = api.forecast("0.0006", "0.0001")
 			val request = server.takeRequest()
 
-			assertEquals("/weatherapi/locationforecast/2.0/compact?lat=0.0006&lon=0.0001", request.path)
+			assertEquals("/weatherapi/locationforecast/2.0/complete?lat=0.0006&lon=0.0001", request.path)
 			assertTrue(request.getHeader("User-Agent")?.startsWith("weatherd/") == true)
 			assertEquals("cloudy", response.properties.timeseries.first().data?.nextOneHour?.summary?.symbolCode)
 			assertEquals(2, response.properties.timeseries.size)
