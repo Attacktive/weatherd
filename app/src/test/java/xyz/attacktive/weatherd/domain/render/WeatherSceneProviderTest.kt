@@ -47,6 +47,7 @@ class WeatherSceneProviderTest {
 				debugToolsEnabled = false
 			)
 		)
+
 		assertTrue(
 			sceneSimulatorOverridesWeather(
 				sceneSimulatorActive = true,
@@ -54,6 +55,7 @@ class WeatherSceneProviderTest {
 				debugToolsEnabled = false
 			)
 		)
+
 		assertTrue(
 			sceneSimulatorOverridesWeather(
 				sceneSimulatorActive = true,

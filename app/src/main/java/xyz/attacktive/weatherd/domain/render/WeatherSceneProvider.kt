@@ -302,6 +302,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			settings.sceneSimulatorEnabled,
 			debugToolsEnabled
 		)
+
 		sceneSimulatorPresetIndex = settings.sceneSimulatorPresetIndex.coerceIn(0, SCENE_PRESETS.lastIndex)
 		sceneSimulatorDayPhase = settings.sceneSimulatorDayPhase
 		sceneSimulatorCelestialProgress = settings.sceneSimulatorCelestialProgress.coerceIn(0f, 1f)
