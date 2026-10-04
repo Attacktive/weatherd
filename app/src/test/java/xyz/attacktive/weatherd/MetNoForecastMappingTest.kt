@@ -51,6 +51,24 @@ class MetNoForecastMappingTest {
 	}
 
 	@Test
+	fun `complete forecast maps cloud layers when all three are present`() {
+		val snapshot = metNoForecastResponse("fair").toSnapshot(metNoSunResponse())
+
+		assertEquals(77, snapshot.observation.cloudCoverPercent)
+		assertEquals(12, snapshot.observation.cloudCover.layers?.lowPercent)
+		assertEquals(34, snapshot.observation.cloudCover.layers?.midPercent)
+		assertEquals(56, snapshot.observation.cloudCover.layers?.highPercent)
+	}
+
+	@Test
+	fun `missing one cloud layer preserves total cover without inventing the breakdown`() {
+		val snapshot = metNoForecastResponse("fair", cloudMid = null).toSnapshot(metNoSunResponse())
+
+		assertEquals(77, snapshot.observation.cloudCoverPercent)
+		assertNull(snapshot.observation.cloudCover.layers)
+	}
+
+	@Test
 	fun `missing precipitation amount defaults to zero without discarding the forecast`() {
 		val snapshot = metNoForecastResponse("rain", precipitationAmount = null).toSnapshot(metNoSunResponse())
 

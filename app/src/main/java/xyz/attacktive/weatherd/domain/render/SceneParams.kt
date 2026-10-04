@@ -36,6 +36,12 @@ import xyz.attacktive.weatherd.domain.weather.precipitationIntensity
  * [lensFlareEnabled] is a display preference for camera-style streaks and optical ghosts around the sun; it does not disable the physical corona or atmospheric light shafts.
  * [lensFlareMotionEnabled] allows device tilt and motion sensors to subtly deflect camera optical reflections when [lensFlareEnabled] and direct sun are visible.
  */
+data class SceneCloudLayers(
+	val low: Float,
+	val mid: Float,
+	val high: Float
+)
+
 data class SceneParams(
 	val dayPhase: DayPhase,
 	val cloudiness: Float,
@@ -43,6 +49,7 @@ data class SceneParams(
 	val precipitation: Precipitation?,
 	val thunder: Boolean,
 	val windFactor: Float,
+	val cloudLayers: SceneCloudLayers? = null,
 	val precipitationScale: Float = 1f,
 	val windScale: Float = 1f,
 	val cloudScale: Float = 1f,
@@ -102,8 +109,23 @@ fun backdropSignature(params: SceneParams, backgroundPhotoAvailable: Boolean = f
 private fun twilightBackdropUsesProgress(params: SceneParams, backgroundPhotoAvailable: Boolean) =
 	!backgroundPhotoAvailable && (params.dayPhase == DayPhase.DAWN || params.dayPhase == DayPhase.DUSK)
 
-/** User-adjusted rendered cloud coverage while preserving the provider's raw observation in [SceneParams.cloudiness]. */
-internal fun effectiveCloudiness(params: SceneParams) = (params.cloudiness * params.cloudCountScale.coerceIn(CLOUD_COUNT_SCALE_RANGE.start, CLOUD_COUNT_SCALE_RANGE.endInclusive)).coerceIn(0f, 1f)
+/** User-adjusted rendered total cloud coverage while preserving the provider's raw observation in [SceneParams.cloudiness]. */
+internal fun effectiveCloudiness(params: SceneParams) = scaledCloudiness(params, params.cloudiness)
+
+internal fun effectiveLowCloudiness(params: SceneParams) = scaledCloudiness(params, params.cloudLayers?.low ?: params.cloudiness)
+
+internal fun effectiveMidCloudiness(params: SceneParams) = scaledCloudiness(params, params.cloudLayers?.mid ?: params.cloudiness)
+
+/** High cloud is unknown rather than equal to total cover when the provider has no layer breakdown. */
+internal fun effectiveHighCloudiness(params: SceneParams) = params.cloudLayers?.let { scaledCloudiness(params, it.high) } ?: 0f
+
+/** Low and mid layers are the opaque obstruction used by cumulus, overcast, haze, and direct-sun decisions. */
+internal fun effectiveOpaqueCloudiness(params: SceneParams) = params.cloudLayers?.let {
+	maxOf(scaledCloudiness(params, it.low), scaledCloudiness(params, it.mid))
+} ?: effectiveCloudiness(params)
+
+private fun scaledCloudiness(params: SceneParams, cloudiness: Float) =
+	(cloudiness * params.cloudCountScale.coerceIn(CLOUD_COUNT_SCALE_RANGE.start, CLOUD_COUNT_SCALE_RANGE.endInclusive)).coerceIn(0f, 1f)
 
 /** Derives render parameters from a weather snapshot for the given moment. */
 fun sceneParamsFor(
@@ -132,6 +154,13 @@ fun sceneParamsFor(
 	val observation = snapshot.observation
 	val condition = observation.condition
 	val dayPhase = dayPhaseFor(nowEpochSeconds, snapshot.sunriseEpochSeconds, snapshot.sunsetEpochSeconds, observation.isDay)
+	val cloudLayers = observation.cloudCover.layers?.let {
+		SceneCloudLayers(
+			low = (it.lowPercent / 100f).coerceIn(0f, 1f),
+			mid = (it.midPercent / 100f).coerceIn(0f, 1f),
+			high = (it.highPercent / 100f).coerceIn(0f, 1f)
+		)
+	}
 
 	return SceneParams(
 		dayPhase = dayPhase,
@@ -145,6 +174,7 @@ fun sceneParamsFor(
 			Precipitation(kind = it, severity = condition.severity, observed = shapedIntensity(precipitationIntensity(observation.precipitationMillimeters)))
 		},
 		thunder = condition.thunder,
+		cloudLayers = cloudLayers,
 		// Both scales are carried preferences that the renderer applies past its own floors, which is what makes the sliders span their advertised range.
 		windFactor = shapedIntensity((observation.windSpeedKilometersPerHour / MAX_WIND_KILOMETERS_PER_HOUR).toFloat()),
 		precipitationScale = precipitationScale,

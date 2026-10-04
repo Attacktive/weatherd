@@ -206,7 +206,10 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 				return@map
 			}
 
-			logger.debug(TAG, "weather refreshed: provider=${weather.source.provider}, condition=${weather.observation.condition.label}, cloud=${weather.observation.cloudCoverPercent}%")
+			val cloudCover = weather.observation.cloudCover
+			val cloudLayers = cloudCover.layers?.let { ", low=${it.lowPercent}%, mid=${it.midPercent}%, high=${it.highPercent}%" } ?: ", layers=unavailable"
+
+			logger.debug(TAG, "weather refreshed: provider=${weather.source.provider}, condition=${weather.observation.condition.label}, cloud=${cloudCover.totalPercent}%$cloudLayers")
 		}
 	}
 

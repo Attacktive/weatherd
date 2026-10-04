@@ -14,7 +14,13 @@ import xyz.attacktive.weatherd.data.api.dto.MetNoSunPropertiesDto
 import xyz.attacktive.weatherd.data.api.dto.MetNoSunriseResponseDto
 import xyz.attacktive.weatherd.data.api.dto.MetNoTimeSeriesDto
 
-internal fun metNoForecastResponse(symbolCode: String, precipitationAmount: Double? = 3.2) = MetNoForecastResponseDto(
+internal fun metNoForecastResponse(
+	symbolCode: String,
+	precipitationAmount: Double? = 3.2,
+	cloudLow: Double? = 12.3,
+	cloudMid: Double? = 34.5,
+	cloudHigh: Double? = 56.7
+) = MetNoForecastResponseDto(
 	properties = MetNoPropertiesDto(
 		timeseries = listOf(
 			MetNoTimeSeriesDto(
@@ -24,6 +30,9 @@ internal fun metNoForecastResponse(symbolCode: String, precipitationAmount: Doub
 						details = MetNoInstantDetailsDto(
 							airTemperature = 18.4,
 							cloudAreaFraction = 77.8,
+							cloudAreaFractionLow = cloudLow,
+							cloudAreaFractionMid = cloudMid,
+							cloudAreaFractionHigh = cloudHigh,
 							windSpeed = 5.0
 						)
 					),

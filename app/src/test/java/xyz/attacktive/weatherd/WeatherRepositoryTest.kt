@@ -7,6 +7,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import xyz.attacktive.weatherd.domain.model.CloudCover
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
 import xyz.attacktive.weatherd.domain.provider.WeatherProvider
@@ -20,7 +21,14 @@ class WeatherRepositoryTest {
 	@Test
 	fun `returns snapshot from provider`() = runTest {
 		val expected = WeatherSnapshot(
-			observation = WeatherObservation(conditionForWmoCode(61), true, 24.3, 2.5, 12.0, 90),
+			observation = WeatherObservation(
+				condition = conditionForWmoCode(61),
+				isDay = true,
+				temperatureCelsius = 24.3,
+				precipitationMillimeters = 2.5,
+				windSpeedKilometersPerHour = 12.0,
+				cloudCover = CloudCover(90)
+			),
 			observedAtEpochSeconds = 1_751_889_600L,
 			sunriseEpochSeconds = 1_751_866_500L,
 			sunsetEpochSeconds = 1_751_918_700L

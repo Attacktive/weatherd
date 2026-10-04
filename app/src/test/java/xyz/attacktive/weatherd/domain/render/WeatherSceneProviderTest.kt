@@ -24,6 +24,7 @@ import xyz.attacktive.weatherd.domain.model.GeoLocation
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
+import xyz.attacktive.weatherd.domain.model.CloudCover
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
@@ -750,7 +751,7 @@ class WeatherSceneProviderTest {
 			temperatureCelsius = 10.0,
 			precipitationMillimeters = 0.0,
 			windSpeedKilometersPerHour = 5.0,
-			cloudCoverPercent = 50
+			cloudCover = CloudCover(50)
 		),
 		observedAtEpochSeconds = 1_000_000L,
 		sunriseEpochSeconds = null,

@@ -8,6 +8,8 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import xyz.attacktive.weatherd.domain.model.BackdropScene
+import xyz.attacktive.weatherd.domain.model.CloudCover
+import xyz.attacktive.weatherd.domain.model.CloudLayers
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
@@ -53,6 +55,25 @@ class SceneParamsTest {
 		assertEquals(0.4f, params.cloudiness, 0.0001f)
 		assertEquals(0f, params.fogDensity, 0.0001f)
 		assertFalse(params.thunder)
+	}
+
+	@Test
+	fun `cloud layers reach scene params independently of total cover`() {
+		val snapshot = snapshot(
+			weatherCode = 1,
+			precipitationMillimeters = 0.0,
+			windSpeedKilometersPerHour = 5.0,
+			cloudCoverPercent = 80,
+			cloudLayers = CloudLayers(lowPercent = 5, midPercent = 20, highPercent = 80)
+		)
+
+		val params = sceneParamsFor(snapshot, NOW)
+
+		assertEquals(0.8f, params.cloudiness, 0.0001f)
+		assertNotNull(params.cloudLayers)
+		assertEquals(0.05f, params.cloudLayers!!.low, 0.0001f)
+		assertEquals(0.2f, params.cloudLayers!!.mid, 0.0001f)
+		assertEquals(0.8f, params.cloudLayers!!.high, 0.0001f)
 	}
 
 	@Test
@@ -483,14 +504,20 @@ class SceneParamsTest {
 		overlayLabels = OverlayLabels(weather = "Rain · 10°", location = "Seoul")
 	)
 
-	private fun snapshot(weatherCode: Int, precipitationMillimeters: Double, windSpeedKilometersPerHour: Double, cloudCoverPercent: Int) = WeatherSnapshot(
+	private fun snapshot(
+		weatherCode: Int,
+		precipitationMillimeters: Double,
+		windSpeedKilometersPerHour: Double,
+		cloudCoverPercent: Int,
+		cloudLayers: CloudLayers? = null
+	) = WeatherSnapshot(
 		observation = WeatherObservation(
 			condition = conditionForWmoCode(weatherCode),
 			isDay = false,
 			temperatureCelsius = -2.0,
 			precipitationMillimeters = precipitationMillimeters,
 			windSpeedKilometersPerHour = windSpeedKilometersPerHour,
-			cloudCoverPercent = cloudCoverPercent
+			cloudCover = CloudCover(cloudCoverPercent, cloudLayers)
 		),
 		observedAtEpochSeconds = NOW,
 		sunriseEpochSeconds = 1_000_000L,

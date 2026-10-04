@@ -193,6 +193,19 @@ class ScenePaletteTest {
 	}
 
 	@Test
+	fun `known high cloud does not gray a dry sky`() {
+		val clear = skyGradientFor(clearParams(DayPhase.DAY).copy(cloudiness = 0.05f))
+		val highCloud = skyGradientFor(
+			clearParams(DayPhase.DAY).copy(
+				cloudiness = 0.8f,
+				cloudLayers = SceneCloudLayers(low = 0.05f, mid = 0.05f, high = 0.8f)
+			)
+		)
+
+		assertEquals(clear, highCloud)
+	}
+
+	@Test
 	fun `the sky starts graying where the overcast ceiling starts drawing`() {
 		val clear = skyGradientFor(clearParams(DayPhase.DAY))
 		val atThreshold = skyGradientFor(clearParams(DayPhase.DAY).copy(cloudiness = 0.55f))

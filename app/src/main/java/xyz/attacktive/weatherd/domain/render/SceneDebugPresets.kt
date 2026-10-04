@@ -21,6 +21,7 @@ import xyz.attacktive.weatherd.domain.weather.SEVERITY_STORM
 data class ScenePreset(
 	val name: String,
 	val cloudiness: Float,
+	val cloudLayers: SceneCloudLayers? = null,
 	val fogDensity: Float = 0f,
 	val precipitation: Precipitation? = null,
 	val thunder: Boolean = false,
@@ -31,6 +32,21 @@ data class ScenePreset(
 val SCENE_PRESETS = listOf(
 	ScenePreset("CLEAR", cloudiness = 0.05f),
 	ScenePreset("MOSTLY CLEAR", cloudiness = 0.2f),
+	ScenePreset(
+		"LOW CLOUDS",
+		cloudiness = 0.8f,
+		cloudLayers = SceneCloudLayers(low = 0.8f, mid = 0.05f, high = 0.05f)
+	),
+	ScenePreset(
+		"MID CLOUDS",
+		cloudiness = 0.8f,
+		cloudLayers = SceneCloudLayers(low = 0.05f, mid = 0.8f, high = 0.05f)
+	),
+	ScenePreset(
+		"HIGH CLOUDS",
+		cloudiness = 0.8f,
+		cloudLayers = SceneCloudLayers(low = 0.05f, mid = 0.05f, high = 0.8f)
+	),
 	ScenePreset("PARTLY CLOUDY", cloudiness = 0.7f),
 	ScenePreset("OVERCAST", cloudiness = 0.85f),
 	ScenePreset("FOG", cloudiness = 0.85f, fogDensity = 1f),
@@ -71,6 +87,7 @@ fun debugSceneParams(
 	dayPhase = dayPhase,
 	cloudiness = preset.cloudiness,
 	fogDensity = preset.fogDensity,
+	cloudLayers = preset.cloudLayers,
 	precipitation = preset.precipitation,
 	thunder = preset.thunder,
 	windFactor = preset.windFactor,

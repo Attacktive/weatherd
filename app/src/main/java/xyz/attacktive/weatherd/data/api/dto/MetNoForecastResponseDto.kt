@@ -6,6 +6,8 @@ import kotlin.math.roundToLong
 import android.annotation.SuppressLint
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import xyz.attacktive.weatherd.domain.model.CloudCover
+import xyz.attacktive.weatherd.domain.model.CloudLayers
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 import xyz.attacktive.weatherd.domain.model.WeatherCondition
 import xyz.attacktive.weatherd.domain.model.WeatherLabel
@@ -46,6 +48,9 @@ data class MetNoInstantDto(val details: MetNoInstantDetailsDto? = null)
 data class MetNoInstantDetailsDto(
 	@SerialName("air_temperature") val airTemperature: Double? = null,
 	@SerialName("cloud_area_fraction") val cloudAreaFraction: Double? = null,
+	@SerialName("cloud_area_fraction_low") val cloudAreaFractionLow: Double? = null,
+	@SerialName("cloud_area_fraction_medium") val cloudAreaFractionMid: Double? = null,
+	@SerialName("cloud_area_fraction_high") val cloudAreaFractionHigh: Double? = null,
 	@SerialName("wind_speed") val windSpeed: Double? = null
 )
 
@@ -82,12 +87,27 @@ fun MetNoForecastResponseDto.toSnapshot(sun: MetNoSunriseResponseDto, source: We
 			temperatureCelsius = airTemperature,
 			precipitationMillimeters = precipitation,
 			windSpeedKilometersPerHour = windSpeed * METERS_PER_SECOND_TO_KILOMETERS_PER_HOUR,
-			cloudCoverPercent = cloudAreaFraction.toInt().coerceIn(0, 100)
+			cloudCover = CloudCover(
+				totalPercent = cloudAreaFraction.toInt().coerceIn(0, 100),
+				layers = details.cloudLayers()
+			)
 		),
 		observedAtEpochSeconds = observedAtEpochSeconds,
 		sunriseEpochSeconds = sun.sunriseEpochSeconds(),
 		sunsetEpochSeconds = sun.sunsetEpochSeconds(),
 		source = source
+	)
+}
+
+private fun MetNoInstantDetailsDto.cloudLayers(): CloudLayers? {
+	val low = cloudAreaFractionLow ?: return null
+	val mid = cloudAreaFractionMid ?: return null
+	val high = cloudAreaFractionHigh ?: return null
+
+	return CloudLayers(
+		lowPercent = low.toInt().coerceIn(0, 100),
+		midPercent = mid.toInt().coerceIn(0, 100),
+		highPercent = high.toInt().coerceIn(0, 100)
 	)
 }
 

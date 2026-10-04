@@ -18,7 +18,7 @@ interface OpenMeteoApiService {
 	): ForecastResponseDto
 
 	companion object {
-		const val CURRENT_FIELDS = "weather_code,is_day,temperature_2m,precipitation,wind_speed_10m,cloud_cover"
+		const val CURRENT_FIELDS = "weather_code,is_day,temperature_2m,precipitation,wind_speed_10m,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high"
 		const val DAILY_FIELDS = "sunrise,sunset"
 	}
 }

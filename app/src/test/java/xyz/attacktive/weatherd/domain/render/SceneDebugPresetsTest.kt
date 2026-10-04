@@ -15,6 +15,7 @@ class SceneDebugPresetsTest {
 			val params = debugSceneParams(preset, DayPhase.DAY)
 
 			assertEquals(preset.windFactor, params.windFactor, 0.0001f)
+			assertEquals(preset.cloudLayers, params.cloudLayers)
 			assertEquals(1f, params.precipitationScale, 0.0001f)
 			assertEquals(1f, params.windScale, 0.0001f)
 			assertEquals(1f, params.cloudScale, 0.0001f)
@@ -32,6 +33,20 @@ class SceneDebugPresetsTest {
 			assertTrue(params.lensFlareEnabled)
 			assertEquals(0.5f, params.celestialProgress, 0.0001f)
 		}
+	}
+
+	@Test
+	fun `equal total cloud presets preserve distinct altitude profiles`() {
+		val low = debugSceneParams(SCENE_PRESETS.first { it.name == "LOW CLOUDS" }, DayPhase.DAY)
+		val mid = debugSceneParams(SCENE_PRESETS.first { it.name == "MID CLOUDS" }, DayPhase.DAY)
+		val high = debugSceneParams(SCENE_PRESETS.first { it.name == "HIGH CLOUDS" }, DayPhase.DAY)
+
+		assertEquals(0.8f, low.cloudiness, 0.0001f)
+		assertEquals(0.8f, mid.cloudiness, 0.0001f)
+		assertEquals(0.8f, high.cloudiness, 0.0001f)
+		assertEquals(0.8f, low.cloudLayers!!.low, 0.0001f)
+		assertEquals(0.8f, mid.cloudLayers!!.mid, 0.0001f)
+		assertEquals(0.8f, high.cloudLayers!!.high, 0.0001f)
 	}
 
 	@Test

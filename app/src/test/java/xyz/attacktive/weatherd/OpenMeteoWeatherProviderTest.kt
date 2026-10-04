@@ -33,7 +33,10 @@ class OpenMeteoWeatherProviderTest {
 				temperature = 24.3,
 				precipitation = 2.5,
 				windSpeed = 12.0,
-				cloudCover = 90
+				cloudCover = 90,
+				cloudCoverLow = 70,
+				cloudCoverMid = 20,
+				cloudCoverHigh = 10
 			),
 			daily = DailyDto(sunrise = listOf(1_751_866_500L), sunset = listOf(1_751_918_700L))
 		)
@@ -44,10 +47,37 @@ class OpenMeteoWeatherProviderTest {
 		assertTrue(snapshot.observation.isDay)
 		assertEquals(2.5, snapshot.observation.precipitationMillimeters, 0.0001)
 		assertEquals(90, snapshot.observation.cloudCoverPercent)
+		assertEquals(70, snapshot.observation.cloudCover.layers?.lowPercent)
+		assertEquals(20, snapshot.observation.cloudCover.layers?.midPercent)
+		assertEquals(10, snapshot.observation.cloudCover.layers?.highPercent)
 		assertEquals(1_751_866_500L, snapshot.sunriseEpochSeconds)
 		assertEquals(1_751_918_700L, snapshot.sunsetEpochSeconds)
 		assertEquals(WeatherProviderType.OPEN_METEO, snapshot.source.provider)
 		assertNull(snapshot.source.model)
+	}
+
+	@Test
+	fun `partial cloud layers keep total cover without inventing a vertical breakdown`() = runTest {
+		coEvery { api.forecast(any(), any(), any(), any(), any(), any(), any(), any()) } returns ForecastResponseDto(
+			latitude = 37.5,
+			longitude = 127.0,
+			current = CurrentWeatherDto(
+				time = 1_751_889_600L,
+				weatherCode = 1,
+				isDay = 1,
+				temperature = 24.3,
+				precipitation = 0.0,
+				windSpeed = 12.0,
+				cloudCover = 80,
+				cloudCoverLow = 5,
+				cloudCoverHigh = 80
+			)
+		)
+
+		val snapshot = provider.current(37.5, 127.0)
+
+		assertEquals(80, snapshot.observation.cloudCoverPercent)
+		assertNull(snapshot.observation.cloudCover.layers)
 	}
 
 	@Test
