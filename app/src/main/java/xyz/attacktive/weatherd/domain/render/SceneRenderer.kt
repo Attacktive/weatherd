@@ -112,6 +112,11 @@ class SceneRenderer(resources: Resources) {
 	private val supportOvercastBank by supportOvercastBankDelegate
 	private val heroOvercastBank by heroOvercastBankDelegate
 	private val farCumulusDeck by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_far) }
+	private val cirrusLayerDelegates = listOf(
+		lazy { CloudLayer(resources, R.drawable.cloud_cirrus_sparse) },
+		lazy { CloudLayer(resources, R.drawable.cloud_cirrus_scattered) },
+		lazy { CloudLayer(resources, R.drawable.cloud_cirrus_broken) }
+	)
 	private val cloudDrawGeometry = CloudDrawGeometry()
 
 	/*
@@ -179,13 +184,14 @@ class SceneRenderer(resources: Resources) {
 	}
 
 	/**
-	 * Decodes the dedicated overcast bank sources before the render loop needs them.
-	 * Call this from a background dispatcher; [drawCloudDrift] deliberately refuses to initialize the lazy banks on a frame.
+	 * Decodes dedicated overcast and cirrus sources before the render loop needs them.
+	 * Call this from a background dispatcher; cloud drawing deliberately refuses to initialize lazy textures on a frame.
 	 */
-	fun prewarmOvercastClouds() {
+	fun prewarmCloudTextures() {
 		farOvercastBankDelegate.value
 		supportOvercastBankDelegate.value
 		heroOvercastBankDelegate.value
+		cirrusLayerDelegates.forEach { it.value }
 	}
 
 	/** The static layers (sky, overcast ceiling, fog base, haze, vignette). Cache these — they don't animate frame-to-frame. */
@@ -243,6 +249,8 @@ class SceneRenderer(resources: Resources) {
 		if (showsCelestialBody(params)) {
 			drawCelestialBody(canvas, w, h, celestialCenterX, celestialCenterY, params, timeSeconds)
 		}
+
+		drawCirrus(canvas, w, h, params, timeSeconds)
 
 		if (showsBirds(params)) {
 			drawBirds(canvas, w, h, timeSeconds, params.dayPhase)
@@ -1489,6 +1497,68 @@ class SceneRenderer(resources: Resources) {
 		}
 
 		paint.style = Paint.Style.FILL
+	}
+
+	private fun drawCirrus(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
+		if (cirrusLayerDelegates.any { !it.isInitialized() }) {
+			return
+		}
+
+		val highCloudiness = effectiveHighCloudiness(params)
+		if (highCloudiness <= CIRRUS_CLOUD_FLOOR || params.cloudScale <= 0f) {
+			return
+		}
+
+		val coverage = ((highCloudiness - CIRRUS_CLOUD_FLOOR) / (1f - CIRRUS_CLOUD_FLOOR)).coerceIn(0f, 1f)
+		val populationProgress = coverage * cirrusLayerDelegates.size
+		val fullPopulations = populationProgress.toInt().coerceAtMost(cirrusLayerDelegates.size)
+		val partialPopulation = populationProgress - fullPopulations
+		val deckHeight = if (width < height) {
+			height * CIRRUS_PORTRAIT_HEIGHT
+		} else {
+			height * CIRRUS_LANDSCAPE_HEIGHT
+		}
+
+		val offset = cumulusOffset(
+			width,
+			params,
+			timeSeconds,
+			CIRRUS_BASE_SPEED + params.windFactor * CIRRUS_WIND_SPEED,
+			CIRRUS_GUST_SCALE,
+			CIRRUS_PHASE,
+			CIRRUS_VIEWPORTS
+		)
+		val geometry = cloudDrawGeometry.configure(
+			width,
+			deckHeight,
+			offset,
+			height * CIRRUS_TOP,
+			CIRRUS_VIEWPORTS
+		)
+		val tint = cirrusTint(params.dayPhase)
+		val alpha = (CIRRUS_ALPHA * params.cloudScale).roundToInt().coerceIn(0, 255)
+
+		for (index in 0 until fullPopulations) {
+			cirrusLayerDelegates[index].value.draw(
+				canvas,
+				geometry,
+				tint,
+				alpha,
+				contrast = params.cloudContrastScale
+			)
+		}
+
+		if (fullPopulations < cirrusLayerDelegates.size && partialPopulation > 0f) {
+			val partialAlpha = (alpha * partialPopulation).roundToInt()
+
+			cirrusLayerDelegates[fullPopulations].value.draw(
+				canvas,
+				geometry,
+				tint,
+				partialAlpha,
+				contrast = params.cloudContrastScale
+			)
+		}
 	}
 
 	/**
@@ -3152,6 +3222,17 @@ class SceneRenderer(resources: Resources) {
 		/** Below this cloudiness the sky is drawn empty: a genuinely clear day has no cumulus in it, not a faint suggestion of some. */
 		private const val SCATTERED_CLOUD_FLOOR = 0.1f
 
+		private const val CIRRUS_CLOUD_FLOOR = 0.1f
+		private const val CIRRUS_VIEWPORTS = 3f
+		private const val CIRRUS_TOP = 0.04f
+		private const val CIRRUS_PORTRAIT_HEIGHT = 0.30f
+		private const val CIRRUS_LANDSCAPE_HEIGHT = 0.26f
+		private const val CIRRUS_ALPHA = 230f
+		private const val CIRRUS_BASE_SPEED = 0.0015f
+		private const val CIRRUS_WIND_SPEED = 0.004f
+		private const val CIRRUS_GUST_SCALE = 0.25f
+		private const val CIRRUS_PHASE = 0.13f
+
 		/**
 		 * The near cumulus deck draws very close to opaque, which is the whole point of moving coverage into the textures.
 		 * A sunlit crown has to be able to reach white, and it cannot if the deck's own paint is holding it back.
@@ -3687,6 +3768,13 @@ private fun cumulusTint(dayPhase: DayPhase, celestialProgress: Float) = when (da
 	DayPhase.NIGHT -> Color.rgb(86, 96, 120)
 }
 
+
+private fun cirrusTint(dayPhase: DayPhase) = when (dayPhase) {
+	DayPhase.DAY -> Color.rgb(249, 251, 255)
+	DayPhase.DAWN -> Color.rgb(246, 230, 234)
+	DayPhase.DUSK -> Color.rgb(238, 216, 226)
+	DayPhase.NIGHT -> Color.rgb(116, 132, 164)
+}
 
 private fun cloudTint(dayPhase: DayPhase) = when (dayPhase) {
 	DayPhase.DAY -> Color.rgb(238, 242, 248)

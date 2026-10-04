@@ -4,14 +4,17 @@
 # ///
 """Generate procedural cloud layers with `uv run scripts/generate-cloud-textures.py`."""
 
+from math import pi, sin
 from pathlib import Path
+from random import Random
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFilter
 from scipy.ndimage import map_coordinates
 
 # The generated fair-weather decks stay compact enough for several decoded variants to coexist without dominating bitmap heap.
 CUMULUS_SIZE = (1620, 480)
+CIRRUS_SIZE = (720, 192)
 
 OUTPUT = Path(__file__).resolve().parents[1] / 'app/src/main/res/drawable-nodpi'
 
@@ -35,6 +38,72 @@ CUMULUS_COVERAGE = (('cloud_cumulus_sparse', 0.56), ('cloud_cumulus_scattered', 
 # Its own seed is what keeps it from ghosting the near deck, and its finer cells put more, smaller masses down by the horizon.
 CUMULUS_FAR_SEED = 7703
 CUMULUS_FAR_CELLS = (21, 7)
+
+# High-cloud populations are separate additions rather than denser alpha on one sheet.
+# The fixed seed keeps the generated fibrous streaks reproducible, while each population contributes eight new strands.
+CIRRUS_SEED = 9117
+CIRRUS_POPULATIONS = (
+	('cloud_cirrus_sparse', 0, 8),
+	('cloud_cirrus_scattered', 8, 16),
+	('cloud_cirrus_broken', 16, 24),
+)
+
+
+def cirrus_streaks():
+	rng = Random(CIRRUS_SEED)
+	streaks = []
+	for _ in range(24):
+		streaks.append((
+			rng.uniform(0.12, 0.82) * CIRRUS_SIZE[1],
+			rng.uniform(0, CIRRUS_SIZE[0]),
+			rng.uniform(0.30, 0.62) * CIRRUS_SIZE[0],
+			rng.uniform(-0.08, 0.08) * CIRRUS_SIZE[1],
+			rng.uniform(0.014, 0.042) * CIRRUS_SIZE[1],
+			rng.uniform(0.75, 1.45),
+			rng.uniform(0, 2 * pi),
+			rng.randint(34, 62),
+			rng.randint(4, 7),
+			rng.uniform(5, 12),
+		))
+
+	return streaks
+
+
+def cirrus_texture(start_index, end_index):
+	width, height = CIRRUS_SIZE
+	mask = Image.new('L', CIRRUS_SIZE, 0)
+	draw = ImageDraw.Draw(mask)
+	streaks = cirrus_streaks()
+	for index in range(start_index, end_index):
+		y, x, length, slope, amplitude, frequency, phase, alpha, filament_count, spread = streaks[index]
+		filament_rng = Random(CIRRUS_SEED * 100 + index)
+		for filament in range(filament_count):
+			start = filament_rng.uniform(0, 0.22)
+			end = filament_rng.uniform(0.72, 1)
+			offset = (filament - (filament_count - 1) / 2) * spread / max(filament_count - 1, 1) + filament_rng.uniform(-1.5, 1.5)
+			phase_offset = filament_rng.uniform(-0.18, 0.18)
+			points = []
+			for sample in range(35):
+				t = start + (end - start) * sample / 34
+				points.append((
+					x + length * t,
+					y + slope * (t - 0.5) + amplitude * sin(2 * pi * frequency * t + phase + phase_offset) + offset * (0.45 + 0.8 * t),
+				))
+
+			filament_alpha = max(14, min(72, round(alpha * filament_rng.uniform(0.55, 1))))
+			filament_width = filament_rng.choice((1, 1, 1, 2))
+			for shift in (-width, 0, width):
+				draw.line(
+					[(point_x + shift, point_y) for point_x, point_y in points],
+					fill=filament_alpha,
+					width=filament_width
+				)
+
+	mask = mask.filter(ImageFilter.GaussianBlur(radius=1.15))
+	image = Image.new('RGBA', CIRRUS_SIZE, (249, 251, 255, 0))
+	image.putalpha(mask)
+
+	return image
 
 
 def smoothstep(low, high, values):
@@ -154,6 +223,12 @@ def main():
 	path = OUTPUT / 'cloud_cumulus_far.png'
 	image.save(path, optimize=True)
 	report(path, image)
+
+	for name, start_index, end_index in CIRRUS_POPULATIONS:
+		image = cirrus_texture(start_index, end_index)
+		path = OUTPUT / f'{name}.webp'
+		image.save(path, 'WEBP', lossless=True, quality=100, method=6)
+		report(path, image)
 
 
 if __name__ == '__main__':

@@ -128,7 +128,7 @@ fun debugSceneParams(
 ### Cloud Coverage Belongs to Placement, Never to Paint Alpha
 
 When a provider supplies vertical cloud layers, low cover drives the near cumulus population and its sun-edge sampling, mid cover drives the distant deck, and the stronger of low/mid cover drives opaque-sky effects such as the overcast ceiling, haze, and direct-sun obstruction.
-High cover is not an opaque-cumulus signal; it is reserved for high-altitude cloud rendering.
+High cover is not an opaque-cumulus signal; it drives the dedicated sparse, scattered, and broken cirrus populations, which are generated reproducibly and draw behind lower cloud layers.
 When a provider supplies only total cover, preserve the legacy single-scalar rendering path rather than inventing layer values.
 
 How much cloud a clear sky holds is chosen by the sparse, scattered, and broken placement profiles and by cross-fading the newly introduced population, never by scaling one fixed deck's alpha.

@@ -154,7 +154,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 
 	LaunchedEffect(renderer) {
 		withContext(Dispatchers.Default) {
-			renderer.prewarmOvercastClouds()
+			renderer.prewarmCloudTextures()
 		}
 	}
 

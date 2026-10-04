@@ -30,6 +30,33 @@ class CloudRenderingTest {
 	}
 
 	@Test
+	fun highCloudsRenderAsUpperSkyCirrus() {
+		val layers = SceneCloudLayers(low = 0.05f, mid = 0.05f, high = 0.8f)
+		val withoutClouds = renderForeground(
+			cloudiness = 0.8f,
+			cloudScale = 0f,
+			cloudLayers = layers
+		)
+		val withClouds = renderForeground(
+			cloudiness = 0.8f,
+			cloudScale = 1f,
+			cloudLayers = layers
+		)
+		val bounds = differenceBounds(withoutClouds, withClouds)
+
+		assertTrue(
+			"High cloud must render visible cirrus across the upper sky",
+			bounds.width >= (WIDTH * 0.35f).roundToInt()
+		)
+		assertTrue(
+			"Cirrus must stay above the lower cumulus region, but reached ${bounds.bottom}",
+			bounds.bottom <= (HEIGHT * 0.42f).roundToInt()
+		)
+		withoutClouds.recycle()
+		withClouds.recycle()
+	}
+
+	@Test
 	fun overcastCloudsReachIntoTheMidSky() {
 		val withoutClouds = renderForeground(cloudiness = 0.9f, cloudScale = 0f)
 		val withClouds = renderForeground(cloudiness = 0.9f, cloudScale = 1f)
@@ -84,7 +111,11 @@ class CloudRenderingTest {
 		)
 	}
 
-	private fun renderForeground(cloudiness: Float, cloudScale: Float): Bitmap {
+	private fun renderForeground(
+		cloudiness: Float,
+		cloudScale: Float,
+		cloudLayers: SceneCloudLayers? = null
+	): Bitmap {
 		val bitmap = createBitmap(WIDTH, HEIGHT)
 		val params = SceneParams(
 			dayPhase = DayPhase.DAY,
@@ -93,10 +124,11 @@ class CloudRenderingTest {
 			precipitation = null,
 			thunder = false,
 			windFactor = 0.2f,
+			cloudLayers = cloudLayers,
 			cloudScale = cloudScale,
 		)
 		val renderer = SceneRenderer(resources)
-		renderer.prewarmOvercastClouds()
+		renderer.prewarmCloudTextures()
 		renderer.renderForeground(Canvas(bitmap), WIDTH, HEIGHT, params, TIME_SECONDS)
 
 		return bitmap

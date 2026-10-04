@@ -64,7 +64,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 
 		init {
 			scope.launch(Dispatchers.Default) {
-				renderer.prewarmOvercastClouds()
+				renderer.prewarmCloudTextures()
 			}
 
 			scope.launch {

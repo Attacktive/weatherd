@@ -75,6 +75,13 @@ PARTLY_BANK_HAZE = 0.34
 PARTLY_BANK_ALPHA = 0.28
 BROKEN_BLEND_START = 0.90
 
+CIRRUS_SPRITES = ('cloud_cirrus_sparse.webp', 'cloud_cirrus_scattered.webp', 'cloud_cirrus_broken.webp')
+CIRRUS_FLOOR = 0.1
+CIRRUS_VIEWPORTS = 3.0
+CIRRUS_TOP = 0.04
+CIRRUS_HEIGHT = 0.30
+CIRRUS_ALPHA = 230
+
 # The preview intentionally pins representative near-variant choices instead of reproducing daily runtime randomness.
 # Runtime cycles through neighboring morphology variants from a daily random offset; these fixed sequences exercise the same vocabulary in a stable preview.
 REPRESENTATIVE_SPARSE_VARIANTS = (0, 1)
@@ -305,6 +312,40 @@ def draw_bank(destination, sprite_name, viewports, bank_height, offset, top, mul
 		composite_sprite(destination, sprite, geometry, multiply, alpha)
 
 
+def draw_cirrus(destination, high_cloudiness, cloud_scale):
+	if high_cloudiness <= CIRRUS_FLOOR or cloud_scale <= 0:
+		return
+
+	coverage = float(np.clip((high_cloudiness - CIRRUS_FLOOR) / (1 - CIRRUS_FLOOR), 0, 1))
+	progress = coverage * len(CIRRUS_SPRITES)
+	full_populations = min(int(progress), len(CIRRUS_SPRITES))
+	partial = progress - full_populations
+	alpha = min(max(kotlin_round(CIRRUS_ALPHA * cloud_scale), 0), 255)
+	for index in range(full_populations):
+		draw_bank(
+			destination,
+			CIRRUS_SPRITES[index],
+			CIRRUS_VIEWPORTS,
+			HEIGHT * CIRRUS_HEIGHT,
+			-WIDTH * 0.13,
+			HEIGHT * CIRRUS_TOP,
+			CUMULUS_TINT,
+			alpha
+		)
+
+	if full_populations < len(CIRRUS_SPRITES) and partial > 0:
+		draw_bank(
+			destination,
+			CIRRUS_SPRITES[full_populations],
+			CIRRUS_VIEWPORTS,
+			HEIGHT * CIRRUS_HEIGHT,
+			-WIDTH * 0.13,
+			HEIGHT * CIRRUS_TOP,
+			CUMULUS_TINT,
+			kotlin_round(alpha * partial)
+		)
+
+
 def draw_cumulus(destination, profile, geometry, multiply, alpha):
 	"""Mirror CloudLayer's center-preserving sprite geometry; size changes each body, never the repeat span or anchor centers."""
 	period = WIDTH * profile.viewports
@@ -359,11 +400,24 @@ def draw_cumulus(destination, profile, geometry, multiply, alpha):
 				composite_sprite(destination, sprite, sprite_geometry, multiply, sprite_alpha)
 
 
-def clear_sky(cloudiness, cloud_scale=1.0, cloud_size_scale=1.0, cloud_count_scale=1.0):
-	"""Mirrors drawScatteredClouds at timeSeconds = 0 with no wind."""
+def clear_sky(cloudiness, cloud_scale=1.0, cloud_size_scale=1.0, cloud_count_scale=1.0, cloud_layers=None):
+	"""Mirrors layered dry-cloud rendering at timeSeconds = 0 with no wind."""
 	effective = effective_cloudiness(cloudiness, cloud_count_scale)
-	canvas, top, _ = sky(effective)
-	coverage = float(np.clip((effective - SCATTERED_FLOOR) / (DECK_THRESHOLD - SCATTERED_FLOOR), 0, 1))
+	if cloud_layers is None:
+		low = effective
+		mid = effective
+		high = 0.0
+	else:
+		low = effective_cloudiness(cloud_layers[0], cloud_count_scale)
+		mid = effective_cloudiness(cloud_layers[1], cloud_count_scale)
+		high = effective_cloudiness(cloud_layers[2], cloud_count_scale)
+
+	opaque = max(low, mid)
+	canvas, top, _ = sky(opaque)
+	near_coverage = float(np.clip((low - SCATTERED_FLOOR) / (DECK_THRESHOLD - SCATTERED_FLOOR), 0, 1))
+	mid_coverage = float(np.clip((mid - SCATTERED_FLOOR) / (DECK_THRESHOLD - SCATTERED_FLOOR), 0, 1))
+	draw_cirrus(canvas, high, cloud_scale)
+	coverage = near_coverage
 	size_scale = float(np.clip(cloud_size_scale, CLOUD_SIZE_SCALE_MIN, CLOUD_SIZE_SCALE_MAX))
 	step = near_cumulus_step(coverage)
 	lower = int(np.floor(step))
@@ -377,11 +431,12 @@ def clear_sky(cloudiness, cloud_scale=1.0, cloud_size_scale=1.0, cloud_count_sca
 	far_height = HEIGHT * 0.34
 	near_height = HEIGHT * 0.46
 	near_alpha = min(max(kotlin_round(NEAR_ALPHA * cloud_scale), 0), 255)
-	far_coverage = coverage * coverage
+	far_coverage = mid_coverage * mid_coverage
 	far_alpha = min(max(kotlin_round((60 + 120 * far_coverage) * cloud_scale), 0), 255)
 
 	far_geometry = CumulusGeometry(far_height, -WIDTH * 0.34, far_top, size_scale)
-	draw_cumulus(canvas, FAR_PROFILE, far_geometry, far_color, far_alpha)
+	if mid > SCATTERED_FLOOR:
+		draw_cumulus(canvas, FAR_PROFILE, far_geometry, far_color, far_alpha)
 
 	partly_bank_weight = float(np.clip((coverage - PARTLY_BANK_START_COVERAGE) / (PARTLY_BANK_FULL_COVERAGE - PARTLY_BANK_START_COVERAGE), 0, 1))
 	if partly_bank_weight > 0:
@@ -400,7 +455,7 @@ def clear_sky(cloudiness, cloud_scale=1.0, cloud_size_scale=1.0, cloud_count_sca
 		)
 
 	for index, weight in ((lower, 1.0), (lower + 1, blend)):
-		if index >= len(COVERAGE_STEPS) or weight < 0.02:
+		if low <= SCATTERED_FLOOR or index >= len(COVERAGE_STEPS) or weight < 0.02:
 			continue
 
 		profile = COVERAGE_STEPS[index]
@@ -409,7 +464,7 @@ def clear_sky(cloudiness, cloud_scale=1.0, cloud_size_scale=1.0, cloud_count_sca
 		draw_cumulus(canvas, profile, near_geometry, near_color, alpha)
 
 	luma = 0.2126 * canvas[:, :, 0] + 0.7152 * canvas[:, :, 1] + 0.0722 * canvas[:, :, 2]
-	print(f'cloudiness={cloudiness:.2f} effective={effective:.2f} coverage={coverage:.2f} size={size_scale:.2f} count={cloud_count_scale:.2f} step={COVERAGE_STEPS[lower].kind}+{blend:.2f}', end=' ')
+	print(f'cloudiness={cloudiness:.2f} effective={effective:.2f} low={low:.2f} mid={mid:.2f} high={high:.2f} coverage={coverage:.2f} size={size_scale:.2f} count={cloud_count_scale:.2f} step={COVERAGE_STEPS[lower].kind}+{blend:.2f}', end=' ')
 	print(f'luma p5={np.percentile(luma, 5):5.1f} p99={np.percentile(luma, 99):5.1f} above200={(luma > 200).mean() * 100:5.2f}%')
 	return canvas
 
@@ -421,12 +476,22 @@ def main():
 	parser.add_argument('--cloud-count', type=float, default=1.0, help='Rendered cloud coverage scale (0.5–2.0).')
 	args = parser.parse_args()
 
-	strip = np.concatenate([
+	legacy = [
 		clear_sky(cloudiness, cloud_size_scale=args.cloud_size, cloud_count_scale=args.cloud_count)
 		for cloudiness in (0.2, 0.4, 0.55, 0.7, 0.75)
-	], axis=1)
+	]
+	layered = [
+		clear_sky(
+			0.8,
+			cloud_size_scale=args.cloud_size,
+			cloud_count_scale=args.cloud_count,
+			cloud_layers=layers
+		)
+		for layers in ((0.8, 0.05, 0.05), (0.05, 0.8, 0.05), (0.05, 0.05, 0.8))
+	]
+	strip = np.concatenate(legacy + layered, axis=1)
 	image = Image.fromarray(np.clip(strip, 0, 255).astype(np.uint8))
-	image = image.resize((image.width // 5, image.height // 5), Image.Resampling.LANCZOS)
+	image = image.resize((image.width // 8, image.height // 5), Image.Resampling.LANCZOS)
 	image.save(args.out)
 	print(f'{args.out}: {image.width}x{image.height}')
 
