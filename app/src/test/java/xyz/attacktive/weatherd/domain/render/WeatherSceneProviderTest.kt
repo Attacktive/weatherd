@@ -65,6 +65,49 @@ class WeatherSceneProviderTest {
 		)
 	}
 
+	@Test
+	fun `hidden active simulator returns to live weather when debug tools are unavailable`() = runTest {
+		every {
+			settingsRepository.settings
+		} returns flowOf(
+			AppSettings(
+				useDeviceLocation = true,
+				sceneSimulatorEnabled = false,
+				sceneSimulatorActive = true,
+				sceneSimulatorDayPhase = DayPhase.DAY
+			)
+		)
+
+		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
+		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 3, isDay = false))
+
+		provider.refreshWithResult(1_000_000L, debugToolsAvailable = false)
+
+		assertEquals(DayPhase.NIGHT, provider.paramsFor(1_000_030L).dayPhase)
+		coVerify(exactly = 1) { locationRepository.currentLocation() }
+		coVerify(exactly = 1) { weatherRepository.current(52.52, 13.40) }
+	}
+
+	@Test
+	fun `enabled simulator still overrides weather when debug tools are unavailable`() = runTest {
+		every {
+			settingsRepository.settings
+		} returns flowOf(
+			AppSettings(
+				useDeviceLocation = true,
+				sceneSimulatorEnabled = true,
+				sceneSimulatorActive = true,
+				sceneSimulatorDayPhase = DayPhase.DAY
+			)
+		)
+
+		provider.refreshWithResult(1_000_000L, debugToolsAvailable = false)
+
+		assertEquals(DayPhase.DAY, provider.paramsFor(1_000_030L).dayPhase)
+		coVerify(exactly = 0) { locationRepository.currentLocation() }
+		coVerify(exactly = 0) { weatherRepository.current(any(), any()) }
+	}
+
 	private val context = mockk<Context>(relaxed = true) {
 		every { getString(R.string.weather_rain) } returns "Rain"
 	}
@@ -771,10 +814,10 @@ class WeatherSceneProviderTest {
 		)
 	}
 
-	private fun snapshotWith(weatherCode: Int, source: WeatherSource = WeatherSource(WeatherProviderType.OPEN_METEO)) = WeatherSnapshot(
+	private fun snapshotWith(weatherCode: Int, source: WeatherSource = WeatherSource(WeatherProviderType.OPEN_METEO), isDay: Boolean = true) = WeatherSnapshot(
 		observation = WeatherObservation(
 			condition = conditionForWmoCode(weatherCode),
-			isDay = true,
+			isDay = isDay,
 			temperatureCelsius = 10.0,
 			precipitationMillimeters = 0.0,
 			windSpeedKilometersPerHour = 5.0,

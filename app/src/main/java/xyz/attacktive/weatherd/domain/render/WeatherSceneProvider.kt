@@ -143,7 +143,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	}
 
 	/** The refresh result for background callers that need to distinguish a provider failure from a successful or intentionally skipped refresh. */
-	internal suspend fun refreshWithResult(nowEpochSeconds: Long, force: Boolean = false, resolveLocationName: Boolean = false): Result<Unit> {
+	internal suspend fun refreshWithResult(nowEpochSeconds: Long, force: Boolean = false, resolveLocationName: Boolean = false, debugToolsAvailable: Boolean = debugToolsEnabled): Result<Unit> {
 		val settings = settingsRepository.settings.first()
 
 		/* Render settings are captured before the throttle: they're display choices, not weather, so even a throttled refresh must adopt them.
@@ -151,7 +151,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		 * Only PHOTO draws them, though, so every other scene holds it at zero: the backdrop signature carries the revision, and adopting a live one there would discard a cached backdrop to rasterize the same procedural sky again and crossfade between two identical images.
 		 * Switching into PHOTO moves backdropScene itself, so the first frame that actually wants a photo still re-rasterizes.
 		 */
-		applyRenderSettings(settings)
+		applyRenderSettings(settings, debugToolsAvailable)
 		if (sceneSimulatorActive) {
 			refreshSimulatorStatus(settings, resolveLocationName)
 			return Result.success(Unit)
@@ -270,7 +270,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		}
 	}
 
-	private fun applyRenderSettings(settings: AppSettings) {
+	private fun applyRenderSettings(settings: AppSettings, debugToolsAvailable: Boolean) {
 		backdropScene = settings.backdropScene
 		photoRevision = if (settings.backdropScene == BackdropScene.PHOTO) {
 			photoBackgroundRepository.revisionNow()
@@ -300,7 +300,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		sceneSimulatorActive = sceneSimulatorOverridesWeather(
 			settings.sceneSimulatorActive,
 			settings.sceneSimulatorEnabled,
-			debugToolsEnabled
+			debugToolsAvailable
 		)
 
 		sceneSimulatorPresetIndex = settings.sceneSimulatorPresetIndex.coerceIn(0, SCENE_PRESETS.lastIndex)
