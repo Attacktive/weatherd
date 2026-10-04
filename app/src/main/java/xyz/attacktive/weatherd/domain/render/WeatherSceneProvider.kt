@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
+import xyz.attacktive.weatherd.debugToolsEnabled
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
@@ -43,6 +44,12 @@ private data class WeatherRequestToken(
 	val generation: Long,
 	val sequence: Long
 )
+
+internal fun sceneSimulatorOverridesWeather(
+	sceneSimulatorActive: Boolean,
+	sceneSimulatorEnabled: Boolean,
+	debugToolsEnabled: Boolean
+) = sceneSimulatorActive && (sceneSimulatorEnabled || debugToolsEnabled)
 
 /**
  * Shared source of truth for the current [SceneParams], so the live wallpaper and the in-app preview never disagree about what to draw. Live weather is fetched lazily and cached; while the persisted scene simulator is active, its preset, phase and progress replace those meteorological fields for both consumers.
@@ -290,7 +297,11 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		sunColorPreset = settings.sunColorPreset
 		lensFlareEnabled = settings.lensFlareEnabled
 		lensFlareMotionEnabled = settings.lensFlareMotionEnabled
-		sceneSimulatorActive = settings.sceneSimulatorActive
+		sceneSimulatorActive = sceneSimulatorOverridesWeather(
+			settings.sceneSimulatorActive,
+			settings.sceneSimulatorEnabled,
+			debugToolsEnabled
+		)
 		sceneSimulatorPresetIndex = settings.sceneSimulatorPresetIndex.coerceIn(0, SCENE_PRESETS.lastIndex)
 		sceneSimulatorDayPhase = settings.sceneSimulatorDayPhase
 		sceneSimulatorCelestialProgress = settings.sceneSimulatorCelestialProgress.coerceIn(0f, 1f)

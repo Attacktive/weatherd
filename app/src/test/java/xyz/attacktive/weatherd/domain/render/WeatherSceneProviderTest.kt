@@ -38,6 +38,31 @@ import xyz.attacktive.weatherd.domain.weather.conditionForWmoCode
 import xyz.attacktive.weatherd.util.AppLogger
 
 class WeatherSceneProviderTest {
+	@Test
+	fun `scene simulator override requires available controls`() {
+		assertFalse(
+			sceneSimulatorOverridesWeather(
+				sceneSimulatorActive = true,
+				sceneSimulatorEnabled = false,
+				debugToolsEnabled = false
+			)
+		)
+		assertTrue(
+			sceneSimulatorOverridesWeather(
+				sceneSimulatorActive = true,
+				sceneSimulatorEnabled = true,
+				debugToolsEnabled = false
+			)
+		)
+		assertTrue(
+			sceneSimulatorOverridesWeather(
+				sceneSimulatorActive = true,
+				sceneSimulatorEnabled = false,
+				debugToolsEnabled = true
+			)
+		)
+	}
+
 	private val context = mockk<Context>(relaxed = true) {
 		every { getString(R.string.weather_rain) } returns "Rain"
 	}
