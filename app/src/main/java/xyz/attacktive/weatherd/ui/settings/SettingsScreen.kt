@@ -85,7 +85,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -164,7 +163,17 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
 private fun SettingsTopBar(selectedTabIndex: Int, onNavigateBack: () -> Unit, onSelectTab: (Int) -> Unit) {
 	Column {
 		TopAppBar(
-			title = { Text(stringResource(R.string.settings_title)) },
+			title = {
+				Column {
+					Text(stringResource(R.string.settings_title))
+					Text(
+						text = stringResource(R.string.app_version, BuildConfig.VERSION_NAME),
+						style = MaterialTheme.typography.bodySmall,
+						color = MaterialTheme.colorScheme.onSurfaceVariant,
+						maxLines = 1
+					)
+				}
+			},
 			navigationIcon = {
 				IconButton(onClick = onNavigateBack) {
 					Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.content_description_back))
@@ -321,10 +330,6 @@ private fun AdvancedSettingsTab(viewModel: SettingsViewModel, scrollState: Scrol
 
 			MetNoAttributionSection()
 		}
-
-		Spacer(modifier = Modifier.height(24.dp))
-
-		VersionFooter()
 	}
 }
 
@@ -1628,19 +1633,6 @@ private fun ToggleSetting(label: String, subtitle: String, checked: Boolean, onT
 
 		Switch(checked = checked, onCheckedChange = onToggle, enabled = enabled)
 	}
-}
-
-@Composable
-private fun VersionFooter() {
-	Text(
-		text = stringResource(R.string.version_footer, BuildConfig.VERSION_NAME),
-		style = MaterialTheme.typography.bodyMedium,
-		color = MaterialTheme.colorScheme.onSurfaceVariant,
-		textAlign = TextAlign.Center,
-		modifier = Modifier
-			.fillMaxWidth()
-			.padding(16.dp)
-	)
 }
 
 @Composable
