@@ -121,7 +121,7 @@
 	<string name="intensity_subtle">Hafif</string>
 	<string name="intensity_intense">Şiddetli</string>
 	<string name="hint_intensity">Gözlenen hava durumuna göre yağış şiddetini, rüzgâr gücünü ve bulutların görünürlüğünü ayarlar.</string>
-	<string name="version_footer">weatherd %1$s</string>
+	<string name="app_version">weatherd %1$s</string>
 
 	<!-- Refresh interval formatting -->
 	<string name="interval_minutes">%1$d dk.</string>

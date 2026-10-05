@@ -121,7 +121,7 @@
 	<string name="intensity_subtle">微弱</string>
 	<string name="intensity_intense">强烈</string>
 	<string name="hint_intensity">根据实际天气调整降水强度、风力大小和云层的可见程度。</string>
-	<string name="version_footer">weatherd %1$s</string>
+	<string name="app_version">weatherd %1$s</string>
 
 	<!-- Refresh interval formatting -->
 	<string name="interval_minutes">%1$d 分钟</string>

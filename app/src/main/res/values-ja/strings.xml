@@ -121,7 +121,7 @@
 	<string name="intensity_subtle">控えめ</string>
 	<string name="intensity_intense">強め</string>
 	<string name="hint_intensity">観測された天気を基準に、降水の強さ・風の勢い・雲の見え方を調整します。</string>
-	<string name="version_footer">weatherd %1$s</string>
+	<string name="app_version">weatherd %1$s</string>
 
 	<!-- Refresh interval formatting -->
 	<string name="interval_minutes">%1$d分</string>

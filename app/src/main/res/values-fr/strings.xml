@@ -121,7 +121,7 @@
 	<string name="intensity_subtle">Subtile</string>
 	<string name="intensity_intense">Intense</string>
 	<string name="hint_intensity">Ajuste l\'intensité des précipitations, la force du vent et la visibilité des nuages par rapport à la météo observée.</string>
-	<string name="version_footer">weatherd %1$s</string>
+	<string name="app_version">weatherd %1$s</string>
 
 	<!-- Refresh interval formatting -->
 	<string name="interval_minutes">%1$d min</string>

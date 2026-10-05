@@ -121,7 +121,7 @@
 	<string name="intensity_subtle">은은하게</string>
 	<string name="intensity_intense">강렬하게</string>
 	<string name="hint_intensity">관측된 날씨를 기준으로 강수 강도와 바람의 세기, 구름이 보이는 정도를 조절합니다.</string>
-	<string name="version_footer">weatherd %1$s</string>
+	<string name="app_version">weatherd %1$s</string>
 
 	<!-- Refresh interval formatting -->
 	<string name="interval_minutes">%1$d분</string>

@@ -121,7 +121,7 @@
 	<string name="intensity_subtle">Dezent</string>
 	<string name="intensity_intense">Intensiv</string>
 	<string name="hint_intensity">Stellt ein, wie stark es regnet, wie kräftig der Wind weht und wie sichtbar die Wolken sind – relativ zum beobachteten Wetter.</string>
-	<string name="version_footer">weatherd %1$s</string>
+	<string name="app_version">weatherd %1$s</string>
 
 	<!-- Refresh interval formatting -->
 	<string name="interval_minutes">%1$d Min.</string>

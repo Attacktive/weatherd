@@ -121,7 +121,7 @@
 	<string name="intensity_subtle">Subtil</string>
 	<string name="intensity_intense">Intenso</string>
 	<string name="hint_intensity">Ajusta a intensidade da precipitação, a força do vento e a visibilidade das nuvens em relação ao tempo observado.</string>
-	<string name="version_footer">weatherd %1$s</string>
+	<string name="app_version">weatherd %1$s</string>
 
 	<!-- Refresh interval formatting -->
 	<string name="interval_minutes">%1$d min.</string>

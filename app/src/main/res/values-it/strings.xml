@@ -121,7 +121,7 @@
 	<string name="intensity_subtle">Lieve</string>
 	<string name="intensity_intense">Intenso</string>
 	<string name="hint_intensity">Regola l\'intensità delle precipitazioni, la forza del vento e la visibilità delle nuvole rispetto al meteo osservato.</string>
-	<string name="version_footer">weatherd %1$s</string>
+	<string name="app_version">weatherd %1$s</string>
 
 	<!-- Refresh interval formatting -->
 	<string name="interval_minutes">%1$d min</string>

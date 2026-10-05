@@ -145,7 +145,7 @@
 	<string name="intensity_subtle">Subtle</string>
 	<string name="intensity_intense">Intense</string>
 	<string name="hint_intensity">Scales how heavily precipitation falls, how hard the wind drives, and how visible the clouds are, relative to the observed weather.</string>
-	<string name="version_footer">weatherd %1$s</string>
+	<string name="app_version">weatherd %1$s</string>
 
 	<!-- Refresh interval formatting -->
 	<string name="interval_minutes">%1$d min</string>
