@@ -2662,7 +2662,6 @@ class SceneRenderer(resources: Resources) {
 		/** Edge length of the pre-rendered moon sprite. */
 		private const val MOON_SPRITE_SIZE = 256
 
-		private const val CELESTIAL_X_FRACTION = 0.72f
 
 		/** The moon's radius as a fraction of the screen's shorter side; it stays the generous disc it always was, because a moon genuinely does read large. */
 		private const val MOON_RADIUS_FRACTION = 0.1f
@@ -2979,8 +2978,6 @@ private fun showsHaze(params: SceneParams) = params.precipitation != null || par
 private const val PRECIPITATION_SCALE_EXPONENT = 0.5f
 
 private const val DIRECT_SUN_MAX_CLOUDINESS = 0.55f
-private const val SUNSET_FADE_START = 0.15f
-private const val SUNSET_FADE_END = 0.92f
 
 private const val CLOUD_DECK_THRESHOLD = 0.75f
 
@@ -3072,45 +3069,9 @@ private fun lerp(from: Float, to: Float, fraction: Float) = from + (to - from) *
 
 private fun unlerp(from: Float, to: Float, value: Float) = ((value - from) / (to - from)).coerceIn(0f, 1f)
 
-/**
- * Where the sun/moon hangs, as a fraction of screen height.
- * Dawn starts in the lower horizon band and dusk returns there; daylight still sweeps a shallow parabola whose endpoints meet the twilight arc exactly.
- */
-internal fun celestialHeightFraction(dayPhase: DayPhase, progress: Float) = when (dayPhase) {
-	DayPhase.DAY -> 0.26f - 0.09f * (4f * progress * (1f - progress))
-	DayPhase.DAWN -> lerp(TWILIGHT_HORIZON_HEIGHT_FRACTION, 0.26f, progress)
-	DayPhase.DUSK -> lerp(0.26f, TWILIGHT_HORIZON_HEIGHT_FRACTION, progress)
-	DayPhase.NIGHT -> 0.24f
-}
-
-/**
- * Dusk fades every sun component together while leaving the independently rendered orange sky intact.
- * A smooth curve keeps the source nearly steady at the start of dusk, then eases it completely away before night.
- */
-internal fun sunVisibility(dayPhase: DayPhase, progress: Float): Float {
-	if (dayPhase != DayPhase.DUSK) {
-		return 1f
-	}
-
-	val fade = unlerp(SUNSET_FADE_START, SUNSET_FADE_END, progress)
-	val eased = fade * fade
-
-	return 1f - eased
-}
 
 private fun sunAlpha(alpha: Float, visibility: Float) = (alpha * visibility).roundToInt().coerceIn(0, 255)
 
-private fun sunColor(dayPhase: DayPhase, preset: SunColorPreset) = when (preset) {
-	SunColorPreset.NATURAL -> when (dayPhase) {
-		DayPhase.DAWN -> Color.rgb(255, 224, 190)
-		DayPhase.DUSK -> Color.rgb(255, 208, 178)
-		else -> Color.rgb(255, 248, 218)
-	}
-
-	SunColorPreset.WHITE -> Color.rgb(255, 255, 248)
-	SunColorPreset.GOLDEN -> Color.rgb(255, 228, 150)
-	SunColorPreset.ORANGE -> Color.rgb(255, 188, 118)
-}
 
 /**
  * The multiply a cumulus deck draws through.
@@ -3216,8 +3177,6 @@ private const val WARM_HORIZON_GLOW_ALPHA = 96
 private const val TWILIGHT_SKY_COLOR_MIDDLE_STOP = 0.72f
 private const val TWILIGHT_SKY_COLOR_MIDDLE_BLEND = 0.18f
 
-/** Lowest dawn/dusk sun position as a fraction of screen height, placing it in the horizon band rather than mid-sky. */
-private const val TWILIGHT_HORIZON_HEIGHT_FRACTION = 0.58f
 
 private const val TWILIGHT_SKY_GLOW_RADIUS = 1.05f
 private const val TWILIGHT_SKY_GLOW_INNER_ALPHA_SCALE = 1.15f

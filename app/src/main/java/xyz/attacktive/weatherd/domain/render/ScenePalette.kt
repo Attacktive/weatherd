@@ -24,7 +24,7 @@ fun skyGradientFor(params: SceneParams): SkyGradient {
 		phaseGray(params.dayPhase)
 	}
 
-	val overcast = overcastAmount(params)
+	val overcast = skyOcclusionFor(params)
 	val darken = darkenAmount(params)
 
 	val top = darkenColor(lerpColor(base.topColor, gray, overcast), darken)
@@ -57,11 +57,11 @@ fun sceneryLayerColor(material: SceneryMaterial, plane: SceneryPlane, params: Sc
 		return target
 	}
 
-	return lerpColor(intrinsicColor(material), target, atmosphereAmount(params, plane))
+	return lerpColor(sceneryMaterialColor(material), target, atmosphereAmount(params, plane))
 }
 
 /** Flat-illustration daylight colors; the atmosphere blend does all weather and time-of-day adaptation. */
-private fun intrinsicColor(material: SceneryMaterial) = when (material) {
+internal fun sceneryMaterialColor(material: SceneryMaterial) = when (material) {
 	SceneryMaterial.SILHOUETTE -> BLACK
 	SceneryMaterial.WATER -> rgb(64, 142, 152)
 	SceneryMaterial.SAND -> rgb(233, 209, 164)
@@ -96,7 +96,7 @@ private fun atmosphereAmount(params: SceneParams, plane: SceneryPlane): Float {
 	}
 
 	val weather = maxOf(
-		overcastAmount(params),
+		skyOcclusionFor(params),
 		if (params.thunder) {
 			1f
 		} else {
@@ -222,14 +222,11 @@ private fun snowGray(dayPhase: DayPhase) = when (dayPhase) {
 }
 
 /**
- * How far the sky blends toward gray. Fog and precipitation force their own grayness; otherwise cloud cover drives it (calibrated so 5% cover reads clear and 85% reads fully overcast).
- */
-/**
  * How far the sky is pulled from its clear color toward gray.
  * A dry sky holds its full blue until the overcast ceiling starts drawing, because scattered cumulus darken a sky by covering it, not by draining the color out of the gaps between them.
  * Graying earlier than that leaves white clouds sitting on a washed-out sky with nothing to read against, which is the opposite of what cloud cover looks like.
  */
-private fun overcastAmount(params: SceneParams): Float = when {
+internal fun skyOcclusionFor(params: SceneParams): Float = when {
 	params.fogDensity > 0f -> 0.85f
 	params.precipitation != null -> precipitationGray(params.precipitation)
 	else -> overcastCeilingStrength(effectiveOpaqueCloudiness(params))
