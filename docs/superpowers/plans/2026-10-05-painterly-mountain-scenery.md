@@ -97,7 +97,7 @@ internal fun surfaceDiffuseFor(patch: MountainSurfacePatch, lighting: SceneryLig
 Its read-only Float output properties are `directionX`, `directionY`, `directionZ`, `directStrength`, `textureStrength`, `farAtmosphere`, and `nearAtmosphere`; `directColor` and `ambientColor` are read-only Int properties.
 The screen-space orientation convention is positive x right, positive y up, and positive z toward the viewer; normalize directions using physical pixel distances so aspect ratio cannot skew their meaning.
 
-- [ ] **Step 1: Write failing lighting tests.** Define `clearParams(phase: DayPhase)` with cloudiness/fog/wind zero, no precipitation, and thunder false; `lighting(params)` initializes one `SceneryLighting` at 1080 by 2400. The tests `night removes directional sunlight`, `decorative visibility preserves terrain lighting`, `decorative sun styling preserves terrain lighting`, `opaque cloud layers attenuate direct light`, `total cover fallback attenuates direct light`, `fog attenuates direct light`, and `thunder attenuates direct light` respectively contain the following assertions:
+- [ ] **Step 1: Write failing lighting tests.** Define `clearParams(phase: DayPhase)` with cloudiness/fog/wind zero, no precipitation, and thunder false; `lighting(params)` initializes one `SceneryLighting` at 1080 by 2400. The tests `night removes directional sunlight`, `decorative visibility preserves terrain lighting`, `decorative sun styling preserves terrain lighting`, `opaque cloud layers attenuate direct light`, `total cover fallback attenuates direct light`, `fog attenuates direct light`, and `thunder alone attenuates direct light and surface contrast` are specified by the following assertions; the final pair belongs to the thunder-only test:
 
 ```kotlin
 assertEquals(0f, lighting(clearParams(DayPhase.NIGHT)).directStrength, 0f)
@@ -106,10 +106,19 @@ assertEquals(lighting(clearParams(DayPhase.DAY)).directColor, lighting(clearPara
 assertTrue(lighting(highCirrusParams).directStrength > lighting(opaqueLowCloudParams).directStrength)
 assertTrue(lighting(totalOvercastParams).directStrength < lighting(clearParams(DayPhase.DAY)).directStrength)
 assertTrue(lighting(fogParams).directStrength < lighting(clearParams(DayPhase.DAY)).directStrength)
-assertTrue(lighting(thunderParams).directStrength < lighting(clearParams(DayPhase.DAY)).directStrength)
+
+val clearDayParams = clearParams(DayPhase.DAY)
+val thunderOnlyParams = clearDayParams.copy(thunder = true)
+val clearDayLighting = lighting(clearDayParams)
+val thunderOnlyLighting = lighting(thunderOnlyParams)
+
+assertTrue(thunderOnlyLighting.directStrength < clearDayLighting.directStrength)
+assertTrue(thunderOnlyLighting.textureStrength < clearDayLighting.textureStrength)
 ```
 
-Use `SceneCloudLayers(low = 0.05f, mid = 0.05f, high = 0.8f)` versus `SceneCloudLayers(low = 0.8f, mid = 0.05f, high = 0.05f)` at total cloudiness `0.8f`, total-only cloudiness `0.85f`, fog density `1f`, and the existing THUNDERSTORM preset.
+Use `SceneCloudLayers(low = 0.05f, mid = 0.05f, high = 0.8f)` versus `SceneCloudLayers(low = 0.8f, mid = 0.05f, high = 0.05f)` at total cloudiness `0.8f`, total-only cloudiness `0.85f`, and fog density `1f` for their independent cases.
+The thunder-only case changes no cloud, fog, precipitation, wind, or timing inputs; both attenuation assertions must fail if thunder has no effect even when other weather attenuation is implemented.
+Keep the existing THUNDERSTORM preset in Task 1's visual capture matrix, not as the isolated thunder unit fixture.
 Add `dawn meets daylight continuously` and `dusk meets night continuously`: for ROCK and SNOW on both planes, compare `surfaceColorFor` at DAWN/1 versus DAY/0 and DUSK/1 versus NIGHT/0; summed RGB difference must be at most 3, allowing one quantization step per channel rather than pinning a palette color.
 Add `sky customization reaches ambient terrain light`: changing sky brightness or palette must change `ambientColor`, while decorative preferences above must not.
 
