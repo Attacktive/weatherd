@@ -2,7 +2,7 @@
 
 ## Intent and scope
 
-Issue: https://github.com/Attacktive/weatherd/issues/77
+Issue: [#77](https://github.com/Attacktive/weatherd/issues/77)
 
 Make the existing procedural mountain scenery visually belong to the same world as the sky through physically inspired, painterly shading.
 The user approved a mountain-first approach that preserves the seeded silhouettes, aspect-ratio adaptation, snowcap shapes, and FAR/NEAR depth planes.
