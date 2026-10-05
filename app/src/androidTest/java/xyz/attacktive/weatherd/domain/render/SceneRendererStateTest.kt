@@ -6,6 +6,7 @@ import androidx.core.graphics.createBitmap
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import xyz.attacktive.weatherd.domain.model.BackdropScene
@@ -45,6 +46,26 @@ class SceneRendererStateTest {
 		)
 
 		backdrop.recycle()
+	}
+
+	@Test
+	fun nighttimeSceneryDoesNotInheritPreviousDaytimeDetailOpacity() {
+		val night = SceneParams(DayPhase.NIGHT, 0f, 0f, null, false, 0f, backdropScene = BackdropScene.BEACH)
+		val reused = SceneRenderer(resources)
+		val warmup = createBitmap(WIDTH, HEIGHT)
+		reused.render(Canvas(warmup), WIDTH, HEIGHT, night.copy(dayPhase = DayPhase.DAY), 17f)
+		val actual = createBitmap(WIDTH, HEIGHT)
+		reused.render(Canvas(actual), WIDTH, HEIGHT, night, 17f)
+		val expected = createBitmap(WIDTH, HEIGHT)
+		SceneRenderer(resources).render(Canvas(expected), WIDTH, HEIGHT, night, 17f)
+
+		try {
+			assertTrue("A previous beach frame must not change the nighttime horizon glow", expected.sameAs(actual))
+		} finally {
+			warmup.recycle()
+			actual.recycle()
+			expected.recycle()
+		}
 	}
 
 	@Test

@@ -35,7 +35,6 @@ import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
-import xyz.attacktive.weatherd.domain.model.drawsScenery
 import xyz.attacktive.weatherd.domain.render.SceneRenderer.Companion.DOT_CORE_STOP
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_DRIZZLE
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_STEADY
@@ -89,20 +88,7 @@ class SceneRenderer(resources: Resources) {
 		var warpPhase = 0f
 	}
 
-	private var sceneryLayerPaths: List<SceneryLayerPath> = emptyList()
-	private val sceneryAccentPath = Path()
-	private var sceneryKey: String? = null
-	private var sceneryFarCrestY = 0f
-	private var sceneryNearCrestY = 0f
-	private var sceneryReflectionY = -1f
-	private var sceneryWindowXy = FloatArray(0)
-	private var sceneryHasWindows = false
-	private var sceneryGulls: List<SceneryFauna> = emptyList()
-	private var sceneryMarine: List<SceneryFauna> = emptyList()
-	private var sceneryBeaconXy = FloatArray(0)
-	private var sceneryParasolXy = FloatArray(0)
-	private var sceneryGlyphPaths: List<SceneryLayerPath> = emptyList()
-	private var sceneryWindmill: SceneryWindmill? = null
+	private val sceneryRenderer = SceneryRenderer()
 	private val tiles = HashMap<String, Bitmap>()
 	private val sunSpriteCoverage = IdentityHashMap<Bitmap, SunSpriteCoverage>()
 	private val farOvercastBankDelegate = lazy { CloudLayer(resources, R.drawable.cloud_overcast_veil) }
@@ -269,9 +255,7 @@ class SceneRenderer(resources: Resources) {
 		}
 
 		// The scenery draws after the celestial body and clouds (they belong to the sky behind it) but before fog, rain, and lightning (weather happens in front of the horizon).
-		if (params.backdropScene.drawsScenery) {
-			drawScenery(canvas, w, h, params, timeSeconds)
-		}
+		sceneryRenderer.draw(canvas, width, height, params, timeSeconds, paint.alpha)
 
 		if (params.fogDensity > 0f) {
 			drawFogDrift(canvas, w, h, params, timeSeconds)
@@ -392,623 +376,6 @@ class SceneRenderer(resources: Resources) {
 		}
 	}
 
-	/**
-	 * The user's chosen horizon silhouettes: two depth planes tinted from the current sky's bottom color, so storm gloom, snow milkiness, and night all carry onto them for free.
-	 * Geometry and fauna anchors rebuild only when the scene or the surface size changes; every frame after that is a handful of cached path fills, optional mist/gulls/sails, and a few cheap accents.
-	 */
-	private fun drawScenery(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
-		if (!cacheScenery(width, height, params)) {
-			return
-		}
-
-		val skyBottom = skyGradientFor(params).bottomColor
-		val nearColor = sceneryPlaneTone(SceneryPlane.NEAR, skyBottom)
-
-		paint.style = Paint.Style.FILL
-		drawHorizonGlow(canvas, width, height, params.dayPhase, skyBottom)
-		paint.shader = null
-
-		drawSceneryLayers(canvas, SceneryPlane.FAR, params, skyBottom)
-		drawFarPlaneDetails(canvas, width, height, params, timeSeconds, skyBottom)
-		drawInterPlaneHaze(canvas, width, skyBottom)
-		paint.shader = null
-
-		drawSceneryLayers(canvas, SceneryPlane.NEAR, params, skyBottom)
-		drawNearPlaneDetails(canvas, width, height, params, timeSeconds, skyBottom, nearColor)
-
-		if (params.backdropScene == BackdropScene.METROPOLIS && showsHelicopter(params)) {
-			helicopterPass(width, height, timeSeconds)?.let {
-				drawHelicopter(canvas, params, timeSeconds, it, nearColor)
-			}
-		}
-	}
-
-	/** Fills one depth plane's cached layer paths, each in its material's color for the current weather and phase. */
-	private fun drawSceneryLayers(canvas: Canvas, plane: SceneryPlane, params: SceneParams, skyBottom: Int) {
-		for (layer in sceneryLayerPaths) {
-			if (layer.plane != plane) {
-				continue
-			}
-
-			paint.color = sceneryLayerColor(layer.material, plane, params, skyBottom)
-			canvas.drawPath(layer.path, paint)
-		}
-	}
-
-	/** The highest outline point of one plane's layers, in unit y; the frame bottom when the plane is empty. */
-	private fun planeCrest(outlines: SceneryOutlines, plane: SceneryPlane) = outlines.layers
-		.filter { it.plane == plane }
-		.minOfOrNull { layer -> layer.outline.minOf { it.y } } ?: 1f
-
-	/** Rebuilds cached scenery paths and accents when the scene or surface size changes. */
-	private fun cacheScenery(width: Float, height: Float, params: SceneParams): Boolean {
-		val key = "${params.backdropScene}-${width.toInt()}x${height.toInt()}"
-		if (key == sceneryKey) {
-			return true
-		}
-
-		val outlines = sceneryOutlinesFor(params.backdropScene, width / height) ?: return false
-		sceneryLayerPaths = outlines.layers.map { layer ->
-			val path = Path()
-			fillSceneryPath(path, layer.outline, width, height)
-
-			SceneryLayerPath(path, layer.material, layer.plane)
-		}
-
-		fillAccentPath(sceneryAccentPath, outlines.accents, width, height)
-
-		val glyphCrest = outlines.glyphs
-			.filter { it.plane == SceneryPlane.FAR }
-			.minOfOrNull { glyph -> glyph.outline.minOf { it.y } } ?: 1f
-
-		sceneryFarCrestY = minOf(planeCrest(outlines, SceneryPlane.FAR), glyphCrest) * height
-		sceneryNearCrestY = planeCrest(outlines, SceneryPlane.NEAR) * height
-		sceneryReflectionY = outlines.reflectionY?.times(height) ?: -1f
-		sceneryHasWindows = outlines.windows.isNotEmpty()
-		sceneryWindowXy = packPoints(outlines.windows, width, height)
-		sceneryGulls = outlines.gulls
-		sceneryMarine = outlines.marine
-		sceneryBeaconXy = packPoints(outlines.beacons, width, height)
-		sceneryParasolXy = packPoints(outlines.parasols, width, height)
-		sceneryGlyphPaths = outlines.glyphs.map { glyph ->
-			val path = Path().also { fillClosedOutline(it, glyph.outline, width, height) }
-
-			SceneryLayerPath(path, glyph.material, glyph.plane)
-		}
-
-		sceneryWindmill = outlines.windmill
-		sceneryKey = key
-
-		return true
-	}
-
-	/** Painted glyphs (sloop, snowcaps), sea reflection, marine life, and mountain mist — everything that lives on/behind the far plane. */
-	private fun drawFarPlaneDetails(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float, skyBottom: Int) {
-		for (part in sceneryGlyphPaths) {
-			if (part.plane != SceneryPlane.FAR) {
-				continue
-			}
-
-			paint.color = sceneryLayerColor(part.material, SceneryPlane.FAR, params, skyBottom)
-			canvas.drawPath(part.path, paint)
-		}
-
-		if (sceneryReflectionY >= 0f) {
-			drawBeachReflection(canvas, width, height, params.dayPhase, skyBottom)
-			paint.shader = null
-		}
-
-		if (sceneryMarine.isNotEmpty()) {
-			val waterColor = sceneryLayerColor(SceneryMaterial.WATER, SceneryPlane.FAR, params, skyBottom)
-			drawMarineLife(canvas, width, height, timeSeconds, darken(waterColor, 0.6f))
-		}
-
-		if (params.backdropScene == BackdropScene.MOUNTAINS) {
-			drawValleyMist(canvas, width, height, timeSeconds, skyBottom, params.dayPhase)
-		}
-	}
-
-	/** Near-plane glyphs (the farmhouse), parasols, fence accents, windmill sails, windows, beacons, and gulls. */
-	private fun drawNearPlaneDetails(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float, skyBottom: Int, nearColor: Int) {
-		for (part in sceneryGlyphPaths) {
-			if (part.plane != SceneryPlane.NEAR) {
-				continue
-			}
-
-			paint.color = sceneryLayerColor(part.material, SceneryPlane.NEAR, params, skyBottom)
-			canvas.drawPath(part.path, paint)
-		}
-
-		if (sceneryParasolXy.isNotEmpty()) {
-			val poleColor = sceneryLayerColor(SceneryMaterial.HULL, SceneryPlane.NEAR, params, skyBottom)
-			val canopyColor = sceneryLayerColor(SceneryMaterial.PARASOL, SceneryPlane.NEAR, params, skyBottom)
-			drawParasols(canvas, height, poleColor, canopyColor)
-		}
-
-		if (!sceneryAccentPath.isEmpty) {
-			// Fence posts read as weathered wood, not cutouts of the hill behind them.
-			paint.style = Paint.Style.STROKE
-			paint.color = sceneryLayerColor(SceneryMaterial.HULL, SceneryPlane.NEAR, params, skyBottom)
-			paint.strokeWidth = height * 0.0022f
-			canvas.drawPath(sceneryAccentPath, paint)
-			paint.style = Paint.Style.FILL
-		}
-
-		sceneryWindmill?.let {
-			// Classic white canvas sails against the sky; the tower stays part of the painted hill.
-			val sailColor = sceneryLayerColor(SceneryMaterial.SAIL, SceneryPlane.NEAR, params, skyBottom)
-			drawWindmillSails(canvas, width, height, it, timeSeconds, sailColor)
-		}
-
-		if (sceneryHasWindows) {
-			drawCityWindows(canvas, height, params.dayPhase)
-		}
-
-		if (sceneryBeaconXy.isNotEmpty()) {
-			drawTowerBeacons(canvas, height, timeSeconds)
-		}
-
-		if (sceneryGulls.isNotEmpty() && params.dayPhase != DayPhase.NIGHT) {
-			drawBeachGulls(canvas, width, height, timeSeconds, nearColor)
-		}
-	}
-
-	/** Packs unit-frame points into a flat pixel xy array once per scenery rebuild. */
-	private fun packPoints(points: List<OutlinePoint>, width: Float, height: Float) =
-		if (points.isEmpty()) {
-			FloatArray(0)
-		} else {
-			FloatArray(points.size * 2).also { xy ->
-				points.forEachIndexed { index, point ->
-					xy[index * 2] = point.x * width
-					xy[index * 2 + 1] = point.y * height
-				}
-			}
-		}
-
-	/** Slow red aviation blips on the tallest roofs — a soft pulse, sitting on the parapet. */
-	private fun drawTowerBeacons(canvas: Canvas, height: Float, timeSeconds: Float) {
-		val radius = height * 0.0028f
-		paint.style = Paint.Style.FILL
-
-		var index = 0
-		while (index < sceneryBeaconXy.size) {
-			val x = sceneryBeaconXy[index]
-			val y = sceneryBeaconXy[index + 1]
-			val pulse = 0.35f + 0.65f * ((sin(timeSeconds * 2.4f + index * 0.7f) + 1f) * 0.5f)
-			val alpha = (220f * pulse).roundToInt().coerceIn(40, 230)
-			paint.color = Color.argb(alpha, 255, 64, 72)
-			canvas.drawCircle(x, y, radius, paint)
-
-			index += 2
-		}
-	}
-
-	/**
-	 * Thatched beach parasols on the bluff crest — smaller cones so neighbors don't overlap.
-	 * Feet stay on the ridge; only the canopy/pole scale shrank.
-	 */
-	private fun drawParasols(canvas: Canvas, height: Float, poleColor: Int, canopyColor: Int) {
-		paint.strokeCap = Paint.Cap.ROUND
-
-		var index = 0
-		while (index < sceneryParasolXy.size) {
-			val x = sceneryParasolXy[index]
-			val footY = sceneryParasolXy[index + 1]
-			val poleH = height * 0.042f
-			val canopyH = height * 0.024f
-			val canopyW = height * 0.026f
-			val peakY = footY - poleH
-			val brimY = peakY + canopyH
-			val fringe = height * 0.0035f
-			val tuft = height * 0.0055f
-
-			paint.style = Paint.Style.STROKE
-			paint.strokeWidth = height * 0.0024f
-			paint.color = withAlpha(poleColor, 245)
-			canvas.drawLine(x, footY, x, brimY - fringe * 0.5f, paint)
-
-			paint.style = Paint.Style.FILL
-			paint.color = withAlpha(canopyColor, 245)
-			birdPath.reset()
-			birdPath.moveTo(x, peakY)
-			birdPath.lineTo(x - canopyW, brimY)
-
-			val teeth = 6
-			for (tooth in 1 until teeth) {
-				val t = tooth / teeth.toFloat()
-				val fx = x - canopyW + canopyW * 2f * t
-				val fy = if (tooth % 2 == 0) {
-					brimY + fringe
-				} else {
-					brimY
-				}
-
-				birdPath.lineTo(fx, fy)
-			}
-
-			birdPath.lineTo(x + canopyW, brimY)
-			birdPath.close()
-			canvas.drawPath(birdPath, paint)
-
-			birdPath.reset()
-			birdPath.moveTo(x, peakY - tuft)
-			birdPath.lineTo(x - tuft * 0.5f, peakY)
-			birdPath.lineTo(x + tuft * 0.5f, peakY)
-			birdPath.close()
-			canvas.drawPath(birdPath, paint)
-
-			index += 2
-		}
-	}
-
-	/**
-	 * Rotating sails only — the tower is already part of the near-hill silhouette, so it can't float off the crest.
-	 */
-	private fun drawWindmillSails(canvas: Canvas, width: Float, height: Float, mill: SceneryWindmill, timeSeconds: Float, color: Int) {
-		val hubX = mill.hubX * width
-		val hubY = mill.hubY * height
-		val scale = mill.scale
-		val bladeLen = height * 0.032f * scale
-		val bladeHalf = height * 0.0045f * scale
-		val hubR = height * 0.006f * scale
-		val angle = timeSeconds * 0.7f
-
-		paint.style = Paint.Style.FILL
-		paint.color = withAlpha(color, 245)
-
-		for (blade in 0 until 4) {
-			val theta = angle + blade * (PI_F * 0.5f)
-			val tipX = hubX + cos(theta) * bladeLen
-			val tipY = hubY + sin(theta) * bladeLen
-			val ox = -sin(theta) * bladeHalf
-			val oy = cos(theta) * bladeHalf
-			birdPath.reset()
-			birdPath.moveTo(hubX, hubY)
-			birdPath.lineTo(tipX + ox, tipY + oy)
-			birdPath.lineTo(tipX - ox, tipY - oy)
-			birdPath.close()
-			canvas.drawPath(birdPath, paint)
-		}
-
-		canvas.drawCircle(hubX, hubY, hubR, paint)
-	}
-
-	/** Shark fins and a whale back in the water — drawn on the far plane before the near bluff covers the beach. */
-	private fun drawMarineLife(canvas: Canvas, width: Float, height: Float, timeSeconds: Float, color: Int) {
-		paint.style = Paint.Style.FILL
-		paint.color = withAlpha(color, 210)
-
-		for (critter in sceneryMarine) {
-			val drift = sin(timeSeconds * critter.speed * 8f + critter.phase) * width * 0.02f
-			val x = critter.baseX * width + drift
-			val y = critter.baseY * height
-
-			when (critter.kind) {
-				SceneryFaunaKind.SHARK -> {
-					// A dorsal fin, not a road sign: convex leading edge up to an upright tip, concave trailing edge scooping back down to the base.
-					// Both axes come from one basis so the fin keeps its shape at every screen aspect.
-					val finW = width * 0.012f * critter.scale
-					val finH = finW * 0.65f
-					birdPath.reset()
-					birdPath.moveTo(x - finW * 0.35f, y + finH)
-					birdPath.quadTo(x - finW * 0.28f, y + finH * 0.25f, x, y)
-					birdPath.quadTo(x + finW * 0.02f, y + finH * 0.65f, x + finW * 0.45f, y + finH)
-					birdPath.close()
-					canvas.drawPath(birdPath, paint)
-				}
-				SceneryFaunaKind.WHALE -> {
-					// Both axes come from one basis so the back never stretches with the screen's aspect.
-					val bodyW = width * 0.055f * critter.scale
-					val bodyH = bodyW * 0.14f
-					val breach = (sin(timeSeconds * 0.35f + critter.phase) * 0.5f + 0.5f).coerceIn(0f, 1f)
-					val lift = -breach * bodyH * 0.85f
-					canvas.drawOval(x - bodyW, y - bodyH + lift, x + bodyW * 0.7f, y + bodyH * 0.4f + lift, paint)
-
-					// Occasional spout when the back is highest.
-					if (breach > 0.85f) {
-						paint.style = Paint.Style.STROKE
-						paint.strokeWidth = bodyH * 0.12f
-						paint.color = withAlpha(color, 160)
-						val spoutX = x + bodyW * 0.35f
-						canvas.drawLine(spoutX, y + lift - bodyH, spoutX, y + lift - bodyH - bodyH * 1.05f * breach, paint)
-						paint.style = Paint.Style.FILL
-						paint.color = withAlpha(color, 210)
-					}
-				}
-				else -> Unit
-			}
-		}
-	}
-
-	/** A few gulls drifting and flapping over the beach — always on for daytime beach scenes, cheap stroked W glyphs. */
-	private fun drawBeachGulls(canvas: Canvas, width: Float, height: Float, timeSeconds: Float, color: Int) {
-		paint.style = Paint.Style.STROKE
-		paint.strokeCap = Paint.Cap.ROUND
-		paint.strokeJoin = Paint.Join.ROUND
-		paint.color = withAlpha(color, 200)
-
-		for (gull in sceneryGulls) {
-			val drift = ((gull.baseX + timeSeconds * gull.speed) % 1.15f + 1.15f) % 1.15f - 0.08f
-			val x = drift * width
-			val y = (gull.baseY + sin(timeSeconds * 0.9f + gull.phase) * 0.012f) * height
-			val wing = width * 0.014f * gull.scale
-			val flap = sin(timeSeconds * 8f + gull.phase) * wing * 0.55f
-			paint.strokeWidth = wing * 0.2f
-			birdPath.reset()
-			birdPath.moveTo(x - wing, y - flap)
-			birdPath.quadTo(x - wing * 0.35f, y + wing * 0.2f, x, y)
-			birdPath.quadTo(x + wing * 0.35f, y + wing * 0.2f, x + wing, y - flap)
-			canvas.drawPath(birdPath, paint)
-		}
-
-		paint.style = Paint.Style.FILL
-	}
-
-	/**
-	 * Where a helicopter is over the skyline right now, or null when this slot stays quiet or its crossing hasn't started.
-	 * Slot-scheduled like the meteors and bird flocks, so most of the time the sky is empty.
-	 */
-	private fun helicopterPass(width: Float, height: Float, timeSeconds: Float): HelicopterPass? {
-		val slot = (timeSeconds / HELICOPTER_SLOT_SECONDS).toInt()
-		val random = Random(HELICOPTER_SEED + slot)
-		val quiet = random.nextFloat() < 0.5f
-		if (quiet) {
-			return null
-		}
-
-		val start = random.nextFloat(HELICOPTER_SLOT_SECONDS - HELICOPTER_CROSSING_SECONDS)
-		val local = timeSeconds - slot * HELICOPTER_SLOT_SECONDS - start
-		if (local !in 0f..HELICOPTER_CROSSING_SECONDS) {
-			return null
-		}
-
-		val progress = local / HELICOPTER_CROSSING_SECONDS
-		val direction = if (random.nextFloat() < 0.5f) {
-			-1f
-		} else {
-			1f
-		}
-
-		val span = width * 1.2f
-		val x = if (direction > 0f) {
-			-width * 0.1f + span * progress
-		} else {
-			width * 1.1f - span * progress
-		}
-
-		val bodyW = width * 0.02f
-		val y = height * random.nextFloat(0.58f, 0.66f) + sin(timeSeconds * 1.1f) * bodyW * 0.3f
-
-		return HelicopterPass(x, y, direction, bodyW)
-	}
-
-	/**
-	 * The helicopter itself: fuselage, tail boom, and a rotor line flickering to fake the spin.
-	 * Every dimension derives from the fuselage length, keeping the shape honest at any aspect; after dark it carries a blinking anti-collision light.
-	 */
-	private fun drawHelicopter(canvas: Canvas, params: SceneParams, timeSeconds: Float, pass: HelicopterPass, color: Int) {
-		val (x, y, direction, bodyW) = pass
-		val bodyH = bodyW * 0.42f
-		val tailLen = bodyW * 1.1f
-		val mastH = bodyH * 0.5f
-
-		paint.style = Paint.Style.FILL
-		paint.color = withAlpha(color, 235)
-		canvas.drawOval(x - bodyW * 0.5f, y - bodyH * 0.5f, x + bodyW * 0.5f, y + bodyH * 0.5f, paint)
-
-		paint.style = Paint.Style.STROKE
-		paint.strokeCap = Paint.Cap.ROUND
-		paint.strokeWidth = bodyH * 0.3f
-		val tailX = x - direction * (bodyW * 0.4f + tailLen)
-		canvas.drawLine(x - direction * bodyW * 0.4f, y, tailX, y - bodyH * 0.35f, paint)
-
-		// The main rotor sweeps as a flickering near-horizontal line — length pulsing with the blade angle fakes the spin.
-		val rotorY = y - bodyH * 0.5f - mastH
-		val rotorR = bodyW * (0.55f + 0.35f * abs(sin(timeSeconds * 9f)))
-		paint.strokeWidth = bodyH * 0.22f
-		canvas.drawLine(x, rotorY, x, y - bodyH * 0.5f, paint)
-		canvas.drawLine(x - rotorR, rotorY, x + rotorR, rotorY, paint)
-		paint.style = Paint.Style.FILL
-
-		if (params.dayPhase == DayPhase.NIGHT || params.dayPhase == DayPhase.DUSK) {
-			val blink = sin(timeSeconds * 6f)
-			if (blink > 0.4f) {
-				paint.color = Color.argb(200, 255, 64, 72)
-				canvas.drawCircle(tailX, y - bodyH * 0.35f, bodyH * 0.28f, paint)
-			}
-		}
-	}
-
-	/** A short gradient band just above the far crest — warm at dawn/dusk, soft by day, cool and thin at night. */
-	private fun drawHorizonGlow(canvas: Canvas, width: Float, height: Float, dayPhase: DayPhase, skyBottom: Int) {
-		val (alpha, tint) = when (dayPhase) {
-			DayPhase.DAWN -> 90 to lighten(skyBottom, 0.35f)
-			DayPhase.DUSK -> 95 to lighten(skyBottom, 0.3f)
-			DayPhase.DAY -> 40 to lighten(skyBottom, 0.2f)
-			DayPhase.NIGHT -> 35 to Color.rgb(120, 150, 210)
-		}
-
-		val bandTop = (sceneryFarCrestY - height * 0.06f).coerceAtLeast(height * 0.55f)
-
-		paint.shader = LinearGradient(
-			0f,
-			bandTop,
-			0f,
-			sceneryFarCrestY,
-			withAlpha(tint, 0),
-			withAlpha(tint, alpha),
-			Shader.TileMode.CLAMP
-		)
-
-		// Fill past the crest (CLAMP holds the end color, and the silhouettes cover it) so the band never stops on a hard bright edge across the sky.
-		canvas.drawRect(0f, bandTop, width, height, paint)
-	}
-
-	/** A translucent wash between the two crests so the far plane reads as atmospheric depth rather than a second flat sticker. */
-	private fun drawInterPlaneHaze(canvas: Canvas, width: Float, skyBottom: Int) {
-		val top = sceneryFarCrestY
-		val bottom = sceneryNearCrestY
-		if (bottom <= top) {
-			return
-		}
-
-		// The wash ramps in above the far crest too — starting it at full strength on the crest line drew a seam right across the sky.
-		val fade = (bottom - top) * 0.5f
-		val fadeTop = top - fade
-		val haze = lighten(skyBottom, 0.15f)
-
-		paint.shader = LinearGradient(
-			0f,
-			fadeTop,
-			0f,
-			bottom,
-			intArrayOf(withAlpha(haze, 0), withAlpha(haze, 55), withAlpha(haze, 0)),
-			floatArrayOf(0f, fade / (bottom - fadeTop), 1f),
-			Shader.TileMode.CLAMP
-		)
-
-		canvas.drawRect(0f, fadeTop, width, bottom, paint)
-	}
-
-	/**
-	 * Soft mist bands drifting through the mountain valley between the two ridges.
-	 * Cheap ovals + low alpha — no blur filters, so the live wallpaper stays light.
-	 */
-	private fun drawValleyMist(canvas: Canvas, width: Float, height: Float, timeSeconds: Float, skyBottom: Int, dayPhase: DayPhase) {
-		val top = sceneryFarCrestY
-		val bottom = sceneryNearCrestY
-		if (bottom <= top + height * 0.02f) {
-			return
-		}
-
-		val mist = lighten(skyBottom, 0.35f)
-		val baseAlpha = when (dayPhase) {
-			DayPhase.DAY -> 55
-			DayPhase.DAWN, DayPhase.DUSK -> 70
-			DayPhase.NIGHT -> 35
-		}
-
-		val valley = bottom - top
-		paint.style = Paint.Style.FILL
-
-		for (band in 0 until 3) {
-			val speed = 0.012f + band * 0.006f
-			val travel = width * 1.35f
-			val drift = ((timeSeconds * speed * width + band * width * 0.37f) % travel + travel) % travel - width * 0.2f
-			val cy = top + valley * (0.28f + band * 0.22f) + sin(timeSeconds * 0.18f + band * 1.7f) * height * 0.006f
-			val bandH = valley * (0.18f + band * 0.04f)
-			val bandW = width * (0.5f + band * 0.12f)
-			val alpha = (baseAlpha * (1f - band * 0.12f)).roundToInt().coerceIn(20, 80)
-			val topY = cy - bandH * 0.5f
-			val bottomY = cy + bandH * 0.5f
-
-			fun drawBand(originX: Float) {
-				paint.shader = RadialGradient(
-					originX + bandW * 0.5f,
-					cy,
-					bandW * 0.55f,
-					withAlpha(mist, alpha),
-					withAlpha(mist, 0),
-					Shader.TileMode.CLAMP
-				)
-
-				canvas.drawOval(originX, topY, originX + bandW, bottomY, paint)
-			}
-
-			drawBand(drift)
-
-			// Wrap so a band exiting one side re-enters the other without a pop.
-			drawBand(drift - travel)
-		}
-
-		paint.shader = null
-	}
-
-	/** A short vertical wash under the sea line; muted at night so the water stays a silhouette. */
-	private fun drawBeachReflection(canvas: Canvas, width: Float, height: Float, dayPhase: DayPhase, skyBottom: Int) {
-		val alpha = when (dayPhase) {
-			DayPhase.DAWN, DayPhase.DUSK -> 70
-			DayPhase.DAY -> 45
-			DayPhase.NIGHT -> 18
-		}
-
-		val bandBottom = (sceneryReflectionY + height * 0.045f).coerceAtMost(height)
-
-		paint.shader = LinearGradient(
-			0f,
-			sceneryReflectionY,
-			0f,
-			bandBottom,
-			withAlpha(lighten(skyBottom, 0.25f), alpha),
-			withAlpha(skyBottom, 0),
-			Shader.TileMode.CLAMP
-		)
-
-		canvas.drawRect(0f, sceneryReflectionY, width, bandBottom, paint)
-	}
-
-	/** Seeded warm window rects for the metropolis — static positions, phase-only opacity, no twinkle. */
-	private fun drawCityWindows(canvas: Canvas, height: Float, dayPhase: DayPhase) {
-		val alpha = when (dayPhase) {
-			DayPhase.NIGHT -> 210
-			DayPhase.DUSK -> 150
-			DayPhase.DAWN -> 40
-			DayPhase.DAY -> return
-		}
-
-		val w = height * 0.0028f
-		val h = height * 0.0036f
-		paint.color = Color.argb(alpha, 255, 214, 140)
-
-		var index = 0
-		while (index < sceneryWindowXy.size) {
-			val x = sceneryWindowXy[index]
-			val y = sceneryWindowXy[index + 1]
-			canvas.drawRect(x, y, x + w, y + h, paint)
-
-			index += 2
-		}
-	}
-
-	/** Scales a unit outline to pixels and closes it across the bottom corners, so the silhouette fills down off the frame. */
-	private fun fillSceneryPath(path: Path, outline: List<OutlinePoint>, width: Float, height: Float) {
-		path.rewind()
-		path.moveTo(outline.first().x * width, outline.first().y * height)
-
-		for (index in 1 until outline.size) {
-			path.lineTo(outline[index].x * width, outline[index].y * height)
-		}
-
-		path.lineTo(width, height)
-		path.lineTo(0f, height)
-		path.close()
-	}
-
-	/** Scales a closed unit polygon (glyphs) to pixels without stretching it to the frame bottom. */
-	private fun fillClosedOutline(path: Path, outline: List<OutlinePoint>, width: Float, height: Float) {
-		path.rewind()
-		path.moveTo(outline.first().x * width, outline.first().y * height)
-
-		for (index in 1 until outline.size) {
-			path.lineTo(outline[index].x * width, outline[index].y * height)
-		}
-
-		path.close()
-	}
-
-	/** Scales the accent polylines to pixels as open strokes — gulls and friends, never filled. */
-	private fun fillAccentPath(path: Path, accents: List<List<OutlinePoint>>, width: Float, height: Float) {
-		path.rewind()
-
-		for (accent in accents) {
-			path.moveTo(accent.first().x * width, accent.first().y * height)
-
-			for (index in 1 until accent.size) {
-				path.lineTo(accent[index].x * width, accent[index].y * height)
-			}
-		}
-	}
 
 	private fun drawStars(canvas: Canvas, width: Float, height: Float, timeSeconds: Float) {
 		val random = Random(STAR_SEED)
@@ -3176,7 +2543,6 @@ class SceneRenderer(resources: Resources) {
 		private const val BOLT_SEED = 5L
 		private const val METEOR_SEED = 7L
 		private const val BIRD_SEED = 11L
-		private const val HELICOPTER_SEED = 13L
 		private const val SUN_CORONA_SEED = 17L
 		private const val STAR_AREA_PER_STAR = 22_000f
 
@@ -3206,10 +2572,6 @@ class SceneRenderer(resources: Resources) {
 
 		private const val BIRD_CROSSING_SECONDS = 22f
 
-		/** Length of one helicopter scheduling slot over the metropolis; about half the slots host one crossing. */
-		private const val HELICOPTER_SLOT_SECONDS = 193f
-
-		private const val HELICOPTER_CROSSING_SECONDS = 26f
 
 		/**
 		 * Fog tiles are built at a quarter of the surface resolution and stretched at blit time to bound CPU-side blur work.
@@ -3606,8 +2968,6 @@ internal fun lensFlareMotionActive(params: SceneParams) =
 		showsRainbow(params) &&
 		sunVisibility(params.dayPhase, params.celestialProgress) > 0f
 
-/** Helicopters fly in weather birds won't — night included, that's when the blinking light pays off — but storms, fog, and a heavy deck still ground them. */
-private fun showsHelicopter(params: SceneParams) = params.precipitation == null && params.fogDensity <= 0f && effectiveOpaqueCloudiness(params) < 0.55f && !params.thunder
 
 private fun birdColor(dayPhase: DayPhase) = when (dayPhase) {
 	DayPhase.DAY -> Color.argb(120, 38, 48, 62)
@@ -3804,11 +3164,6 @@ private fun hazeColorFor(dayPhase: DayPhase) = when (dayPhase) {
  */
 private data class ParticleCounts(val steadyCount: Int, val squallCount: Int)
 
-/** A cached scenery layer path with the material and plane needed to color it each frame. */
-private data class SceneryLayerPath(val path: Path, val material: SceneryMaterial, val plane: SceneryPlane)
-
-/** A helicopter mid-crossing: fuselage center, heading, and the fuselage length every other dimension derives from. */
-private data class HelicopterPass(val x: Float, val y: Float, val direction: Float, val bodyW: Float)
 
 /**
  * One reflection in the lens flare.
@@ -3831,7 +3186,7 @@ internal fun darken(color: Int, factor: Float) =
 	Color.rgb((Color.red(color) * factor).roundToInt(), (Color.green(color) * factor).roundToInt(), (Color.blue(color) * factor).roundToInt())
 
 /** Blends [color] toward white by [factor] (0 = unchanged, 1 = white) — the silvery highlight on lit cloud tops. */
-private fun lighten(color: Int, factor: Float) = Color.rgb(
+internal fun lighten(color: Int, factor: Float) = Color.rgb(
 	(Color.red(color) + (255 - Color.red(color)) * factor).roundToInt(),
 	(Color.green(color) + (255 - Color.green(color)) * factor).roundToInt(),
 	(Color.blue(color) + (255 - Color.blue(color)) * factor).roundToInt()
@@ -3853,7 +3208,7 @@ internal fun twilightWarmthStrength(dayPhase: DayPhase, celestialProgress: Float
 internal fun warmHorizonGlowAlpha(dayPhase: DayPhase, celestialProgress: Float) =
 	(WARM_HORIZON_GLOW_ALPHA * twilightWarmthStrength(dayPhase, celestialProgress)).roundToInt()
 
-private fun withAlpha(color: Int, alpha: Int) = Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color))
+internal fun withAlpha(color: Int, alpha: Int) = Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color))
 
 private const val WARM_HORIZON_GLOW_ALPHA = 96
 
