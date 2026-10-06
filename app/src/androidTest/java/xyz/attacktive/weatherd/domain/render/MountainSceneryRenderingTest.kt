@@ -171,7 +171,7 @@ class MountainSceneryRenderingTest {
 		try {
 			for (y in 2 until height - 2 step 3) {
 				for (x in 2 until width - 2 step 3) {
-					if (Color.alpha(mask[y * width + x]) == 0 && Color.alpha(mask[(y + 2) * width + x]) == 0 && Color.alpha(mask[y * width + x - 2]) == 0 && Color.alpha(mask[y * width + x + 2]) == 0) {
+					if (terrainAbsentAround(mask, width, x, y)) {
 						assertEquals("Material escaped original terrain at $x,$y", 0, Color.alpha(result[y * width + x]))
 					}
 				}
@@ -180,6 +180,8 @@ class MountainSceneryRenderingTest {
 			expected.recycle()
 		}
 	}
+
+	private fun terrainAbsentAround(mask: IntArray, width: Int, x: Int, y: Int) = Color.alpha(mask[y * width + x]) == 0 && Color.alpha(mask[(y + 2) * width + x]) == 0 && Color.alpha(mask[y * width + x - 2]) == 0 && Color.alpha(mask[y * width + x + 2]) == 0
 
 	private fun syntheticRenderer(snow: Boolean = true): MountainSurfaceRenderer {
 		val ridge = listOf(OutlinePoint(0f, 0.6f), OutlinePoint(0.5f, 0.1f), OutlinePoint(1f, 0.6f))

@@ -10,36 +10,13 @@ internal data class MountainSurface(val layerIndex: Int, val patches: List<Mount
 
 /** Partitions existing contours at prominent saddles without consuming their random streams or changing any vertex. */
 internal fun mountainSurfacesFor(outlines: SceneryOutlines, aspectRatio: Float): List<MountainSurface> = outlines.layers.mapIndexed { layerIndex, layer ->
+	MountainSurface(layerIndex, preparedPatches(layer, aspectRatio))
+}
+
+private fun preparedPatches(layer: SceneryLayer, aspectRatio: Float): List<MountainSurfacePatch> {
 	val edge = layer.outline
-	val prominence = when (layer.material) {
-		SceneryMaterial.ROCK -> 0.028f
-		SceneryMaterial.FOREST -> 0.012f
-		else -> 0.003f
-	}
+	val saddles = prominentSaddles(edge, prominenceFor(layer.material))
 
-	val saddles = mutableListOf(0)
-	for (index in 1 until edge.lastIndex) {
-		val point = edge[index]
-		if (point.y < edge[index - 1].y || point.y < edge[index + 1].y) {
-			continue
-		}
-
-		var left = index - 1
-		while (left > 0 && edge[left - 1].y <= edge[left].y) {
-			left--
-		}
-
-		var right = index + 1
-		while (right < edge.lastIndex && edge[right + 1].y <= edge[right].y) {
-			right++
-		}
-
-		if (point.y - maxOf(edge[left].y, edge[right].y) >= prominence) {
-			saddles += index
-		}
-	}
-
-	saddles += edge.lastIndex
 	val patches = mutableListOf<MountainSurfacePatch>()
 	for (basin in 0 until saddles.lastIndex) {
 		val start = saddles[basin]
@@ -63,7 +40,47 @@ internal fun mountainSurfacesFor(outlines: SceneryOutlines, aspectRatio: Float):
 		}
 	}
 
-	MountainSurface(layerIndex, patches)
+	return patches
+}
+
+private fun prominenceFor(material: SceneryMaterial) = when (material) {
+	SceneryMaterial.ROCK -> 0.028f
+	SceneryMaterial.FOREST -> 0.012f
+	else -> 0.003f
+}
+
+private fun prominentSaddles(edge: List<OutlinePoint>, prominence: Float): List<Int> {
+	val saddles = mutableListOf(0)
+	for (index in 1 until edge.lastIndex) {
+		val point = edge[index]
+		if (point.y < edge[index - 1].y || point.y < edge[index + 1].y) {
+			continue
+		}
+
+		val left = crestIndex(edge, index, -1)
+		val right = crestIndex(edge, index, 1)
+		if (point.y - maxOf(edge[left].y, edge[right].y) >= prominence) {
+			saddles += index
+		}
+	}
+
+	saddles += edge.lastIndex
+
+	return saddles
+}
+
+private fun crestIndex(edge: List<OutlinePoint>, saddle: Int, direction: Int): Int {
+	var index = saddle + direction
+	while (true) {
+		val next = edge.getOrNull(index + direction) ?: break
+		if (next.y > edge[index].y) {
+			break
+		}
+
+		index += direction
+	}
+
+	return index
 }
 
 private fun orientedPatch(envelope: List<OutlinePoint>, from: OutlinePoint, to: OutlinePoint, material: SceneryMaterial, aspectRatio: Float): MountainSurfacePatch {

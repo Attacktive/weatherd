@@ -77,13 +77,7 @@ internal class SceneryRenderer {
 			prepareGradients(w, h, params.dayPhase, skyBottom)
 		}
 
-		val activeMountain = mountain
-		if (activeMountain != null) {
-			val mountainLightChanged = mountainLighting.update(width, height, params)
-			if (rebuilt || mountainLightChanged) {
-				activeMountain.updateLighting(mountainLighting)
-			}
-		}
+		updateMountainLighting(width, height, params, rebuilt)
 
 		paint.style = Paint.Style.FILL
 		// Preserve the established sky-detail modulation of the decorative horizon glow, never the terrain fills.
@@ -107,6 +101,14 @@ internal class SceneryRenderer {
 		}
 
 		return paint.alpha
+	}
+
+	private fun updateMountainLighting(width: Int, height: Int, params: SceneParams, rebuilt: Boolean) {
+		val activeMountain = mountain ?: return
+		val lightingChanged = mountainLighting.update(width, height, params)
+		if (rebuilt || lightingChanged) {
+			activeMountain.updateLighting(mountainLighting)
+		}
 	}
 
 	/** Drops obsolete scene ownership without recycling sources that recorded hardware commands may still retain. */
@@ -215,14 +217,7 @@ internal class SceneryRenderer {
 
 	/** Painted glyphs (sloop, snowcaps), sea reflection, marine life, and mountain mist — everything that lives on/behind the far plane. */
 	private fun drawFarPlaneDetails(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
-		for (part in sceneryGlyphPaths) {
-			if (part.plane != SceneryPlane.FAR) {
-				continue
-			}
-
-			paint.color = palette.color(part.material, SceneryPlane.FAR)
-			canvas.drawPath(part.path, paint)
-		}
+		drawSceneryGlyphs(canvas, SceneryPlane.FAR)
 
 		if (sceneryReflectionY >= 0f) {
 			drawBeachReflection(canvas, width, height)
@@ -241,14 +236,7 @@ internal class SceneryRenderer {
 
 	/** Near-plane glyphs (the farmhouse), parasols, fence accents, windmill sails, windows, beacons, and gulls. */
 	private fun drawNearPlaneDetails(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float, nearColor: Int) {
-		for (part in sceneryGlyphPaths) {
-			if (part.plane != SceneryPlane.NEAR) {
-				continue
-			}
-
-			paint.color = palette.color(part.material, SceneryPlane.NEAR)
-			canvas.drawPath(part.path, paint)
-		}
+		drawSceneryGlyphs(canvas, SceneryPlane.NEAR)
 
 		if (sceneryParasolXy.isNotEmpty()) {
 			val poleColor = palette.color(SceneryMaterial.HULL, SceneryPlane.NEAR)
@@ -281,6 +269,18 @@ internal class SceneryRenderer {
 
 		if (sceneryGulls.isNotEmpty() && params.dayPhase != DayPhase.NIGHT) {
 			drawBeachGulls(canvas, width, height, timeSeconds, nearColor)
+		}
+	}
+
+	/** Draws cached glyphs once per plane using the unchanged flat-scene palette. */
+	private fun drawSceneryGlyphs(canvas: Canvas, plane: SceneryPlane) {
+		for (part in sceneryGlyphPaths) {
+			if (part.plane != plane) {
+				continue
+			}
+
+			paint.color = palette.color(part.material, plane)
+			canvas.drawPath(part.path, paint)
 		}
 	}
 
@@ -558,6 +558,14 @@ internal class SceneryRenderer {
 
 	/** Rebuilds weather-tinted shaders only when geometry or palette inputs change. */
 	private fun prepareGradients(width: Float, height: Float, dayPhase: DayPhase, skyBottom: Int) {
+		val valley = sceneryNearCrestY - sceneryFarCrestY
+		prepareHorizonGradient(height, dayPhase, skyBottom)
+		prepareHazeGradient(valley, skyBottom)
+		prepareReflectionGradient(height, dayPhase, skyBottom)
+		prepareMistGradients(width, height, dayPhase, skyBottom, valley)
+	}
+
+	private fun prepareHorizonGradient(height: Float, dayPhase: DayPhase, skyBottom: Int) {
 		val horizonAlpha = when (dayPhase) {
 			DayPhase.DAWN -> 90
 			DayPhase.DUSK -> 95
@@ -574,7 +582,9 @@ internal class SceneryRenderer {
 
 		val bandTop = (sceneryFarCrestY - height * 0.06f).coerceAtLeast(height * 0.55f)
 		horizonShader = LinearGradient(0f, bandTop, 0f, sceneryFarCrestY, withAlpha(horizonTint, 0), withAlpha(horizonTint, horizonAlpha), Shader.TileMode.CLAMP)
-		val valley = sceneryNearCrestY - sceneryFarCrestY
+	}
+
+	private fun prepareHazeGradient(valley: Float, skyBottom: Int) {
 		hazeShader = if (valley > 0f) {
 			val fade = valley * 0.5f
 			val fadeTop = sceneryFarCrestY - fade
@@ -592,7 +602,9 @@ internal class SceneryRenderer {
 		} else {
 			null
 		}
+	}
 
+	private fun prepareReflectionGradient(height: Float, dayPhase: DayPhase, skyBottom: Int) {
 		val reflectionAlpha = when (dayPhase) {
 			DayPhase.DAWN, DayPhase.DUSK -> 70
 			DayPhase.DAY -> 45
@@ -606,7 +618,9 @@ internal class SceneryRenderer {
 		} else {
 			null
 		}
+	}
 
+	private fun prepareMistGradients(width: Float, height: Float, dayPhase: DayPhase, skyBottom: Int, valley: Float) {
 		val mist = lighten(skyBottom, 0.35f)
 		val mistAlpha = when (dayPhase) {
 			DayPhase.DAY -> 55
@@ -798,7 +812,7 @@ private class SceneryPalette {
 	fun update(params: SceneParams): Boolean {
 		val nextCover = effectiveOpaqueCloudiness(params)
 		val nextSeverity = params.precipitation?.severity ?: 0f
-		if (phase == params.dayPhase && progress == params.celestialProgress && cover == nextCover && fog == params.fogDensity && kind == params.precipitation?.kind && severity == nextSeverity && thunder == params.thunder && brightness == params.skyBrightnessScale && saturation == params.skySaturationScale && preset == params.skyColorPreset) {
+		if (sameWeatherInputs(params, nextCover, nextSeverity) && sameSkyInputs(params)) {
 			return false
 		}
 
@@ -822,4 +836,8 @@ private class SceneryPalette {
 
 		return true
 	}
+
+	private fun sameWeatherInputs(params: SceneParams, nextCover: Float, nextSeverity: Float) = cover == nextCover && fog == params.fogDensity && kind == params.precipitation?.kind && severity == nextSeverity && thunder == params.thunder
+
+	private fun sameSkyInputs(params: SceneParams) = phase == params.dayPhase && progress == params.celestialProgress && brightness == params.skyBrightnessScale && saturation == params.skySaturationScale && preset == params.skyColorPreset
 }

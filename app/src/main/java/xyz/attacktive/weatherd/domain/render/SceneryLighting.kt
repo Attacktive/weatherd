@@ -45,7 +45,7 @@ internal class SceneryLighting {
 	fun update(width: Int, height: Int, params: SceneParams): Boolean {
 		val nextCover = effectiveOpaqueCloudiness(params)
 		val nextSeverity = params.precipitation?.severity ?: 0f
-		if (this.width == width && this.height == height && phase == params.dayPhase && progress == params.celestialProgress && cover == nextCover && fog == params.fogDensity && kind == params.precipitation?.kind && severity == nextSeverity && thunder == params.thunder && brightness == params.skyBrightnessScale && saturation == params.skySaturationScale && nightBrightness == params.nightBrightnessScale && preset == params.skyColorPreset) {
+		if (sameGeometry(width, height) && sameCelestialInputs(params) && sameWeatherInputs(params, nextCover, nextSeverity) && sameSkyInputs(params)) {
 			return false
 		}
 
@@ -72,18 +72,8 @@ internal class SceneryLighting {
 		directionY = y / length
 		directionZ = z / length
 
-		val daylight = when (params.dayPhase) {
-			DayPhase.DAWN -> 0.55f + 0.45f * dawnDaylightStrength(progress)
-			DayPhase.DAY -> 1f
-			DayPhase.DUSK -> 1f - duskNightStrength(progress)
-			DayPhase.NIGHT -> 0f
-		}
-
-		val warmth = when (params.dayPhase) {
-			DayPhase.DAWN -> 1f - dawnDaylightStrength(progress)
-			DayPhase.DUSK -> duskWarmStrength(progress)
-			DayPhase.DAY, DayPhase.NIGHT -> 0f
-		}
+		val daylight = terrainDaylight(params.dayPhase, progress)
+		val warmth = terrainWarmth(params.dayPhase, progress)
 
 		val weather = skyOcclusionFor(params)
 		val stormTransmission = if (thunder) { 0.35f } else { 1f }
@@ -93,17 +83,40 @@ internal class SceneryLighting {
 		nearAtmosphere = (0.10f + (1f - daylight) * 0.80f + weather * daylight * 0.30f).coerceAtMost(0.94f)
 		directColor = blendSurfaceColor(sunColor(DayPhase.DAY, SunColorPreset.NATURAL), sunColor(params.dayPhase, SunColorPreset.NATURAL), warmth)
 		val sky = skyGradientFor(params).bottomColor
-		val nightfall = when (params.dayPhase) {
-			DayPhase.DUSK -> duskNightStrength(progress)
-			DayPhase.NIGHT -> 1f
-			DayPhase.DAWN, DayPhase.DAY -> 0f
-		}
+		val nightfall = terrainNightfall(params.dayPhase, progress)
 
 		val ambientBrightness = 1f - nightfall * (1f - nightBrightness.coerceIn(0f, 1f))
 		ambientColor = blendSurfaceColor(0xFF000000.toInt(), sky, ambientBrightness)
 
 		return true
 	}
+
+	private fun sameGeometry(width: Int, height: Int) = this.width == width && this.height == height
+
+	private fun sameCelestialInputs(params: SceneParams) = phase == params.dayPhase && progress == params.celestialProgress
+
+	private fun sameWeatherInputs(params: SceneParams, nextCover: Float, nextSeverity: Float) = cover == nextCover && fog == params.fogDensity && kind == params.precipitation?.kind && severity == nextSeverity && thunder == params.thunder
+
+	private fun sameSkyInputs(params: SceneParams) = brightness == params.skyBrightnessScale && saturation == params.skySaturationScale && nightBrightness == params.nightBrightnessScale && preset == params.skyColorPreset
+}
+
+private fun terrainDaylight(phase: DayPhase, progress: Float) = when (phase) {
+	DayPhase.DAWN -> 0.55f + 0.45f * dawnDaylightStrength(progress)
+	DayPhase.DAY -> 1f
+	DayPhase.DUSK -> 1f - duskNightStrength(progress)
+	DayPhase.NIGHT -> 0f
+}
+
+private fun terrainWarmth(phase: DayPhase, progress: Float) = when (phase) {
+	DayPhase.DAWN -> 1f - dawnDaylightStrength(progress)
+	DayPhase.DUSK -> duskWarmStrength(progress)
+	DayPhase.DAY, DayPhase.NIGHT -> 0f
+}
+
+private fun terrainNightfall(phase: DayPhase, progress: Float) = when (phase) {
+	DayPhase.DUSK -> duskNightStrength(progress)
+	DayPhase.NIGHT -> 1f
+	DayPhase.DAWN, DayPhase.DAY -> 0f
 }
 
 /** Nonnegative diffuse response in the shared right/up/toward-viewer coordinate system. */
