@@ -2,7 +2,7 @@
 
 Instructions and architectural invariants for agents working in the Weatherd codebase.
 
-- Version: 1.6.8 (2026-09-23)
+- Version: 1.6.9 (2026-10-06)
 - Persona: Coding assistant pair-programming with the user on Weatherd.
 
 ## Tools and Environment
@@ -124,6 +124,21 @@ fun debugSceneParams(
 - A cloud deck spans `CLOUD_TEXTURE_VIEWPORTS` viewport widths before repeating unless it passes its own `viewports`. Overcast banks deliberately use shorter spans so their source masses remain screen-dominant.
 - Dense fog without precipitation suppresses the animated overcast banks and relies on its own fog base plus drifting veil tiles instead. Fog uses broad, elongated, heavily blurred bands at multiple heights, never recognizable cumulus silhouettes; its layers share one prevailing drift with parallax instead of counter-scrolling like smoke, and their tint follows the day phase.
 - Overcast bank sources are decoded once during prewarm and then transformed, tinted, and alpha-scaled without rerasterizing their source pixels. Do not generate cloud masks from `renderForeground` / `drawCloudDrift`, and do not use artwork from the reference APK or third parties.
+
+### Painterly Mountain Scenery
+
+- `SceneryRenderer` owns active scenery geometry, cached palette/shader state, and existing scenery animations; `SceneRenderer` still delegates after clouds and celestial bodies and before foreground weather.
+- Preserve incoming and outgoing paint alpha at that boundary so cached-backdrop foreground frames retain the established decorative horizon glow without leaking sky-detail opacity into terrain.
+- `BackdropScenery` remains the deterministic silhouette and snowcap source; `MountainSurface` derives broad, aspect-correct ridge orientations without modifying outlines or consuming their random streams.
+- `CelestialLighting` shares the existing trajectory and natural sun colors with the sky; `SceneryLighting` keys only geometry and relevant meteorological/sky inputs, never decorative sun, moon, flare, or sun-style preferences.
+- Terrain ambient illumination follows the tuned/weather-transformed sky, including a continuous dusk transition to the selected night brightness; sunlight is absent at night and in fully dense fog.
+- Rock and snow sample the same parent masks and orientations; forest canopy fields and meadow patches use independent stable material seeds.
+- `MountainSurfaceRenderer` publishes cropped quarter-resolution immutable masks/material fields with a 1024-pixel longest-side cap and identical scaling on both axes; live draw groups remain clipped to the original terrain or snow path.
+- Geometry resources rebuild only on scene or virtual-surface dimension changes; lighting changes update paint state without regenerating noise, masks, or blur, and animation time never moves material UVs.
+- FAR edges integrate with the actual sky and existing valley mist/inter-plane haze; contact shading is feathered inside the meadow receiver, not an outline around terrain.
+- Retain only active-scene sources and drop obsolete ownership through NONE/PHOTO and other scenery modes; do not recycle sources that hardware-recorded commands may still retain.
+- Skip directional masks when direct sunlight is absent because all faces then have the base color; no steady-state frame may allocate material images, paths, gradients, masks, arrays, or color filters.
+- Validate software and hardware rendering on a disposable emulator with fixed parameters, eight warm-up frames, and sixty measured frames per case; report geometry rebuild cost and retained `allocationByteCount` separately, and distinguish callback waiting/readback overhead from recording-through-producer-fence work.
 
 ### Cloud Coverage Belongs to Placement, Never to Paint Alpha
 

@@ -58,13 +58,13 @@ internal class SceneryRenderer {
 	 * The user's chosen horizon silhouettes: two depth planes tinted from the current sky's bottom color, so storm gloom, snow milkiness, and night all carry onto them for free.
 	 * Geometry and fauna anchors rebuild only when the scene or the surface size changes; every frame after that is a handful of cached path fills, optional mist/gulls/sails, and a few cheap accents.
 	 */
-	fun draw(canvas: Canvas, width: Int, height: Int, params: SceneParams, timeSeconds: Float, horizonAlpha: Int) {
+	fun draw(canvas: Canvas, width: Int, height: Int, params: SceneParams, timeSeconds: Float, horizonAlpha: Int): Int {
 		if (!params.backdropScene.drawsScenery) {
 			if (sceneryScene.drawsScenery) {
 				releaseScenery()
 			}
 
-			return
+			return horizonAlpha
 		}
 
 		val rebuilt = cacheScenery(width, height, params)
@@ -105,6 +105,8 @@ internal class SceneryRenderer {
 				drawHelicopter(canvas, params, timeSeconds, it, nearColor)
 			}
 		}
+
+		return paint.alpha
 	}
 
 	/** Drops obsolete scene ownership without recycling sources that recorded hardware commands may still retain. */

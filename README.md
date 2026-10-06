@@ -47,6 +47,36 @@ adb -s emulator-5554 shell am instrument -w xyz.attacktive.weatherd.test/android
 
 Replace `emulator-5554` with the intended device serial; back up app data separately from the APK before a workflow that uninstalls packages.
 
+## Painterly mountain scenery
+
+The mountain backdrop keeps its seeded silhouettes and snowcap boundaries while adding broad, softly blended rock faces, shared rock/snow illumination, forest canopy variation, meadow patches, and localized forest-to-meadow contact shading.
+Clear daylight reveals relief; twilight warms exposed surfaces, while overcast, fog, thunder, and night subdue their contrast.
+The preview and wallpaper share the same renderer and simulator settings; hiding or styling sun/moon artwork does not change terrain illumination.
+Material coordinates stay attached to the virtual landscape while the wallpaper scrolls, and the beach, countryside, and metropolis retain their existing appearance.
+
+Scenery owns one active geometry/material cache, separate from lighting.
+Scene or virtual-surface dimensions rebuild bounded immutable sources; weather and celestial progress update paints without regenerating textures or blur.
+Both software and hardware Canvas paths remain supported without a new dependency or display setting.
+
+### Measured mountain rendering
+
+On the isolated Pixel emulator (API 36, software-emulated GPU), paired captures prewarmed clouds and used a cached backdrop, eight warm-up frames, and sixty measured frames for each clear/overcast/fog/rain/snow/thunderstorm case at 540×1200, 1200×540, and scrolling-width 810×1200.
+Hardware timing was split into callback waiting, recording/submission, image delivery and producer-fence completion, then CPU readback; the table measures recording through GPU completion, excluding callback scheduling and screenshot-copy overhead.
+
+| Hardware scene / surface | Before | After |
+| --- | ---: | ---: |
+| Clear, 540×1200 | 4.87 ms | 7.61 ms |
+| Fog, 810×1200 | 7.79 ms | 10.29 ms |
+| Thunderstorm, 810×1200 | 27.00 ms | 30.97 ms |
+
+Every measured hardware case remained below the 33 ms budget at p95; the worst after p95 was 32.90 ms, with 7 individual render-through-fence overruns in 1,080 frames versus 4 before.
+The complete screenshot-loop median increased from 17.15 to 18.87 ms and retains scheduling/readback stalls; it is not a renderer-only or launcher-jank measurement.
+Software backdrop-blit plus foreground median increased from 10.04 to 16.20 ms across the same cases, with no measured 33 ms overruns.
+This treatment adds rendering cost rather than claiming a performance improvement.
+
+Active terrain sources retained 1.05 MiB (1,103,120 bytes) at 1080×2400 and dropped to zero through inactive scenery modes across 72 scene/viewport transitions.
+Weather and celestial-progress updates retained the same immutable source objects; these figures measure terrain bitmap allocation, not total process or GPU memory.
+
 ## Daytime rendering performance
 
 The corona and optical halos cache disjoint alpha-coverage strips and clip drawing to them, skipping transparent overdraw while retaining the original bitmap sampling, SCREEN compositing, colors, opacity, and time-based animation.

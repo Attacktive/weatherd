@@ -61,6 +61,13 @@ class SceneryLightingTest {
 	}
 
 	@Test
+	fun `fully dense fog removes directional sunlight`() {
+		val denseFog = clearParams(DayPhase.DAY).copy(fogDensity = 1f)
+
+		assertEquals(0f, lighting(denseFog).directStrength, 0f)
+	}
+
+	@Test
 	fun `thunder alone attenuates direct light and surface contrast`() {
 		val clearDayParams = clearParams(DayPhase.DAY)
 		val thunderOnlyParams = clearDayParams.copy(thunder = true)
@@ -79,6 +86,13 @@ class SceneryLightingTest {
 	@Test
 	fun `dusk meets night continuously`() {
 		assertContinuous(DayPhase.DUSK, DayPhase.NIGHT)
+	}
+
+	@Test
+	fun `reduced night brightness preserves dusk to night terrain continuity`() {
+		for (brightness in listOf(0f, 0.4f)) {
+			assertContinuous(DayPhase.DUSK, DayPhase.NIGHT, brightness)
+		}
 	}
 
 	@Test
@@ -103,11 +117,11 @@ class SceneryLightingTest {
 		}
 	}
 
-	private fun assertContinuous(from: DayPhase, to: DayPhase) {
-		val before = lighting(clearParams(from).copy(celestialProgress = 1f))
-		val after = lighting(clearParams(to).copy(celestialProgress = 0f))
+	private fun assertContinuous(from: DayPhase, to: DayPhase, nightBrightness: Float = 1f) {
+		val before = lighting(clearParams(from).copy(celestialProgress = 1f, nightBrightnessScale = nightBrightness))
+		val after = lighting(clearParams(to).copy(celestialProgress = 0f, nightBrightnessScale = nightBrightness))
 
-		for (material in listOf(SceneryMaterial.ROCK, SceneryMaterial.SNOW)) {
+		for (material in listOf(SceneryMaterial.ROCK, SceneryMaterial.SNOW, SceneryMaterial.FOREST, SceneryMaterial.MEADOW)) {
 			for (plane in SceneryPlane.entries) {
 				for (diffuse in listOf(0f, 0.6f, 1f)) {
 					val first = surfaceColorFor(material, plane, diffuse, before)

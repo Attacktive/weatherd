@@ -255,7 +255,7 @@ class SceneRenderer(resources: Resources) {
 		}
 
 		// The scenery draws after the celestial body and clouds (they belong to the sky behind it) but before fog, rain, and lightning (weather happens in front of the horizon).
-		sceneryRenderer.draw(canvas, width, height, params, timeSeconds, paint.alpha)
+		paint.alpha = sceneryRenderer.draw(canvas, width, height, params, timeSeconds, paint.alpha)
 
 		if (params.fogDensity > 0f) {
 			drawFogDrift(canvas, w, h, params, timeSeconds)

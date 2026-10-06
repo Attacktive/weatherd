@@ -69,6 +69,39 @@ class SceneRendererStateTest {
 	}
 
 	@Test
+	fun cachedForegroundSceneryRecoversAfterBirdCrossingsWithTheSunHidden() {
+		for (backdrop in listOf(BackdropScene.MOUNTAINS, BackdropScene.BEACH, BackdropScene.COUNTRYSIDE, BackdropScene.METROPOLIS)) {
+			val params = SceneParams(DayPhase.DAY, 0f, 0f, null, false, 0f, backdropScene = backdrop, sunVisible = false, lensFlareEnabled = false)
+			val reused = SceneRenderer(resources)
+			val fresh = SceneRenderer(resources)
+			val backdropBitmap = createBitmap(WIDTH, HEIGHT)
+			reused.renderBackdrop(Canvas(backdropBitmap), WIDTH, HEIGHT, params)
+			fresh.renderBackdrop(Canvas(backdropBitmap), WIDTH, HEIGHT, params)
+			val actual = createBitmap(WIDTH, HEIGHT)
+			val expected = createBitmap(WIDTH, HEIGHT)
+
+			try {
+				// Advance through several complete flock schedules without rebuilding the static backdrop.
+				for (time in 0 until 1085 step 4) {
+					actual.eraseColor(Color.TRANSPARENT)
+					reused.renderForeground(Canvas(actual), WIDTH, HEIGHT, params, time.toFloat(), false)
+				}
+
+				actual.eraseColor(Color.TRANSPARENT)
+				reused.renderForeground(Canvas(actual), WIDTH, HEIGHT, params, 1085f, false)
+				fresh.renderForeground(Canvas(expected), WIDTH, HEIGHT, params, 1084f, false)
+				expected.eraseColor(Color.TRANSPARENT)
+				fresh.renderForeground(Canvas(expected), WIDTH, HEIGHT, params, 1085f, false)
+				assertTrue("$backdrop horizon retained opacity from a finished sky-detail pass", expected.sameAs(actual))
+			} finally {
+				backdropBitmap.recycle()
+				actual.recycle()
+				expected.recycle()
+			}
+		}
+	}
+
+	@Test
 	fun blackNightBrightnessDarkensPhotoBackdropWithoutChangingDay() {
 		val renderer = SceneRenderer(resources)
 		val photo = createBitmap(WIDTH, HEIGHT)

@@ -81,11 +81,14 @@ internal class MountainSurfaceRenderer(outlines: SceneryOutlines, surfaces: List
 		for (group in groups) {
 			val base = surfaceColorFor(group.material, group.plane, 0.55f, lighting)
 			group.basePaint.color = base
-			for (index in group.patches.indices) {
-				val patch = group.patches[index].patch
-				val diffuse = surfaceDiffuseFor(patch, lighting)
-				val color = surfaceColorFor(group.material, group.plane, diffuse, lighting)
-				group.patchPaints[index].colorFilter = PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN)
+			group.drawDirectionalFaces = lighting.directStrength > 0f
+			if (group.drawDirectionalFaces) {
+				for (index in group.patches.indices) {
+					val patch = group.patches[index].patch
+					val diffuse = surfaceDiffuseFor(patch, lighting)
+					val color = surfaceColorFor(group.material, group.plane, diffuse, lighting)
+					group.patchPaints[index].colorFilter = PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN)
+				}
 			}
 
 			textureMatrix[0] = (base ushr 16 and 255) / 128f
@@ -117,9 +120,11 @@ internal class MountainSurfaceRenderer(outlines: SceneryOutlines, surfaces: List
 			val checkpoint = canvas.save()
 			canvas.clipPath(group.path)
 			canvas.drawPath(group.path, group.basePaint)
-			for (index in group.patches.indices) {
-				val raster = group.patches[index].raster
-				canvas.drawBitmap(raster.bitmap, null, raster.destination, group.patchPaints[index])
+			if (group.drawDirectionalFaces) {
+				for (index in group.patches.indices) {
+					val raster = group.patches[index].raster
+					canvas.drawBitmap(raster.bitmap, null, raster.destination, group.patchPaints[index])
+				}
 			}
 
 			canvas.drawBitmap(group.texture.bitmap, null, group.texture.destination, group.texturePaint)
@@ -139,6 +144,7 @@ internal class MountainSurfaceRenderer(outlines: SceneryOutlines, surfaces: List
 }
 
 private class MountainMaterialGroup(val material: SceneryMaterial, val plane: SceneryPlane, val path: Path, val patches: Array<MountainPatchRaster>, val texture: MountainRaster, val edge: MountainRaster?, val contact: MountainRaster?) {
+	var drawDirectionalFaces = true
 	val basePaint = Paint(Paint.ANTI_ALIAS_FLAG)
 	val patchPaints = Array(patches.size) { Paint(Paint.FILTER_BITMAP_FLAG) }
 	val texturePaint = Paint(Paint.FILTER_BITMAP_FLAG)

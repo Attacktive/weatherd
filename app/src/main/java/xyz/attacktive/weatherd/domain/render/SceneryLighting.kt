@@ -87,17 +87,20 @@ internal class SceneryLighting {
 
 		val weather = skyOcclusionFor(params)
 		val stormTransmission = if (thunder) { 0.35f } else { 1f }
-		directStrength = daylight * sunVisibility(params.dayPhase, progress) * (1f - weather) * (1f - fog.coerceIn(0f, 1f) * 0.65f) * stormTransmission
+		directStrength = daylight * sunVisibility(params.dayPhase, progress) * (1f - weather) * (1f - fog.coerceIn(0f, 1f)) * stormTransmission
 		textureStrength = (0.12f + 0.88f * daylight) * (1f - weather * 0.78f) * stormTransmission
 		farAtmosphere = (0.30f + (1f - daylight) * 0.64f + weather * daylight * 0.32f).coerceAtMost(0.96f)
 		nearAtmosphere = (0.10f + (1f - daylight) * 0.80f + weather * daylight * 0.30f).coerceAtMost(0.94f)
 		directColor = blendSurfaceColor(sunColor(DayPhase.DAY, SunColorPreset.NATURAL), sunColor(params.dayPhase, SunColorPreset.NATURAL), warmth)
 		val sky = skyGradientFor(params).bottomColor
-		ambientColor = if (params.dayPhase == DayPhase.NIGHT) {
-			blendSurfaceColor(0xFF000000.toInt(), sky, nightBrightness.coerceIn(0f, 1f))
-		} else {
-			sky
+		val nightfall = when (params.dayPhase) {
+			DayPhase.DUSK -> duskNightStrength(progress)
+			DayPhase.NIGHT -> 1f
+			DayPhase.DAWN, DayPhase.DAY -> 0f
 		}
+
+		val ambientBrightness = 1f - nightfall * (1f - nightBrightness.coerceIn(0f, 1f))
+		ambientColor = blendSurfaceColor(0xFF000000.toInt(), sky, ambientBrightness)
 
 		return true
 	}
