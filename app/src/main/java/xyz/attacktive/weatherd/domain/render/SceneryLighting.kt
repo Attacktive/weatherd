@@ -109,7 +109,12 @@ internal fun surfaceDiffuseFor(patch: MountainSurfacePatch, lighting: SceneryLig
 /** Illuminates intrinsic material first, then integrates its depth plane with the actual sky. */
 internal fun surfaceColorFor(material: SceneryMaterial, plane: SceneryPlane, diffuse: Float, lighting: SceneryLighting): Int {
 	val intrinsic = sceneryMaterialColor(material)
-	val direct = lighting.directStrength * diffuse.coerceIn(0f, 1f) * 0.95f
+	val reflectance = when (material) {
+		SceneryMaterial.FOREST, SceneryMaterial.MEADOW -> 0.5f
+		else -> 1f
+	}
+
+	val direct = lighting.directStrength * diffuse.coerceIn(0f, 1f) * 0.95f * reflectance
 	val red = illuminatedChannel(intrinsic ushr 16 and 255, lighting.ambientColor ushr 16 and 255, lighting.directColor ushr 16 and 255, direct)
 	val green = illuminatedChannel(intrinsic ushr 8 and 255, lighting.ambientColor ushr 8 and 255, lighting.directColor ushr 8 and 255, direct)
 	val blue = illuminatedChannel(intrinsic and 255, lighting.ambientColor and 255, lighting.directColor and 255, direct)

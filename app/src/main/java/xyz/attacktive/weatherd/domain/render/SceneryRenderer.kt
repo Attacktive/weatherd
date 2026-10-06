@@ -40,6 +40,8 @@ internal class SceneryRenderer {
 	private var sceneryGlyphPaths = emptyArray<SceneryLayerPath>()
 	private var sceneryWindmill: SceneryWindmill? = null
 	private val palette = SceneryPalette()
+	private val mountainLighting = SceneryLighting()
+	private var mountain: MountainSurfaceRenderer? = null
 	private var horizonShader: Shader? = null
 	private var hazeShader: Shader? = null
 	private var reflectionShader: Shader? = null
@@ -75,11 +77,20 @@ internal class SceneryRenderer {
 			prepareGradients(w, h, params.dayPhase, skyBottom)
 		}
 
+		val activeMountain = mountain
+		if (activeMountain != null) {
+			val mountainLightChanged = mountainLighting.update(width, height, params)
+			if (rebuilt || mountainLightChanged) {
+				activeMountain.updateLighting(mountainLighting)
+			}
+		}
+
 		paint.style = Paint.Style.FILL
 		// Preserve the established sky-detail modulation of the decorative horizon glow, never the terrain fills.
 		paint.alpha = horizonAlpha
 		drawHorizonGlow(canvas, w, h)
 		paint.shader = null
+		paint.alpha = 255
 
 		drawSceneryLayers(canvas, SceneryPlane.FAR)
 		drawFarPlaneDetails(canvas, w, h, params, timeSeconds)
@@ -98,6 +109,7 @@ internal class SceneryRenderer {
 
 	/** Drops obsolete scene ownership without recycling sources that recorded hardware commands may still retain. */
 	private fun releaseScenery() {
+		mountain = null
 		sceneryLayerPaths = emptyArray()
 		sceneryGlyphPaths = emptyArray()
 		sceneryGulls = emptyArray()
@@ -117,6 +129,12 @@ internal class SceneryRenderer {
 
 	/** Fills one depth plane's cached layer paths, each in its material's color for the current weather and phase. */
 	private fun drawSceneryLayers(canvas: Canvas, plane: SceneryPlane) {
+		val activeMountain = mountain
+		if (activeMountain != null) {
+			activeMountain.drawPlane(canvas, plane)
+			return
+		}
+
 		for (layer in sceneryLayerPaths) {
 			if (layer.plane != plane) {
 				continue
@@ -141,12 +159,22 @@ internal class SceneryRenderer {
 		val w = width.toFloat()
 		val h = height.toFloat()
 		val outlines = checkNotNull(sceneryOutlinesFor(params.backdropScene, w / h))
-		sceneryLayerPaths = Array(outlines.layers.size) { index ->
-			val layer = outlines.layers[index]
-			val path = Path()
-			fillSceneryPath(path, layer.outline, w, h)
+		mountain = if (params.backdropScene == BackdropScene.MOUNTAINS) {
+			MountainSurfaceRenderer(outlines, mountainSurfacesFor(outlines, w / h), width, height)
+		} else {
+			null
+		}
 
-			SceneryLayerPath(path, layer.material, layer.plane)
+		sceneryLayerPaths = if (mountain == null) {
+			Array(outlines.layers.size) { index ->
+				val layer = outlines.layers[index]
+				val path = Path()
+				fillSceneryPath(path, layer.outline, w, h)
+
+				SceneryLayerPath(path, layer.material, layer.plane)
+			}
+		} else {
+			emptyArray()
 		}
 
 		fillAccentPath(sceneryAccentPath, outlines.accents, w, h)
@@ -164,11 +192,15 @@ internal class SceneryRenderer {
 		sceneryMarine = outlines.marine.toTypedArray()
 		sceneryBeaconXy = packPoints(outlines.beacons, w, h)
 		sceneryParasolXy = packPoints(outlines.parasols, w, h)
-		sceneryGlyphPaths = Array(outlines.glyphs.size) { index ->
-			val glyph = outlines.glyphs[index]
-			val path = Path().also { fillClosedOutline(it, glyph.outline, w, h) }
+		sceneryGlyphPaths = if (mountain == null) {
+			Array(outlines.glyphs.size) { index ->
+				val glyph = outlines.glyphs[index]
+				val path = Path().also { fillClosedOutline(it, glyph.outline, w, h) }
 
-			SceneryLayerPath(path, glyph.material, glyph.plane)
+				SceneryLayerPath(path, glyph.material, glyph.plane)
+			}
+		} else {
+			emptyArray()
 		}
 
 		sceneryWindmill = outlines.windmill
