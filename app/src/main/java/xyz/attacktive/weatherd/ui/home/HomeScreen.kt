@@ -128,6 +128,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 			nightBrightnessScale = nightBrightnessScale,
 			skySaturationScale = skySaturationScale,
 			skyColorPreset = skyColorPreset,
+			moonPhase = liveParams.moonPhase,
 			sunVisible = sunVisible,
 			moonVisible = moonVisible,
 			sunSizeScale = sunSizeScale,

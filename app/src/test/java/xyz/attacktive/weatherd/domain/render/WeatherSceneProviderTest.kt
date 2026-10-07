@@ -35,6 +35,7 @@ import xyz.attacktive.weatherd.domain.repository.ReverseGeocodingRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
 import xyz.attacktive.weatherd.domain.repository.WeatherRepository
 import xyz.attacktive.weatherd.domain.weather.conditionForWmoCode
+import xyz.attacktive.weatherd.domain.weather.moonPhaseFor
 import xyz.attacktive.weatherd.util.AppLogger
 
 class WeatherSceneProviderTest {
@@ -175,8 +176,29 @@ class WeatherSceneProviderTest {
 		assertEquals(1.6f, params.sunSizeScale, 0.0001f)
 		assertEquals(SunColorPreset.GOLDEN, params.sunColorPreset)
 		assertFalse(params.lensFlareEnabled)
+		assertEquals(moonPhaseFor(1_000_030L), params.moonPhase, 0.0001f)
 		coVerify(exactly = 0) { locationRepository.currentLocation() }
 		coVerify(exactly = 0) { weatherRepository.current(any(), any()) }
+	}
+
+	@Test
+	fun `scene simulator adopts the real calendar lunar phase at the evaluated moment`() = runTest {
+		every { settingsRepository.settings } returns flowOf(
+			AppSettings(
+				useDeviceLocation = true,
+				sceneSimulatorActive = true,
+				sceneSimulatorPresetIndex = 0,
+				sceneSimulatorDayPhase = DayPhase.NIGHT
+			)
+		)
+
+		provider.refresh(1_000_000L)
+
+		val epoch = 1_791_225_840L
+		val params = provider.paramsFor(epoch)
+
+		assertEquals(moonPhaseFor(epoch), params.moonPhase, 0.0001f)
+		assertNotEquals(0.5f, params.moonPhase)
 	}
 
 	@Test

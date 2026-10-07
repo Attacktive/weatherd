@@ -26,6 +26,7 @@ class SceneDebugPresetsTest {
 			assertEquals(1f, params.nightBrightnessScale, 0.0001f)
 			assertEquals(1f, params.skySaturationScale, 0.0001f)
 			assertEquals(SkyColorPreset.NATURAL, params.skyColorPreset)
+			assertEquals(0.5f, params.moonPhase, 0.0001f)
 			assertTrue(params.sunVisible)
 			assertTrue(params.moonVisible)
 			assertEquals(1f, params.sunSizeScale, 0.0001f)
@@ -134,6 +135,14 @@ class SceneDebugPresetsTest {
 		assertFalse(params.moonVisible)
 		assertEquals(1.7f, params.sunSizeScale, 0.0001f)
 		assertEquals(SunColorPreset.ORANGE, params.sunColorPreset)
+	}
+
+	@Test
+	fun `lunar phase reaches debug scene params`() {
+		val preset = SCENE_PRESETS.first { it.name == "CLEAR" }
+		val params = debugSceneParams(preset, DayPhase.NIGHT, moonPhase = 0.81f)
+
+		assertEquals(0.81f, params.moonPhase, 0.0001f)
 	}
 
 	@Test

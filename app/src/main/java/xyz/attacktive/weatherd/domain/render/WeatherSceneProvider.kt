@@ -103,7 +103,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	/** The scene to draw at [nowEpochSeconds]; a clock-lit clear sky until the first weather fetch lands. */
 	fun paramsFor(nowEpochSeconds: Long): SceneParams {
 		if (sceneSimulatorActive) {
-			return simulatorParams()
+			return simulatorParams(nowEpochSeconds)
 		}
 
 		val snapshot = this.snapshot ?: return fallbackParams(nowEpochSeconds)
@@ -318,7 +318,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	}
 
 	/** The persisted simulator scene, carrying the same display preferences as live weather while replacing its meteorological fields. */
-	private fun simulatorParams() = debugSceneParams(
+	private fun simulatorParams(nowEpochSeconds: Long) = debugSceneParams(
 		preset = SCENE_PRESETS[sceneSimulatorPresetIndex],
 		dayPhase = sceneSimulatorDayPhase,
 		precipitationScale = precipitationIntensityScale,
@@ -331,6 +331,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		nightBrightnessScale = nightBrightnessScale,
 		skySaturationScale = skySaturationScale,
 		skyColorPreset = skyColorPreset,
+		moonPhase = moonPhaseFor(nowEpochSeconds),
 		sunVisible = sunVisible,
 		moonVisible = moonVisible,
 		sunSizeScale = sunSizeScale,
