@@ -202,18 +202,7 @@ private fun materialFields(path: Path, outline: List<OutlinePoint>, material: Sc
 		for (y in 0 until bounds.height) {
 			val v = (bounds.destination.top + (y + 0.5f) / scale) / height
 			val broad = materialNoise(u * 13f, v * 13f, seed)
-			val variation = when (material) {
-				SceneryMaterial.ROCK -> {
-					val strata = sin((v + u * slope.coerceIn(-0.7f, 0.7f)) * 190f + broad * 3f)
-					val crevice = materialNoise(u * 40f, v * 18f, seed + 1)
-
-					broad * 0.48f + strata * 0.2f + crevice * 0.32f
-				}
-
-				SceneryMaterial.SNOW -> broad * 0.5f + materialNoise(u * 6f, v * 6f, seed + 2) * 0.5f
-				SceneryMaterial.FOREST -> broad * 0.4f + materialNoise(u * 48f, v * 48f, seed + 3) * 0.6f
-				else -> broad * 0.6f + materialNoise(u * 7f, v * 16f, seed + 4) * 0.4f
-			}
+			val variation = materialVariation(material, u, v, slope, broad, seed)
 
 			val delta = variation * 30f
 			if (delta > 0f) {
@@ -230,6 +219,19 @@ private fun materialFields(path: Path, outline: List<OutlinePoint>, material: Sc
 	val shadow = publishField(shadowPixels, bounds, path, scale)
 
 	return highlight to shadow
+}
+
+private fun materialVariation(material: SceneryMaterial, u: Float, v: Float, slope: Float, broad: Float, seed: Int) = when (material) {
+	SceneryMaterial.ROCK -> {
+		val strata = sin((v + u * slope.coerceIn(-0.7f, 0.7f)) * 190f + broad * 3f)
+		val crevice = materialNoise(u * 40f, v * 18f, seed + 1)
+
+		broad * 0.48f + strata * 0.2f + crevice * 0.32f
+	}
+
+	SceneryMaterial.SNOW -> broad * 0.5f + materialNoise(u * 6f, v * 6f, seed + 2) * 0.5f
+	SceneryMaterial.FOREST -> broad * 0.4f + materialNoise(u * 48f, v * 48f, seed + 3) * 0.6f
+	else -> broad * 0.6f + materialNoise(u * 7f, v * 16f, seed + 4) * 0.4f
 }
 
 /** Ridge softening and receiver-only forest contact both fade inside the original terrain rather than haloing into the sky. */
