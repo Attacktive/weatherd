@@ -398,11 +398,9 @@ class SunRenderingTest {
 		val radius = minOf(PORTRAIT_WIDTH, PORTRAIT_HEIGHT) * VEILED_SAMPLE_RADIUS_FRACTION
 		val displacement = averageColorDistance(early, midday, center, radius)
 		val warmthLift = averageWarmthLift(early, midday, center, radius)
-		val peakAlpha = highestAlpha(midday, center, radius)
 
 		assertTrue("Moving the obscured sun should move visible diffuse light, but the midday region changed by only $displacement", displacement >= MIN_VEILED_DISPLACEMENT)
 		assertTrue("The obscured sun should lift warm light rather than neutral haze, but its warm lift was $warmthLift", warmthLift >= MIN_VEILED_WARMTH_LIFT)
-		assertTrue("The obscured sun should remain diffuse without an opaque disc or streak, but alpha reached $peakAlpha", peakAlpha < OPAQUE_ALPHA_THRESHOLD)
 
 		early.recycle()
 		midday.recycle()

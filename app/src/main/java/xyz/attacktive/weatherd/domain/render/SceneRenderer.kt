@@ -46,7 +46,9 @@ import xyz.attacktive.weatherd.domain.weather.SEVERITY_STORM
  * Split into a static [renderBackdrop] (sky, overcast ceiling, fog base, haze, vignette — cache it) and an animated [renderForeground] (twinkling stars, a glowing sun/moon, the horizon scenery, drifting clouds/overcast/mist, precipitation, lightning) advanced by `timeSeconds`.
  * Cloud sheets are decoded once and sampled through repeating bitmap shaders; fog uses cached scrolling veil tiles, so neither regenerates textures per frame.
  */
-class SceneRenderer(resources: Resources) {
+class SceneRenderer internal constructor(resources: Resources, private val epochDaySource: CloudEpochDaySource) {
+	constructor(resources: Resources) : this(resources, SYSTEM_CLOUD_EPOCH_DAY_SOURCE)
+
 	var lensFlareOffsetX: Float = 0f
 	var lensFlareOffsetY: Float = 0f
 
@@ -69,6 +71,8 @@ class SceneRenderer(resources: Resources) {
 		var centerX = 0f
 		var centerY = 0f
 		lateinit var params: SceneParams
+		lateinit var frameLayout: NearCloudLayout
+		var nearState: NearCumulusState? = null
 		var pulse = 0f
 		var timeSeconds = 0f
 		var visibility = 1f
@@ -118,10 +122,16 @@ class SceneRenderer(resources: Resources) {
 		lazy { CloudLayer(resources, R.drawable.cloud_cirrus_broken) }
 	)
 	private val cloudDrawGeometry = CloudDrawGeometry()
+	private var cloudGradePhase: DayPhase? = null
+	private var cloudGradeProgress = Float.NaN
+	private var cloudGrade = CloudColorGrade.IDENTITY
+	private var cachedNearCloudLayout: NearCloudLayout? = null
+	private val nearCumulusFrameState = NearCumulusState()
+	private val cumulusFrameShadow = CloudLayer.CumulusShadow(null, null, 0f, 0f, 0f)
 
 	/*
 	 * The clear-sky placement profiles, ordered from fewest masses to most.
-	 * Each lazy layer owns a seeded daily layout while CloudLayer shares the decoded source sprites across all four profiles.
+	 * All profiles draw nested prefixes from the renderer's immutable daily snapshot and share decoded artwork.
 	 */
 	private val cumulusSteps = listOf(
 		lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_sparse) },
@@ -223,8 +233,21 @@ class SceneRenderer(resources: Resources) {
 
 	/** The animated layers (stars, sun/moon glow, horizon scenery, drifting clouds/overcast/mist, precipitation, lightning). */
 	fun renderForeground(canvas: Canvas, width: Int, height: Int, params: SceneParams, timeSeconds: Float, includeOverlayLabels: Boolean = true) {
+		val frameLayout = resolveNearCloudLayout(epochDaySource.currentEpochDay())
+		if (params.dayPhase != cloudGradePhase || params.celestialProgress != cloudGradeProgress) {
+			cloudGrade = cloudColorGradeFor(params.dayPhase, params.celestialProgress)
+			cloudGradePhase = params.dayPhase
+			cloudGradeProgress = params.celestialProgress
+		}
+
 		val w = width.toFloat()
 		val h = height.toFloat()
+		val nearState = if (shouldDrawDryClouds(params) && effectiveLowCloudiness(params) > SCATTERED_CLOUD_FLOOR) {
+			nearCumulusState(w, h, params, timeSeconds, effectiveLowCloudiness(params))
+		} else {
+			null
+		}
+
 		val celestialCenterX = w * CELESTIAL_X_FRACTION
 		val celestialCenterY = h * celestialHeightFraction(params.dayPhase, params.celestialProgress)
 		val precipKey = params.precipitation?.let { "${it.kind}-${(it.severity * 100f).toInt()}" } ?: "dry"
@@ -247,21 +270,22 @@ class SceneRenderer(resources: Resources) {
 		}
 
 		if (showsCelestialBody(params)) {
-			drawCelestialBody(canvas, w, h, celestialCenterX, celestialCenterY, params, timeSeconds)
+			drawCelestialBody(canvas, w, h, celestialCenterX, celestialCenterY, params, timeSeconds, frameLayout, nearState)
 		}
 
-		drawCirrus(canvas, w, h, params, timeSeconds)
+		drawCirrus(canvas, w, h, params, timeSeconds, frameLayout)
 
 		if (showsBirds(params)) {
 			drawBirds(canvas, w, h, timeSeconds, params.dayPhase)
 		}
 
-		if (params.precipitation == null && effectiveOpaqueCloudiness(params) > SCATTERED_CLOUD_FLOOR && effectiveOpaqueCloudiness(params) <= CLOUD_DECK_THRESHOLD) {
-			drawScatteredClouds(canvas, w, h, params, timeSeconds)
+		if (shouldDrawDryClouds(params)) {
+			drawDryClouds(canvas, w, h, params, timeSeconds, frameLayout, nearState)
 		}
 
-		if (shouldDrawOvercastBanks(effectiveOpaqueCloudiness(params), params.fogDensity, params.precipitation != null)) {
-			drawCloudDrift(canvas, w, h, params, timeSeconds)
+		val bankStrength = overcastBankStrength(params)
+		if (bankStrength > 0f) {
+			drawCloudDrift(canvas, w, h, params, timeSeconds, frameLayout, bankStrength)
 		}
 
 		if (showsOvercastSunTransmission(params)) {
@@ -296,6 +320,17 @@ class SceneRenderer(resources: Resources) {
 		if (includeOverlayLabels) {
 			renderOverlayLabels(canvas, width, height, params)
 		}
+	}
+
+	private fun resolveNearCloudLayout(epochDay: Long): NearCloudLayout {
+		val cached = cachedNearCloudLayout
+		if (cached != null && cached.epochDay == epochDay) {
+			return cached
+		}
+
+		val layout = CloudLayer.createNearCloudLayout(epochDay)
+		cachedNearCloudLayout = layout
+		return layout
 	}
 
 	/** Draws the optional weather/location HUD independently of scene translation, so live-wallpaper parallax does not slide interface text across launcher pages. */
@@ -1102,7 +1137,7 @@ class SceneRenderer(resources: Resources) {
 		drawSoftDot(canvas, nearFlakeSprite, headX, headY, 3f * envelope)
 	}
 
-	private fun drawCelestialBody(canvas: Canvas, width: Float, height: Float, centerX: Float, centerY: Float, params: SceneParams, timeSeconds: Float) {
+	private fun drawCelestialBody(canvas: Canvas, width: Float, height: Float, centerX: Float, centerY: Float, params: SceneParams, timeSeconds: Float, frameLayout: NearCloudLayout, nearState: NearCumulusState?) {
 		/*
 		 * Both discs size off the shorter side, so turning the device moves them without resizing them.
 		 * Sizing off width alone more than doubled the sun against the screen on rotation, which no real sky does.
@@ -1126,6 +1161,8 @@ class SceneRenderer(resources: Resources) {
 			sunRenderContext.centerX = centerX
 			sunRenderContext.centerY = centerY
 			sunRenderContext.params = params
+			sunRenderContext.frameLayout = frameLayout
+			sunRenderContext.nearState = nearState
 			sunRenderContext.pulse = pulse
 			sunRenderContext.timeSeconds = timeSeconds
 			sunRenderContext.visibility = sunVisibility(params.dayPhase, params.celestialProgress)
@@ -1395,15 +1432,15 @@ class SceneRenderer(resources: Resources) {
 	}
 
 	/**
-	 * Dedicated stratocumulus banks overlap into an overcast ceiling: a soft far veil, a middle support mass, one screen-dominant hero mass, and a low bridge veil.
+	 * Dedicated stratocumulus banks overlap into a connected ceiling, including a lower portrait veil.
 	 * The sources already carry overcast morphology and internal shading, so runtime work is limited to scale, tint, opacity, and drift.
 	 */
-	private fun drawCloudDrift(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
+	private fun drawCloudDrift(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float, frameLayout: NearCloudLayout, bankStrength: Float) {
 		if (!farOvercastBankDelegate.isInitialized() || !supportOvercastBankDelegate.isInitialized() || !heroOvercastBankDelegate.isInitialized()) {
 			return
 		}
 
-		val base = lerpColor(overcastCeiling(params.dayPhase), cloudTint(params.dayPhase), 0.58f)
+		val base = DAYLIGHT_OVERCAST_MATERIAL_TINT
 		val color = when {
 			params.thunder -> darken(base, 0.72f)
 			params.precipitation?.kind == PrecipitationKind.SNOW -> lighten(base, 0.12f)
@@ -1416,27 +1453,48 @@ class SceneRenderer(resources: Resources) {
 		val bob = bobAmplitude * (0.65f * sin(timeSeconds * 0.4f) + 0.35f * sin(timeSeconds * 1.07f))
 		val swell = 0.96f + 0.04f * (0.7f * sin(timeSeconds * 0.55f) + 0.3f * sin(timeSeconds * 1.31f))
 
-		val farPeriod = width * OVERCAST_FAR_VIEWPORTS
-		val supportPeriod = width * OVERCAST_SUPPORT_VIEWPORTS
-		val heroPeriod = width * OVERCAST_HERO_VIEWPORTS
-		val bridgePeriod = width * OVERCAST_BRIDGE_VIEWPORTS
+		val portrait = width < height
+		val farSpan = if (portrait) { OVERCAST_FAR_VIEWPORTS * PORTRAIT_OVERCAST_SPAN_SCALE } else { OVERCAST_FAR_VIEWPORTS }
+
+		val supportSpan = if (portrait) { 1.50f * PORTRAIT_OVERCAST_SPAN_SCALE } else { OVERCAST_SUPPORT_VIEWPORTS }
+
+		val heroSpan = if (portrait) { PORTRAIT_OVERCAST_HERO_VIEWPORTS } else { OVERCAST_HERO_VIEWPORTS }
+
+		val bridgeSpan = if (portrait) { 1.50f * PORTRAIT_OVERCAST_SPAN_SCALE } else { OVERCAST_BRIDGE_VIEWPORTS }
+
+		val farPeriod = width * farSpan
+		val supportPeriod = width * supportSpan
+		val heroPeriod = width * heroSpan
+		val bridgePeriod = width * bridgeSpan
 		val farOffset = wrapOffset(timeSeconds * width * (0.003f + params.windFactor * 0.006f) * params.windScale + drift * 0.35f - width * 0.22f, farPeriod)
 		val supportOffset = wrapOffset(timeSeconds * width * (0.006f + params.windFactor * 0.011f) * params.windScale + drift * 0.75f - width * 0.67f, supportPeriod)
 		val heroOffset = wrapOffset(timeSeconds * width * (0.009f + params.windFactor * 0.017f) * params.windScale + drift * 1.25f - width * 0.16f, heroPeriod)
 		val bridgeOffset = wrapOffset(timeSeconds * width * (0.004f + params.windFactor * 0.008f) * params.windScale + drift * 0.55f - width * 0.91f, bridgePeriod)
-		val farHeight = overcastBankHeight(width, height, OVERCAST_FAR_VIEWPORTS, OVERCAST_FAR_HEIGHT_SCALE)
-		val supportHeight = overcastBankHeight(width, height, OVERCAST_SUPPORT_VIEWPORTS, OVERCAST_SUPPORT_HEIGHT_SCALE)
-		val heroHeight = overcastBankHeight(width, height, OVERCAST_HERO_VIEWPORTS, OVERCAST_HERO_HEIGHT_SCALE)
-		val bridgeHeight = overcastBankHeight(width, height, OVERCAST_BRIDGE_VIEWPORTS, OVERCAST_BRIDGE_HEIGHT_SCALE)
-		val farAlpha = (255f * 0.46f * params.cloudScale).roundToInt()
-		val supportAlpha = (255f * 0.72f * params.cloudScale).roundToInt()
-		val heroAlpha = (255f * 0.88f * params.cloudScale * swell).roundToInt()
-		val bridgeAlpha = (255f * 0.50f * params.cloudScale).roundToInt()
+		val farHeight = overcastBankHeight(width, height, farSpan, if (portrait) { 1f } else { OVERCAST_FAR_HEIGHT_SCALE })
+		val supportHeight = overcastBankHeight(width, height, supportSpan, OVERCAST_SUPPORT_HEIGHT_SCALE)
+		val heroHeight = overcastBankHeight(width, height, heroSpan, if (portrait) { 1f } else { OVERCAST_HERO_HEIGHT_SCALE })
+		val bridgeHeight = overcastBankHeight(width, height, bridgeSpan, OVERCAST_BRIDGE_HEIGHT_SCALE)
+		val opacity = params.cloudScale * bankStrength
+		val farAlpha = (255f * 0.46f * opacity).roundToInt()
+		val supportAlpha = (255f * 0.72f * opacity).roundToInt()
+		val heroAlpha = (255f * 0.88f * opacity * swell).roundToInt()
+		val bridgeAlpha = (255f * 0.50f * opacity).roundToInt()
+		val farTop = if (portrait) { -0.08f } else { OVERCAST_FAR_TOP }
 
-		farOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, farHeight, farOffset, height * OVERCAST_FAR_TOP + bob * 0.25f, OVERCAST_FAR_VIEWPORTS), darken(color, 0.96f), farAlpha, contrast = params.cloudContrastScale)
-		supportOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, supportHeight, supportOffset, height * OVERCAST_SUPPORT_TOP - bob * 0.35f, OVERCAST_SUPPORT_VIEWPORTS), darken(color, 0.94f), supportAlpha, contrast = params.cloudContrastScale)
-		heroOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, heroHeight, heroOffset, height * OVERCAST_HERO_TOP - bob, OVERCAST_HERO_VIEWPORTS), color, heroAlpha, contrast = params.cloudContrastScale)
-		farOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, bridgeHeight, bridgeOffset, height * OVERCAST_BRIDGE_TOP + bob * 0.45f, OVERCAST_BRIDGE_VIEWPORTS), darken(color, 0.91f), bridgeAlpha, contrast = params.cloudContrastScale)
+		val supportTop = if (portrait) { 0.11f } else { OVERCAST_SUPPORT_TOP }
+
+		val heroTop = if (portrait) { 0.29f } else { OVERCAST_HERO_TOP }
+
+		farOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, farHeight, farOffset, height * farTop + bob * 0.25f, farSpan), darken(color, 0.96f), farAlpha, frameLayout, contrast = params.cloudContrastScale, grade = cloudGrade)
+		supportOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, supportHeight, supportOffset, height * supportTop - bob * 0.35f, supportSpan), darken(color, 0.94f), supportAlpha, frameLayout, contrast = params.cloudContrastScale, grade = cloudGrade)
+		heroOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, heroHeight, heroOffset, height * heroTop - bob, heroSpan), color, heroAlpha, frameLayout, contrast = params.cloudContrastScale, grade = cloudGrade)
+		farOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, bridgeHeight, bridgeOffset, height * OVERCAST_BRIDGE_TOP + bob * 0.45f, bridgeSpan), darken(color, 0.91f), bridgeAlpha, frameLayout, contrast = params.cloudContrastScale, grade = cloudGrade)
+		if (portrait) {
+			val lowerSpan = 1.80f * PORTRAIT_OVERCAST_SPAN_SCALE
+			val lowerHeight = overcastBankHeight(width, height, lowerSpan, 1f)
+			val lowerOffset = wrapOffset(timeSeconds * width * (0.005f + params.windFactor * 0.009f) * params.windScale + drift * 0.65f - width * 0.43f, width * lowerSpan)
+			farOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, lowerHeight, lowerOffset, height * 0.64f + bob * 0.35f, lowerSpan), darken(color, 0.91f), bridgeAlpha, frameLayout, contrast = params.cloudContrastScale, grade = cloudGrade)
+		}
 	}
 
 	/**
@@ -1499,7 +1557,7 @@ class SceneRenderer(resources: Resources) {
 		paint.style = Paint.Style.FILL
 	}
 
-	private fun drawCirrus(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
+	private fun drawCirrus(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float, frameLayout: NearCloudLayout) {
 		if (cirrusLayerDelegates.any { !it.isInitialized() }) {
 			return
 		}
@@ -1544,6 +1602,7 @@ class SceneRenderer(resources: Resources) {
 				geometry,
 				tint,
 				alpha,
+				frameLayout,
 				contrast = params.cloudContrastScale
 			)
 		}
@@ -1556,38 +1615,29 @@ class SceneRenderer(resources: Resources) {
 				geometry,
 				tint,
 				partialAlpha,
+				frameLayout,
 				contrast = params.cloudContrastScale
 			)
 		}
 	}
 
 	/**
-	 * The clear-sky deck: fair-weather cumulus over blue, rather than a veil whose opacity stands in for how much cloud there is.
-	 * Coverage lives in sparse, scattered, partly cloudy and broken placement populations, while CloudLayer rotates through multiple morphology variants inside each population.
-	 * A far deck of smaller, hazier masses sits lower toward the horizon, one broad support bank bridges the cloudier clear-sky range, and the near deck of full-size masses rides above it.
+	 * Solid dry-cloud populations also form the underlayer beneath incoming overcast banks.
+	 * Low cover grows nested near prefixes; mid cover independently thickens the hazier far deck.
 	 */
-	private fun drawScatteredClouds(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
-		val lowCloudiness = effectiveLowCloudiness(params)
+	private fun drawDryClouds(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float, frameLayout: NearCloudLayout, nearState: NearCumulusState?) {
 		val midCloudiness = effectiveMidCloudiness(params)
-		val lowCoverage = scatteredCloudCoverage(lowCloudiness)
 		val midCoverage = scatteredCloudCoverage(midCloudiness)
-		val cloudTop = scatteredCloudTop(width, height, params)
-		val nearState = if (lowCloudiness > SCATTERED_CLOUD_FLOOR) {
-			nearCumulusState(width, height, params, timeSeconds, lowCoverage)
-		} else {
-			null
-		}
-
-		val castShadow = nearState?.let { cumulusCastShadow(width, height, params, cloudTop, it) }
+		val cloudTop = nearCloudTop(width, height)
+		val castShadow = nearState?.let { cumulusCastShadow(width, height, params, cloudTop, it, frameLayout) }
 
 		drawSunVeil(canvas, width, height, params)
 		if (midCloudiness > SCATTERED_CLOUD_FLOOR) {
-			drawFarCumulus(canvas, width, height, params, timeSeconds, midCoverage, cloudTop, castShadow)
+			drawFarCumulus(canvas, width, height, params, timeSeconds, midCoverage, cloudTop, castShadow, frameLayout)
 		}
 
 		if (nearState != null) {
-			drawPartlyCloudBank(canvas, width, height, params, timeSeconds, lowCoverage)
-			drawNearCumulus(canvas, width, params, cloudTop, nearState)
+			drawNearCumulus(canvas, width, params, cloudTop, nearState, frameLayout)
 		}
 	}
 
@@ -1595,9 +1645,9 @@ class SceneRenderer(resources: Resources) {
 		((cloudiness - SCATTERED_CLOUD_FLOOR) / (CLOUD_DECK_THRESHOLD - SCATTERED_CLOUD_FLOOR)).coerceIn(0f, 1f)
 
 	/** Where the clear-sky decks may start; clouds are allowed to cross the sun and naturally occlude the light drawn behind them. */
-	private fun scatteredCloudTop(width: Float, height: Float, params: SceneParams): Float {
+	private fun nearCloudTop(width: Float, height: Float): Float {
 		return if (width < height) {
-			height * 0.10f
+			height * NEAR_CLOUD_PORTRAIT_TOP
 		} else {
 			height * 0.08f
 		}
@@ -1637,66 +1687,41 @@ class SceneRenderer(resources: Resources) {
 		)
 	}
 
-	private fun nearCumulusState(width: Float, height: Float, params: SceneParams, timeSeconds: Float, coverage: Float): NearCumulusState {
-		val deckHeight = if (width < height) {
-			height * 0.46f
-		} else {
-			height * 0.40f
-		}
+	private fun nearCumulusState(width: Float, height: Float, params: SceneParams, timeSeconds: Float, lowCloudiness: Float): NearCumulusState {
+		val state = nearCumulusFrameState
+		state.deckHeight = if (width < height) { height * NEAR_CLOUD_PORTRAIT_HEIGHT } else { height * 0.40f }
 
-		val step = nearCumulusStep(coverage)
-		val lower = step.toInt().coerceAtMost(cumulusSteps.size - 1)
-		val upper = lower + 1
-		val blend = step - lower
-		val alpha = (CUMULUS_NEAR_ALPHA * params.cloudScale).roundToInt().coerceIn(0, 255)
-		val growth = if (upper < cumulusSteps.size && blend >= CUMULUS_BLEND_FLOOR) {
-			(CUMULUS_NEAR_ALPHA * blend * params.cloudScale).roundToInt().coerceIn(0, 255)
-		} else {
-			0
-		}
+		state.offset = cumulusOffset(width, params, timeSeconds, 0.008f + params.windFactor * 0.016f, 1.5f, 0.78f, CLOUD_TEXTURE_VIEWPORTS)
+		val step = nearCumulusPopulationStep(lowCloudiness)
+		state.lower = step.toInt().coerceAtMost(cumulusSteps.size - 1)
+		state.upper = state.lower + 1
+		val blend = step - state.lower
+		val birth = if (state.lower == 0) { initialCumulusPopulationStrength(lowCloudiness) } else { 1f }
 
-		return NearCumulusState(
-			deckHeight = deckHeight,
-			offset = cumulusOffset(width, params, timeSeconds, 0.008f + params.windFactor * 0.016f, 1.5f, 0.78f, CLOUD_TEXTURE_VIEWPORTS),
-			lower = lower,
-			upper = upper,
-			alpha = alpha,
-			growth = growth
-		)
-	}
+		state.alpha = (CUMULUS_NEAR_ALPHA * params.cloudScale * birth).roundToInt().coerceIn(0, 255)
+		state.growth = if (state.upper < cumulusSteps.size) { (CUMULUS_NEAR_ALPHA * params.cloudScale * blend).roundToInt().coerceIn(0, 255) } else { 0 }
 
-	private fun nearCumulusStep(coverage: Float): Float {
-		val partlyIndex = CUMULUS_PARTLY_INDEX.toFloat()
-		val linearStep = coverage * (cumulusSteps.size - 1)
-		if (linearStep <= partlyIndex) {
-			return linearStep
-		}
-
-		if (coverage <= CUMULUS_BROKEN_BLEND_START) {
-			return partlyIndex
-		}
-
-		return partlyIndex + unlerp(CUMULUS_BROKEN_BLEND_START, 1f, coverage)
+		return state
 	}
 
 	/**
 	 * Samples the upper deck along the incoming light direction, then lets the far deck darken only the lower cloud sprites whose projected points are covered.
 	 * This keeps cast shadows on cloud material instead of painting translated silhouettes into the blue sky.
 	 */
-	private fun cumulusCastShadow(width: Float, height: Float, params: SceneParams, cloudTop: Float, nearState: NearCumulusState): CloudLayer.CumulusShadow? {
+	private fun cumulusCastShadow(width: Float, height: Float, params: SceneParams, cloudTop: Float, nearState: NearCumulusState, frameLayout: NearCloudLayout): CloudLayer.CumulusShadow? {
 		val strength = cumulusCastShadowStrength(params)
 		if (strength <= 0f) {
 			return null
 		}
 
 		val sizeScale = cloudSizeScale(params)
-		val lower = cumulusShadowSampler(width, cloudTop, nearState, nearState.lower, nearState.alpha, sizeScale)
-		val upper = cumulusShadowSampler(width, cloudTop, nearState, nearState.upper, nearState.growth, sizeScale)
+		val lower = cumulusShadowSampler(width, cloudTop, nearState, nearState.lower, nearState.alpha, sizeScale, frameLayout, CloudPopulationScope.FULL)
+		val upper = cumulusShadowSampler(width, cloudTop, nearState, nearState.upper, nearState.growth, sizeScale, frameLayout, CloudPopulationScope.ADDITIONS)
 		if (lower == null && upper == null) {
 			return null
 		}
 
-		return CloudLayer.CumulusShadow(
+		return cumulusFrameShadow.configure(
 			lower = lower,
 			upper = upper,
 			sourceOffsetX = width * (CELESTIAL_X_FRACTION - 0.5f) * CUMULUS_CAST_SHADOW_HORIZONTAL_PROJECTION,
@@ -1718,7 +1743,9 @@ class SceneRenderer(resources: Resources) {
 		nearState: NearCumulusState,
 		index: Int,
 		alpha: Int,
-		sizeScale: Float
+		sizeScale: Float,
+		frameLayout: NearCloudLayout,
+		populationScope: CloudPopulationScope
 	): CloudLayer.OpacitySampler? {
 		if (index !in cumulusSteps.indices || alpha <= 0) {
 			return null
@@ -1730,7 +1757,9 @@ class SceneRenderer(resources: Resources) {
 			nearState.offset,
 			cloudTop,
 			alpha,
-			sizeScale
+			frameLayout,
+			sizeScale,
+			populationScope
 		)
 	}
 
@@ -1757,10 +1786,11 @@ class SceneRenderer(resources: Resources) {
 		timeSeconds: Float,
 		coverage: Float,
 		cloudTop: Float,
-		castShadow: CloudLayer.CumulusShadow?
+		castShadow: CloudLayer.CumulusShadow?,
+		frameLayout: NearCloudLayout
 	) {
 		val isPortrait = width < height
-		val tint = lerpColor(cumulusTint(params.dayPhase, params.celestialProgress), skyGradientFor(params).topColor, CUMULUS_FAR_HAZE)
+		val tint = lerpColor(Color.WHITE, skyGradientFor(params).topColor, CUMULUS_FAR_HAZE)
 		val farCoverage = coverage * coverage
 		val alpha = ((CUMULUS_FAR_MIN_ALPHA + CUMULUS_FAR_ALPHA_RANGE * farCoverage) * params.cloudScale).roundToInt().coerceIn(0, 255)
 		val drop = if (isPortrait) {
@@ -1784,59 +1814,31 @@ class SceneRenderer(resources: Resources) {
 			cloudSizeScale(params)
 		)
 
-		farCumulusDeck.draw(canvas, geometry, tint, alpha, shadow = castShadow, contrast = params.cloudContrastScale)
-	}
-
-	/** One broad support bank replaces several detached puffs near the partly-cloudy end of the clear-sky range without enabling the overcast ceiling. */
-	private fun drawPartlyCloudBank(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float, coverage: Float) {
-		if (!heroOvercastBankDelegate.isInitialized()) {
-			return
-		}
-
-		val weight = unlerp(PARTLY_BANK_START_COVERAGE, PARTLY_BANK_FULL_COVERAGE, coverage)
-		if (weight <= 0f) {
-			return
-		}
-
-		val period = width * PARTLY_BANK_VIEWPORTS
-		val surge = width * 0.004f * params.windFactor * params.windScale
-		val drift = surge * (0.6f * sin(timeSeconds * 0.19f) + 0.4f * sin(timeSeconds * 0.47f))
-		val offset = wrapOffset(timeSeconds * width * (0.0045f + params.windFactor * 0.009f) * params.windScale + drift * 0.60f - width * PARTLY_BANK_PHASE, period)
-		val bankHeight = overcastBankHeight(width, height, PARTLY_BANK_VIEWPORTS, PARTLY_BANK_HEIGHT_SCALE)
-		val tint = lerpColor(cumulusTint(params.dayPhase, params.celestialProgress), skyGradientFor(params).topColor, PARTLY_BANK_HAZE)
-		val alpha = (255f * PARTLY_BANK_ALPHA * weight * params.cloudScale).roundToInt().coerceIn(0, 255)
-
-		heroOvercastBank.draw(
-			canvas,
-			cloudDrawGeometry.configure(width, bankHeight, offset, height * PARTLY_BANK_TOP, PARTLY_BANK_VIEWPORTS),
-			tint,
-			alpha,
-			contrast = params.cloudContrastScale
-		)
+		farCumulusDeck.draw(canvas, geometry, tint, alpha, frameLayout, shadow = castShadow, contrast = params.cloudContrastScale, grade = cloudGrade)
 	}
 
 	/**
 	 * The near deck: full-size masses at the coverage the weather asks for.
-	 * The steps share a noise field, so drawing the next one over the current at partial alpha grows each mass rather than dissolving it into a different sky.
+	 * Established prefix bodies stay in place at material opacity while only the next suffix grows.
 	 */
-	private fun drawNearCumulus(canvas: Canvas, width: Float, params: SceneParams, cloudTop: Float, state: NearCumulusState) {
-		val tint = cumulusTint(params.dayPhase, params.celestialProgress)
+	private fun drawNearCumulus(canvas: Canvas, width: Float, params: SceneParams, cloudTop: Float, state: NearCumulusState, frameLayout: NearCloudLayout) {
+		val tint = Color.WHITE
 		val geometry = cloudDrawGeometry.configure(width, state.deckHeight, state.offset, cloudTop, sizeScale = cloudSizeScale(params))
-		cumulusSteps[state.lower].value.draw(canvas, geometry, tint, state.alpha, contrast = params.cloudContrastScale)
+		cumulusSteps[state.lower].value.draw(canvas, geometry, tint, state.alpha, frameLayout, contrast = params.cloudContrastScale, grade = cloudGrade)
 
 		if (state.upper < cumulusSteps.size && state.growth > 0) {
-			cumulusSteps[state.upper].value.draw(canvas, geometry, tint, state.growth, contrast = params.cloudContrastScale)
+			cumulusSteps[state.upper].value.draw(canvas, geometry, tint, state.growth, frameLayout, contrast = params.cloudContrastScale, grade = cloudGrade, populationScope = CloudPopulationScope.ADDITIONS)
 		}
 	}
 
-	private data class NearCumulusState(
-		val deckHeight: Float,
-		val offset: Float,
-		val lower: Int,
-		val upper: Int,
-		val alpha: Int,
-		val growth: Int
-	)
+	private class NearCumulusState {
+		var deckHeight = 0f
+		var offset = 0f
+		var lower = 0
+		var upper = 0
+		var alpha = 0
+		var growth = 0
+	}
 
 	/** A deck's horizontal position: a steady drift at its own speed plus a shared gust, wrapped to that deck's own repeat span. */
 	private fun cumulusOffset(width: Float, params: SceneParams, timeSeconds: Float, speed: Float, gust: Float, phase: Float, viewports: Float): Float {
@@ -2629,37 +2631,18 @@ class SceneRenderer(resources: Resources) {
 	}
 
 	private fun sampleSunCloudEdgeProfile(sun: SunRenderContext, radius: Float): Boolean {
-		if (!canSampleSunCloudProfile(sun.params)) {
+		val state = sun.nearState
+		if (state == null || sun.params.cloudScale <= 0f) {
 			return false
 		}
 
-		val coverage = ((effectiveLowCloudiness(sun.params) - SCATTERED_CLOUD_FLOOR) / (CLOUD_DECK_THRESHOLD - SCATTERED_CLOUD_FLOOR)).coerceIn(0f, 1f)
-		val cloudTop = scatteredCloudTop(sun.width, sun.height, sun.params)
-		val offset = cumulusOffset(sun.width, sun.params, sun.timeSeconds, 0.008f + sun.params.windFactor * 0.016f, 1.5f, 0.78f, CLOUD_TEXTURE_VIEWPORTS)
-		val deckHeight = if (sun.width < sun.height) sun.height * 0.46f else sun.height * 0.40f
-		val step = coverage * (cumulusSteps.size - 1)
-		val lowerIndex = step.toInt().coerceAtMost(cumulusSteps.size - 1)
-		val blend = step - lowerIndex
-		val lowerAlpha = (CUMULUS_NEAR_ALPHA * sun.params.cloudScale).roundToInt().coerceIn(0, 255)
-		val upperIndex = lowerIndex + 1
-		val upperAlpha = sunCloudUpperAlpha(upperIndex, blend, sun.params.cloudScale)
+		val cloudTop = nearCloudTop(sun.width, sun.height)
 		val sizeScale = cloudSizeScale(sun.params)
-		val lowerSampler = cumulusSteps[lowerIndex].value.opacitySampler(sun.width, deckHeight, offset, cloudTop, lowerAlpha, sizeScale) ?: return false
-		val upperSampler = if (upperAlpha > 0 && upperIndex < cumulusSteps.size) cumulusSteps[upperIndex].value.opacitySampler(sun.width, deckHeight, offset, cloudTop, upperAlpha, sizeScale) else null
+		val lowerSampler = cumulusShadowSampler(sun.width, cloudTop, state, state.lower, state.alpha, sizeScale, sun.frameLayout, CloudPopulationScope.FULL) ?: return false
+		val upperSampler = cumulusShadowSampler(sun.width, cloudTop, state, state.upper, state.growth, sizeScale, sun.frameLayout, CloudPopulationScope.ADDITIONS)
 		val strongestOpacity = sampleSunCloudRows(sun, radius, lowerSampler, upperSampler)
 		val strongestEdge = computeSunCloudEdgeEnergy()
 		return strongestOpacity > SUN_SHAFT_MIN_OBSTRUCTION && strongestEdge >= SUN_SHAFT_EDGE_THRESHOLD
-	}
-
-	private fun canSampleSunCloudProfile(params: SceneParams) =
-		params.precipitation == null && effectiveLowCloudiness(params) > SCATTERED_CLOUD_FLOOR && effectiveLowCloudiness(params) <= CLOUD_DECK_THRESHOLD && params.cloudScale > 0f
-
-	private fun sunCloudUpperAlpha(upperIndex: Int, blend: Float, cloudScale: Float): Int {
-		if (upperIndex >= cumulusSteps.size || blend < CUMULUS_BLEND_FLOOR) {
-			return 0
-		}
-
-		return (CUMULUS_NEAR_ALPHA * blend * cloudScale).roundToInt().coerceIn(0, 255)
 	}
 
 	private fun sampleSunCloudRows(sun: SunRenderContext, radius: Float, lowerSampler: CloudLayer.OpacitySampler, upperSampler: CloudLayer.OpacitySampler?): Float {
@@ -3165,11 +3148,14 @@ class SceneRenderer(resources: Resources) {
 	}
 
 	companion object {
-		internal fun shouldDrawOvercastBanks(cloudiness: Float, fogDensity: Float, hasPrecipitation: Boolean) =
-			(cloudiness > CLOUD_DECK_THRESHOLD || hasPrecipitation) && (fogDensity < DENSE_FOG_CLOUD_CUTOFF || hasPrecipitation)
-
-		internal fun overcastBankHeight(width: Float, height: Float, viewports: Float, heightScale: Float) =
-			minOf(width * viewports / OVERCAST_SOURCE_ASPECT * heightScale, height * OVERCAST_MAX_BANK_HEIGHT_FRACTION)
+		internal fun overcastBankHeight(width: Float, height: Float, viewports: Float, heightScale: Float): Float {
+			val sourceHeight = width * viewports / OVERCAST_SOURCE_ASPECT * heightScale
+			return if (width < height) {
+				sourceHeight
+			} else {
+				minOf(sourceHeight, height * OVERCAST_MAX_BANK_HEIGHT_FRACTION)
+			}
+		}
 
 		private const val STAR_SEED = 1L
 		private const val PRECIP_SEED = 3L
@@ -3249,21 +3235,6 @@ class SceneRenderer(resources: Resources) {
 		private const val CUMULUS_FAR_MIN_ALPHA = 60f
 		private const val CUMULUS_FAR_ALPHA_RANGE = 120f
 
-		/** Cross-fade weights below this draw nothing, so the common case stays at two deck draws rather than three. */
-		private const val CUMULUS_BLEND_FLOOR = 0.02f
-		private const val CUMULUS_PARTLY_INDEX = 2
-		private const val CUMULUS_BROKEN_BLEND_START = 0.90f
-
-		private const val PARTLY_BANK_START_COVERAGE = 0.70f
-		private const val PARTLY_BANK_FULL_COVERAGE = 0.95f
-		private const val PARTLY_BANK_VIEWPORTS = 1.72f
-		private const val PARTLY_BANK_HEIGHT_SCALE = 0.58f
-		private const val PARTLY_BANK_TOP = 0.27f
-		private const val PARTLY_BANK_PHASE = 0.34f
-		private const val PARTLY_BANK_HAZE = 0.34f
-		private const val PARTLY_BANK_ALPHA = 0.28f
-
-		private const val DENSE_FOG_CLOUD_CUTOFF = 0.8f
 		private const val OVERCAST_SOURCE_ASPECT = 3f
 		private const val OVERCAST_MAX_BANK_HEIGHT_FRACTION = 0.55f
 		private const val OVERCAST_FAR_VIEWPORTS = 1.35f
@@ -3623,6 +3594,8 @@ private const val SUNSET_FADE_START = 0.15f
 private const val SUNSET_FADE_END = 0.92f
 
 private const val CLOUD_DECK_THRESHOLD = 0.75f
+private const val PORTRAIT_OVERCAST_SPAN_SCALE = 1.25f
+private const val PORTRAIT_OVERCAST_HERO_VIEWPORTS = 3f
 
 internal const val MAX_WIND_SLANT = 1.4f
 
@@ -3752,23 +3725,6 @@ private fun sunColor(dayPhase: DayPhase, preset: SunColorPreset) = when (preset)
 	SunColorPreset.ORANGE -> Color.rgb(255, 188, 118)
 }
 
-/**
- * The multiply a cumulus deck draws through.
- * The textures carry their own sunlit-to-shadow ramp, so daylight has to pass through untouched or the shading gets applied twice and the crowns go gray.
- */
-private fun cumulusTint(dayPhase: DayPhase, celestialProgress: Float) = when (dayPhase) {
-	DayPhase.DAY -> Color.WHITE
-	DayPhase.DAWN -> lerpColor(Color.rgb(252, 226, 224), Color.WHITE, dawnDaylightStrength(celestialProgress))
-	DayPhase.DUSK -> {
-		val sunset = lerpColor(Color.WHITE, Color.rgb(246, 206, 198), duskWarmStrength(celestialProgress))
-
-		lerpColor(sunset, Color.rgb(86, 96, 120), duskNightStrength(celestialProgress))
-	}
-
-	DayPhase.NIGHT -> Color.rgb(86, 96, 120)
-}
-
-
 private fun cirrusTint(dayPhase: DayPhase) = when (dayPhase) {
 	DayPhase.DAY -> Color.rgb(249, 251, 255)
 	DayPhase.DAWN -> Color.rgb(246, 230, 234)
@@ -3776,20 +3732,14 @@ private fun cirrusTint(dayPhase: DayPhase) = when (dayPhase) {
 	DayPhase.NIGHT -> Color.rgb(116, 132, 164)
 }
 
-private fun cloudTint(dayPhase: DayPhase) = when (dayPhase) {
-	DayPhase.DAY -> Color.rgb(238, 242, 248)
-	DayPhase.DAWN -> Color.rgb(226, 206, 214)
-	DayPhase.DUSK -> Color.rgb(198, 176, 184)
-	DayPhase.NIGHT -> Color.rgb(64, 72, 90)
-}
-
-
 private fun overcastCeiling(dayPhase: DayPhase) = when (dayPhase) {
 	DayPhase.DAY -> Color.rgb(120, 128, 140)
 	DayPhase.DAWN -> Color.rgb(96, 90, 104)
 	DayPhase.DUSK -> Color.rgb(78, 74, 92)
 	DayPhase.NIGHT -> Color.rgb(30, 36, 50)
 }
+
+private val DAYLIGHT_OVERCAST_MATERIAL_TINT = lerpColor(overcastCeiling(DayPhase.DAY), Color.rgb(238, 242, 248), 0.58f)
 
 private fun hazeColorFor(dayPhase: DayPhase) = when (dayPhase) {
 	DayPhase.DAY -> Color.rgb(200, 208, 216)

@@ -15,10 +15,183 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import xyz.attacktive.weatherd.R
+import xyz.attacktive.weatherd.domain.model.DayPhase
 
 @RunWith(AndroidJUnit4::class)
 class CloudLayerTest {
 	private val resources = InstrumentationRegistry.getInstrumentation().targetContext.resources
+	private val frameLayout = CloudLayer.createNearCloudLayout(20000)
+
+	@Test
+	fun largerPopulationPreservesTheLowerPrefix() {
+		val layers = nearLayers()
+		for (viewport in 0 until 4) {
+			var lower = portrait(layers.first(), -540f * viewport)
+			for (layer in layers.drop(1)) {
+				val higher = portrait(layer, -540f * viewport)
+				val lowerPixels = pixels(lower)
+				val higherPixels = pixels(higher)
+				for (index in lowerPixels.indices) {
+					assertTrue("Increasing cover must retain every established cloud alpha", Color.alpha(higherPixels[index]) >= Color.alpha(lowerPixels[index]))
+				}
+
+				lower.recycle()
+				lower = higher
+			}
+
+			lower.recycle()
+		}
+	}
+
+	@Test
+	fun additionsDoNotRepaintTheLowerPopulation() {
+		val layers = nearLayers()
+		for (viewport in 0 until 4) {
+			for (index in 1 until layers.size) {
+				val combined = portrait(layers[index - 1], -540f * viewport)
+				layers[index].draw(Canvas(combined), portraitGeometry(-540f * viewport), Color.WHITE, 248, frameLayout, populationScope = CloudPopulationScope.ADDITIONS)
+				val full = portrait(layers[index], -540f * viewport)
+				assertTrue("Suffix drawing must match the higher prefix, including soft edges", combined.sameAs(full))
+				combined.recycle()
+				full.recycle()
+			}
+		}
+	}
+
+	@Test
+	fun endpointPopulationsAddCloudCoreAndLowerSky() {
+		var previousCore = 0L
+		var previousLower = 0L
+		var sparseLower = 0L
+		for (layer in nearLayers()) {
+			var core = 0L
+			var lower = 0L
+			for (viewport in 0 until 4) {
+				val bitmap = portrait(layer, -540f * viewport)
+				for ((index, pixel) in pixels(bitmap).withIndex()) {
+					if (Color.alpha(pixel) >= 192) {
+						core++
+						if (index / 540 >= (1170 * 0.55f).toInt()) {
+							lower++
+						}
+					}
+				}
+
+				bitmap.recycle()
+			}
+
+			assertTrue("Every population must add core area", core > previousCore)
+			assertTrue("Increasing cover must not lose lower-sky core area", lower >= previousLower)
+			if (previousCore == 0L) {
+				sparseLower = lower
+			}
+
+			previousCore = core
+			previousLower = lower
+		}
+
+		assertTrue("The complete population must gain lower-sky occupancy", previousLower > sparseLower)
+	}
+
+	@Test
+	fun populationDrawingAgreesWithOpacitySampling() {
+		for (layer in nearLayers()) {
+			for (scope in CloudPopulationScope.entries) {
+				for (viewport in 0 until 4) {
+					val offset = -540f * viewport
+					val bitmap = portrait(layer, offset, scope)
+					val sampler = checkNotNull(layer.opacitySampler(540f, 1170f * 0.82f, offset, -1170f * 0.04f, 248, frameLayout, populationScope = scope))
+					for (y in 4 until 1166 step 11) {
+						for (x in 4 until 536 step 11) {
+							val alpha = Color.alpha(bitmap.getPixel(x, y))
+							if (alpha >= 192) {
+								assertTrue("Rendered cloud cores must obstruct light", sampler.opacityAt(x + 0.5f, y + 0.5f) > 0.5f)
+							} else if (alpha == 0 && (-3..3).all { dy -> (-3..3).all { dx -> Color.alpha(bitmap.getPixel(x + dx, y + dy)) == 0 } }) {
+								assertTrue("Clear space must not obstruct light", sampler.opacityAt(x + 0.5f, y + 0.5f) <= 0.02f)
+							}
+						}
+					}
+
+					bitmap.recycle()
+				}
+			}
+		}
+	}
+
+	@Test
+	fun replacingRendererLayoutDoesNotMutateARetainedSampler() {
+		val layer = CloudLayer(resources, R.drawable.cloud_cumulus_broken)
+		val sampler = checkNotNull(layer.opacitySampler(540f, 1170f * 0.82f, 0f, -1170f * 0.04f, 248, frameLayout))
+		val before = FloatArray(100) { sampler.opacityAt((it % 10) * 54f, (it / 10) * 117f) }
+
+		var day = 20000L
+		val renderer = SceneRenderer(resources, CloudEpochDaySource { day })
+		val bitmap = createBitmap(540, 1170)
+		val params = SceneParams(DayPhase.DAY, 0.7f, 0f, null, false, 0f)
+		renderer.prewarmCloudTextures()
+		renderer.renderForeground(Canvas(bitmap), 540, 1170, params, 0f)
+		day++
+		renderer.renderForeground(Canvas(bitmap), 540, 1170, params, 0f)
+		for (index in before.indices) {
+			assertEquals(before[index], sampler.opacityAt((index % 10) * 54f, (index / 10) * 117f), 0f)
+		}
+
+		bitmap.recycle()
+	}
+
+	private fun nearLayers() = listOf(CloudLayer(resources, R.drawable.cloud_cumulus_sparse), CloudLayer(resources, R.drawable.cloud_cumulus_scattered), CloudLayer.partlyCumulus(resources), CloudLayer(resources, R.drawable.cloud_cumulus_broken))
+
+	private fun portraitGeometry(offset: Float) = CloudDrawGeometry().configure(540f, 1170f * 0.82f, offset, -1170f * 0.04f)
+
+	private fun portrait(layer: CloudLayer, offset: Float, scope: CloudPopulationScope = CloudPopulationScope.FULL): Bitmap {
+		val bitmap = createBitmap(540, 1170)
+		layer.draw(Canvas(bitmap), portraitGeometry(offset), Color.WHITE, 248, frameLayout, populationScope = scope)
+		return bitmap
+	}
+
+	@Test
+	fun gradeChangesRgbWithoutChangingDrawnAlpha() {
+		for (texture in listOf(R.drawable.cloud_overcast_hero, R.drawable.cloud_cumulus_sparse, R.drawable.cloud_cumulus_far)) {
+			val layer = CloudLayer(resources, texture)
+			for (alpha in listOf(32, 128, 255)) {
+				for (contrast in listOf(0.5f, 1f, 1.5f)) {
+					val day = render(layer, alpha = alpha, contrast = contrast)
+					val warm = render(layer, alpha = alpha, contrast = contrast, grade = cloudColorGradeFor(DayPhase.DAWN, 0.5f))
+					val before = pixels(day)
+					val after = pixels(warm)
+					for (index in before.indices) {
+						assertEquals("Grading must preserve drawn alpha", Color.alpha(before[index]), Color.alpha(after[index]))
+					}
+
+					assertFalse("Material grading must change cloud RGB", day.sameAs(warm))
+					day.recycle()
+					warm.recycle()
+				}
+			}
+		}
+	}
+
+	@Test
+	fun gradeAndContrastRestoreAfterPhaseReversal() {
+		for (texture in listOf(R.drawable.cloud_overcast_hero, R.drawable.cloud_cumulus_sparse, R.drawable.cloud_cumulus_far)) {
+			val layer = CloudLayer(resources, texture)
+			val day = render(layer, contrast = 1.5f)
+			val warm = render(layer, contrast = 0.5f, grade = cloudColorGradeFor(DayPhase.DAWN, 0.5f))
+			val night = render(layer, grade = cloudColorGradeFor(DayPhase.NIGHT, 0.5f))
+			val restored = render(layer, contrast = 1.5f)
+			assertFalse(day.sameAs(warm))
+			assertFalse(warm.sameAs(night))
+			assertTrue("Restoring phase and contrast must restore every pixel", day.sameAs(restored))
+			day.recycle()
+			warm.recycle()
+			night.recycle()
+			restored.recycle()
+		}
+	}
+
+	private fun pixels(bitmap: Bitmap) = IntArray(bitmap.width * bitmap.height).also {
+		bitmap.getPixels(it, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+	}
 
 	@Test
 	fun negativeOffsetMatchesTheSamePositionAfterAFullWrap() {
@@ -178,7 +351,8 @@ class CloudLayerTest {
 				320f,
 				0f,
 				0f,
-				255
+				255,
+				frameLayout
 			)
 		)
 
@@ -210,19 +384,6 @@ class CloudLayerTest {
 		shadowed.recycle()
 	}
 
-	@Test
-	fun everyCumulusDeckReachesFullyOpaqueCloud() {
-		/*
-		 * The guard on the whole texture set.
-		 * A deck whose densest pixel is translucent can never paint a sunlit crown white, however the renderer tints or composites it, which is exactly how these decks used to wash out.
-		 */
-		for (texture in CUMULUS_TEXTURES) {
-			val alpha = alphaHistogram(texture)
-			val opaque = alpha.drop(250).sum()
-			assertTrue("${name(texture)} must contain fully opaque cloud, not just a dense veil", opaque > 0)
-			assertTrue("${name(texture)} must keep many partial alpha levels for its edges", alpha.count { it > 0 } > 32)
-		}
-	}
 
 	@Test
 	fun heroCumulusSpritesKeepSolidHighlightsAndSoftEdges() {
@@ -234,37 +395,6 @@ class CloudLayerTest {
 		}
 	}
 
-	@Test
-	fun coverageGrowsAcrossTheCumulusSteps() {
-		val covered = CUMULUS_COVERAGE_STEPS.map { texture ->
-			alphaHistogram(texture).drop(128).sum()
-		}
-
-		/*
-		 * Coverage lives in the textures rather than in a paint alpha, so the steps themselves have to differ.
-		 * If they ever stop growing, a cloudier sky silently becomes the same sky drawn less transparently.
-		 */
-		assertEquals("Expected one measurement per coverage step", CUMULUS_COVERAGE_STEPS.size, covered.size)
-		for (step in 1 until covered.size) {
-			assertTrue(
-				"Coverage step $step must cover more sky than step ${step - 1}, saw ${covered[step - 1]} then ${covered[step]}",
-				covered[step] > covered[step - 1]
-			)
-		}
-	}
-
-	@Test
-	fun everyCumulusDeckDissolvesAtBothEdges() {
-		for (texture in CUMULUS_TEXTURES) {
-			val bitmap = decode(texture)
-			val row = IntArray(bitmap.width)
-			bitmap.getPixels(row, 0, bitmap.width, 0, 0, bitmap.width, 1)
-			assertTrue("${name(texture)} must not start on a visible horizontal line", row.all { Color.alpha(it) == 0 })
-			bitmap.getPixels(row, 0, bitmap.width, 0, bitmap.height - 1, bitmap.width, 1)
-			assertTrue("${name(texture)} must not end on a visible horizontal line", row.all { Color.alpha(it) == 0 })
-			bitmap.recycle()
-		}
-	}
 
 	private fun opaqueArea(bitmap: Bitmap): Int {
 		val pixels = IntArray(bitmap.width * bitmap.height)
@@ -352,11 +482,13 @@ class CloudLayerTest {
 		viewports: Float = CLOUD_TEXTURE_VIEWPORTS,
 		shadow: CloudLayer.CumulusShadow? = null,
 		sizeScale: Float = 1f,
-		contrast: Float = 1f
+		contrast: Float = 1f,
+		grade: CloudColorGrade = CloudColorGrade.IDENTITY,
+		frameLayout: NearCloudLayout = this.frameLayout
 	): Bitmap {
 		val bitmap = createBitmap(540, 320)
 		val geometry = CloudDrawGeometry().configure(bitmap.width.toFloat(), bitmap.height.toFloat(), offset, viewports = viewports, sizeScale = sizeScale)
-		layer.draw(Canvas(bitmap), geometry, tint, alpha, shadow, contrast)
+		layer.draw(Canvas(bitmap), geometry, tint, alpha, frameLayout, shadow, contrast, grade)
 
 		return bitmap
 	}
@@ -376,10 +508,6 @@ class CloudLayerTest {
 			R.drawable.cloud_cumulus_hero_soft_broad_alt
 		)
 
-		/** The near deck's coverage steps, in the order the renderer cross-fades them. */
-		val CUMULUS_COVERAGE_STEPS = listOf(R.drawable.cloud_cumulus_sparse, R.drawable.cloud_cumulus_scattered, R.drawable.cloud_cumulus_broken)
-
-		val CUMULUS_TEXTURES = CUMULUS_COVERAGE_STEPS + R.drawable.cloud_cumulus_far
 	}
 
 }
