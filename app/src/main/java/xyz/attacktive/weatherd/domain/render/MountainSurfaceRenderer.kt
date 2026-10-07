@@ -9,18 +9,16 @@ import android.graphics.Bitmap
 import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.ColorMatrixColorFilter
+import android.graphics.PorterDuffXfermode
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PorterDuff
-import android.graphics.PorterDuffColorFilter
 import android.graphics.RectF
 
 /** Active-scene immutable terrain sources; lighting changes only paints, never masks or material pixels. */
 internal class MountainSurfaceRenderer(outlines: SceneryOutlines, surfaces: List<MountainSurface>, width: Int, height: Int) {
 	private val rasterScale = minOf(0.25f, 1024f / maxOf(width, height))
 	private val groups: Array<MountainMaterialGroup>
-	private val textureMatrix = FloatArray(20).apply { this[18] = 1f }
 
 	init {
 		val layers = Array(outlines.layers.size) { index ->
@@ -38,7 +36,7 @@ internal class MountainSurfaceRenderer(outlines: SceneryOutlines, surfaces: List
 					maskFilter = BlurMaskFilter(feather, BlurMaskFilter.Blur.NORMAL)
 				}
 
-				val image = renderImmutableBitmap(bounds.width, bounds.height) { canvas ->
+				val image = renderImmutableBitmap(bounds.width, bounds.height, Bitmap.Config.ALPHA_8) { canvas ->
 					canvas.scale(rasterScale, rasterScale)
 					canvas.translate(-bounds.destination.left, -bounds.destination.top)
 					canvas.clipPath(path)
@@ -48,7 +46,7 @@ internal class MountainSurfaceRenderer(outlines: SceneryOutlines, surfaces: List
 				MountainPatchRaster(patch, MountainRaster(image, bounds.destination))
 			}
 
-			val texture = materialField(path, layer.outline, layer.material, index, width, height, rasterScale)
+			val (highlight, shadow) = materialFields(path, layer.outline, layer.material, index, width, height, rasterScale)
 			val edge = if (layer.plane == SceneryPlane.FAR) {
 				boundaryField(path, layer.outline, null, width, height, rasterScale)
 			} else {
@@ -62,16 +60,16 @@ internal class MountainSurfaceRenderer(outlines: SceneryOutlines, surfaces: List
 				null
 			}
 
-			MountainMaterialGroup(layer.material, layer.plane, path, patches, texture, edge, contact)
+			MountainMaterialGroup(layer.material, layer.plane, path, patches, highlight, shadow, edge, contact)
 		}
 
 		val snow = outlines.glyphs.filter { it.material == SceneryMaterial.SNOW }.mapIndexed { index, glyph ->
 			val parent = layers.first { it.material == SceneryMaterial.ROCK && it.plane == glyph.plane }
 			val path = terrainPath(glyph.outline, width, height)
-			val texture = materialField(path, glyph.outline, SceneryMaterial.SNOW, index, width, height, rasterScale)
+			val (highlight, shadow) = materialFields(path, glyph.outline, SceneryMaterial.SNOW, index, width, height, rasterScale)
 
 			// Snow owns only its material field and paint; orientations, masks, and ridge-edge coverage are the parent's exact sources.
-			MountainMaterialGroup(SceneryMaterial.SNOW, glyph.plane, path, parent.patches, texture, parent.edge, null)
+			MountainMaterialGroup(SceneryMaterial.SNOW, glyph.plane, path, parent.patches, highlight, shadow, parent.edge, null)
 		}
 
 		groups = layers + snow
@@ -87,14 +85,10 @@ internal class MountainSurfaceRenderer(outlines: SceneryOutlines, surfaces: List
 					val patch = group.patches[index].patch
 					val diffuse = surfaceDiffuseFor(patch, lighting)
 					val color = surfaceColorFor(group.material, group.plane, diffuse, lighting)
-					group.patchPaints[index].colorFilter = PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN)
+					group.patchPaints[index].color = color
 				}
 			}
 
-			textureMatrix[0] = (base ushr 16 and 255) / 128f
-			textureMatrix[6] = (base ushr 8 and 255) / 128f
-			textureMatrix[12] = (base and 255) / 128f
-			group.texturePaint.colorFilter = ColorMatrixColorFilter(textureMatrix)
 			val materialContrast = when (group.material) {
 				SceneryMaterial.ROCK -> 0.38f
 				SceneryMaterial.SNOW -> 0.12f
@@ -103,10 +97,15 @@ internal class MountainSurfaceRenderer(outlines: SceneryOutlines, surfaces: List
 			}
 
 			val depthContrast = if (group.plane == SceneryPlane.FAR) { 0.65f } else { 1f }
-			group.texturePaint.alpha = (255f * lighting.textureStrength * materialContrast * depthContrast).roundToInt()
-			group.edgePaint.colorFilter = PorterDuffColorFilter(lighting.ambientColor, PorterDuff.Mode.SRC_IN)
+			val textureAlpha = (255f * lighting.textureStrength * materialContrast * depthContrast).roundToInt()
+			group.drawTexture = textureAlpha > 0
+			group.highlightPaint.color = base
+			group.highlightPaint.alpha = textureAlpha
+			group.shadowPaint.color = Color.BLACK
+			group.shadowPaint.alpha = textureAlpha
+			group.edgePaint.color = lighting.ambientColor
 			group.edgePaint.alpha = 50
-			group.contactPaint.colorFilter = PorterDuffColorFilter(blendSurfaceColor(base, Color.BLACK, 0.45f), PorterDuff.Mode.SRC_IN)
+			group.contactPaint.color = blendSurfaceColor(base, Color.BLACK, 0.45f)
 			group.contactPaint.alpha = (95f * lighting.textureStrength).roundToInt()
 		}
 	}
@@ -127,7 +126,11 @@ internal class MountainSurfaceRenderer(outlines: SceneryOutlines, surfaces: List
 				}
 			}
 
-			canvas.drawBitmap(group.texture.bitmap, null, group.texture.destination, group.texturePaint)
+			if (group.drawTexture) {
+				canvas.drawBitmap(group.shadow.bitmap, null, group.shadow.destination, group.shadowPaint)
+				canvas.drawBitmap(group.highlight.bitmap, null, group.highlight.destination, group.highlightPaint)
+			}
+
 			val edge = group.edge
 			if (edge != null) {
 				canvas.drawBitmap(edge.bitmap, null, edge.destination, group.edgePaint)
@@ -143,11 +146,15 @@ internal class MountainSurfaceRenderer(outlines: SceneryOutlines, surfaces: List
 	}
 }
 
-private class MountainMaterialGroup(val material: SceneryMaterial, val plane: SceneryPlane, val path: Path, val patches: Array<MountainPatchRaster>, val texture: MountainRaster, val edge: MountainRaster?, val contact: MountainRaster?) {
+private class MountainMaterialGroup(val material: SceneryMaterial, val plane: SceneryPlane, val path: Path, val patches: Array<MountainPatchRaster>, val highlight: MountainRaster, val shadow: MountainRaster, val edge: MountainRaster?, val contact: MountainRaster?) {
 	var drawDirectionalFaces = true
+	var drawTexture = true
 	val basePaint = Paint(Paint.ANTI_ALIAS_FLAG)
 	val patchPaints = Array(patches.size) { Paint(Paint.FILTER_BITMAP_FLAG) }
-	val texturePaint = Paint(Paint.FILTER_BITMAP_FLAG)
+	val highlightPaint = Paint(Paint.FILTER_BITMAP_FLAG).apply {
+		xfermode = PorterDuffXfermode(PorterDuff.Mode.ADD)
+	}
+	val shadowPaint = Paint(Paint.FILTER_BITMAP_FLAG)
 	val edgePaint = Paint(Paint.FILTER_BITMAP_FLAG)
 	val contactPaint = Paint(Paint.FILTER_BITMAP_FLAG)
 }
@@ -182,9 +189,11 @@ private fun rasterBounds(path: Path, padding: Float, width: Int, height: Int, sc
 }
 
 /** Stable low-frequency material fields, never regenerated for weather, phase, or animation time. */
-private fun materialField(path: Path, outline: List<OutlinePoint>, material: SceneryMaterial, index: Int, width: Int, height: Int, scale: Float): MountainRaster {
+private fun materialFields(path: Path, outline: List<OutlinePoint>, material: SceneryMaterial, index: Int, width: Int, height: Int, scale: Float): Pair<MountainRaster, MountainRaster> {
 	val bounds = rasterBounds(path, 0f, width, height, scale)
-	val pixels = IntArray(bounds.width * bounds.height)
+	val totalPixels = bounds.width * bounds.height
+	val highlightPixels = IntArray(totalPixels)
+	val shadowPixels = IntArray(totalPixels)
 	val seed = 7717 + material.ordinal * 1013 + index * 313
 	for (x in 0 until bounds.width) {
 		val physicalX = bounds.destination.left + (x + 0.5f) / scale
@@ -206,12 +215,21 @@ private fun materialField(path: Path, outline: List<OutlinePoint>, material: Sce
 				else -> broad * 0.6f + materialNoise(u * 7f, v * 16f, seed + 4) * 0.4f
 			}
 
-			val value = (128f + variation * 30f).roundToInt().coerceIn(0, 255)
-			pixels[y * bounds.width + x] = Color.rgb(value, value, value)
+			val delta = variation * 30f
+			if (delta > 0f) {
+				val alpha = (delta * (255f / 128f)).roundToInt().coerceIn(0, 255)
+				highlightPixels[y * bounds.width + x] = Color.argb(alpha, 255, 255, 255)
+			} else if (delta < 0f) {
+				val alpha = (-delta * (255f / 128f)).roundToInt().coerceIn(0, 255)
+				shadowPixels[y * bounds.width + x] = Color.argb(alpha, 255, 255, 255)
+			}
 		}
 	}
 
-	return publishField(pixels, bounds, path, scale)
+	val highlight = publishField(highlightPixels, bounds, path, scale)
+	val shadow = publishField(shadowPixels, bounds, path, scale)
+
+	return highlight to shadow
 }
 
 /** Ridge softening and receiver-only forest contact both fade inside the original terrain rather than haloing into the sky. */
@@ -246,7 +264,7 @@ private fun publishField(pixels: IntArray, bounds: MountainRasterBounds, clip: P
 	val source = Bitmap.createBitmap(pixels, bounds.width, bounds.height, Bitmap.Config.ARGB_8888)
 
 	return try {
-		val bitmap = renderImmutableBitmap(bounds.width, bounds.height) { canvas ->
+		val bitmap = renderImmutableBitmap(bounds.width, bounds.height, Bitmap.Config.ALPHA_8) { canvas ->
 			canvas.scale(scale, scale)
 			canvas.translate(-bounds.destination.left, -bounds.destination.top)
 			canvas.clipPath(clip)

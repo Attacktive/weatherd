@@ -21,6 +21,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -120,6 +122,80 @@ class MountainSceneryRenderingTest {
 	}
 
 	@Test
+	fun lightingUpdatesReusedRendererAcrossCelestialProgressAndWeatherContinuously() {
+		val outlines = checkNotNull(sceneryOutlinesFor(BackdropScene.MOUNTAINS, 0.75f))
+		val reused = prepared(outlines, 240, 320)
+		val lighting = SceneryLighting()
+
+		val dayDawn = clear.copy(dayPhase = DayPhase.DAWN, celestialProgress = 0.2f)
+		val midday = clear.copy(dayPhase = DayPhase.DAY, celestialProgress = 0.5f)
+		val afternoon = clear.copy(dayPhase = DayPhase.DAY, celestialProgress = 0.85f)
+		val denseFog = clear.copy(fogDensity = 1f)
+		val night = clear.copy(dayPhase = DayPhase.NIGHT)
+
+		val sequence = listOf(dayDawn, midday, afternoon, denseFog, night, midday)
+		val renderedBitmaps = mutableListOf<Bitmap>()
+
+		try {
+			for (params in sequence) {
+				lighting.update(240, 320, params)
+				reused.updateLighting(lighting)
+				val actual = software(240, 320) { drawPlanes(reused, it) }
+				val expectedRenderer = MountainSurfaceRenderer(outlines, mountainSurfacesFor(outlines, 240f / 320f), 240, 320).apply {
+					val freshLighting = SceneryLighting().apply { update(240, 320, params) }
+					updateLighting(freshLighting)
+				}
+				val expected = software(240, 320) { drawPlanes(expectedRenderer, it) }
+
+				try {
+					assertTrue("Reused renderer differed from fresh for phase=${params.dayPhase}, progress=${params.celestialProgress}, fog=${params.fogDensity}", expected.sameAs(actual))
+				} finally {
+					expected.recycle()
+				}
+
+				renderedBitmaps.add(actual)
+			}
+
+			val middayBitmap = renderedBitmaps[1]
+			val afternoonBitmap = renderedBitmaps[2]
+			val denseFogBitmap = renderedBitmaps[3]
+			val nightBitmap = renderedBitmaps[4]
+
+			assertFalse("Midday and afternoon terrain must differ in lighting", middayBitmap.sameAs(afternoonBitmap))
+			assertFalse("Midday and dense fog terrain must differ in lighting", middayBitmap.sameAs(denseFogBitmap))
+			assertFalse("Midday and night terrain must differ in lighting", middayBitmap.sameAs(nightBitmap))
+		} finally {
+			for (bitmap in renderedBitmaps) {
+				bitmap.recycle()
+			}
+		}
+	}
+
+	@Test
+	fun lightingUpdatesDoNotAllocateColorFilters() {
+		val outlines = checkNotNull(sceneryOutlinesFor(BackdropScene.MOUNTAINS, 0.75f))
+		val renderer = prepared(outlines, 240, 320)
+		val lighting = SceneryLighting().apply { update(240, 320, clear) }
+		renderer.updateLighting(lighting)
+
+		val groupsField = MountainSurfaceRenderer::class.java.getDeclaredField("groups").apply { isAccessible = true }
+		val groups = groupsField.get(renderer) as Array<*>
+		for (group in groups) {
+			val groupClass = group!!::class.java
+			val patchPaints = (groupClass.getDeclaredField("patchPaints").apply { isAccessible = true }.get(group) as Array<*>).filterIsInstance<Paint>()
+			for (paint in patchPaints) {
+				assertNull("Patch paint must not use a ColorFilter", paint.colorFilter)
+			}
+
+			val edgePaint = groupClass.getDeclaredField("edgePaint").apply { isAccessible = true }.get(group) as Paint
+			assertNull("Edge paint must not use a ColorFilter", edgePaint.colorFilter)
+
+			val contactPaint = groupClass.getDeclaredField("contactPaint").apply { isAccessible = true }.get(group) as Paint
+			assertNull("Contact paint must not use a ColorFilter", contactPaint.colorFilter)
+		}
+	}
+
+	@Test
 	@SdkSuppress(minSdkVersion = 29)
 	fun hardwarePreservesDirectionalFacesAndClipping() {
 		val directional = hardware(200, 200) { syntheticRenderer().drawPlane(it, SceneryPlane.FAR) }
@@ -133,6 +209,57 @@ class MountainSceneryRenderingTest {
 		} finally {
 			directional.recycle()
 			actual.recycle()
+		}
+	}
+
+	@Test
+	@SdkSuppress(minSdkVersion = 29)
+	fun hardwareLightingUpdatesReusedRendererAcrossCelestialProgressAndWeatherContinuously() {
+		val outlines = checkNotNull(sceneryOutlinesFor(BackdropScene.MOUNTAINS, 0.75f))
+		val reused = prepared(outlines, 240, 320)
+		val lighting = SceneryLighting()
+
+		val dayDawn = clear.copy(dayPhase = DayPhase.DAWN, celestialProgress = 0.2f)
+		val midday = clear.copy(dayPhase = DayPhase.DAY, celestialProgress = 0.5f)
+		val afternoon = clear.copy(dayPhase = DayPhase.DAY, celestialProgress = 0.85f)
+		val denseFog = clear.copy(fogDensity = 1f)
+		val night = clear.copy(dayPhase = DayPhase.NIGHT)
+
+		val sequence = listOf(dayDawn, midday, afternoon, denseFog, night, midday)
+		val renderedBitmaps = mutableListOf<Bitmap>()
+
+		try {
+			for (params in sequence) {
+				lighting.update(240, 320, params)
+				reused.updateLighting(lighting)
+				val actual = hardware(240, 320) { drawPlanes(reused, it) }
+				val expectedRenderer = MountainSurfaceRenderer(outlines, mountainSurfacesFor(outlines, 240f / 320f), 240, 320).apply {
+					val freshLighting = SceneryLighting().apply { update(240, 320, params) }
+					updateLighting(freshLighting)
+				}
+				val expected = hardware(240, 320) { drawPlanes(expectedRenderer, it) }
+
+				try {
+					assertTrue("Hardware reused renderer differed from fresh for phase=${params.dayPhase}, progress=${params.celestialProgress}, fog=${params.fogDensity}", expected.sameAs(actual))
+				} finally {
+					expected.recycle()
+				}
+
+				renderedBitmaps.add(actual)
+			}
+
+			val middayBitmap = renderedBitmaps[1]
+			val afternoonBitmap = renderedBitmaps[2]
+			val denseFogBitmap = renderedBitmaps[3]
+			val nightBitmap = renderedBitmaps[4]
+
+			assertFalse("Hardware midday and afternoon terrain must differ in lighting", middayBitmap.sameAs(afternoonBitmap))
+			assertFalse("Hardware midday and dense fog terrain must differ in lighting", middayBitmap.sameAs(denseFogBitmap))
+			assertFalse("Hardware midday and night terrain must differ in lighting", middayBitmap.sameAs(nightBitmap))
+		} finally {
+			for (bitmap in renderedBitmaps) {
+				bitmap.recycle()
+			}
 		}
 	}
 
