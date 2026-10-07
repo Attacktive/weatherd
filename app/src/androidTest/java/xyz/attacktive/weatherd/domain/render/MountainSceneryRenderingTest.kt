@@ -13,6 +13,7 @@ import android.graphics.PixelFormat
 import android.graphics.RenderNode
 import android.hardware.HardwareBuffer
 import android.media.ImageReader
+import android.os.Debug
 import android.os.Handler
 import android.os.HandlerThread
 import androidx.annotation.RequiresApi
@@ -175,24 +176,61 @@ class MountainSceneryRenderingTest {
 	fun lightingUpdatesDoNotAllocateColorFilters() {
 		val outlines = checkNotNull(sceneryOutlinesFor(BackdropScene.MOUNTAINS, 0.75f))
 		val renderer = prepared(outlines, 240, 320)
-		val lighting = SceneryLighting().apply { update(240, 320, clear) }
-		renderer.updateLighting(lighting)
+		val lighting = SceneryLighting()
+
+		val dayDawn = clear.copy(dayPhase = DayPhase.DAWN, celestialProgress = 0.2f)
+		val midday = clear.copy(dayPhase = DayPhase.DAY, celestialProgress = 0.5f)
+		val afternoon = clear.copy(dayPhase = DayPhase.DAY, celestialProgress = 0.85f)
+		val denseFog = clear.copy(fogDensity = 1f)
+		val night = clear.copy(dayPhase = DayPhase.NIGHT)
+		val sequence = listOf(dayDawn, midday, afternoon, denseFog, night, clear)
 
 		val groupsField = MountainSurfaceRenderer::class.java.getDeclaredField("groups").apply { isAccessible = true }
 		val groups = groupsField.get(renderer) as Array<*>
-		for (group in groups) {
-			val groupClass = group!!::class.java
-			val patchPaints = (groupClass.getDeclaredField("patchPaints").apply { isAccessible = true }.get(group) as Array<*>).filterIsInstance<Paint>()
-			for (paint in patchPaints) {
-				assertNull("Patch paint must not use a ColorFilter", paint.colorFilter)
+
+		for (params in sequence) {
+			lighting.update(240, 320, params)
+			renderer.updateLighting(lighting)
+
+			for (group in groups) {
+				val groupClass = group!!::class.java
+				val basePaint = groupClass.getDeclaredField("basePaint").apply { isAccessible = true }.get(group) as Paint
+				assertNull("Base paint must not use a ColorFilter", basePaint.colorFilter)
+
+				val textureBasePaint = groupClass.getDeclaredField("textureBasePaint").apply { isAccessible = true }.get(group) as Paint
+				assertNull("Texture base paint must not use a ColorFilter", textureBasePaint.colorFilter)
+
+				val patchPaints = (groupClass.getDeclaredField("patchPaints").apply { isAccessible = true }.get(group) as Array<*>).filterIsInstance<Paint>()
+				for (paint in patchPaints) {
+					assertNull("Patch paint must not use a ColorFilter", paint.colorFilter)
+				}
+
+				val highlightPaint = groupClass.getDeclaredField("highlightPaint").apply { isAccessible = true }.get(group) as Paint
+				assertNull("Highlight paint must not use a ColorFilter", highlightPaint.colorFilter)
+
+				val shadowPaint = groupClass.getDeclaredField("shadowPaint").apply { isAccessible = true }.get(group) as Paint
+				assertNull("Shadow paint must not use a ColorFilter", shadowPaint.colorFilter)
+
+				val edgePaint = groupClass.getDeclaredField("edgePaint").apply { isAccessible = true }.get(group) as Paint
+				assertNull("Edge paint must not use a ColorFilter", edgePaint.colorFilter)
+
+				val contactPaint = groupClass.getDeclaredField("contactPaint").apply { isAccessible = true }.get(group) as Paint
+				assertNull("Contact paint must not use a ColorFilter", contactPaint.colorFilter)
 			}
-
-			val edgePaint = groupClass.getDeclaredField("edgePaint").apply { isAccessible = true }.get(group) as Paint
-			assertNull("Edge paint must not use a ColorFilter", edgePaint.colorFilter)
-
-			val contactPaint = groupClass.getDeclaredField("contactPaint").apply { isAccessible = true }.get(group) as Paint
-			assertNull("Contact paint must not use a ColorFilter", contactPaint.colorFilter)
 		}
+
+		val prebuiltLights = Array(sequence.size) { SceneryLighting().apply { update(240, 320, sequence[it]) } }
+		repeat(200) {
+			renderer.updateLighting(prebuiltLights[it % prebuiltLights.size])
+		}
+
+		val allocatedBefore = Debug.getRuntimeStat("art.gc.bytes-allocated")?.toLong() ?: 0L
+		repeat(1000) {
+			renderer.updateLighting(prebuiltLights[it % prebuiltLights.size])
+		}
+
+		val allocatedAfter = Debug.getRuntimeStat("art.gc.bytes-allocated")?.toLong() ?: 0L
+		assertEquals("Warmed mountain lighting updates must allocate 0 bytes", allocatedBefore, allocatedAfter)
 	}
 
 	@Test

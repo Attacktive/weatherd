@@ -99,6 +99,8 @@ internal class MountainSurfaceRenderer(outlines: SceneryOutlines, surfaces: List
 			val depthContrast = if (group.plane == SceneryPlane.FAR) { 0.65f } else { 1f }
 			val textureAlpha = (255f * lighting.textureStrength * materialContrast * depthContrast).roundToInt()
 			group.drawTexture = textureAlpha > 0
+			group.textureBasePaint.color = base
+			group.textureBasePaint.alpha = textureAlpha
 			group.highlightPaint.color = base
 			group.highlightPaint.alpha = textureAlpha
 			group.shadowPaint.color = Color.BLACK
@@ -127,6 +129,7 @@ internal class MountainSurfaceRenderer(outlines: SceneryOutlines, surfaces: List
 			}
 
 			if (group.drawTexture) {
+				canvas.drawPath(group.path, group.textureBasePaint)
 				canvas.drawBitmap(group.shadow.bitmap, null, group.shadow.destination, group.shadowPaint)
 				canvas.drawBitmap(group.highlight.bitmap, null, group.highlight.destination, group.highlightPaint)
 			}
@@ -150,6 +153,7 @@ private class MountainMaterialGroup(val material: SceneryMaterial, val plane: Sc
 	var drawDirectionalFaces = true
 	var drawTexture = true
 	val basePaint = Paint(Paint.ANTI_ALIAS_FLAG)
+	val textureBasePaint = Paint(Paint.ANTI_ALIAS_FLAG)
 	val patchPaints = Array(patches.size) { Paint(Paint.FILTER_BITMAP_FLAG) }
 	val highlightPaint = Paint(Paint.FILTER_BITMAP_FLAG).apply {
 		xfermode = PorterDuffXfermode(PorterDuff.Mode.ADD)
