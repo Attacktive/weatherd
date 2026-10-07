@@ -49,7 +49,7 @@ class CloudLayerTest {
 		for (viewport in 0 until 4) {
 			for (index in 1 until layers.size) {
 				val combined = portrait(layers[index - 1], -540f * viewport)
-				layers[index].draw(Canvas(combined), portraitGeometry(-540f * viewport), Color.WHITE, 248, frameLayout, populationScope = CloudPopulationScope.ADDITIONS)
+				layers[index].draw(Canvas(combined), portraitGeometry(-540f * viewport), Color.WHITE, 248, frameLayout, style = CloudDrawStyle(populationScope = CloudPopulationScope.ADDITIONS))
 				val full = portrait(layers[index], -540f * viewport)
 				assertTrue("Suffix drawing must match the higher prefix, including soft edges", combined.sameAs(full))
 				combined.recycle()
@@ -145,7 +145,7 @@ class CloudLayerTest {
 
 	private fun portrait(layer: CloudLayer, offset: Float, scope: CloudPopulationScope = CloudPopulationScope.FULL): Bitmap {
 		val bitmap = createBitmap(540, 1170)
-		layer.draw(Canvas(bitmap), portraitGeometry(offset), Color.WHITE, 248, frameLayout, populationScope = scope)
+		layer.draw(Canvas(bitmap), portraitGeometry(offset), Color.WHITE, 248, frameLayout, style = CloudDrawStyle(populationScope = scope))
 		return bitmap
 	}
 
@@ -488,7 +488,7 @@ class CloudLayerTest {
 	): Bitmap {
 		val bitmap = createBitmap(540, 320)
 		val geometry = CloudDrawGeometry().configure(bitmap.width.toFloat(), bitmap.height.toFloat(), offset, viewports = viewports, sizeScale = sizeScale)
-		layer.draw(Canvas(bitmap), geometry, tint, alpha, frameLayout, shadow, contrast, grade)
+		layer.draw(Canvas(bitmap), geometry, tint, alpha, frameLayout, shadow, CloudDrawStyle(contrast, grade))
 
 		return bitmap
 	}

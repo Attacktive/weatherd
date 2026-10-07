@@ -131,6 +131,16 @@ class SpriteGeometry:
 
 
 @dataclass(frozen=True)
+class CumulusRenderStyle:
+	base_height: float
+	top_offset: float
+	width_scale: float
+	height_scale: float
+	alpha_scale: float
+	multiply: np.ndarray
+
+
+@dataclass(frozen=True)
 class HeroPart:
 	sprite_index: int
 	offset_x: float = 0.0
@@ -291,9 +301,9 @@ def composite_sprite(destination, source, geometry, multiply, alpha, apply_grade
 	destination[dst_top:dst_bottom, dst_left:dst_right] = patch_rgb * patch_opacity + destination[dst_top:dst_bottom, dst_left:dst_right] * (1 - patch_opacity)
 
 
-def draw_bank(destination, sprite_name, viewports, bank_height, offset, top, multiply, alpha, apply_grade=True):
+def draw_bank(destination, sprite_name, viewports, geometry, multiply, alpha, apply_grade=True):
 	period = WIDTH * viewports
-	wrapped_offset = offset % period
+	wrapped_offset = geometry.offset % period
 	sprite = Image.open(DRAWABLE / sprite_name).convert('RGBA')
 	for shift in (-1, 0, 1):
 		left = wrapped_offset + shift * period
@@ -301,8 +311,8 @@ def draw_bank(destination, sprite_name, viewports, bank_height, offset, top, mul
 		if left >= WIDTH or left + period <= 0:
 			continue
 
-		geometry = SpriteGeometry(center_x, top + bank_height * 0.5, period, bank_height)
-		composite_sprite(destination, sprite, geometry, multiply, alpha, apply_grade)
+		sprite_geometry = SpriteGeometry(center_x, geometry.top + geometry.deck_height * 0.5, period, geometry.deck_height)
+		composite_sprite(destination, sprite, sprite_geometry, multiply, alpha, apply_grade)
 
 
 def draw_cirrus(destination, high_cloudiness, cloud_scale):
@@ -319,9 +329,7 @@ def draw_cirrus(destination, high_cloudiness, cloud_scale):
 			destination,
 			CIRRUS_SPRITES[index],
 			CIRRUS_VIEWPORTS,
-			HEIGHT * CIRRUS_HEIGHT,
-			-WIDTH * 0.13,
-			HEIGHT * CIRRUS_TOP,
+			CumulusGeometry(HEIGHT * CIRRUS_HEIGHT, -WIDTH * 0.13, HEIGHT * CIRRUS_TOP, 1.0),
 			CIRRUS_TINT,
 			alpha,
 			apply_grade=False
@@ -332,70 +340,70 @@ def draw_cirrus(destination, high_cloudiness, cloud_scale):
 			destination,
 			CIRRUS_SPRITES[full_populations],
 			CIRRUS_VIEWPORTS,
-			HEIGHT * CIRRUS_HEIGHT,
-			-WIDTH * 0.13,
-			HEIGHT * CIRRUS_TOP,
+			CumulusGeometry(HEIGHT * CIRRUS_HEIGHT, -WIDTH * 0.13, HEIGHT * CIRRUS_TOP, 1.0),
 			CIRRUS_TINT,
 			kotlin_round(alpha * partial),
 			apply_grade=False
 		)
 
 
+def cumulus_render_style(profile, geometry, multiply):
+	if profile.kind == 'far':
+		return CumulusRenderStyle(
+			min(WIDTH * FAR_BASE_HEIGHT_TO_WIDTH, geometry.deck_height * FAR_BASE_HEIGHT_TO_DECK) * geometry.size_scale,
+			geometry.deck_height * FAR_RISE,
+			FAR_WIDTH_SCALE,
+			FAR_HEIGHT_SCALE,
+			FAR_ALPHA_SCALE,
+			lift_toward_white(multiply, FAR_TINT_LIFT),
+		)
+
+	return CumulusRenderStyle(
+		min(WIDTH * NEAR_BASE_HEIGHT_TO_WIDTH, geometry.deck_height * NEAR_BASE_HEIGHT_TO_DECK) * geometry.size_scale,
+		0,
+		1.0,
+		1.0,
+		NEAR_ALPHA_SCALE,
+		multiply,
+	)
+
+
+def cumulus_parts(profile, index):
+	if profile.variant_indices is None:
+		return (HeroPart(index % len(profile.sprite_names)),)
+	return HERO_VARIANTS[profile.variant_indices[index]].parts
+
+
+def draw_cumulus_placement(destination, sprites, parts, anchor, geometry, style, period, alpha):
+	x_fraction, y_fraction, placement_scale, alpha_scale = anchor
+	base_center_x = (geometry.offset % period + period * x_fraction) % period
+	base_center_y = geometry.top - style.top_offset + geometry.deck_height * y_fraction
+	for part in parts:
+		sprite = sprites[part.sprite_index]
+		sprite_height = style.base_height * placement_scale * style.height_scale * part.scale * part.height_scale
+		sprite_width = sprite_height * sprite.width / sprite.height * style.width_scale * part.width_scale
+		center_x = base_center_x + part.offset_x * style.base_height * placement_scale
+		center_y = base_center_y + part.offset_y * style.base_height * placement_scale
+		sprite_alpha = int(alpha * style.alpha_scale * alpha_scale * part.alpha_scale)
+		for shift in (-1, 0, 1):
+			wrapped_x = center_x + shift * period
+			if wrapped_x + sprite_width * 0.5 < 0 or wrapped_x - sprite_width * 0.5 > WIDTH:
+				continue
+
+			sprite_geometry = SpriteGeometry(wrapped_x, center_y, sprite_width, sprite_height)
+			composite_sprite(destination, sprite, sprite_geometry, style.multiply, sprite_alpha)
+
+
 def draw_cumulus(destination, profile, geometry, multiply, alpha, start_index=0):
 	"""Mirror CloudLayer's center-preserving sprite geometry; size changes each body, never the repeat span or anchor centers."""
-	period = WIDTH * profile.viewports
-	if profile.kind == 'far':
-		base_height = min(WIDTH * FAR_BASE_HEIGHT_TO_WIDTH, geometry.deck_height * FAR_BASE_HEIGHT_TO_DECK) * geometry.size_scale
-		top_offset = geometry.deck_height * FAR_RISE
-		width_scale = FAR_WIDTH_SCALE
-		height_scale = FAR_HEIGHT_SCALE
-		style_alpha = FAR_ALPHA_SCALE
-		multiply = lift_toward_white(multiply, FAR_TINT_LIFT)
-		composition_alpha = alpha
-	else:
-		base_height = min(WIDTH * NEAR_BASE_HEIGHT_TO_WIDTH, geometry.deck_height * NEAR_BASE_HEIGHT_TO_DECK) * geometry.size_scale
-		top_offset = 0
-		width_scale = 1.0
-		height_scale = 1.0
-		style_alpha = NEAR_ALPHA_SCALE
-		composition_alpha = alpha
-
-	if composition_alpha <= 0:
+	if alpha <= 0:
 		return
 
+	style = cumulus_render_style(profile, geometry, multiply)
 	sprites = [Image.open(DRAWABLE / name).convert('RGBA') for name in profile.sprite_names]
-	wrapped_offset = geometry.offset % period
-	for index, (x_fraction, y_fraction, placement_scale, alpha_scale) in enumerate(profile.anchors):
-		if index < start_index:
-			continue
-
-		if profile.variant_indices is None:
-			variant_index = index % len(sprites)
-		else:
-			variant_index = profile.variant_indices[index]
-
-		base_center_x = (wrapped_offset + period * x_fraction) % period
-		base_center_y = geometry.top - top_offset + geometry.deck_height * y_fraction
-		if profile.kind == 'far':
-			parts = (HeroPart(variant_index),)
-		else:
-			parts = HERO_VARIANTS[variant_index].parts
-
-		for part in parts:
-			sprite = sprites[part.sprite_index]
-			sprite_height = base_height * placement_scale * height_scale * part.scale * part.height_scale
-			sprite_width = sprite_height * sprite.width / sprite.height * width_scale * part.width_scale
-			center_x = base_center_x + part.offset_x * base_height * placement_scale
-			center_y = base_center_y + part.offset_y * base_height * placement_scale
-			sprite_alpha = int(composition_alpha * style_alpha * alpha_scale * part.alpha_scale)
-
-			for shift in (-1, 0, 1):
-				wrapped_x = center_x + shift * period
-				if wrapped_x + sprite_width * 0.5 < 0 or wrapped_x - sprite_width * 0.5 > WIDTH:
-					continue
-
-				sprite_geometry = SpriteGeometry(wrapped_x, center_y, sprite_width, sprite_height)
-				composite_sprite(destination, sprite, sprite_geometry, multiply, sprite_alpha)
+	period = WIDTH * profile.viewports
+	for index in range(start_index, len(profile.anchors)):
+		draw_cumulus_placement(destination, sprites, cumulus_parts(profile, index), profile.anchors[index], geometry, style, period, alpha)
 
 
 def preview_cloud_layers(cloudiness, cloud_count_scale, cloud_layers):
@@ -428,7 +436,8 @@ def draw_preview_banks(destination, opaque_cloudiness, cloud_scale):
 	for sprite, span, top, phase, alpha, tint in OVERCAST_PASSES:
 		span *= PORTRAIT_OVERCAST_SPAN_SCALE
 		bank_height = WIDTH * span / 3
-		draw_bank(destination, sprite, span, bank_height, -WIDTH * phase, HEIGHT * top, np.floor(base * tint + 0.5), kotlin_round(255 * alpha * cloud_scale * strength))
+		geometry = CumulusGeometry(bank_height, -WIDTH * phase, HEIGHT * top, 1.0)
+		draw_bank(destination, sprite, span, geometry, np.floor(base * tint + 0.5), kotlin_round(255 * alpha * cloud_scale * strength))
 
 
 def draw_preview_near_clouds(destination, low_cloudiness, cloud_scale, size_scale, cloud_top):

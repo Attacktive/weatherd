@@ -125,6 +125,9 @@ class SceneRenderer internal constructor(resources: Resources, private val epoch
 	private var cloudGradePhase: DayPhase? = null
 	private var cloudGradeProgress = Float.NaN
 	private var cloudGrade = CloudColorGrade.IDENTITY
+	private var cloudDrawStyle = CloudDrawStyle.DEFAULT
+	private var cloudAdditionsStyle = CloudDrawStyle(populationScope = CloudPopulationScope.ADDITIONS)
+	private var cirrusDrawStyle = CloudDrawStyle.DEFAULT
 	private var cachedNearCloudLayout: NearCloudLayout? = null
 	private val nearCumulusFrameState = NearCumulusState()
 	private val cumulusFrameShadow = CloudLayer.CumulusShadow(null, null, 0f, 0f, 0f)
@@ -240,6 +243,7 @@ class SceneRenderer internal constructor(resources: Resources, private val epoch
 			cloudGradeProgress = params.celestialProgress
 		}
 
+		updateCloudDrawStyles(params.cloudContrastScale)
 		val w = width.toFloat()
 		val h = height.toFloat()
 		val nearState = if (shouldDrawDryClouds(params) && effectiveLowCloudiness(params) > SCATTERED_CLOUD_FLOOR) {
@@ -331,6 +335,17 @@ class SceneRenderer internal constructor(resources: Resources, private val epoch
 		val layout = CloudLayer.createNearCloudLayout(epochDay)
 		cachedNearCloudLayout = layout
 		return layout
+	}
+
+	private fun updateCloudDrawStyles(contrast: Float) {
+		if (cloudDrawStyle.contrast != contrast || cloudDrawStyle.grade != cloudGrade) {
+			cloudDrawStyle = CloudDrawStyle(contrast, cloudGrade)
+			cloudAdditionsStyle = CloudDrawStyle(contrast, cloudGrade, CloudPopulationScope.ADDITIONS)
+		}
+
+		if (cirrusDrawStyle.contrast != contrast) {
+			cirrusDrawStyle = CloudDrawStyle(contrast)
+		}
 	}
 
 	/** Draws the optional weather/location HUD independently of scene translation, so live-wallpaper parallax does not slide interface text across launcher pages. */
@@ -1485,15 +1500,15 @@ class SceneRenderer internal constructor(resources: Resources, private val epoch
 
 		val heroTop = if (portrait) { 0.29f } else { OVERCAST_HERO_TOP }
 
-		farOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, farHeight, farOffset, height * farTop + bob * 0.25f, farSpan), darken(color, 0.96f), farAlpha, frameLayout, contrast = params.cloudContrastScale, grade = cloudGrade)
-		supportOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, supportHeight, supportOffset, height * supportTop - bob * 0.35f, supportSpan), darken(color, 0.94f), supportAlpha, frameLayout, contrast = params.cloudContrastScale, grade = cloudGrade)
-		heroOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, heroHeight, heroOffset, height * heroTop - bob, heroSpan), color, heroAlpha, frameLayout, contrast = params.cloudContrastScale, grade = cloudGrade)
-		farOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, bridgeHeight, bridgeOffset, height * OVERCAST_BRIDGE_TOP + bob * 0.45f, bridgeSpan), darken(color, 0.91f), bridgeAlpha, frameLayout, contrast = params.cloudContrastScale, grade = cloudGrade)
+		farOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, farHeight, farOffset, height * farTop + bob * 0.25f, farSpan), darken(color, 0.96f), farAlpha, frameLayout, style = cloudDrawStyle)
+		supportOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, supportHeight, supportOffset, height * supportTop - bob * 0.35f, supportSpan), darken(color, 0.94f), supportAlpha, frameLayout, style = cloudDrawStyle)
+		heroOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, heroHeight, heroOffset, height * heroTop - bob, heroSpan), color, heroAlpha, frameLayout, style = cloudDrawStyle)
+		farOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, bridgeHeight, bridgeOffset, height * OVERCAST_BRIDGE_TOP + bob * 0.45f, bridgeSpan), darken(color, 0.91f), bridgeAlpha, frameLayout, style = cloudDrawStyle)
 		if (portrait) {
 			val lowerSpan = 1.80f * PORTRAIT_OVERCAST_SPAN_SCALE
 			val lowerHeight = overcastBankHeight(width, height, lowerSpan, 1f)
 			val lowerOffset = wrapOffset(timeSeconds * width * (0.005f + params.windFactor * 0.009f) * params.windScale + drift * 0.65f - width * 0.43f, width * lowerSpan)
-			farOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, lowerHeight, lowerOffset, height * 0.64f + bob * 0.35f, lowerSpan), darken(color, 0.91f), bridgeAlpha, frameLayout, contrast = params.cloudContrastScale, grade = cloudGrade)
+			farOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, lowerHeight, lowerOffset, height * 0.64f + bob * 0.35f, lowerSpan), darken(color, 0.91f), bridgeAlpha, frameLayout, style = cloudDrawStyle)
 		}
 	}
 
@@ -1603,7 +1618,7 @@ class SceneRenderer internal constructor(resources: Resources, private val epoch
 				tint,
 				alpha,
 				frameLayout,
-				contrast = params.cloudContrastScale
+				style = cirrusDrawStyle
 			)
 		}
 
@@ -1616,7 +1631,7 @@ class SceneRenderer internal constructor(resources: Resources, private val epoch
 				tint,
 				partialAlpha,
 				frameLayout,
-				contrast = params.cloudContrastScale
+				style = cirrusDrawStyle
 			)
 		}
 	}
@@ -1814,7 +1829,7 @@ class SceneRenderer internal constructor(resources: Resources, private val epoch
 			cloudSizeScale(params)
 		)
 
-		farCumulusDeck.draw(canvas, geometry, tint, alpha, frameLayout, shadow = castShadow, contrast = params.cloudContrastScale, grade = cloudGrade)
+		farCumulusDeck.draw(canvas, geometry, tint, alpha, frameLayout, shadow = castShadow, style = cloudDrawStyle)
 	}
 
 	/**
@@ -1824,10 +1839,10 @@ class SceneRenderer internal constructor(resources: Resources, private val epoch
 	private fun drawNearCumulus(canvas: Canvas, width: Float, params: SceneParams, cloudTop: Float, state: NearCumulusState, frameLayout: NearCloudLayout) {
 		val tint = Color.WHITE
 		val geometry = cloudDrawGeometry.configure(width, state.deckHeight, state.offset, cloudTop, sizeScale = cloudSizeScale(params))
-		cumulusSteps[state.lower].value.draw(canvas, geometry, tint, state.alpha, frameLayout, contrast = params.cloudContrastScale, grade = cloudGrade)
+		cumulusSteps[state.lower].value.draw(canvas, geometry, tint, state.alpha, frameLayout, style = cloudDrawStyle)
 
 		if (state.upper < cumulusSteps.size && state.growth > 0) {
-			cumulusSteps[state.upper].value.draw(canvas, geometry, tint, state.growth, frameLayout, contrast = params.cloudContrastScale, grade = cloudGrade, populationScope = CloudPopulationScope.ADDITIONS)
+			cumulusSteps[state.upper].value.draw(canvas, geometry, tint, state.growth, frameLayout, style = cloudAdditionsStyle)
 		}
 	}
 

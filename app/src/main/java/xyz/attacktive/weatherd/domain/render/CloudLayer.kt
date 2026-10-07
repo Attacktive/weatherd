@@ -52,6 +52,11 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 
 	private val spriteDest = RectF()
 	private val opacitySampler = OpacitySampler()
+	private val opacityGeometry = CloudDrawGeometry()
+	private var cumulusAlpha = 0
+	private var cumulusMultiply = Color.WHITE
+	private var cumulusShadow: CumulusShadow? = null
+	private var cumulusDrawStyle = CloudDrawStyle.DEFAULT
 
 	private var previousMultiply = Color.WHITE
 	private var previousContrast = 1f
@@ -70,14 +75,14 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 	private var cachedOpacityStyleSizeScale = Float.NaN
 	private var cachedOpacityStyle: CumulusStyle? = null
 
-	fun draw(canvas: Canvas, geometry: CloudDrawGeometry, tint: Int, alpha: Int, frameLayout: NearCloudLayout, shadow: CumulusShadow? = null, contrast: Float = 1f, grade: CloudColorGrade = CloudColorGrade.IDENTITY, populationScope: CloudPopulationScope = CloudPopulationScope.FULL) {
+	fun draw(canvas: Canvas, geometry: CloudDrawGeometry, tint: Int, alpha: Int, frameLayout: NearCloudLayout, shadow: CumulusShadow? = null, style: CloudDrawStyle = CloudDrawStyle.DEFAULT) {
 		if (geometry.width <= 0f || geometry.height <= 0f || alpha <= 0) {
 			return
 		}
 
 		val kind = cumulusKind
 		if (kind != null) {
-			drawCumulus(canvas, geometry, tint, alpha, frameLayout, kind, shadow, contrast, grade, populationScope)
+			drawCumulus(canvas, geometry, tint, alpha, frameLayout, kind, shadow, style)
 			return
 		}
 
@@ -91,7 +96,7 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 		transform.postTranslate(wrappedOffset, geometry.top)
 		shader.setLocalMatrix(transform)
 		paint.shader = shader
-		updateColorFilter(tint, contrast, grade)
+		updateColorFilter(tint, style.contrast, style.grade)
 		paint.alpha = alpha.coerceIn(0, 255)
 		canvas.drawRect(0f, geometry.top, geometry.width, geometry.top + geometry.height, paint)
 	}
@@ -114,11 +119,7 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 		val placements = if (kind == CumulusKind.FAR) { farPlacementsFor(frameLayout.epochDay) } else { emptyList() }
 
 		opacitySampler.configure(
-			width = width,
-			height = height,
-			offset = positiveModulo(offset, period),
-			top = top,
-			period = period,
+			geometry = opacityGeometry.configure(width, height, positiveModulo(offset, period), top),
 			style = opacityStyleFor(kind, width, height, sizeScale),
 			placements = placements,
 			frameLayout = frameLayout,
@@ -149,7 +150,6 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 	}
 
 	inner class OpacitySampler {
-		private var width = 0f
 		private var height = 0f
 		private var offset = 0f
 		private var top = 0f
@@ -163,12 +163,11 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 		private var sampleX = 0f
 		private var sampleY = 0f
 
-		fun configure(width: Float, height: Float, offset: Float, top: Float, period: Float, style: CumulusStyle, placements: List<CumulusPlacement>, frameLayout: NearCloudLayout, start: Int, end: Int, compositionAlpha: Int) {
-			this.width = width
-			this.height = height
-			this.offset = offset
-			this.top = top
-			this.period = period
+		fun configure(geometry: CloudDrawGeometry, style: CumulusStyle, placements: List<CumulusPlacement>, frameLayout: NearCloudLayout, start: Int, end: Int, compositionAlpha: Int) {
+			this.height = geometry.height
+			this.offset = geometry.offset
+			this.top = geometry.top
+			this.period = geometry.width * geometry.viewports
 			this.style = style
 			this.placements = placements
 			this.frameLayout = frameLayout
@@ -266,41 +265,53 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 		}
 	}
 
-	private fun drawCumulus(canvas: Canvas, geometry: CloudDrawGeometry, tint: Int, alpha: Int, frameLayout: NearCloudLayout, kind: CumulusKind, shadow: CumulusShadow?, contrast: Float, grade: CloudColorGrade, populationScope: CloudPopulationScope) {
+	private fun drawCumulus(canvas: Canvas, geometry: CloudDrawGeometry, tint: Int, alpha: Int, frameLayout: NearCloudLayout, kind: CumulusKind, shadow: CumulusShadow?, drawing: CloudDrawStyle) {
 		val period = geometry.width * geometry.viewports
 		if (period <= 0f || cumulusBitmaps.isEmpty()) {
 			return
 		}
 
 		val style = opacityStyleFor(kind, geometry.width, geometry.height, geometry.sizeScale)
-		val materialTint = if (kind == CumulusKind.FAR) { liftTowardWhite(tint, FAR_CUMULUS_TINT_LIFT) } else { tint }
-
-		paint.shader = null
-		val placements = if (kind == CumulusKind.FAR) { farPlacementsFor(frameLayout.epochDay) } else { emptyList() }
-
-		val start = if (populationScope == CloudPopulationScope.ADDITIONS) { kind.additionStart } else { 0 }
-
-		val end = if (kind == CumulusKind.FAR) { placements.size } else { kind.prefixSize }
-
-		val wrappedOffset = positiveModulo(geometry.offset, period)
-		for (index in start until end) {
-			val placement = if (kind == CumulusKind.FAR) { placements[index] } else { frameLayout[index] }
-
-			if (kind == CumulusKind.FAR) {
-				drawFarPlacement(canvas, geometry, style, placement, alpha, wrappedOffset, period, shadow, contrast, grade, materialTint)
-			} else {
-				drawHeroPlacement(canvas, geometry, style, placement, alpha, wrappedOffset, period, contrast, grade, materialTint)
-			}
+		configureCumulusPaint(kind, tint, alpha, shadow, drawing)
+		val offset = positiveModulo(geometry.offset, period)
+		if (kind == CumulusKind.FAR) {
+			drawFarPopulation(canvas, geometry, style, frameLayout.epochDay, offset, period)
+		} else {
+			drawNearPopulation(canvas, geometry, style, kind, frameLayout, offset, period)
 		}
 	}
 
-	private fun drawFarPlacement(canvas: Canvas, geometry: CloudDrawGeometry, style: CumulusStyle, placement: CumulusPlacement, compositionAlpha: Int, wrappedOffset: Float, period: Float, shadow: CumulusShadow?, contrast: Float, grade: CloudColorGrade, tint: Int) {
+	private fun configureCumulusPaint(kind: CumulusKind, tint: Int, alpha: Int, shadow: CumulusShadow?, drawing: CloudDrawStyle) {
+		paint.shader = null
+		cumulusAlpha = alpha
+		cumulusMultiply = if (kind == CumulusKind.FAR) { liftTowardWhite(tint, FAR_CUMULUS_TINT_LIFT) } else { tint }
+
+		cumulusShadow = shadow
+		cumulusDrawStyle = drawing
+	}
+
+	private fun drawFarPopulation(canvas: Canvas, geometry: CloudDrawGeometry, style: CumulusStyle, epochDay: Long, offset: Float, period: Float) {
+		val placements = farPlacementsFor(epochDay)
+		for (index in placements.indices) {
+			drawFarPlacement(canvas, geometry, style, placements[index], offset, period)
+		}
+	}
+
+	private fun drawNearPopulation(canvas: Canvas, geometry: CloudDrawGeometry, style: CumulusStyle, kind: CumulusKind, frameLayout: NearCloudLayout, offset: Float, period: Float) {
+		val start = if (cumulusDrawStyle.populationScope == CloudPopulationScope.ADDITIONS) { kind.additionStart } else { 0 }
+
+		for (index in start until kind.prefixSize) {
+			drawHeroPlacement(canvas, geometry, style, frameLayout[index], offset, period)
+		}
+	}
+
+	private fun drawFarPlacement(canvas: Canvas, geometry: CloudDrawGeometry, style: CumulusStyle, placement: CumulusPlacement, wrappedOffset: Float, period: Float) {
 		val sprite = cumulusBitmaps[placement.spriteIndex % cumulusBitmaps.size]
 		val spriteHeight = style.baseHeight * placement.scale * style.scale.height
 		val spriteWidth = spriteHeight * sprite.width.toFloat() / sprite.height.toFloat() * style.scale.width
 		val centerY = geometry.top - style.topOffset + geometry.height * placement.yFraction
 		val centerX = positiveModulo(wrappedOffset + period * placement.xFraction, period)
-		val spriteAlpha = (compositionAlpha * style.scale.alpha * placement.alphaScale).toInt().coerceIn(0, 255)
+		val spriteAlpha = (cumulusAlpha * style.scale.alpha * placement.alphaScale).toInt().coerceIn(0, 255)
 		if (spriteAlpha <= 0) {
 			return
 		}
@@ -312,19 +323,19 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 				continue
 			}
 
-			updateColorFilter(farShadowTint(tint, CumulusKind.FAR, shadow, wrappedX, centerY), contrast, grade)
+			updateColorFilter(farShadowTint(cumulusMultiply, CumulusKind.FAR, cumulusShadow, wrappedX, centerY), cumulusDrawStyle.contrast, cumulusDrawStyle.grade)
 			spriteDest.set(wrappedX - spriteWidth * 0.5f, centerY - spriteHeight * 0.5f, wrappedX + spriteWidth * 0.5f, centerY + spriteHeight * 0.5f)
 			drawSprite(canvas, sprite, placement, wrappedX, centerY)
 		}
 	}
 
-	private fun drawHeroPlacement(canvas: Canvas, geometry: CloudDrawGeometry, style: CumulusStyle, placement: CumulusPlacement, compositionAlpha: Int, wrappedOffset: Float, period: Float, contrast: Float, grade: CloudColorGrade, tint: Int) {
+	private fun drawHeroPlacement(canvas: Canvas, geometry: CloudDrawGeometry, style: CumulusStyle, placement: CumulusPlacement, wrappedOffset: Float, period: Float) {
 		val variant = HERO_VARIANTS[placement.spriteIndex % HERO_VARIANTS.size]
 		val baseCenterX = positiveModulo(wrappedOffset + period * placement.xFraction, period)
 		val baseCenterY = geometry.top - style.topOffset + geometry.height * placement.yFraction
 		val mirrorDirection = if (placement.mirror) { -1f } else { 1f }
 
-		updateColorFilter(tint, contrast, grade)
+		updateColorFilter(cumulusMultiply, cumulusDrawStyle.contrast, cumulusDrawStyle.grade)
 
 		for (part in variant.parts) {
 			val sprite = cumulusBitmaps[part.spriteIndex]
@@ -332,7 +343,7 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 			val spriteWidth = spriteHeight * sprite.width.toFloat() / sprite.height.toFloat() * style.scale.width * part.widthScale
 			val centerX = baseCenterX + mirrorDirection * part.offsetX * style.baseHeight * placement.scale
 			val centerY = baseCenterY + part.offsetY * style.baseHeight * placement.scale
-			val spriteAlpha = (compositionAlpha * style.scale.alpha * placement.alphaScale * part.alphaScale).toInt().coerceIn(0, 255)
+			val spriteAlpha = (cumulusAlpha * style.scale.alpha * placement.alphaScale * part.alphaScale).toInt().coerceIn(0, 255)
 			if (spriteAlpha <= 0) {
 				continue
 			}
@@ -674,6 +685,13 @@ internal class CloudDrawGeometry {
 		this.top = top
 		this.viewports = viewports
 		this.sizeScale = sizeScale
+	}
+}
+
+/** Immutable material/population policy, cached by the renderer until its style inputs change. */
+internal data class CloudDrawStyle(val contrast: Float = 1f, val grade: CloudColorGrade = CloudColorGrade.IDENTITY, val populationScope: CloudPopulationScope = CloudPopulationScope.FULL) {
+	companion object {
+		val DEFAULT = CloudDrawStyle()
 	}
 }
 
