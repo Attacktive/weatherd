@@ -385,7 +385,7 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 		}
 
 		return CumulusStyle(
-			baseHeight = min(width * if (width < height / NEAR_CLOUD_PORTRAIT_HEIGHT) { 0.44f } else { 0.22f }, height * 0.48f) * sizeScale,
+			baseHeight = min(width * if (width < height / NEAR_CLOUD_PORTRAIT_HEIGHT) { 0.40f } else { 0.20f }, height * 0.44f) * sizeScale,
 			topOffset = 0f,
 			scale = CumulusScale(
 				width = 1f,
