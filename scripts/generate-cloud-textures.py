@@ -17,12 +17,12 @@ CUMULUS_SIZE = (1620, 480)
 CIRRUS_SIZE = (720, 192)
 HERO_SIZE = (640, 240)
 
-# The repository's first-party banks supply coherent internal detail; crops and fair-weather material produce four near-cloud silhouettes.
+# The repository's first-party banks supply coherent internal detail; whole-silhouette proportion changes preserve their natural ends.
 HERO_SOURCES = (
-	('cloud_cumulus_hero_broad', 'cloud_overcast_hero.webp', (0.00, 1.00)),
-	('cloud_cumulus_hero_broad_alt', 'cloud_overcast_hero.webp', (0.18, 0.96)),
-	('cloud_cumulus_hero_soft_broad', 'cloud_overcast_support.webp', (0.00, 1.00)),
-	('cloud_cumulus_hero_soft_broad_alt', 'cloud_overcast_support.webp', (0.08, 0.80)),
+	('cloud_cumulus_hero_broad', 'cloud_overcast_hero.webp', 1.00),
+	('cloud_cumulus_hero_broad_alt', 'cloud_overcast_hero.webp', 0.78),
+	('cloud_cumulus_hero_soft_broad', 'cloud_overcast_support.webp', 1.00),
+	('cloud_cumulus_hero_soft_broad_alt', 'cloud_overcast_support.webp', 0.72),
 )
 
 OUTPUT = Path(__file__).resolve().parents[1] / 'app/src/main/res/drawable-nodpi'
@@ -226,10 +226,10 @@ def cumulus_texture(seed, coverage_cut, cells=(12, 4), density=1.35, shadow_stre
 	return Image.fromarray(pixels, 'RGBA')
 
 
-def hero_texture(source_name, crop):
+def hero_texture(source_name, width_scale):
 	"""Rebuild broad fair-weather artwork from authored first-party banks, never the old small-cloud cutouts."""
 	source = Image.open(OUTPUT / source_name).convert('RGBA')
-	source = source.crop((round(source.width * crop[0]), 0, round(source.width * crop[1]), source.height))
+	source = source.resize((round(source.width * width_scale), source.height), Image.Resampling.LANCZOS)
 	source.thumbnail((HERO_SIZE[0] - 32, HERO_SIZE[1] - 32), Image.Resampling.LANCZOS)
 	source_pixels = np.asarray(source, dtype=np.float32)
 	edge = np.linspace(0, 1, source.width, dtype=np.float32)
@@ -253,8 +253,8 @@ def report(path, image):
 
 def main():
 	OUTPUT.mkdir(parents=True, exist_ok=True)
-	for name, source_name, crop in HERO_SOURCES:
-		image = hero_texture(source_name, crop)
+	for name, source_name, width_scale in HERO_SOURCES:
+		image = hero_texture(source_name, width_scale)
 		path = OUTPUT / f'{name}.webp'
 		image.save(path, 'WEBP', lossless=True, quality=100, method=6)
 		report(path, image)
