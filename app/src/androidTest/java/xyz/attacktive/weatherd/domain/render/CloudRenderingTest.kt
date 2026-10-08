@@ -20,6 +20,26 @@ class CloudRenderingTest {
 	private val resources = InstrumentationRegistry.getInstrumentation().targetContext.resources
 
 	@Test
+	fun mostlyClearKeepsSolidCloudsInsideTheVisibleSkyDuringDrift() {
+		for (epoch in 20000L..20003L) {
+			val renderer = SceneRenderer(resources, CloudEpochDaySource { epoch })
+			for (time in listOf(0f, 62.5f, 125f, 187.5f, 250f, 375f)) {
+				val mostly = frame(renderer, scene(0.2f, 1f, SceneCloudLayers(0.2f, 0f, 0f)), time)
+				val partly = frame(renderer, scene(0.7f, 1f, SceneCloudLayers(0.7f, 0f, 0f)), time)
+				val mostlyCore = solidCloudArea(mostly)
+				val partlyCore = solidCloudArea(partly)
+				val interiorCore = solidCloudArea(mostly, WIDTH / 10, WIDTH * 9 / 10, HEIGHT / 10, HEIGHT * 3 / 4)
+
+				assertTrue("Mostly clear must retain substantial solid cloud inside the sky at epoch $epoch, t=$time; saw $interiorCore core pixels", interiorCore >= WIDTH * HEIGHT * 0.02f)
+				assertTrue("Mostly clear must remain predominantly open sky", mostlyCore < WIDTH * HEIGHT * 0.35f)
+				assertTrue("Partly cloudy must add solid coverage without replacing the sparse bodies", partlyCore > mostlyCore)
+				mostly.recycle()
+				partly.recycle()
+			}
+		}
+	}
+
+	@Test
 	fun portraitCoverProgressionAddsCloudCoreAndLowerSky() {
 		var previousCore = 0L
 		var previousLower = 0L
@@ -190,6 +210,19 @@ class CloudRenderingTest {
 		assertTrue("Dense dry fog must not contain either cloud family", disabled.sameAs(enabled))
 		disabled.recycle()
 		enabled.recycle()
+	}
+
+	private fun solidCloudArea(bitmap: Bitmap, left: Int = 0, right: Int = WIDTH, top: Int = 0, bottom: Int = HEIGHT): Int {
+		var core = 0
+		for (y in top until bottom) {
+			for (x in left until right) {
+				if (Color.alpha(bitmap.getPixel(x, y)) >= 192) {
+					core++
+				}
+			}
+		}
+
+		return core
 	}
 
 	private fun scene(cover: Float, opacity: Float, layers: SceneCloudLayers? = null) = SceneParams(

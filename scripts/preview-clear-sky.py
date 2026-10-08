@@ -86,10 +86,10 @@ CIRRUS_ALPHA = 230
 
 # One nominal master layout, with representative morphology rather than Android's seeded jitter/mirroring.
 ANCHOR_GROUPS = (
-	((0.13, 0.35, 0.72), (0.86, 0.71, 0.72)),
-	((0.52, 0.22, 0.88),),
-	((0.28, 0.58, 1.04), (0.90, 0.85, 0.88)),
-	((0.52, 0.48, 1.12), (0.10, 0.74, 1.08), (0.65, 0.90, 0.94)),
+	((0.25, 0.31, 0.92), (0.75, 0.62, 0.92)),
+	((0.50, 0.80, 1.00),),
+	((0.12, 0.54, 1.08), (0.88, 0.90, 0.92)),
+	((0.55, 0.44, 1.12), (0.12, 0.73, 1.08), (0.74, 0.22, 1.00)),
 )
 
 MASTER_ANCHORS = tuple(((viewport + x) / 4, y, scale, 1.0) for group in ANCHOR_GROUPS for viewport in range(4) for x, y, scale in group)
@@ -148,7 +148,6 @@ class HeroPart:
 	scale: float = 1.0
 	width_scale: float = 1.0
 	height_scale: float = 1.0
-	alpha_scale: float = 1.0
 
 
 @dataclass(frozen=True)
@@ -158,21 +157,15 @@ class HeroVariant:
 
 HERO_VARIANTS = (
 	HeroVariant((HeroPart(0),)),
-	HeroVariant((
-		HeroPart(0, offset_y=0.06, scale=0.92, width_scale=0.96, height_scale=0.98),
-		HeroPart(2, offset_x=-0.08, offset_y=-0.30, scale=0.58, width_scale=0.84, height_scale=1.16, alpha_scale=0.92),
-	)),
-	HeroVariant((HeroPart(2, scale=0.84, alpha_scale=0.82),)),
-	HeroVariant((
-		HeroPart(1, scale=0.90, width_scale=1.24, height_scale=0.72),
-		HeroPart(3, offset_x=0.30, offset_y=0.08, scale=0.62, width_scale=1.16, height_scale=0.68, alpha_scale=0.72),
-	)),
 	HeroVariant((HeroPart(1),)),
+	HeroVariant((HeroPart(2, scale=1.04, height_scale=1.10),)),
+	HeroVariant((HeroPart(0, width_scale=1.12, height_scale=0.85),)),
+	HeroVariant((HeroPart(3, scale=1.10, height_scale=1.18),)),
+	HeroVariant((HeroPart(1, width_scale=0.90, height_scale=1.06),)),
 	HeroVariant((
-		HeroPart(2, offset_x=-0.20, offset_y=0.02, scale=0.70, width_scale=0.90, height_scale=0.86, alpha_scale=0.78),
-		HeroPart(3, offset_x=0.24, offset_y=-0.07, scale=0.64, width_scale=0.88, height_scale=0.82, alpha_scale=0.74),
+		HeroPart(2, offset_x=-0.28, offset_y=0.015, scale=0.70, width_scale=1.15, height_scale=1.10),
+		HeroPart(3, offset_x=0.28, offset_y=-0.03, scale=0.78, width_scale=1.10, height_scale=1.18),
 	)),
-	HeroVariant((HeroPart(3, scale=0.84, alpha_scale=0.82),)),
 )
 
 
@@ -384,7 +377,7 @@ def draw_cumulus_placement(destination, sprites, parts, anchor, geometry, style,
 		sprite_width = sprite_height * sprite.width / sprite.height * style.width_scale * part.width_scale
 		center_x = base_center_x + part.offset_x * style.base_height * placement_scale
 		center_y = base_center_y + part.offset_y * style.base_height * placement_scale
-		sprite_alpha = int(alpha * style.alpha_scale * alpha_scale * part.alpha_scale)
+		sprite_alpha = int(alpha * style.alpha_scale * alpha_scale)
 		for shift in (-1, 0, 1):
 			wrapped_x = center_x + shift * period
 			if wrapped_x + sprite_width * 0.5 < 0 or wrapped_x - sprite_width * 0.5 > WIDTH:

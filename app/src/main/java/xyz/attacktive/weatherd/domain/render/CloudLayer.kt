@@ -207,7 +207,7 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 				val spriteWidth = spriteHeight * sprite.width.toFloat() / sprite.height.toFloat() * style.scale.width * part.widthScale
 				val centerX = baseCenterX + mirrorDirection * part.offsetX * style.baseHeight * placement.scale
 				val centerY = baseCenterY + part.offsetY * style.baseHeight * placement.scale
-				val spriteAlpha = (compositionAlpha * style.scale.alpha * placement.alphaScale * part.alphaScale).toInt().coerceIn(0, 255)
+				val spriteAlpha = (compositionAlpha * style.scale.alpha * placement.alphaScale).toInt().coerceIn(0, 255)
 				if (spriteAlpha <= 0) {
 					continue
 				}
@@ -343,7 +343,7 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 			val spriteWidth = spriteHeight * sprite.width.toFloat() / sprite.height.toFloat() * style.scale.width * part.widthScale
 			val centerX = baseCenterX + mirrorDirection * part.offsetX * style.baseHeight * placement.scale
 			val centerY = baseCenterY + part.offsetY * style.baseHeight * placement.scale
-			val spriteAlpha = (cumulusAlpha * style.scale.alpha * placement.alphaScale * part.alphaScale).toInt().coerceIn(0, 255)
+			val spriteAlpha = (cumulusAlpha * style.scale.alpha * placement.alphaScale).toInt().coerceIn(0, 255)
 			if (spriteAlpha <= 0) {
 				continue
 			}
@@ -524,33 +524,23 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 		private val FAR_PLACEMENT_TUNING = PlacementTuning(0.022f, 0.040f, 0.10f, 0.06f, 0.20f, 0.66f)
 
 		/*
-		 * Seven visual variants come from four source bitmaps.
-		 * The composites add genuinely different silhouettes without adding decoded bitmap memory: tall crowns, flat banks and torn fragments are assembled from the same repository-owned sprites.
-		 * Their order deliberately alternates morphology families because buildPlacements cycles through neighboring variants before repeating.
+		 * Seven coherent bank variants share four first-party source bitmaps.
+		 * Modest proportion changes and one joined soft-bank composition vary the silhouette without restoring the old stacked small-cloud crowns.
+		 * Their order alternates morphology families because buildPlacements cycles through neighboring variants before repeating.
 		 */
 		private val HERO_VARIANTS = listOf(
 			HeroVariant(listOf(HeroPart(HERO_BROAD))),
-			HeroVariant(
-				listOf(
-					HeroPart(HERO_BROAD, offsetY = 0.06f, scale = 0.92f, widthScale = 0.96f, heightScale = 0.98f),
-					HeroPart(HERO_SOFT_BROAD, offsetX = -0.08f, offsetY = -0.30f, scale = 0.58f, widthScale = 0.84f, heightScale = 1.16f, alphaScale = 0.92f)
-				)
-			),
-			HeroVariant(listOf(HeroPart(HERO_SOFT_BROAD, scale = 0.84f, alphaScale = 0.82f))),
-			HeroVariant(
-				listOf(
-					HeroPart(HERO_BROAD_ALT, scale = 0.90f, widthScale = 1.24f, heightScale = 0.72f),
-					HeroPart(HERO_SOFT_BROAD_ALT, offsetX = 0.30f, offsetY = 0.08f, scale = 0.62f, widthScale = 1.16f, heightScale = 0.68f, alphaScale = 0.72f)
-				)
-			),
 			HeroVariant(listOf(HeroPart(HERO_BROAD_ALT))),
+			HeroVariant(listOf(HeroPart(HERO_SOFT_BROAD, scale = 1.04f, heightScale = 1.10f))),
+			HeroVariant(listOf(HeroPart(HERO_BROAD, widthScale = 1.12f, heightScale = 0.85f))),
+			HeroVariant(listOf(HeroPart(HERO_SOFT_BROAD_ALT, scale = 1.10f, heightScale = 1.18f))),
+			HeroVariant(listOf(HeroPart(HERO_BROAD_ALT, widthScale = 0.90f, heightScale = 1.06f))),
 			HeroVariant(
 				listOf(
-					HeroPart(HERO_SOFT_BROAD, offsetX = -0.20f, offsetY = 0.02f, scale = 0.70f, widthScale = 0.90f, heightScale = 0.86f, alphaScale = 0.78f),
-					HeroPart(HERO_SOFT_BROAD_ALT, offsetX = 0.24f, offsetY = -0.07f, scale = 0.64f, widthScale = 0.88f, heightScale = 0.82f, alphaScale = 0.74f)
+					HeroPart(HERO_SOFT_BROAD, offsetX = -0.28f, offsetY = 0.015f, scale = 0.70f, widthScale = 1.15f, heightScale = 1.10f),
+					HeroPart(HERO_SOFT_BROAD_ALT, offsetX = 0.28f, offsetY = -0.03f, scale = 0.78f, widthScale = 1.10f, heightScale = 1.18f)
 				)
-			),
-			HeroVariant(listOf(HeroPart(HERO_SOFT_BROAD_ALT, scale = 0.84f, alphaScale = 0.82f)))
+			)
 		)
 
 		private val NEAR_ANCHORS = buildList {
@@ -562,10 +552,10 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 				}
 			}
 
-			group(CumulusAnchor(0.13f, 0.35f, 0.72f), CumulusAnchor(0.86f, 0.71f, 0.72f))
-			group(CumulusAnchor(0.52f, 0.22f, 0.88f))
-			group(CumulusAnchor(0.28f, 0.58f, 1.04f), CumulusAnchor(0.90f, 0.85f, 0.88f))
-			group(CumulusAnchor(0.52f, 0.48f, 1.12f), CumulusAnchor(0.10f, 0.74f, 1.08f), CumulusAnchor(0.65f, 0.90f, 0.94f))
+			group(CumulusAnchor(0.25f, 0.31f, 0.92f), CumulusAnchor(0.75f, 0.62f, 0.92f))
+			group(CumulusAnchor(0.50f, 0.80f, 1.00f))
+			group(CumulusAnchor(0.12f, 0.54f, 1.08f), CumulusAnchor(0.88f, 0.90f, 0.92f))
+			group(CumulusAnchor(0.55f, 0.44f, 1.12f), CumulusAnchor(0.12f, 0.73f, 1.08f), CumulusAnchor(0.74f, 0.22f, 1.00f))
 		}
 
 		private val FAR_ANCHORS = listOf(
@@ -712,4 +702,4 @@ internal enum class CloudPopulationScope {
 
 private data class HeroVariant(val parts: List<HeroPart>)
 
-private data class HeroPart(val spriteIndex: Int, val offsetX: Float = 0f, val offsetY: Float = 0f, val scale: Float = 1f, val widthScale: Float = 1f, val heightScale: Float = 1f, val alphaScale: Float = 1f)
+private data class HeroPart(val spriteIndex: Int, val offsetX: Float = 0f, val offsetY: Float = 0f, val scale: Float = 1f, val widthScale: Float = 1f, val heightScale: Float = 1f)
