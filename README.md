@@ -7,7 +7,8 @@ Android live wallpaper that renders a procedural weather scene from Open-Meteo B
 Uses device location or a manually searched city, refreshes on a configurable interval (15 min – 6 hr), and mirrors the live scene in an in-app preview.
 
 The scene simulator overrides the preview and live wallpaper without replacing the cached real weather.
-Returning to live mode displays that weather without waiting for location or network requests; on a first launch, it displays a clock-lit fallback until weather becomes available.
+Returning to live mode displays cached weather without waiting for location or network requests when its location source and provider configuration still match the selected target.
+On a first launch or after changing targets, it displays a clock-lit fallback until matching weather becomes available.
 Refreshes happen separately, and a slow or failed request does not prevent switching modes.
 
 Enable **Settings → Appearance → Sun and moon → Motion-responsive reflections** to move the sun's optical reflections as you tilt your phone, in both the preview and the live wallpaper.

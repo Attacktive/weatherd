@@ -42,8 +42,11 @@ data class WeatherSceneStatus(val locationLabel: String? = null, val lastRefresh
 data class WeatherSceneState(
 	val settings: AppSettings,
 	val snapshot: WeatherSnapshot? = null,
+	val snapshotTarget: WeatherSceneTarget? = null,
+	val deviceLocation: GeoLocation? = null,
 	val photoRevision: Int = 0,
-	val locationLabel: String? = null
+	val locationLabel: String? = null,
+	val locationLabelTarget: WeatherSceneTarget? = null
 ) {
 	val simulatorActive: Boolean
 		get() = sceneSimulatorOverridesWeather(settings.sceneSimulatorActive, settings.sceneSimulatorEnabled, debugToolsEnabled)
@@ -113,13 +116,12 @@ class WeatherSceneProvider @Inject constructor(
 	private var weatherRequestGeneration = 0L
 	private var weatherRequestSequence = 0L
 	private var lastPublishedWeatherRequestSequence = 0L
-	private var locationLabel: String?
+	private val locationLabel: String?
 		get() = _sceneState.value.locationLabel
-		set(value) {
-			_sceneState.update { it.copy(locationLabel = value) }
-		}
 
-	@Volatile private var lastDeviceFix: GeoLocation? = null
+	private val deviceFixLock = Any()
+	private val lastDeviceFix: GeoLocation?
+		get() = _sceneState.value.deviceLocation
 	@Volatile private var lastRefreshLocation: GeoLocation? = null
 	@Volatile private var geocodedKey: String? = null
 
@@ -146,6 +148,9 @@ class WeatherSceneProvider @Inject constructor(
 		}
 
 		val snapshot = state.snapshot ?: return@with fallbackParams(nowEpochSeconds, state)
+		if (state.snapshotTarget?.matchesWeather(state.settings, state.deviceLocation) != true) {
+			return@with fallbackParams(nowEpochSeconds, state)
+		}
 
 		sceneParamsFor(
 			snapshot = snapshot,
@@ -282,7 +287,8 @@ class WeatherSceneProvider @Inject constructor(
 	}
 
 	private fun weatherRefreshIsThrottled(settings: AppSettings, locationKey: String, nowEpochSeconds: Long, force: Boolean): Boolean {
-		val locationChanged = locationKey != lastLocationKey
+		val state = sceneState.value
+		val locationChanged = locationKey != lastLocationKey || state.snapshotTarget?.matchesLocation(settings, state.deviceLocation) == false
 		val weatherProviderChanged = settings.weatherProvider != lastAttemptedWeatherProvider || settings.weatherFallbackProvider != lastAttemptedWeatherFallbackProvider
 		val minRefreshSeconds = settings.updateIntervalMinutes * SECONDS_PER_MINUTE
 
@@ -341,7 +347,8 @@ class WeatherSceneProvider @Inject constructor(
 				false
 			} else {
 				lastPublishedWeatherRequestSequence = request.sequence
-				_sceneState.update { it.copy(snapshot = weather) }
+				val target = WeatherSceneTarget.from(requestSettings, location)
+				_sceneState.update { it.copy(snapshot = weather, snapshotTarget = target) }
 
 				lastRefreshEpochSeconds = nowEpochSeconds
 				lastLocationKey = locationKey
@@ -413,7 +420,7 @@ class WeatherSceneProvider @Inject constructor(
 	 */
 	private suspend fun refreshLocationLabel(settings: AppSettings, resolveForStatus: Boolean) {
 		if (selectedManualLocation(settings) != null) {
-			locationLabel = settings.manualLocationLabel
+			publishLocationLabel(settings, settings.manualLocationLabel)
 			geocodedKey = null
 			publishStatus(settings)
 			return
@@ -425,7 +432,7 @@ class WeatherSceneProvider @Inject constructor(
 
 		val fix = lastDeviceFix
 		if (fix == null) {
-			locationLabel = null
+			publishLocationLabel(settings, null)
 			geocodedKey = null
 			publishStatus(settings)
 			return
@@ -437,9 +444,24 @@ class WeatherSceneProvider @Inject constructor(
 			return
 		}
 
-		locationLabel = reverseGeocodingRepository.placeName(fix.latitude, fix.longitude)
+		val label = reverseGeocodingRepository.placeName(fix.latitude, fix.longitude)
+		publishLocationLabel(settings, label, fix)
 		geocodedKey = fixKey
 		publishStatus(settings)
+	}
+
+	private fun publishLocationLabel(settings: AppSettings, label: String?, deviceLocation: GeoLocation? = null) {
+		val target = WeatherSceneTarget.from(settings, deviceLocation)
+		_sceneState.update { it.copy(locationLabel = label, locationLabelTarget = target) }
+	}
+
+	private fun displayedLocationLabel(state: WeatherSceneState): String? {
+		val settings = state.settings
+		if (!WeatherSceneTarget.selectsDeviceLocation(settings)) {
+			return settings.manualLocationLabel
+		}
+
+		return state.locationLabel.takeIf { state.locationLabelTarget?.matchesLocation(settings, state.deviceLocation) == true }
 	}
 
 	private suspend fun refreshSimulatorStatus(settings: AppSettings, resolveLocationName: Boolean) {
@@ -459,17 +481,16 @@ class WeatherSceneProvider @Inject constructor(
 		refreshLocationLabel(settings, resolveForStatus = true)
 	}
 
-	private fun rememberDeviceFix(settings: AppSettings, location: GeoLocation) {
+	private fun rememberDeviceFix(settings: AppSettings, location: GeoLocation) = synchronized(deviceFixLock) {
 		if (selectedManualLocation(settings) != null) {
-			return
+			return@synchronized
 		}
 
 		if (location != lastDeviceFix) {
-			locationLabel = null
+			_sceneState.update { it.copy(deviceLocation = location, locationLabel = null, locationLabelTarget = null) }
+
 			geocodedKey = null
 		}
-
-		lastDeviceFix = location
 	}
 
 	private fun publishStatus(settings: AppSettings) {
@@ -509,7 +530,7 @@ class WeatherSceneProvider @Inject constructor(
 		}
 
 		val location = if (showLocationLabel) {
-			state.locationLabel
+			displayedLocationLabel(state)
 		} else {
 			null
 		}
@@ -576,7 +597,7 @@ class WeatherSceneProvider @Inject constructor(
 	}
 
 	private fun fallbackOverlayLabels(state: WeatherSceneState): OverlayLabels? {
-		val location = state.locationLabel.takeIf { state.settings.showLocationLabel }
+		val location = displayedLocationLabel(state).takeIf { state.settings.showLocationLabel }
 
 		return if (location == null) {
 			null

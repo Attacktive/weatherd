@@ -2,7 +2,7 @@
 
 Instructions and architectural invariants for agents working in the Weatherd codebase.
 
-- Version: 1.6.9 (2026-10-09)
+- Version: 1.6.10 (2026-10-09)
 - Persona: Coding assistant pair-programming with the user on Weatherd.
 
 ## Tools and Environment
@@ -82,6 +82,10 @@ It pins meteorological conditions (cloud cover, precipitation kind/severity, fog
 The simulator state is persisted through `SettingsRepository` and observed independently of location/weather acquisition in `WeatherSceneProvider.sceneState`.
 `WeatherSceneState` publishes immutable settings, cached weather, photo revision, and location-label inputs; both surfaces derive their scene through `paramsFor` from a single captured state.
 Disabling simulation selects cached weather or the normal clock-lit fallback without waiting for a refresh.
+Cached snapshots are rendered only when `snapshotTarget` matches the effective location source, manual or known device coordinates, and requested primary/fallback provider configuration in the captured settings.
+The actual provider attribution in `WeatherSnapshot.source` may differ from that requested configuration after fallback; never use actual attribution as the cache-target key.
+Manual location labels derive from the captured settings; geocoded labels carry `locationLabelTarget` and are shown only for a matching location source.
+`deviceLocation` captures the most recently known device fix; if a simulator status refresh observes a different point, the old snapshot is hidden and its refresh interval cannot throttle acquisition for the new point.
 The preview reacts to state emissions, and the wallpaper invalidates its parameter cache when the state identity changes; unchanged inputs retain the once-per-second clock update.
 Never put weather I/O inside the simulator-settings mutation lock or a settings collector.
 Overlapping ordinary refreshes for the latest weather/location target share application-scoped work; changing targets or starting a forced refresh prevents reuse of obsolete work.
