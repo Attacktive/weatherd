@@ -1,6 +1,5 @@
 package xyz.attacktive.weatherd.domain.render
 
-import kotlin.math.roundToInt
 import xyz.attacktive.weatherd.domain.model.DayPhase
 
 /** RGB material endpoints; strength zero preserves the baked artwork. */
@@ -10,21 +9,32 @@ internal data class CloudColorGrade(val shadowColor: Int, val highlightColor: In
 	}
 }
 
-/** Shares the sky's phase curves, with cool shadows and warm illuminated material at low sun. */
+/**
+ * Returns luminance-aware material grade for dawn and dusk low sun.
+ * Day and night return [CloudColorGrade.IDENTITY], preserving restored appearance.
+ */
 internal fun cloudColorGradeFor(dayPhase: DayPhase, celestialProgress: Float): CloudColorGrade = when (dayPhase) {
-	DayPhase.DAY -> CloudColorGrade.IDENTITY
-	DayPhase.NIGHT -> NIGHT_CLOUD_GRADE
+	DayPhase.DAY, DayPhase.NIGHT -> CloudColorGrade.IDENTITY
 	DayPhase.DAWN -> {
-		val progress = (celestialProgress / 0.5f).coerceIn(0f, 1f)
-		val warmth = progress * progress * (3f - 2f * progress)
-		val strength = 1f - dawnDaylightStrength(celestialProgress)
-		blendCloudGrade(NIGHT_CLOUD_GRADE, LOW_SUN_CLOUD_GRADE, warmth, strength)
+		val sunrise = dawnSunriseStrength(celestialProgress)
+		val daylight = dawnDaylightStrength(celestialProgress)
+		val strength = sunrise * (1f - daylight)
+		if (strength <= 0f) {
+			CloudColorGrade.IDENTITY
+		} else {
+			CloudColorGrade(LOW_SUN_CLOUD_SHADOW, LOW_SUN_CLOUD_HIGHLIGHT, strength)
+		}
 	}
 
 	DayPhase.DUSK -> {
+		val sunsetWarmth = duskWarmStrength(celestialProgress)
 		val nightfall = duskNightStrength(celestialProgress)
-		val strength = maxOf(duskWarmStrength(celestialProgress), nightfall)
-		blendCloudGrade(LOW_SUN_CLOUD_GRADE, NIGHT_CLOUD_GRADE, nightfall, strength)
+		val strength = sunsetWarmth * (1f - nightfall)
+		if (strength <= 0f) {
+			CloudColorGrade.IDENTITY
+		} else {
+			CloudColorGrade(LOW_SUN_CLOUD_SHADOW, LOW_SUN_CLOUD_HIGHLIGHT, strength)
+		}
 	}
 }
 
@@ -49,24 +59,5 @@ internal fun writeCloudColorMatrix(destination: FloatArray, tint: Int, contrast:
 	destination[18] = 1f
 }
 
-private fun blendCloudGrade(from: CloudColorGrade, to: CloudColorGrade, progress: Float, strength: Float): CloudColorGrade {
-	if (strength == 0f) {
-		return CloudColorGrade.IDENTITY
-	}
-
-	return CloudColorGrade(blendCloudColor(from.shadowColor, to.shadowColor, progress), blendCloudColor(from.highlightColor, to.highlightColor, progress), strength)
-}
-
-private fun blendCloudColor(from: Int, to: Int, progress: Float): Int {
-	var color = 0xFF000000.toInt()
-	for (shift in 0..16 step 8) {
-		val start = (from ushr shift) and 255
-		val end = (to ushr shift) and 255
-		color = color or ((start + (end - start) * progress).roundToInt() shl shift)
-	}
-
-	return color
-}
-
-private val LOW_SUN_CLOUD_GRADE = CloudColorGrade(0xFF597999.toInt(), 0xFFFFF6D5.toInt(), 1f)
-private val NIGHT_CLOUD_GRADE = CloudColorGrade(0xFF1E283D.toInt(), 0xFF6D7D96.toInt(), 1f)
+private const val LOW_SUN_CLOUD_SHADOW = 0xFF597999.toInt()
+private const val LOW_SUN_CLOUD_HIGHLIGHT = 0xFFFFF6D5.toInt()

@@ -141,6 +141,8 @@ private fun basePhaseGradient(dayPhase: DayPhase, preset: SkyColorPreset, celest
 	}
 }
 
+internal fun dawnSunriseStrength(celestialProgress: Float) = smoothStep(DAWN_SUNRISE_START, DAWN_SUNRISE_FULL, celestialProgress)
+
 internal fun dawnDaylightStrength(celestialProgress: Float) = smoothStep(DAWN_DAYLIGHT_START, DAWN_DAYLIGHT_FULL, celestialProgress)
 
 internal fun duskWarmStrength(celestialProgress: Float) = smoothStep(DUSK_WARM_START, DUSK_WARM_FULL, celestialProgress)
@@ -239,6 +241,8 @@ private fun overcastAmount(params: SceneParams): Float = when {
 internal fun overcastCeilingStrength(cloudiness: Float) = ((cloudiness - OVERCAST_GRAY_FLOOR) / (OVERCAST_GRAY_FULL - OVERCAST_GRAY_FLOOR)).coerceIn(0f, 1f)
 
 /** Progress ranges that shape the procedural dawn and dusk palette transitions. */
+private const val DAWN_SUNRISE_START = 0f
+private const val DAWN_SUNRISE_FULL = 0.5f
 private const val DAWN_DAYLIGHT_START = 0.5f
 private const val DAWN_DAYLIGHT_FULL = 0.85f
 private const val DUSK_WARM_START = 0.15f

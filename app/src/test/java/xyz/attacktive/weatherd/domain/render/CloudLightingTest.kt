@@ -1,7 +1,6 @@
 package xyz.attacktive.weatherd.domain.render
 
-import kotlin.math.abs
-import kotlin.math.roundToInt
+import android.graphics.Color
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -9,73 +8,186 @@ import xyz.attacktive.weatherd.domain.model.DayPhase
 
 class CloudLightingTest {
 	@Test
-	fun `low sun separates illuminated material from cool shadow`() {
+	fun illuminatedHighLuminanceMaterialBecomesWarmerThanShadowMaterialAtLowSun() {
 		val grade = cloudColorGradeFor(DayPhase.DAWN, 0.5f)
-		val shadow = mapColor(0x80808080.toInt(), grade)
-		val crown = mapColor(0x80FFFFFF.toInt(), grade)
-		assertTrue((shadow and 255) > ((shadow ushr 16) and 255))
-		assertTrue(((crown ushr 16) and 255) > (crown and 255))
-		assertEquals(128, shadow ushr 24)
-		assertEquals(128, crown ushr 24)
+		assertTrue(grade.strength > 0f)
+
+		val matrix = FloatArray(20)
+		writeCloudColorMatrix(matrix, Color.WHITE, 1f, grade)
+
+		fun transformRgb(r: Float, g: Float, b: Float): Triple<Float, Float, Float> {
+			val outR = matrix[0] * r + matrix[1] * g + matrix[2] * b + matrix[4]
+			val outG = matrix[5] * r + matrix[6] * g + matrix[7] * b + matrix[9]
+			val outB = matrix[10] * r + matrix[11] * g + matrix[12] * b + matrix[14]
+
+			return Triple(outR, outG, outB)
+		}
+
+		// Highlight: high luminance material (240, 240, 240)
+		val (highR, highG, highB) = transformRgb(240f, 240f, 240f)
+		// Highlight should be warm: red and green exceed blue
+		assertTrue("Highlights should be warm (R > B): highR=$highR highB=$highB", highR > highB)
+		assertTrue("Highlights should be golden/cream (G > B): highG=$highG highB=$highB", highG > highB)
+
+		// Shadow: low luminance material (60, 60, 60)
+		val (shadowR, _, shadowB) = transformRgb(60f, 60f, 60f)
+		// Shadow should be cool: blue exceeds red
+		assertTrue("Shadows should be cool (B > R): shadowB=$shadowB shadowR=$shadowR", shadowB > shadowR)
 	}
 
 	@Test
-	fun `day preserves baked cloud rgb`() {
-		assertEquals(0xAAB0C3DB.toInt(), mapColor(0xAAB0C3DB.toInt(), cloudColorGradeFor(DayPhase.DAY, 0.5f)))
-	}
+	fun sourceAlphaSurvivesGradingContrastAndTintExtremes() {
+		val matrix = FloatArray(20)
+		val testGrades = listOf(
+			CloudColorGrade.IDENTITY,
+			cloudColorGradeFor(DayPhase.DAWN, 0.5f),
+			CloudColorGrade(0xFF597999.toInt(), 0xFFFFF6D5.toInt(), 1f)
+		)
+		val testContrasts = listOf(0.5f, 1f, 1.5f)
+		val testTints = listOf(Color.WHITE, 0xFF566078.toInt(), Color.RED)
 
-	@Test
-	fun `cloud material meets neighboring phases`() {
-		val source = 0xAAB0C3DB.toInt()
-		val day = mapColor(source, cloudColorGradeFor(DayPhase.DAY, 0.5f))
-		val night = mapColor(source, cloudColorGradeFor(DayPhase.NIGHT, 0.5f))
-		assertEquals(night, mapColor(source, cloudColorGradeFor(DayPhase.DAWN, 0f)))
-		assertEquals(day, mapColor(source, cloudColorGradeFor(DayPhase.DAWN, 0.85f)))
-		assertEquals(day, mapColor(source, cloudColorGradeFor(DayPhase.DUSK, 0f)))
-		assertEquals(night, mapColor(source, cloudColorGradeFor(DayPhase.DUSK, 1f)))
-	}
-
-	@Test
-	fun `twilight material progresses without a color jump`() {
-		for (phase in listOf(DayPhase.DAWN, DayPhase.DUSK)) {
-			for (gray in listOf(128, 192, 255)) {
-				val source = 0x80000000.toInt() or (gray shl 16) or (gray shl 8) or gray
-				var previous = mapColor(source, cloudColorGradeFor(phase, 0f))
-				for (step in 1..100) {
-					val current = mapColor(source, cloudColorGradeFor(phase, step / 100f))
-					for (shift in listOf(0, 8, 16)) {
-						assertTrue("$phase at $step must remain continuous", abs(((current ushr shift) and 255) - ((previous ushr shift) and 255)) <= 12)
-					}
-
-					previous = current
+		for (grade in testGrades) {
+			for (contrast in testContrasts) {
+				for (tint in testTints) {
+					writeCloudColorMatrix(matrix, tint, contrast, grade)
+					// The alpha row is row 3 (indices 15..19): outA = 0*R + 0*G + 0*B + 1*A + 0
+					assertEquals(0f, matrix[15], 1e-6f)
+					assertEquals(0f, matrix[16], 1e-6f)
+					assertEquals(0f, matrix[17], 1e-6f)
+					assertEquals(1f, matrix[18], 1e-6f)
+					assertEquals(0f, matrix[19], 1e-6f)
 				}
 			}
 		}
 	}
 
 	@Test
-	fun `grade contrast and depth tint retain source alpha at extremes`() {
-		for (alpha in listOf(0, 1, 128, 254, 255)) {
-			for (contrast in listOf(0.5f, 1f, 1.5f)) {
-				val result = mapColor((alpha shl 24) or 0xB0C3DB, cloudColorGradeFor(DayPhase.NIGHT, 0.5f), 0xFF8090A0.toInt(), contrast)
-				assertEquals(alpha, result ushr 24)
-			}
+	fun additionalGradeIsIdentityDuringDayAndNight() {
+		for (progress in listOf(0f, 0.25f, 0.5f, 0.75f, 1f)) {
+			val dayGrade = cloudColorGradeFor(DayPhase.DAY, progress)
+			assertEquals(CloudColorGrade.IDENTITY, dayGrade)
+			assertEquals(0f, dayGrade.strength, 1e-6f)
+
+			val nightGrade = cloudColorGradeFor(DayPhase.NIGHT, progress)
+			assertEquals(CloudColorGrade.IDENTITY, nightGrade)
+			assertEquals(0f, nightGrade.strength, 1e-6f)
 		}
 	}
 
-	private fun mapColor(argb: Int, grade: CloudColorGrade, tint: Int = 0xFFFFFFFF.toInt(), contrast: Float = 1f): Int {
-		val matrix = FloatArray(20)
-		writeCloudColorMatrix(matrix, tint, contrast, grade)
-		val channels = floatArrayOf(((argb ushr 16) and 255).toFloat(), ((argb ushr 8) and 255).toFloat(), (argb and 255).toFloat(), (argb ushr 24).toFloat())
-		val output = IntArray(4) { row ->
-			var value = matrix[row * 5 + 4]
-			for (column in channels.indices) {
-				value += matrix[row * 5 + column] * channels[column]
-			}
+	@Test
+	fun dawnAndDuskGradingFadesWithoutAbruptStepsAtNeighboringBoundaries() {
+		// Dawn boundaries
+		val dawnStart = cloudColorGradeFor(DayPhase.DAWN, 0f)
+		assertEquals("Dawn start should match night identity", 0f, dawnStart.strength, 1e-4f)
 
-			value.roundToInt().coerceIn(0, 255)
+		val dawnEnd = cloudColorGradeFor(DayPhase.DAWN, 1f)
+		assertEquals("Dawn end should match day identity", 0f, dawnEnd.strength, 1e-4f)
+
+		// Dusk boundaries
+		val duskStart = cloudColorGradeFor(DayPhase.DUSK, 0f)
+		assertEquals("Dusk start should match day identity", 0f, duskStart.strength, 1e-4f)
+
+		val duskEnd = cloudColorGradeFor(DayPhase.DUSK, 1f)
+		assertEquals("Dusk end should match night identity", 0f, duskEnd.strength, 1e-4f)
+
+		// Twilight peaks at low-sun
+		val dawnMid = cloudColorGradeFor(DayPhase.DAWN, 0.5f)
+		assertTrue("Dawn mid should have strong low-sun separation", dawnMid.strength >= 0.8f)
+
+		val duskMid = cloudColorGradeFor(DayPhase.DUSK, 0.5f)
+		assertTrue("Dusk mid should have strong low-sun separation", duskMid.strength >= 0.8f)
+
+		// Smooth continuity: check that step deltas are small
+		var previousStrength = dawnStart.strength
+		for (i in 1..100) {
+			val progress = i / 100f
+			val currentStrength = cloudColorGradeFor(DayPhase.DAWN, progress).strength
+			val delta = kotlin.math.abs(currentStrength - previousStrength)
+			assertTrue("Dawn progress step at $progress had abrupt jump $delta", delta < 0.05f)
+			previousStrength = currentStrength
 		}
 
-		return (output[3] shl 24) or (output[0] shl 16) or (output[1] shl 8) or output[2]
+		previousStrength = duskStart.strength
+		for (i in 1..100) {
+			val progress = i / 100f
+			val currentStrength = cloudColorGradeFor(DayPhase.DUSK, progress).strength
+			val delta = kotlin.math.abs(currentStrength - previousStrength)
+			assertTrue("Dusk progress step at $progress had abrupt jump $delta", delta < 0.05f)
+			previousStrength = currentStrength
+		}
+		previousStrength = duskStart.strength
+		for (i in 1..100) {
+			val progress = i / 100f
+			val currentStrength = cloudColorGradeFor(DayPhase.DUSK, progress).strength
+			val delta = kotlin.math.abs(currentStrength - previousStrength)
+			assertTrue("Dusk progress step at $progress had abrupt jump $delta", delta < 0.05f)
+			previousStrength = currentStrength
+		}
+	}
+
+	@Test
+	fun cumulusTintMatchesPhaseBoundariesAndReachesDaylightWhiteAtLowSun() {
+		val nightBlue = 0xFF566078.toInt()
+		assertEquals(Color.WHITE, cumulusTint(DayPhase.DAY, 0.5f))
+		assertEquals(nightBlue, cumulusTint(DayPhase.NIGHT, 0.5f))
+
+		assertEquals(nightBlue, cumulusTint(DayPhase.DAWN, 0f))
+		assertEquals(Color.WHITE, cumulusTint(DayPhase.DAWN, 0.5f))
+		assertEquals(Color.WHITE, cumulusTint(DayPhase.DAWN, 1f))
+
+		assertEquals(Color.WHITE, cumulusTint(DayPhase.DUSK, 0f))
+		assertEquals(Color.WHITE, cumulusTint(DayPhase.DUSK, 0.5f))
+		assertEquals(nightBlue, cumulusTint(DayPhase.DUSK, 1f))
+
+		var previousDawnTint = cumulusTint(DayPhase.DAWN, 0f)
+		for (i in 1..100) {
+			val progress = i / 100f
+			val currentTint = cumulusTint(DayPhase.DAWN, progress)
+			val maxDelta = maxOf(
+				kotlin.math.abs(((currentTint ushr 16) and 255) - ((previousDawnTint ushr 16) and 255)),
+				kotlin.math.abs(((currentTint ushr 8) and 255) - ((previousDawnTint ushr 8) and 255)),
+				kotlin.math.abs((currentTint and 255) - (previousDawnTint and 255))
+			)
+			assertTrue("Dawn tint step at $progress had abrupt jump $maxDelta", maxDelta <= 10)
+			previousDawnTint = currentTint
+		}
+
+		var previousDuskTint = cumulusTint(DayPhase.DUSK, 0f)
+		for (i in 1..100) {
+			val progress = i / 100f
+			val currentTint = cumulusTint(DayPhase.DUSK, progress)
+			val maxDelta = maxOf(
+				kotlin.math.abs(((currentTint ushr 16) and 255) - ((previousDuskTint ushr 16) and 255)),
+				kotlin.math.abs(((currentTint ushr 8) and 255) - ((previousDuskTint ushr 8) and 255)),
+				kotlin.math.abs((currentTint and 255) - (previousDuskTint and 255))
+			)
+			assertTrue("Dusk tint step at $progress had abrupt jump $maxDelta", maxDelta <= 10)
+			previousDuskTint = currentTint
+		}
+	}
+
+	@Test
+	fun lowSunHighlightsRemainWarmWhenRenderedThroughCumulusTint() {
+		val matrix = FloatArray(20)
+		fun transformRgb(r: Float, g: Float, b: Float): Triple<Float, Float, Float> {
+			val outR = matrix[0] * r + matrix[1] * g + matrix[2] * b + matrix[4]
+			val outG = matrix[5] * r + matrix[6] * g + matrix[7] * b + matrix[9]
+			val outB = matrix[10] * r + matrix[11] * g + matrix[12] * b + matrix[14]
+
+			return Triple(outR, outG, outB)
+		}
+
+		for (phase in listOf(DayPhase.DAWN, DayPhase.DUSK)) {
+			val tint = cumulusTint(phase, 0.5f)
+			val grade = cloudColorGradeFor(phase, 0.5f)
+			writeCloudColorMatrix(matrix, tint, 1f, grade)
+
+			val (highR, highG, highB) = transformRgb(240f, 240f, 240f)
+			assertTrue("$phase peak highlight should be warm (R > B): r=$highR b=$highB", highR > highB)
+			assertTrue("$phase peak highlight should be golden (G > B): g=$highG b=$highB", highG > highB)
+
+			val (shadowR, _, shadowB) = transformRgb(60f, 60f, 60f)
+			assertTrue("$phase peak shadow should be cool (B > R): b=$shadowB r=$shadowR", shadowB > shadowR)
+		}
 	}
 }

@@ -15,15 +15,6 @@ from scipy.ndimage import map_coordinates
 # The generated fair-weather decks stay compact enough for several decoded variants to coexist without dominating bitmap heap.
 CUMULUS_SIZE = (1620, 480)
 CIRRUS_SIZE = (720, 192)
-HERO_SIZE = (640, 240)
-
-# The repository's first-party banks supply coherent internal detail; whole-silhouette proportion changes preserve their natural ends.
-HERO_SOURCES = (
-	('cloud_cumulus_hero_broad', 'cloud_overcast_hero.webp', 1.00),
-	('cloud_cumulus_hero_broad_alt', 'cloud_overcast_hero.webp', 0.78),
-	('cloud_cumulus_hero_soft_broad', 'cloud_overcast_support.webp', 1.00),
-	('cloud_cumulus_hero_soft_broad_alt', 'cloud_overcast_support.webp', 0.72),
-)
 
 OUTPUT = Path(__file__).resolve().parents[1] / 'app/src/main/res/drawable-nodpi'
 
@@ -226,25 +217,6 @@ def cumulus_texture(seed, coverage_cut, cells=(12, 4), density=1.35, shadow_stre
 	return Image.fromarray(pixels, 'RGBA')
 
 
-def hero_texture(source_name, width_scale):
-	"""Rebuild broad fair-weather artwork from authored first-party banks, never the old small-cloud cutouts."""
-	source = Image.open(OUTPUT / source_name).convert('RGBA')
-	source = source.resize((round(source.width * width_scale), source.height), Image.Resampling.LANCZOS)
-	source.thumbnail((HERO_SIZE[0] - 32, HERO_SIZE[1] - 32), Image.Resampling.LANCZOS)
-	source_pixels = np.asarray(source, dtype=np.float32)
-	edge = np.linspace(0, 1, source.width, dtype=np.float32)
-	source_pixels[:, :, 3] *= smoothstep(0, 0.10, edge) * (1 - smoothstep(0.90, 1, edge))
-	source = Image.fromarray(np.clip(source_pixels, 0, 255).astype(np.uint8), 'RGBA')
-	image = Image.new('RGBA', HERO_SIZE, (255, 255, 255, 0))
-	image.paste(source, ((HERO_SIZE[0] - source.width) // 2, (HERO_SIZE[1] - source.height) // 2))
-	pixels = np.asarray(image, dtype=np.float32)
-	luma = pixels[:, :, :3] @ np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)
-	light = smoothstep(105, 220, luma)
-	shadow = np.array([139, 164, 193], dtype=np.float32)
-	pixels[:, :, :3] = shadow + (SUNLIT - shadow) * light[:, :, None]
-	return Image.fromarray(np.clip(pixels, 0, 255).astype(np.uint8), 'RGBA')
-
-
 def report(path, image):
 	alpha = np.asarray(image.convert('RGBA'), dtype=np.float32)[:, :, 3] / 255.0
 	print(f'{path.relative_to(OUTPUT.parents[4])}: {image.width}x{image.height}, {path.stat().st_size} bytes', end='')
@@ -253,12 +225,6 @@ def report(path, image):
 
 def main():
 	OUTPUT.mkdir(parents=True, exist_ok=True)
-	for name, source_name, width_scale in HERO_SOURCES:
-		image = hero_texture(source_name, width_scale)
-		path = OUTPUT / f'{name}.webp'
-		image.save(path, 'WEBP', lossless=True, quality=100, method=6)
-		report(path, image)
-
 	for name, coverage_cut in CUMULUS_COVERAGE:
 		image = cumulus_texture(CUMULUS_SEED, coverage_cut)
 		path = OUTPUT / f'{name}.png'
