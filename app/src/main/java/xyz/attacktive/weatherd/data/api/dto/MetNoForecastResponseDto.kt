@@ -51,7 +51,8 @@ data class MetNoInstantDetailsDto(
 	@SerialName("cloud_area_fraction_low") val cloudAreaFractionLow: Double? = null,
 	@SerialName("cloud_area_fraction_medium") val cloudAreaFractionMid: Double? = null,
 	@SerialName("cloud_area_fraction_high") val cloudAreaFractionHigh: Double? = null,
-	@SerialName("wind_speed") val windSpeed: Double? = null
+	@SerialName("wind_speed") val windSpeed: Double? = null,
+	@SerialName("relative_humidity") val relativeHumidityPercent: Double? = null
 )
 
 @SuppressLint("UnsafeOptInUsageError")
@@ -90,7 +91,8 @@ fun MetNoForecastResponseDto.toSnapshot(sun: MetNoSunriseResponseDto, source: We
 			cloudCover = CloudCover(
 				totalPercent = cloudAreaFraction.toInt().coerceIn(0, 100),
 				layers = details.cloudLayers()
-			)
+			),
+			relativeHumidityPercent = details.relativeHumidityPercent
 		),
 		observedAtEpochSeconds = observedAtEpochSeconds,
 		sunriseEpochSeconds = sun.sunriseEpochSeconds(),

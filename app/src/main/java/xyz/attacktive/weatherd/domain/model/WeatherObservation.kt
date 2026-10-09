@@ -20,7 +20,8 @@ data class WeatherObservation(
 	val temperatureCelsius: Double,
 	val precipitationMillimeters: Double,
 	val windSpeedKilometersPerHour: Double,
-	val cloudCover: CloudCover
+	val cloudCover: CloudCover,
+	val relativeHumidityPercent: Double? = null
 ) {
 	val cloudCoverPercent: Int
 		get() = cloudCover.totalPercent

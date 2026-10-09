@@ -35,6 +35,7 @@ import xyz.attacktive.weatherd.domain.weather.precipitationIntensity
  * [sunVisible], [moonVisible], [sunSizeScale] and [sunColorPreset] customize the celestial bodies without changing the time-of-day lighting.
  * [lensFlareEnabled] is a display preference for camera-style streaks and optical ghosts around the sun; it does not disable the physical corona or atmospheric light shafts.
  * [lensFlareMotionEnabled] allows device tilt and motion sensors to subtly deflect camera optical reflections when [lensFlareEnabled] and direct sun are visible.
+ * [humidityHazeDensity] is a restrained atmospheric overlay derived from high humidity; it shares fog drawing without classifying the weather as fog.
  */
 data class SceneCloudLayers(
 	val low: Float,
@@ -70,7 +71,8 @@ data class SceneParams(
 	val sunSizeScale: Float = 1f,
 	val sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
 	val lensFlareEnabled: Boolean = true,
-	val lensFlareMotionEnabled: Boolean = false
+	val lensFlareMotionEnabled: Boolean = false,
+	val humidityHazeDensity: Float = 0f
 )
 
 /** The two overlay text lines — the current weather ("Rain · 10°") and the place name — each omissible on its own. */
@@ -127,6 +129,25 @@ internal fun effectiveOpaqueCloudiness(params: SceneParams) = params.cloudLayers
 private fun scaledCloudiness(params: SceneParams, cloudiness: Float) =
 	(cloudiness * params.cloudCountScale.coerceIn(CLOUD_COUNT_SCALE_RANGE.start, CLOUD_COUNT_SCALE_RANGE.endInclusive)).coerceIn(0f, 1f)
 
+/** Smoothly maps relative humidity above 85% onto a restrained 0..0.25 atmospheric overlay. */
+internal fun humidityHazeDensityFor(relativeHumidityPercent: Double?): Float {
+	if (relativeHumidityPercent == null || !relativeHumidityPercent.isFinite()) {
+		return 0f
+	}
+
+	val humidity = relativeHumidityPercent.coerceIn(0.0, 100.0)
+	val progress = ((humidity - 85.0) / 15.0).coerceIn(0.0, 1.0)
+	val smoothstep = progress * progress * (3.0 - 2.0 * progress)
+
+	return (0.25 * smoothstep).toFloat()
+}
+
+/** Drawing strength for the shared fog geometry; this is not a weather classifier. */
+internal fun effectiveFogDensity(params: SceneParams) = maxOf(
+	params.fogDensity.coerceIn(0f, 1f),
+	params.humidityHazeDensity.coerceIn(0f, 0.25f)
+)
+
 /** Derives render parameters from a weather snapshot for the given moment. */
 fun sceneParamsFor(
 	snapshot: WeatherSnapshot,
@@ -153,6 +174,7 @@ fun sceneParamsFor(
 ): SceneParams {
 	val observation = snapshot.observation
 	val condition = observation.condition
+	val reportedFog = condition.fog
 	val dayPhase = dayPhaseFor(nowEpochSeconds, snapshot.sunriseEpochSeconds, snapshot.sunsetEpochSeconds, observation.isDay)
 	val cloudLayers = observation.cloudCover.layers?.let {
 		SceneCloudLayers(
@@ -165,7 +187,7 @@ fun sceneParamsFor(
 	return SceneParams(
 		dayPhase = dayPhase,
 		cloudiness = (observation.cloudCoverPercent / 100f).coerceIn(0f, 1f),
-		fogDensity = if (condition.fog) {
+		fogDensity = if (reportedFog) {
 			1f
 		} else {
 			0f
@@ -197,7 +219,12 @@ fun sceneParamsFor(
 		photoRevision = photoRevision,
 		overlayLabels = overlayLabels,
 		lensFlareEnabled = lensFlareEnabled,
-		lensFlareMotionEnabled = lensFlareMotionEnabled
+		lensFlareMotionEnabled = lensFlareMotionEnabled,
+		humidityHazeDensity = if (reportedFog) {
+			0f
+		} else {
+			humidityHazeDensityFor(observation.relativeHumidityPercent)
+		}
 	)
 }
 

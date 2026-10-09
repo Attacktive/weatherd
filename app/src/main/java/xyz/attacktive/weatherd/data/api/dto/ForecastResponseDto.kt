@@ -27,7 +27,8 @@ data class CurrentWeatherDto(
 	@SerialName("cloud_cover") val cloudCover: Int,
 	@SerialName("cloud_cover_low") val cloudCoverLow: Int? = null,
 	@SerialName("cloud_cover_mid") val cloudCoverMid: Int? = null,
-	@SerialName("cloud_cover_high") val cloudCoverHigh: Int? = null
+	@SerialName("cloud_cover_high") val cloudCoverHigh: Int? = null,
+	@SerialName("relative_humidity_2m") val relativeHumidityPercent: Double? = null
 )
 
 @SuppressLint("UnsafeOptInUsageError")
@@ -57,7 +58,8 @@ fun ForecastResponseDto.toSnapshot(source: WeatherSource = WeatherSource(Weather
 		cloudCover = CloudCover(
 			totalPercent = current.cloudCover.coerceIn(0, 100),
 			layers = current.cloudLayers()
-		)
+		),
+		relativeHumidityPercent = current.relativeHumidityPercent
 	)
 
 	return WeatherSnapshot(

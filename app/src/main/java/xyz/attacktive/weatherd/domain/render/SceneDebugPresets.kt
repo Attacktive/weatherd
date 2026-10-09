@@ -25,7 +25,8 @@ data class ScenePreset(
 	val fogDensity: Float = 0f,
 	val precipitation: Precipitation? = null,
 	val thunder: Boolean = false,
-	val windFactor: Float = 0.3f
+	val windFactor: Float = 0.3f,
+	val humidityHazeDensity: Float = 0f
 )
 
 /** Representative feature combinations covering every rendering branch, for previewing without a weather fetch. */
@@ -56,7 +57,8 @@ val SCENE_PRESETS = listOf(
 		"HIGH CLOUDS",
 		cloudiness = 0.8f,
 		cloudLayers = SceneCloudLayers(low = 0.05f, mid = 0.05f, high = 0.8f)
-	)
+	),
+	ScenePreset("HUMID HAZE", cloudiness = 0.05f, humidityHazeDensity = 0.25f)
 )
 
 /**
@@ -109,5 +111,6 @@ fun debugSceneParams(
 	sunColorPreset = sunColorPreset,
 	lensFlareEnabled = lensFlareEnabled,
 	celestialProgress = celestialProgress,
-	lensFlareMotionEnabled = lensFlareMotionEnabled
+	lensFlareMotionEnabled = lensFlareMotionEnabled,
+	humidityHazeDensity = preset.humidityHazeDensity
 )
