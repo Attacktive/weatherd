@@ -205,6 +205,7 @@ class SceneRenderer(resources: Resources) {
 
 		val w = width.toFloat()
 		val h = height.toFloat()
+		val fogDensity = effectiveFogDensity(params)
 
 		drawSky(canvas, w, h, params)
 
@@ -213,8 +214,8 @@ class SceneRenderer(resources: Resources) {
 			drawOvercastCeiling(canvas, w, h, params, ceilingStrength)
 		}
 
-		if (params.fogDensity > 0f) {
-			drawFogBase(canvas, w, h, params)
+		if (fogDensity > 0f) {
+			drawFogBase(canvas, w, h, params, fogDensity)
 		}
 
 		if (showsHaze(params)) {
@@ -235,6 +236,7 @@ class SceneRenderer(resources: Resources) {
 
 		val w = width.toFloat()
 		val h = height.toFloat()
+		val fogDensity = effectiveFogDensity(params)
 		val celestialCenterX = w * CELESTIAL_X_FRACTION
 		val celestialCenterY = h * celestialHeightFraction(params.dayPhase, params.celestialProgress)
 		val precipKey = params.precipitation?.let { "${it.kind}-${(it.severity * 100f).toInt()}" } ?: "dry"
@@ -283,8 +285,8 @@ class SceneRenderer(resources: Resources) {
 			drawScenery(canvas, w, h, params, timeSeconds)
 		}
 
-		if (params.fogDensity > 0f) {
-			drawFogDrift(canvas, w, h, params, timeSeconds)
+		if (fogDensity > 0f) {
+			drawFogDrift(canvas, w, h, params, fogDensity, timeSeconds)
 		}
 
 		if (params.thunder) {
@@ -1922,8 +1924,7 @@ class SceneRenderer(resources: Resources) {
 		}
 	}
 
-	private fun drawFogBase(canvas: Canvas, width: Float, height: Float, params: SceneParams) {
-		val density = params.fogDensity.coerceIn(0f, 1f)
+	private fun drawFogBase(canvas: Canvas, width: Float, height: Float, params: SceneParams, density: Float) {
 		val color = lighten(hazeColorFor(params.dayPhase), 0.10f)
 		paint.style = Paint.Style.FILL
 		paint.shader = LinearGradient(
@@ -1945,8 +1946,7 @@ class SceneRenderer(resources: Resources) {
 	}
 
 	/** Two broad veil fields share one prevailing drift with parallax, while opacity and height breathe slowly enough to read as rolling fog rather than counter-scrolling smoke. */
-	private fun drawFogDrift(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
-		val density = params.fogDensity.coerceIn(0f, 1f)
+	private fun drawFogDrift(canvas: Canvas, width: Float, height: Float, params: SceneParams, density: Float, timeSeconds: Float) {
 		val tileWidth = (width / TILE_DOWNSCALE).toInt()
 		val tileHeight = (height / TILE_DOWNSCALE).toInt()
 		val baseColor = hazeColorFor(params.dayPhase)
