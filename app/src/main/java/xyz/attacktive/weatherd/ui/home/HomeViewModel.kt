@@ -1,9 +1,7 @@
 package xyz.attacktive.weatherd.ui.home
 
 import javax.inject.Inject
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -13,8 +11,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
+import xyz.attacktive.weatherd.domain.render.SCENE_PRESETS
 import xyz.attacktive.weatherd.domain.render.SceneParams
 import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
+import xyz.attacktive.weatherd.domain.render.WeatherSceneState
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsMutation
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
@@ -29,134 +29,44 @@ class HomeViewModel @Inject constructor(
 ): ViewModel() {
 	private val simulatorSettingsMutex = Mutex()
 
-	/** The user's redraw cap, so the preview animates at the same rate the wallpaper will. */
-	val frameRateCap = settingsRepository.settings
-		.map { it.frameRateCap }
-		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().frameRateCap)
-
-	/** The user's precipitation intensity scale, so the debug cycler simulates the chosen particle density. */
-	val precipitationIntensityScale = settingsRepository.settings
-		.map { it.precipitationIntensityScale }
-		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().precipitationIntensityScale)
-
-	/** The user's wind intensity scale, so the debug cycler simulates the chosen wind strength. */
-	val windIntensityScale = settingsRepository.settings
-		.map { it.windIntensityScale }
-		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().windIntensityScale)
-
-	/** The user's cloud intensity scale, so the debug cycler simulates the chosen cloud opacity. */
-	val cloudIntensityScale = settingsRepository.settings
-		.map { it.cloudIntensityScale }
-		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().cloudIntensityScale)
-
-	/** The user's fair-weather cloud body scale, so debug mode matches the live wallpaper. */
-	val cloudSizeScale = settingsRepository.settings
-		.map { it.cloudSizeScale }
-		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().cloudSizeScale)
-
-	/** The user's cloud coverage multiplier, so debug mode matches the live wallpaper. */
-	val cloudCountScale = settingsRepository.settings
-		.map { it.cloudCountScale }
-		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().cloudCountScale)
-
-	/** The user's cloud contrast multiplier, so debug mode matches the live wallpaper. */
-	val cloudContrastScale = settingsRepository.settings
-		.map { it.cloudContrastScale }
-		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().cloudContrastScale)
-
-	/** The user's painted-sky brightness multiplier, so debug mode matches the live wallpaper. */
-	val skyBrightnessScale = settingsRepository.settings
-		.map { it.skyBrightnessScale }
-		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().skyBrightnessScale)
-
-	/** The user's night-only sky brightness multiplier, so debug mode matches the live wallpaper. */
-	val nightBrightnessScale = settingsRepository.settings
-		.map { it.nightBrightnessScale }
-		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().nightBrightnessScale)
-
-	/** The user's painted-sky saturation multiplier, so debug mode matches the live wallpaper. */
-	val skySaturationScale = settingsRepository.settings
-		.map { it.skySaturationScale }
-		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().skySaturationScale)
-
-	/** The user's painted-sky palette, so debug mode matches the live wallpaper. */
-	val skyColorPreset = settingsRepository.settings
-		.map { it.skyColorPreset }
-		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().skyColorPreset)
-
-	/** Whether the sun is rendered, so debug mode matches the live wallpaper. */
-	val sunVisible = settingsRepository.settings
-		.map { it.sunVisible }
-		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().sunVisible)
-
-	/** Whether the moon is rendered, so debug mode matches the live wallpaper. */
-	val moonVisible = settingsRepository.settings
-		.map { it.moonVisible }
-		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().moonVisible)
-
-	/** The user's sun size multiplier, so debug mode matches the live wallpaper. */
-	val sunSizeScale = settingsRepository.settings
-		.map { it.sunSizeScale }
-		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().sunSizeScale)
-
-	/** The user's sun color preset, so debug mode matches the live wallpaper. */
-	val sunColorPreset = settingsRepository.settings
-		.map { it.sunColorPreset }
-		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().sunColorPreset)
-
-	/** Whether camera-style lens flare is enabled, so debug mode matches the live wallpaper. */
-	val lensFlareEnabled = settingsRepository.settings
-		.map { it.lensFlareEnabled }
-		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().lensFlareEnabled)
-
-	/** Whether phone tilt moves lens reflections, so the simulator preserves the user's opt-in. */
-	val lensFlareMotionEnabled = settingsRepository.settings
-		.map { it.lensFlareMotionEnabled }
-		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().lensFlareMotionEnabled)
-
-	/** Whether release builds should expose the scene simulator controls on the home preview. */
-	val sceneSimulatorEnabled = settingsRepository.settings
-		.map { it.sceneSimulatorEnabled }
-		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().sceneSimulatorEnabled)
-
-	/** Whether the simulator currently replaces live weather for both the preview and the wallpaper. */
-	val sceneSimulatorActive = settingsRepository.settings
-		.map { it.sceneSimulatorActive }
-		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().sceneSimulatorActive)
-
-	val sceneSimulatorPresetIndex = settingsRepository.settings
-		.map { it.sceneSimulatorPresetIndex }
-		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().sceneSimulatorPresetIndex)
-
-	val sceneSimulatorDayPhase = settingsRepository.settings
-		.map { it.sceneSimulatorDayPhase }
-		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().sceneSimulatorDayPhase)
-
-	val sceneSimulatorCelestialProgress = settingsRepository.settings
-		.map { it.sceneSimulatorCelestialProgress }
-		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings().sceneSimulatorCelestialProgress)
+	/** One immutable selection and weather snapshot shared with the live wallpaper. */
+	val sceneState = sceneProvider.sceneState
 
 	fun setSceneSimulatorActive(active: Boolean) {
-		updateSceneSimulator(SettingsMutation.SceneSimulatorActive(active))
+		updateSceneSimulator { SettingsMutation.SceneSimulatorActive(active) }
 	}
 
-	fun setSceneSimulatorPresetIndex(index: Int) {
-		updateSceneSimulator(SettingsMutation.SceneSimulatorPresetIndex(index))
+	fun toggleSceneSimulator() {
+		updateSceneSimulator { SettingsMutation.SceneSimulatorActive(!it.sceneSimulatorActive) }
 	}
 
-	fun setSceneSimulatorDayPhase(dayPhase: DayPhase) {
-		updateSceneSimulator(SettingsMutation.SceneSimulatorDayPhase(dayPhase))
+	fun changeSceneSimulatorPreset(step: Int) {
+		updateSceneSimulator {
+			val current = it.sceneSimulatorPresetIndex.coerceIn(0, SCENE_PRESETS.lastIndex)
+			SettingsMutation.SceneSimulatorPresetIndex(Math.floorMod(current + step, SCENE_PRESETS.size))
+		}
+	}
+
+	fun changeSceneSimulatorDayPhase(step: Int) {
+		updateSceneSimulator {
+			SettingsMutation.SceneSimulatorDayPhase(DayPhase.entries[Math.floorMod(it.sceneSimulatorDayPhase.ordinal + step, DayPhase.entries.size)])
+		}
 	}
 
 	fun setSceneSimulatorCelestialProgress(progress: Float) {
-		updateSceneSimulator(SettingsMutation.SceneSimulatorCelestialProgress(progress))
+		updateSceneSimulator { SettingsMutation.SceneSimulatorCelestialProgress(progress) }
 	}
 
-	private fun updateSceneSimulator(mutation: SettingsMutation) {
+	private fun updateSceneSimulator(mutationFor: (AppSettings) -> SettingsMutation) {
 		viewModelScope.launch {
-			simulatorSettingsMutex.withLock {
+			val mutation = simulatorSettingsMutex.withLock {
+				val mutation = mutationFor(settingsRepository.settings.first())
 				settingsRepository.update(listOf(mutation))
-				sceneProvider.refresh(nowEpochSeconds())
+				mutation
+			}
+
+			if (mutation is SettingsMutation.SceneSimulatorActive && !mutation.active) {
+				refresh()
 			}
 		}
 	}
@@ -168,15 +78,8 @@ class HomeViewModel @Inject constructor(
 		}
 	}
 
-	/** Refreshes the shared provider before returning its scene, used when the preview must not expose an intermediate persisted state. */
-	suspend fun refreshedParams(): SceneParams {
-		val now = nowEpochSeconds()
-		sceneProvider.refresh(now)
-		return sceneProvider.paramsFor(now)
-	}
-
 	/** The scene to preview right now — real weather once it has loaded, a clock-lit clear sky until then. */
-	fun currentParams(): SceneParams = sceneProvider.paramsFor(nowEpochSeconds())
+	fun currentParams(state: WeatherSceneState = sceneState.value): SceneParams = sceneProvider.paramsFor(nowEpochSeconds(), state)
 
 	/**
 	 * The stored photo to preview as the sky for [scene] during [dayPhase], or null when [scene] draws no photo, no filled bucket covers that phase, or the stored file no longer decodes.

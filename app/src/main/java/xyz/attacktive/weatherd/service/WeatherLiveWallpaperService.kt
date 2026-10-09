@@ -17,6 +17,7 @@ import xyz.attacktive.weatherd.domain.model.FrameRateCap
 import xyz.attacktive.weatherd.domain.render.SceneParams
 import xyz.attacktive.weatherd.domain.render.SceneRenderer
 import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
+import xyz.attacktive.weatherd.domain.render.WeatherSceneState
 import xyz.attacktive.weatherd.domain.render.backdropSignature
 import xyz.attacktive.weatherd.domain.render.lensFlareMotionActive
 import xyz.attacktive.weatherd.domain.render.renderImmutableBitmap
@@ -52,6 +53,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 		private var previousBackdrop: Bitmap? = null
 		private var fadeStartSeconds = 0f
 		private var activeParams: SceneParams? = null
+		private var activeSceneState: WeatherSceneState? = null
 		private var paramsComputedAtSecond = 0L
 		private var width = 0
 		private var height = 0
@@ -72,7 +74,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 					frameRateCap = it.frameRateCap
 					wallpaperScrollingPreferenceEnabled = it.wallpaperScrollingEnabled
 					if (visible) {
-						sceneProvider.refresh(nowEpochSeconds())
+						scope.launch { sceneProvider.refresh(nowEpochSeconds()) }
 					}
 				}
 			}
@@ -232,16 +234,18 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			lensFlareMotionSensor.setActive(this, active)
 		}
 
-		/** The scene params, recomputed at most once per second — the day phase can shift, but never per frame. */
+		/** Settings and weather invalidate immediately; unchanged inputs only need a clock update once per second. */
 		private fun currentParams(): SceneParams {
 			val second = nowEpochSeconds()
+			val state = sceneProvider.sceneState.value
 			val cached = activeParams
-			if (cached != null && second == paramsComputedAtSecond) {
+			if (cached != null && state === activeSceneState && second == paramsComputedAtSecond) {
 				return cached
 			}
 
-			return sceneProvider.paramsFor(second).also {
+			return sceneProvider.paramsFor(second, state).also {
 				activeParams = it
+				activeSceneState = state
 				paramsComputedAtSecond = second
 			}
 		}

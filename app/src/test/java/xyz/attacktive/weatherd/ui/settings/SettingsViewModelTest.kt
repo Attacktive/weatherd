@@ -40,6 +40,7 @@ import xyz.attacktive.weatherd.domain.repository.AppearancePresetRepository
 import xyz.attacktive.weatherd.domain.repository.AppearancePresetStorageState
 import xyz.attacktive.weatherd.domain.repository.GeocodingRepository
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
+import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundState
 import xyz.attacktive.weatherd.domain.repository.SettingsMutation
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
 import xyz.attacktive.weatherd.domain.repository.settingsMutationsBetween
@@ -61,8 +62,7 @@ class SettingsViewModelTest {
 		every { settingsRepository.defaults } returns AppSettings()
 		every { settingsRepository.settings } returns flowOf(AppSettings())
 		every { appearancePresetRepository.state } returns flowOf(AppearancePresetStorageState.Ready(emptyList()))
-		every { photoBackgroundRepository.available } returns MutableStateFlow(emptySet())
-		every { photoBackgroundRepository.revision } returns MutableStateFlow(0)
+		every { photoBackgroundRepository.state } returns MutableStateFlow(PhotoBackgroundState(emptySet()))
 		every { sceneProvider.status } returns MutableStateFlow(WeatherSceneStatus())
 		coEvery { photoBackgroundRepository.loadThumbnail(any()) } returns null
 		coEvery { sceneProvider.refresh(any(), any(), any()) } returns Unit

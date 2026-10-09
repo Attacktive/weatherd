@@ -35,7 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -60,7 +60,6 @@ import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.render.SCENE_PRESETS
 import xyz.attacktive.weatherd.domain.render.SceneRenderer
 import xyz.attacktive.weatherd.domain.render.backdropSignature
-import xyz.attacktive.weatherd.domain.render.debugSceneParams
 import xyz.attacktive.weatherd.domain.render.lensFlareMotionActive
 import xyz.attacktive.weatherd.domain.render.renderImmutableBitmap
 import xyz.attacktive.weatherd.domain.render.sceneAnimationTimeSeconds
@@ -68,7 +67,7 @@ import xyz.attacktive.weatherd.service.WeatherLiveWallpaperService
 
 /**
  * A live preview of the current scene — the same renderer and weather source the wallpaper uses, including the persisted scene-simulator override.
- * Refreshes on resume so returning from Settings (e.g. after changing the city) reflects the new scene, and re-reads the provider params once a second so weather, display settings and day-phase changes show.
+ * Refreshes weather on resume, reacts to shared scene-input changes immediately, and advances clock-derived lighting once a second.
  * Honors the user's frame-rate cap, so the preview animates exactly as choppily as the wallpaper it is previewing.
  */
 @Composable
@@ -78,68 +77,32 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	val motionSensor = viewModel.lensFlareMotionSensor
 	val motionOwner = remember { Any() }
 	var timeSeconds by remember { mutableFloatStateOf(0f) }
-	var liveParams by remember { mutableStateOf(viewModel.currentParams()) }
-	var debugEnabled by remember { mutableStateOf(false) }
-	var debugSceneIndex by remember { mutableIntStateOf(0) }
-	var debugPhaseIndex by remember { mutableIntStateOf(DayPhase.DAY.ordinal) }
-	var debugCelestialProgress by remember { mutableFloatStateOf(0.5f) }
+	val sceneState by viewModel.sceneState.collectAsStateWithLifecycle()
+	val settings = sceneState.settings
+	val debugEnabled = sceneState.simulatorActive
+	val debugSceneIndex = settings.sceneSimulatorPresetIndex.coerceIn(0, SCENE_PRESETS.lastIndex)
+	val debugPhaseIndex = settings.sceneSimulatorDayPhase.ordinal
+	var debugCelestialProgress by remember(settings.sceneSimulatorCelestialProgress) {
+		mutableFloatStateOf(settings.sceneSimulatorCelestialProgress.coerceIn(0f, 1f))
+	}
+
+	var clockSeconds by remember { mutableLongStateOf(System.currentTimeMillis() / 1000L) }
+
 	var controlsVisible by remember { mutableStateOf(true) }
 	val previewInteraction = remember { MutableInteractionSource() }
-	val frameRateCap by viewModel.frameRateCap.collectAsStateWithLifecycle()
-	val precipitationIntensityScale by viewModel.precipitationIntensityScale.collectAsStateWithLifecycle()
-	val windIntensityScale by viewModel.windIntensityScale.collectAsStateWithLifecycle()
-	val cloudIntensityScale by viewModel.cloudIntensityScale.collectAsStateWithLifecycle()
-	val cloudSizeScale by viewModel.cloudSizeScale.collectAsStateWithLifecycle()
-	val cloudCountScale by viewModel.cloudCountScale.collectAsStateWithLifecycle()
-	val cloudContrastScale by viewModel.cloudContrastScale.collectAsStateWithLifecycle()
-	val skyBrightnessScale by viewModel.skyBrightnessScale.collectAsStateWithLifecycle()
-	val nightBrightnessScale by viewModel.nightBrightnessScale.collectAsStateWithLifecycle()
-	val skySaturationScale by viewModel.skySaturationScale.collectAsStateWithLifecycle()
-	val skyColorPreset by viewModel.skyColorPreset.collectAsStateWithLifecycle()
-	val sunVisible by viewModel.sunVisible.collectAsStateWithLifecycle()
-	val moonVisible by viewModel.moonVisible.collectAsStateWithLifecycle()
-	val sunSizeScale by viewModel.sunSizeScale.collectAsStateWithLifecycle()
-	val sunColorPreset by viewModel.sunColorPreset.collectAsStateWithLifecycle()
-	val lensFlareEnabled by viewModel.lensFlareEnabled.collectAsStateWithLifecycle()
-	val lensFlareMotionEnabled by viewModel.lensFlareMotionEnabled.collectAsStateWithLifecycle()
-	val sceneSimulatorEnabled by viewModel.sceneSimulatorEnabled.collectAsStateWithLifecycle()
-	val persistedDebugEnabled by viewModel.sceneSimulatorActive.collectAsStateWithLifecycle()
-	val persistedDebugSceneIndex by viewModel.sceneSimulatorPresetIndex.collectAsStateWithLifecycle()
-	val persistedDebugDayPhase by viewModel.sceneSimulatorDayPhase.collectAsStateWithLifecycle()
-	val persistedDebugCelestialProgress by viewModel.sceneSimulatorCelestialProgress.collectAsStateWithLifecycle()
-	val sceneSimulatorVisible = debugToolsEnabled || sceneSimulatorEnabled
+	val sceneSimulatorVisible = debugToolsEnabled || settings.sceneSimulatorEnabled
 
 	// Read inside the frame loop, which is launched once and has to see a cap the user changes while it runs.
-	val currentCap = rememberUpdatedState(frameRateCap)
+	val currentCap = rememberUpdatedState(settings.frameRateCap)
 
-	// The scene simulator overrides the weather but keeps the user's chosen backdrop and intensity scales, so scenery can be previewed under any condition.
-	// The photo revision comes across with it because the preset carries no revision of its own, which keeps the preview's backdrop key identical in shape to the wallpaper's signature.
-	val params = if (debugEnabled && sceneSimulatorVisible) {
-		debugSceneParams(
-			preset = SCENE_PRESETS[debugSceneIndex],
-			dayPhase = DayPhase.entries[debugPhaseIndex],
-			precipitationScale = precipitationIntensityScale,
-			windScale = windIntensityScale,
-			cloudScale = cloudIntensityScale,
-			cloudSizeScale = cloudSizeScale,
-			cloudCountScale = cloudCountScale,
-			cloudContrastScale = cloudContrastScale,
-			skyBrightnessScale = skyBrightnessScale,
-			nightBrightnessScale = nightBrightnessScale,
-			skySaturationScale = skySaturationScale,
-			skyColorPreset = skyColorPreset,
-			moonPhase = liveParams.moonPhase,
-			sunVisible = sunVisible,
-			moonVisible = moonVisible,
-			sunSizeScale = sunSizeScale,
-			sunColorPreset = sunColorPreset,
-			lensFlareEnabled = lensFlareEnabled,
-			lensFlareMotionEnabled = lensFlareMotionEnabled,
-			celestialProgress = debugCelestialProgress
-		)
-			.copy(backdropScene = liveParams.backdropScene, photoRevision = liveParams.photoRevision)
-	} else {
-		liveParams
+	val params = remember(sceneState, clockSeconds, debugCelestialProgress) {
+		val sharedParams = viewModel.currentParams(sceneState)
+		if (debugEnabled && debugCelestialProgress != sharedParams.celestialProgress) {
+			// Only an unfinished slider gesture is local; committing it updates both surfaces through the shared provider.
+			sharedParams.copy(celestialProgress = debugCelestialProgress)
+		} else {
+			sharedParams
+		}
 	}
 
 	val motionActive = lensFlareMotionActive(params)
@@ -174,37 +137,15 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 		}
 	}
 
-	LaunchedEffect(persistedDebugEnabled) {
-		if (persistedDebugEnabled) {
-			debugEnabled = true
-		} else {
-			liveParams = viewModel.refreshedParams()
-			debugEnabled = false
-		}
-	}
-
-	LaunchedEffect(persistedDebugSceneIndex) {
-		debugSceneIndex = persistedDebugSceneIndex.coerceIn(0, SCENE_PRESETS.lastIndex)
-	}
-
-	LaunchedEffect(persistedDebugDayPhase) {
-		debugPhaseIndex = persistedDebugDayPhase.ordinal
-	}
-
-	LaunchedEffect(persistedDebugCelestialProgress) {
-		debugCelestialProgress = persistedDebugCelestialProgress.coerceIn(0f, 1f)
-	}
-
-	LaunchedEffect(sceneSimulatorVisible, debugEnabled) {
-		if (!sceneSimulatorVisible && debugEnabled) {
-			debugEnabled = false
+	LaunchedEffect(sceneSimulatorVisible, settings.sceneSimulatorActive) {
+		if (!sceneSimulatorVisible && settings.sceneSimulatorActive) {
 			viewModel.setSceneSimulatorActive(false)
 		}
 	}
 
 	LaunchedEffect(viewModel) {
 		while (true) {
-			liveParams = viewModel.currentParams()
+			clockSeconds = System.currentTimeMillis() / 1000L
 			delay(1000.milliseconds)
 		}
 	}
@@ -279,28 +220,18 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 						sceneLabel = SCENE_PRESETS[debugSceneIndex].name,
 						phaseLabel = DayPhase.entries[debugPhaseIndex].name,
 						celestialProgress = debugCelestialProgress,
-						onDebugEnabledChange = {
-							if (it) {
-								debugEnabled = true
-							}
-
-							viewModel.setSceneSimulatorActive(it)
-						},
+						onDebugToggle = viewModel::toggleSceneSimulator,
 						onScenePrevious = {
-							debugSceneIndex = (debugSceneIndex + SCENE_PRESETS.size - 1) % SCENE_PRESETS.size
-							viewModel.setSceneSimulatorPresetIndex(debugSceneIndex)
+							viewModel.changeSceneSimulatorPreset(-1)
 						},
 						onSceneNext = {
-							debugSceneIndex = (debugSceneIndex + 1) % SCENE_PRESETS.size
-							viewModel.setSceneSimulatorPresetIndex(debugSceneIndex)
+							viewModel.changeSceneSimulatorPreset(1)
 						},
 						onPhasePrevious = {
-							debugPhaseIndex = (debugPhaseIndex + DayPhase.entries.size - 1) % DayPhase.entries.size
-							viewModel.setSceneSimulatorDayPhase(DayPhase.entries[debugPhaseIndex])
+							viewModel.changeSceneSimulatorDayPhase(-1)
 						},
 						onPhaseNext = {
-							debugPhaseIndex = (debugPhaseIndex + 1) % DayPhase.entries.size
-							viewModel.setSceneSimulatorDayPhase(DayPhase.entries[debugPhaseIndex])
+							viewModel.changeSceneSimulatorDayPhase(1)
 						},
 						onCelestialProgressChange = { debugCelestialProgress = it },
 						onCelestialProgressChangeFinished = {
@@ -323,7 +254,7 @@ private fun SceneSimulatorControls(
 	sceneLabel: String,
 	phaseLabel: String,
 	celestialProgress: Float,
-	onDebugEnabledChange: (Boolean) -> Unit,
+	onDebugToggle: () -> Unit,
 	onScenePrevious: () -> Unit,
 	onSceneNext: () -> Unit,
 	onPhasePrevious: () -> Unit,
@@ -344,7 +275,7 @@ private fun SceneSimulatorControls(
 			verticalAlignment = Alignment.CenterVertically
 		) {
 			Text(stringResource(R.string.scene_preview), color = Color.White, style = MaterialTheme.typography.labelLarge)
-			TextButton(onClick = { onDebugEnabledChange(!debugEnabled) }) {
+			TextButton(onClick = onDebugToggle) {
 				val text = if (debugEnabled) {
 					stringResource(R.string.scene_mode_live)
 				} else {

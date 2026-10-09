@@ -3,19 +3,25 @@ package xyz.attacktive.weatherd.domain.render
 import java.time.LocalTime
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import xyz.attacktive.weatherd.debugToolsEnabled
+import xyz.attacktive.weatherd.di.ApplicationScope
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.GeoLocation
-import xyz.attacktive.weatherd.domain.model.SkyColorPreset
-import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
@@ -31,6 +37,27 @@ import xyz.attacktive.weatherd.domain.weather.weatherLabelFor
 import xyz.attacktive.weatherd.util.AppLogger
 
 data class WeatherSceneStatus(val locationLabel: String? = null, val lastRefreshEpochSeconds: Long? = null, val weatherSource: WeatherSource? = null)
+
+/** Immutable scene inputs; changing the selected scene never needs to acquire weather. */
+data class WeatherSceneState(
+	val settings: AppSettings,
+	val snapshot: WeatherSnapshot? = null,
+	val photoRevision: Int = 0,
+	val locationLabel: String? = null
+) {
+	val simulatorActive: Boolean
+		get() = sceneSimulatorOverridesWeather(settings.sceneSimulatorActive, settings.sceneSimulatorEnabled, debugToolsEnabled)
+}
+
+private data class WeatherRefreshTarget(
+	val useDeviceLocation: Boolean,
+	val latitude: Double?,
+	val longitude: Double?,
+	val provider: WeatherProviderType,
+	val fallbackProvider: WeatherProviderType,
+	val showLocationLabel: Boolean,
+	val resolveLocationName: Boolean
+)
 
 private data class WeatherRequestKey(
 	val latitude: Double,
@@ -53,67 +80,79 @@ internal fun sceneSimulatorOverridesWeather(
 
 /**
  * Shared source of truth for the current [SceneParams], so the live wallpaper and the in-app preview never disagree about what to draw. Live weather is fetched lazily and cached; while the persisted scene simulator is active, its preset, phase and progress replace those meteorological fields for both consumers.
- * Thread-safe: [refresh] runs off the render thread and publishes weather, display settings and simulator state through volatile fields that [paramsFor] reads.
+ * Settings and weather publish independently into one immutable input snapshot, shared by both rendering surfaces.
  */
 @Singleton
-class WeatherSceneProvider @Inject constructor(@ApplicationContext private val context: Context, private val locationRepository: LocationRepository, private val weatherRepository: WeatherRepository, private val reverseGeocodingRepository: ReverseGeocodingRepository, private val settingsRepository: SettingsRepository, private val photoBackgroundRepository: PhotoBackgroundRepository, private val logger: AppLogger) {
+class WeatherSceneProvider @Inject constructor(
+	@ApplicationContext private val context: Context,
+	private val locationRepository: LocationRepository,
+	private val weatherRepository: WeatherRepository,
+	private val reverseGeocodingRepository: ReverseGeocodingRepository,
+	private val settingsRepository: SettingsRepository,
+	private val photoBackgroundRepository: PhotoBackgroundRepository,
+	private val logger: AppLogger,
+	@ApplicationScope private val applicationScope: CoroutineScope
+) {
 	private val _status = MutableStateFlow(WeatherSceneStatus())
 	val status: StateFlow<WeatherSceneStatus> = _status.asStateFlow()
 
-	@Volatile private var snapshot: WeatherSnapshot? = null
+	private val _sceneState = MutableStateFlow(WeatherSceneState(settingsRepository.defaults))
+	val sceneState: StateFlow<WeatherSceneState> = _sceneState.asStateFlow()
+	private val snapshot: WeatherSnapshot?
+		get() = _sceneState.value.snapshot
+
 	@Volatile private var lastRefreshEpochSeconds = 0L
 	@Volatile private var lastLocationKey: String? = null
 	@Volatile private var lastAttemptedWeatherProvider: WeatherProviderType? = null
 	@Volatile private var lastAttemptedWeatherFallbackProvider: WeatherProviderType? = null
+	private val refreshLock = Any()
+	private var pendingRefreshTarget: WeatherRefreshTarget? = null
+	private var pendingRefresh: Deferred<Result<Unit>>? = null
 	private val weatherRequestLock = Any()
 	private var activeWeatherRequestKey: WeatherRequestKey? = null
 	private var weatherRequestGeneration = 0L
 	private var weatherRequestSequence = 0L
 	private var lastPublishedWeatherRequestSequence = 0L
-	@Volatile private var backdropScene = BackdropScene.NONE
-	@Volatile private var photoRevision = 0
-	@Volatile private var showWeatherLabel = false
-	@Volatile private var showLocationLabel = false
-	@Volatile private var temperatureUnit = TemperatureUnit.CELSIUS
-	@Volatile private var precipitationIntensityScale = 1f
-	@Volatile private var windIntensityScale = 1f
-	@Volatile private var cloudIntensityScale = 1f
-	@Volatile private var cloudSizeScale = 1f
-	@Volatile private var cloudCountScale = 1f
-	@Volatile private var cloudContrastScale = 1f
-	@Volatile private var skyBrightnessScale = 1f
-	@Volatile private var nightBrightnessScale = 1f
-	@Volatile private var skySaturationScale = 1f
-	@Volatile private var skyColorPreset = SkyColorPreset.NATURAL
-	@Volatile private var sunVisible = true
-	@Volatile private var moonVisible = true
-	@Volatile private var sunSizeScale = 1f
-	@Volatile private var sunColorPreset = SunColorPreset.NATURAL
-	@Volatile private var lensFlareEnabled = true
-	@Volatile private var lensFlareMotionEnabled = false
-	@Volatile private var sceneSimulatorActive = false
-	@Volatile private var sceneSimulatorPresetIndex = 0
-	@Volatile private var sceneSimulatorDayPhase = DayPhase.DAY
-	@Volatile private var sceneSimulatorCelestialProgress = 0.5f
-	@Volatile private var locationLabel: String? = null
+	private var locationLabel: String?
+		get() = _sceneState.value.locationLabel
+		set(value) {
+			_sceneState.update { it.copy(locationLabel = value) }
+		}
+
 	@Volatile private var lastDeviceFix: GeoLocation? = null
 	@Volatile private var lastRefreshLocation: GeoLocation? = null
 	@Volatile private var geocodedKey: String? = null
 
+	init {
+		applicationScope.launch(start = CoroutineStart.UNDISPATCHED) {
+			combine(settingsRepository.settings, photoBackgroundRepository.state) { settings, photos ->
+				val photoRevision = if (settings.backdropScene == BackdropScene.PHOTO) {
+					photos.revision
+				} else {
+					0
+				}
+
+				settings to photoRevision
+			}.collect { (settings, revision) ->
+				_sceneState.update { it.copy(settings = settings, photoRevision = revision) }
+			}
+		}
+	}
+
 	/** The scene to draw at [nowEpochSeconds]; a clock-lit clear sky until the first weather fetch lands. */
-	fun paramsFor(nowEpochSeconds: Long): SceneParams {
-		if (sceneSimulatorActive) {
-			return simulatorParams(nowEpochSeconds)
+	fun paramsFor(nowEpochSeconds: Long, state: WeatherSceneState = sceneState.value, debugToolsAvailable: Boolean = debugToolsEnabled): SceneParams = with(state.settings) {
+		if (sceneSimulatorOverridesWeather(sceneSimulatorActive, sceneSimulatorEnabled, debugToolsAvailable)) {
+			return@with simulatorParams(nowEpochSeconds, state)
 		}
 
-		val snapshot = this.snapshot ?: return fallbackParams(nowEpochSeconds)
+		val snapshot = state.snapshot ?: return@with fallbackParams(nowEpochSeconds, state)
 
-		return sceneParamsFor(
+		sceneParamsFor(
 			snapshot = snapshot,
 			nowEpochSeconds = nowEpochSeconds,
 			backdropScene = backdropScene,
-			photoRevision = photoRevision,
-			overlayLabels = overlayLabels(snapshot),
+			photoRevision = state.photoRevision,
+			overlayLabels = overlayLabels(snapshot, state),
 			precipitationScale = precipitationIntensityScale,
 			windScale = windIntensityScale,
 			cloudScale = cloudIntensityScale,
@@ -139,20 +178,53 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	 * No-ops without a location fix or permission, leaving the last known scene in place.
 	 */
 	suspend fun refresh(nowEpochSeconds: Long, force: Boolean = false, resolveLocationName: Boolean = false) {
-		refreshWithResult(nowEpochSeconds, force, resolveLocationName)
+		if (force) {
+			refreshWithResult(nowEpochSeconds, force = true, resolveLocationName = resolveLocationName)
+			return
+		}
+
+		val settings = settingsRepository.settings.first()
+		val target = WeatherRefreshTarget(
+			useDeviceLocation = settings.useDeviceLocation,
+			latitude = settings.manualLatitude,
+			longitude = settings.manualLongitude,
+			provider = settings.weatherProvider,
+			fallbackProvider = settings.weatherFallbackProvider,
+			showLocationLabel = settings.showLocationLabel,
+			resolveLocationName = resolveLocationName
+		)
+
+		val request = synchronized(refreshLock) {
+			pendingRefresh?.takeIf { pendingRefreshTarget == target && !it.isCompleted } ?: applicationScope.async(start = CoroutineStart.LAZY) {
+				refreshWithResult(nowEpochSeconds, resolveLocationName = resolveLocationName)
+			}.also { pending ->
+				pendingRefreshTarget = target
+				pendingRefresh = pending
+				pending.invokeOnCompletion {
+					synchronized(refreshLock) {
+						if (pendingRefresh === pending) {
+							pendingRefresh = null
+							pendingRefreshTarget = null
+						}
+					}
+				}
+			}
+		}
+
+		request.await()
 	}
 
 	/** The refresh result for background callers that need to distinguish a provider failure from a successful or intentionally skipped refresh. */
 	internal suspend fun refreshWithResult(nowEpochSeconds: Long, force: Boolean = false, resolveLocationName: Boolean = false, debugToolsAvailable: Boolean = debugToolsEnabled): Result<Unit> {
-		val settings = settingsRepository.settings.first()
+		if (force) {
+			synchronized(refreshLock) {
+				pendingRefresh = null
+				pendingRefreshTarget = null
+			}
+		}
 
-		/* Render settings are captured before the throttle: they're display choices, not weather, so even a throttled refresh must adopt them.
-		 * The photo revision rides along for the same reason — it is what tells the wallpaper's backdrop cache and the preview that the stored photos moved, and neither redraws until it does.
-		 * Only PHOTO draws them, though, so every other scene holds it at zero: the backdrop signature carries the revision, and adopting a live one there would discard a cached backdrop to rasterize the same procedural sky again and crossfade between two identical images.
-		 * Switching into PHOTO moves backdropScene itself, so the first frame that actually wants a photo still re-rasterizes.
-		 */
-		applyRenderSettings(settings, debugToolsAvailable)
-		if (sceneSimulatorActive) {
+		val settings = settingsRepository.settings.first()
+		if (sceneSimulatorOverridesWeather(settings.sceneSimulatorActive, settings.sceneSimulatorEnabled, debugToolsAvailable)) {
 			refreshSimulatorStatus(settings, resolveLocationName)
 			return Result.success(Unit)
 		}
@@ -269,7 +341,8 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 				false
 			} else {
 				lastPublishedWeatherRequestSequence = request.sequence
-				snapshot = weather
+				_sceneState.update { it.copy(snapshot = weather) }
+
 				lastRefreshEpochSeconds = nowEpochSeconds
 				lastLocationKey = locationKey
 				lastRefreshLocation = location
@@ -279,68 +352,33 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		}
 	}
 
-	private fun applyRenderSettings(settings: AppSettings, debugToolsAvailable: Boolean) {
-		backdropScene = settings.backdropScene
-		photoRevision = if (settings.backdropScene == BackdropScene.PHOTO) {
-			photoBackgroundRepository.revisionNow()
-		} else {
-			0
-		}
-
-		showWeatherLabel = settings.showWeatherLabel
-		showLocationLabel = settings.showLocationLabel
-		temperatureUnit = settings.temperatureUnit
-		precipitationIntensityScale = settings.precipitationIntensityScale
-		windIntensityScale = settings.windIntensityScale
-		cloudIntensityScale = settings.cloudIntensityScale
-		cloudSizeScale = settings.cloudSizeScale
-		cloudCountScale = settings.cloudCountScale
-		cloudContrastScale = settings.cloudContrastScale
-		skyBrightnessScale = settings.skyBrightnessScale
-		nightBrightnessScale = settings.nightBrightnessScale
-		skySaturationScale = settings.skySaturationScale
-		skyColorPreset = settings.skyColorPreset
-		sunVisible = settings.sunVisible
-		moonVisible = settings.moonVisible
-		sunSizeScale = settings.sunSizeScale
-		sunColorPreset = settings.sunColorPreset
-		lensFlareEnabled = settings.lensFlareEnabled
-		lensFlareMotionEnabled = settings.lensFlareMotionEnabled
-		sceneSimulatorActive = sceneSimulatorOverridesWeather(
-			settings.sceneSimulatorActive,
-			settings.sceneSimulatorEnabled,
-			debugToolsAvailable
-		)
-
-		sceneSimulatorPresetIndex = settings.sceneSimulatorPresetIndex.coerceIn(0, SCENE_PRESETS.lastIndex)
-		sceneSimulatorDayPhase = settings.sceneSimulatorDayPhase
-		sceneSimulatorCelestialProgress = settings.sceneSimulatorCelestialProgress.coerceIn(0f, 1f)
-	}
 
 	/** The persisted simulator scene, carrying the same display preferences as live weather while replacing its meteorological fields. */
-	private fun simulatorParams(nowEpochSeconds: Long) = debugSceneParams(
-		preset = SCENE_PRESETS[sceneSimulatorPresetIndex],
-		dayPhase = sceneSimulatorDayPhase,
-		precipitationScale = precipitationIntensityScale,
-		windScale = windIntensityScale,
-		cloudScale = cloudIntensityScale,
-		cloudSizeScale = cloudSizeScale,
-		cloudCountScale = cloudCountScale,
-		cloudContrastScale = cloudContrastScale,
-		skyBrightnessScale = skyBrightnessScale,
-		nightBrightnessScale = nightBrightnessScale,
-		skySaturationScale = skySaturationScale,
-		skyColorPreset = skyColorPreset,
-		moonPhase = moonPhaseFor(nowEpochSeconds),
-		sunVisible = sunVisible,
-		moonVisible = moonVisible,
-		sunSizeScale = sunSizeScale,
-		sunColorPreset = sunColorPreset,
-		lensFlareEnabled = lensFlareEnabled,
-		celestialProgress = sceneSimulatorCelestialProgress,
-		lensFlareMotionEnabled = lensFlareMotionEnabled
-	)
-		.copy(backdropScene = backdropScene, photoRevision = photoRevision)
+	private fun simulatorParams(nowEpochSeconds: Long, state: WeatherSceneState) = with(state.settings) {
+		debugSceneParams(
+			preset = SCENE_PRESETS[sceneSimulatorPresetIndex.coerceIn(0, SCENE_PRESETS.lastIndex)],
+			dayPhase = sceneSimulatorDayPhase,
+			precipitationScale = precipitationIntensityScale,
+			windScale = windIntensityScale,
+			cloudScale = cloudIntensityScale,
+			cloudSizeScale = cloudSizeScale,
+			cloudCountScale = cloudCountScale,
+			cloudContrastScale = cloudContrastScale,
+			skyBrightnessScale = skyBrightnessScale,
+			nightBrightnessScale = nightBrightnessScale,
+			skySaturationScale = skySaturationScale,
+			skyColorPreset = skyColorPreset,
+			moonPhase = moonPhaseFor(nowEpochSeconds),
+			sunVisible = sunVisible,
+			moonVisible = moonVisible,
+			sunSizeScale = sunSizeScale,
+			sunColorPreset = sunColorPreset,
+			lensFlareEnabled = lensFlareEnabled,
+			celestialProgress = sceneSimulatorCelestialProgress.coerceIn(0f, 1f),
+			lensFlareMotionEnabled = lensFlareMotionEnabled
+		)
+			.copy(backdropScene = backdropScene, photoRevision = state.photoRevision)
+	}
 
 	/** Manual coordinates win only when the user opted out of device location and actually set a place; otherwise the device fix. */
 	private suspend fun resolveLocation(settings: AppSettings): GeoLocation? {
@@ -463,20 +501,20 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 		first.manualLongitude == second.manualLongitude
 
 	/** The formatted overlay lines, or null when nothing is toggled on — the renderer skips the text pass entirely. */
-	private fun overlayLabels(snapshot: WeatherSnapshot): OverlayLabels? {
+	private fun overlayLabels(snapshot: WeatherSnapshot, state: WeatherSceneState): OverlayLabels? = with(state.settings) {
 		val weather = if (showWeatherLabel) {
-			weatherText(snapshot.observation)
+			weatherText(snapshot.observation, temperatureUnit)
 		} else {
 			null
 		}
 
 		val location = if (showLocationLabel) {
-			locationLabel
+			state.locationLabel
 		} else {
 			null
 		}
 
-		return if (weather == null && location == null) {
+		if (weather == null && location == null) {
 			null
 		} else {
 			OverlayLabels(weather, location)
@@ -484,7 +522,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	}
 
 	/** "Rain · 10°" — or the bare temperature when the provider has no matching display label. */
-	private fun weatherText(observation: WeatherObservation): String {
+	private fun weatherText(observation: WeatherObservation, temperatureUnit: TemperatureUnit): String {
 		val labelResId = weatherLabelFor(observation.condition.label)
 		val temperature = temperatureUnit.format(observation.temperatureCelsius)
 
@@ -499,7 +537,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 	private fun locationKey(settings: AppSettings) = selectedManualLocation(settings)?.let(::locationFixKey) ?: "device"
 
 	/** Until weather loads we still want the right time of day — and the right moon — so lean on the local wall clock. */
-	private fun fallbackParams(nowEpochSeconds: Long): SceneParams {
+	private fun fallbackParams(nowEpochSeconds: Long, state: WeatherSceneState): SceneParams = with(state.settings) {
 		val phase = when (LocalTime.now().hour) {
 			in DAWN_HOUR until DAY_HOUR -> DayPhase.DAWN
 			in DAY_HOUR until DUSK_HOUR -> DayPhase.DAY
@@ -507,7 +545,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			else -> DayPhase.NIGHT
 		}
 
-		return SceneParams(
+		SceneParams(
 			dayPhase = phase,
 			cloudiness = 0.05f,
 			fogDensity = 0f,
@@ -516,7 +554,7 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			windFactor = 0.2f,
 			moonPhase = moonPhaseFor(nowEpochSeconds),
 			backdropScene = backdropScene,
-			photoRevision = photoRevision,
+			photoRevision = state.photoRevision,
 			precipitationScale = precipitationIntensityScale,
 			windScale = windIntensityScale,
 			cloudScale = cloudIntensityScale,
@@ -533,12 +571,12 @@ class WeatherSceneProvider @Inject constructor(@ApplicationContext private val c
 			sunColorPreset = sunColorPreset,
 			lensFlareEnabled = lensFlareEnabled,
 			lensFlareMotionEnabled = lensFlareMotionEnabled,
-			overlayLabels = fallbackOverlayLabels()
+			overlayLabels = fallbackOverlayLabels(state)
 		)
 	}
 
-	private fun fallbackOverlayLabels(): OverlayLabels? {
-		val location = locationLabel.takeIf { showLocationLabel }
+	private fun fallbackOverlayLabels(state: WeatherSceneState): OverlayLabels? {
+		val location = state.locationLabel.takeIf { state.settings.showLocationLabel }
 
 		return if (location == null) {
 			null

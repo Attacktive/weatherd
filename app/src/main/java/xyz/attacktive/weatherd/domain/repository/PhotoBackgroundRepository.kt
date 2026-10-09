@@ -29,6 +29,9 @@ import xyz.attacktive.weatherd.domain.model.PhotoBucket
 import xyz.attacktive.weatherd.domain.model.photoBucketFor
 import xyz.attacktive.weatherd.util.AppLogger
 
+/** Photo availability and its render-invalidating revision publish together after a completed file mutation. */
+data class PhotoBackgroundState(val available: Set<PhotoBucket>, val revision: Int = 0)
+
 /**
  * Owns the user's own photos, one file per [PhotoBucket], under `filesDir/backgrounds`.
  * The bytes are copied at pick time rather than the picker's [Uri] being remembered: `content://media/picker/...` grants do not survive a reboot and cannot be persisted, and a live wallpaper that stopped drawing every morning would be worthless.
@@ -45,28 +48,10 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 	 */
 	private val mutation = Mutex()
 
-	private val availableBuckets = MutableStateFlow(scanAvailableBuckets())
+	private val _state = MutableStateFlow(PhotoBackgroundState(scanAvailableBuckets()))
 
-	/*
-	 * The bucket set alone cannot say that a bucket's photo was replaced — the bucket was filled before and is filled after — so a counter tracks the bytes as well as the names.
-	 * Both mutation paths bump before publishing availableBuckets: that assignment resumes collectors on other coroutines, and one of them reading revisionNow() must never pair the new bucket set with a revision that predates it.
-	 */
-	private val _revision = MutableStateFlow(0)
-
-	/** The buckets that currently hold a photo, for a UI that has to reflect an import or a clear as it happens. */
-	val available: StateFlow<Set<PhotoBucket>> = availableBuckets.asStateFlow()
-
-	/** Emits whenever stored photos are added, replaced, or cleared. */
-	val revision: StateFlow<Int> = _revision.asStateFlow()
-
-	/** The buckets that currently hold a photo, for the render thread, which resolves a bucket mid-frame and cannot collect a flow to do it. */
-	fun availableNow() = availableBuckets.value
-
-	/**
-	 * A number that changes whenever the stored photos change, for a caller that caches something rasterized from them and needs to know the pixels moved under it.
-	 * Opaque and process-local: only differences matter, and a fresh process starts over alongside every cache that could have compared against the old value.
-	 */
-	fun revisionNow() = _revision.value
+	/** A completed photo mutation publishes both the usable buckets and their new revision atomically. */
+	val state: StateFlow<PhotoBackgroundState> = _state.asStateFlow()
 
 	/**
 	 * Copies the photo at [source] into [bucket], turned upright, downsampled and re-encoded, replacing whatever that bucket held.
@@ -77,8 +62,7 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 		mutation.withLock {
 			try {
 				importInto(bucket, source)
-				_revision.value++
-				availableBuckets.value = scanAvailableBuckets()
+				_state.value = PhotoBackgroundState(scanAvailableBuckets(), _state.value.revision + 1)
 
 				Result.success(Unit)
 			} catch (exception: Exception) {
@@ -153,7 +137,7 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 	 * This is allocation-free after the repository scans its four buckets, so render caches can distinguish a real photo-backed sky from the procedural fallback without decoding the bitmap merely to build a cache key.
 	 */
 	fun hasFor(scene: BackdropScene, dayPhase: DayPhase) =
-		scene == BackdropScene.PHOTO && photoBucketFor(dayPhase, availableNow()) != null
+		scene == BackdropScene.PHOTO && photoBucketFor(dayPhase, state.value.available) != null
 
 	/**
 	 * The stored photo to draw as the sky during [dayPhase], or null when [scene] is not [BackdropScene.PHOTO], no usable bucket covers that phase, or the stored file no longer decodes.
@@ -166,7 +150,7 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 			return null
 		}
 
-		val bucket = photoBucketFor(dayPhase, availableNow()) ?: return null
+		val bucket = photoBucketFor(dayPhase, state.value.available) ?: return null
 
 		return load(bucket)
 	}
@@ -179,15 +163,16 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 		withContext(Dispatchers.IO) {
 			mutation.withLock {
 				val file = fileFor(bucket)
+				var revision = _state.value.revision
 				if (file.exists()) {
 					if (file.delete()) {
-						_revision.value++
+						revision++
 					} else {
 						logger.error(TAG, "could not delete the stored photo for $bucket")
 					}
 				}
 
-				availableBuckets.value = scanAvailableBuckets()
+				_state.value = PhotoBackgroundState(scanAvailableBuckets(), revision)
 			}
 		}
 	}
@@ -372,7 +357,7 @@ class PhotoBackgroundRepository @Inject constructor(@ApplicationContext private 
 		return photoTargetLongEdge(metrics.widthPixels, metrics.heightPixels)
 	}
 
-	// The return type is spelled out so neither the state flow nor availableNow hands a caller a mutable handle on the live set.
+	// The return type prevents consumers from receiving a mutable handle on the published bucket set.
 	private fun scanAvailableBuckets(): Set<PhotoBucket> = PhotoBucket.entries.filterTo(mutableSetOf()) { storedPhotoDecodes(it) }
 
 	private fun storedPhotoDecodes(bucket: PhotoBucket): Boolean {

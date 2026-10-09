@@ -95,16 +95,21 @@ class SettingsViewModel @Inject constructor(
 	val weatherRefreshInProgress = _weatherRefreshInProgress.asStateFlow()
 
 	/**
-	 * The buckets that currently hold one of the user's photos, already a hot [kotlinx.coroutines.flow.StateFlow] on the repository and so exposed as it stands.
+	 * The usable photo buckets, derived from the repository's coherent photo state.
 	 * The repository is the only truth about which files exist, which is what keeps a failed import from leaving a row claiming a photo it never wrote.
 	 */
-	val photoBuckets = photoBackgroundRepository.available
+	val photoBuckets = photoBackgroundRepository.state
+		.map { it.available }
+		.distinctUntilChanged()
+		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), photoBackgroundRepository.state.value.available)
 
 	/**
 	 * Downsampled thumbnails for the user's photos, keyed by bucket.
 	 * Decoded off the main thread and republished whenever a photo is added, replaced, or cleared.
 	 */
-	val photoThumbnails = photoBackgroundRepository.revision
+	val photoThumbnails = photoBackgroundRepository.state
+		.map { it.revision }
+		.distinctUntilChanged()
 		.mapLatest {
 			PhotoBucket.entries.mapNotNull { bucket ->
 				val thumbnail = photoBackgroundRepository.loadThumbnail(bucket)

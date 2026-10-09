@@ -2,7 +2,7 @@
 
 Instructions and architectural invariants for agents working in the Weatherd codebase.
 
-- Version: 1.6.8 (2026-09-23)
+- Version: 1.6.9 (2026-10-09)
 - Persona: Coding assistant pair-programming with the user on Weatherd.
 
 ## Tools and Environment
@@ -79,15 +79,23 @@ It pins meteorological conditions (cloud cover, precipitation kind/severity, fog
 - Frame rate caps
 - Photo background assignments and revisions
 
-The simulator state is persisted through `SettingsRepository`; changing it while the wallpaper is visible must refresh `WeatherSceneProvider` without requiring the wallpaper to be reset.
+The simulator state is persisted through `SettingsRepository` and observed independently of location/weather acquisition in `WeatherSceneProvider.sceneState`.
+`WeatherSceneState` publishes immutable settings, cached weather, photo revision, and location-label inputs; both surfaces derive their scene through `paramsFor` from a single captured state.
+Disabling simulation selects cached weather or the normal clock-lit fallback without waiting for a refresh.
+The preview reacts to state emissions, and the wallpaper invalidates its parameter cache when the state identity changes; unchanged inputs retain the once-per-second clock update.
+Never put weather I/O inside the simulator-settings mutation lock or a settings collector.
+Overlapping ordinary refreshes for the latest weather/location target share application-scoped work; changing targets or starting a forced refresh prevents reuse of obsolete work.
+Explicit forced refreshes retain their existing independent request-order guards.
+Simulator button actions are relative intents evaluated against the latest persisted settings inside the mutation lock, not absolute values captured by the composable.
+`PhotoBackgroundRepository.state` publishes usable bucket availability and the render-invalidating revision together after a completed file mutation; consumers must not recreate independently published photo state.
+Only an unfinished celestial-progress slider gesture stays local to the preview; committing it updates the shared selection.
 To prevent the simulator and live weather paths from drifting, whenever any new render parameter, intensity multiplier, scene setting, or display behavior is introduced:
 
 1. Add it to `SceneParams` and `sceneParamsFor`.
-2. Wire it into `WeatherSceneProvider` (for the live wallpaper and live preview).
+2. Wire it into `WeatherSceneProvider` for live, simulated, and fallback parameters, using the settings in the captured `WeatherSceneState`.
 3. Wire it into `debugSceneParams` in `SceneDebugPresets.kt` (unless deliberately intended as debug-only).
-4. Expose it in `HomeViewModel` from `SettingsRepository`.
-5. Pass it into `debugSceneParams` in `HomeScreen.kt`.
-6. Add unit tests in `SceneDebugPresetsTest` asserting that the setting reaches the generated `SceneParams`.
+4. Keep `HomeScreen` consuming the shared provider parameters rather than assembling a second simulator scene or mirroring individual display settings in `HomeViewModel`.
+5. Add unit tests in `SceneDebugPresetsTest` and `WeatherSceneProviderTest` asserting that the setting reaches the generated `SceneParams`.
 
 #### Example
 

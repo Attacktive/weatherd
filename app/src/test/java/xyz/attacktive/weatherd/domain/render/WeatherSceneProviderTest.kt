@@ -1,15 +1,20 @@
 package xyz.attacktive.weatherd.domain.render
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import android.content.Context
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -21,6 +26,7 @@ import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.GeoLocation
+import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
@@ -31,6 +37,7 @@ import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
 import xyz.attacktive.weatherd.domain.model.WeatherSource
 import xyz.attacktive.weatherd.domain.repository.LocationRepository
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
+import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundState
 import xyz.attacktive.weatherd.domain.repository.ReverseGeocodingRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
 import xyz.attacktive.weatherd.domain.repository.WeatherRepository
@@ -38,6 +45,7 @@ import xyz.attacktive.weatherd.domain.weather.conditionForWmoCode
 import xyz.attacktive.weatherd.domain.weather.moonPhaseFor
 import xyz.attacktive.weatherd.util.AppLogger
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class WeatherSceneProviderTest {
 	@Test
 	fun `scene simulator override requires available controls`() {
@@ -68,15 +76,11 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `hidden active simulator returns to live weather when debug tools are unavailable`() = runTest {
-		every {
-			settingsRepository.settings
-		} returns flowOf(
-			AppSettings(
-				useDeviceLocation = true,
-				sceneSimulatorEnabled = false,
-				sceneSimulatorActive = true,
-				sceneSimulatorDayPhase = DayPhase.DAY
-			)
+		persistedSettings.value = AppSettings(
+			useDeviceLocation = true,
+			sceneSimulatorEnabled = false,
+			sceneSimulatorActive = true,
+			sceneSimulatorDayPhase = DayPhase.DAY
 		)
 
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
@@ -84,27 +88,23 @@ class WeatherSceneProviderTest {
 
 		provider.refreshWithResult(1_000_000L, debugToolsAvailable = false)
 
-		assertEquals(DayPhase.NIGHT, provider.paramsFor(1_000_030L).dayPhase)
+		assertEquals(DayPhase.NIGHT, provider.paramsFor(1_000_030L, debugToolsAvailable = false).dayPhase)
 		coVerify(exactly = 1) { locationRepository.currentLocation() }
 		coVerify(exactly = 1) { weatherRepository.current(52.52, 13.40) }
 	}
 
 	@Test
 	fun `enabled simulator still overrides weather when debug tools are unavailable`() = runTest {
-		every {
-			settingsRepository.settings
-		} returns flowOf(
-			AppSettings(
-				useDeviceLocation = true,
-				sceneSimulatorEnabled = true,
-				sceneSimulatorActive = true,
-				sceneSimulatorDayPhase = DayPhase.DAY
-			)
+		persistedSettings.value = AppSettings(
+			useDeviceLocation = true,
+			sceneSimulatorEnabled = true,
+			sceneSimulatorActive = true,
+			sceneSimulatorDayPhase = DayPhase.DAY
 		)
 
 		provider.refreshWithResult(1_000_000L, debugToolsAvailable = false)
 
-		assertEquals(DayPhase.DAY, provider.paramsFor(1_000_030L).dayPhase)
+		assertEquals(DayPhase.DAY, provider.paramsFor(1_000_030L, debugToolsAvailable = false).dayPhase)
 		coVerify(exactly = 0) { locationRepository.currentLocation() }
 		coVerify(exactly = 0) { weatherRepository.current(any(), any()) }
 	}
@@ -116,41 +116,54 @@ class WeatherSceneProviderTest {
 	private val locationRepository = mockk<LocationRepository>()
 	private val weatherRepository = mockk<WeatherRepository>()
 	private val reverseGeocodingRepository = mockk<ReverseGeocodingRepository>()
-	private val settingsRepository = mockk<SettingsRepository>()
-	private val photoBackgroundRepository = mockk<PhotoBackgroundRepository> {
-		every { revisionNow() } returns 0
+	private val persistedSettings = MutableStateFlow(AppSettings())
+	private val photoState = MutableStateFlow(PhotoBackgroundState(emptySet()))
+	private val settingsRepository = mockk<SettingsRepository> {
+		every { defaults } returns AppSettings()
+		every { settings } returns persistedSettings
 	}
+
+	private val photoBackgroundRepository = mockk<PhotoBackgroundRepository> {
+		every { state } returns photoState
+	}
+
 	private val logger = mockk<AppLogger>(relaxed = true)
 
-	private val provider = WeatherSceneProvider(context, locationRepository, weatherRepository, reverseGeocodingRepository, settingsRepository, photoBackgroundRepository, logger)
+	private val applicationScope = CoroutineScope(UnconfinedTestDispatcher())
+	private val provider by lazy {
+		WeatherSceneProvider(context, locationRepository, weatherRepository, reverseGeocodingRepository, settingsRepository, photoBackgroundRepository, logger, applicationScope)
+	}
+
+	@After
+	fun cancelSettingsCollection() {
+		applicationScope.cancel()
+	}
 
 	@Test
 	fun `scene simulator override replaces weather without fetching`() = runTest {
 		val presetIndex = SCENE_PRESETS.indexOfFirst { it.name == "SNOW" }
 		val preset = SCENE_PRESETS[presetIndex]
-		every { settingsRepository.settings } returns flowOf(
-			AppSettings(
-				backdropScene = BackdropScene.BEACH,
-				precipitationIntensityScale = 1.5f,
-				windIntensityScale = 0.5f,
-				cloudIntensityScale = 0.8f,
-				cloudSizeScale = 1.6f,
-				cloudCountScale = 0.7f,
-				cloudContrastScale = 1.4f,
-				skyBrightnessScale = 0.8f,
-				nightBrightnessScale = 0.35f,
-				skySaturationScale = 1.2f,
-				skyColorPreset = SkyColorPreset.PASTEL,
-				sunVisible = false,
-				moonVisible = false,
-				sunSizeScale = 1.6f,
-				sunColorPreset = SunColorPreset.GOLDEN,
-				lensFlareEnabled = false,
-				sceneSimulatorActive = true,
-				sceneSimulatorPresetIndex = presetIndex,
-				sceneSimulatorDayPhase = DayPhase.DUSK,
-				sceneSimulatorCelestialProgress = 0.73f
-			)
+		persistedSettings.value = AppSettings(
+			backdropScene = BackdropScene.BEACH,
+			precipitationIntensityScale = 1.5f,
+			windIntensityScale = 0.5f,
+			cloudIntensityScale = 0.8f,
+			cloudSizeScale = 1.6f,
+			cloudCountScale = 0.7f,
+			cloudContrastScale = 1.4f,
+			skyBrightnessScale = 0.8f,
+			nightBrightnessScale = 0.35f,
+			skySaturationScale = 1.2f,
+			skyColorPreset = SkyColorPreset.PASTEL,
+			sunVisible = false,
+			moonVisible = false,
+			sunSizeScale = 1.6f,
+			sunColorPreset = SunColorPreset.GOLDEN,
+			lensFlareEnabled = false,
+			sceneSimulatorActive = true,
+			sceneSimulatorPresetIndex = presetIndex,
+			sceneSimulatorDayPhase = DayPhase.DUSK,
+			sceneSimulatorCelestialProgress = 0.73f
 		)
 
 		provider.refresh(1_000_000L)
@@ -183,13 +196,11 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `scene simulator adopts the real calendar lunar phase at the evaluated moment`() = runTest {
-		every { settingsRepository.settings } returns flowOf(
-			AppSettings(
-				useDeviceLocation = true,
-				sceneSimulatorActive = true,
-				sceneSimulatorPresetIndex = 0,
-				sceneSimulatorDayPhase = DayPhase.NIGHT
-			)
+		persistedSettings.value = AppSettings(
+			useDeviceLocation = true,
+			sceneSimulatorActive = true,
+			sceneSimulatorPresetIndex = 0,
+			sceneSimulatorDayPhase = DayPhase.NIGHT
 		)
 
 		provider.refresh(1_000_000L)
@@ -204,18 +215,18 @@ class WeatherSceneProviderTest {
 	@Test
 	fun `disabling scene simulator returns to cached live weather`() = runTest {
 		val live = AppSettings(useDeviceLocation = true)
-		every { settingsRepository.settings } returns flowOf(live)
+		persistedSettings.value = live
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 3))
 
 		provider.refresh(1_000_000L)
 		val liveParams = provider.paramsFor(1_000_030L)
 
-		every { settingsRepository.settings } returns flowOf(live.copy(sceneSimulatorActive = true, sceneSimulatorPresetIndex = 0, sceneSimulatorDayPhase = DayPhase.NIGHT))
+		persistedSettings.value = live.copy(sceneSimulatorActive = true, sceneSimulatorPresetIndex = 0, sceneSimulatorDayPhase = DayPhase.NIGHT)
 		provider.refresh(1_000_060L)
 		assertEquals(DayPhase.NIGHT, provider.paramsFor(1_000_060L).dayPhase)
 
-		every { settingsRepository.settings } returns flowOf(live)
+		persistedSettings.value = live
 		provider.refresh(1_000_090L)
 
 		assertEquals(liveParams.cloudiness, provider.paramsFor(1_000_090L).cloudiness, 0.0001f)
@@ -223,15 +234,89 @@ class WeatherSceneProviderTest {
 	}
 
 	@Test
+	fun `simulator selection changes while a live weather request remains pending`() = runTest {
+		val settings = MutableStateFlow(AppSettings(useDeviceLocation = true, backdropScene = BackdropScene.BEACH))
+		every { settingsRepository.settings } returns settings
+		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
+		coEvery { weatherRepository.current(any(), any()) } returns Result.success(snapshotWith(weatherCode = 63))
+		provider.refresh(1_000_000L)
+
+		val response = CompletableDeferred<Result<WeatherSnapshot>>()
+		coEvery { weatherRepository.current(any(), any()) } coAnswers { response.await() }
+
+		val refresh = async { provider.refresh(1_000_060L, force = true) }
+
+		runCurrent()
+
+		try {
+			settings.value = settings.value.copy(sceneSimulatorActive = true, sceneSimulatorDayPhase = DayPhase.DUSK)
+			runCurrent()
+			assertEquals(DayPhase.DUSK, provider.paramsFor(1_000_060L).dayPhase)
+
+			settings.value = settings.value.copy(sceneSimulatorActive = false)
+			runCurrent()
+			val live = provider.paramsFor(1_000_060L)
+			assertEquals(DayPhase.DAY, live.dayPhase)
+			assertEquals(BackdropScene.BEACH, live.backdropScene)
+			assertEquals(PrecipitationKind.RAIN, live.precipitation?.kind)
+			assertFalse(refresh.isCompleted)
+
+			settings.value = settings.value.copy(sceneSimulatorActive = true, sceneSimulatorDayPhase = DayPhase.NIGHT)
+			runCurrent()
+			response.complete(Result.success(snapshotWith(weatherCode = 3)))
+			refresh.await()
+			assertEquals(DayPhase.NIGHT, provider.paramsFor(1_000_090L).dayPhase)
+
+			settings.value = settings.value.copy(sceneSimulatorActive = false)
+			runCurrent()
+			assertNull(provider.paramsFor(1_000_090L).precipitation)
+		} finally {
+			refresh.cancel()
+		}
+	}
+
+	@Test
+	fun `first launch can leave simulation while location remains pending`() = runTest {
+		val settings = MutableStateFlow(AppSettings(useDeviceLocation = true))
+		every { settingsRepository.settings } returns settings
+		val location = CompletableDeferred<GeoLocation?>()
+		coEvery { locationRepository.currentLocation() } coAnswers { location.await() }
+
+		val refresh = async { provider.refresh(1_000_000L) }
+
+		runCurrent()
+
+		try {
+			settings.value = settings.value.copy(sceneSimulatorActive = true, sceneSimulatorPresetIndex = SCENE_PRESETS.indexOfFirst { it.name == "SNOW" })
+			runCurrent()
+			assertEquals(PrecipitationKind.SNOW, provider.paramsFor(1_000_030L).precipitation?.kind)
+
+			settings.value = settings.value.copy(sceneSimulatorActive = false, windIntensityScale = 1.5f)
+			runCurrent()
+			val fallback = provider.paramsFor(1_000_030L)
+			assertNull(fallback.precipitation)
+			assertEquals(1.5f, fallback.windScale, 0.0001f)
+			assertFalse(refresh.isCompleted)
+
+			coEvery { weatherRepository.current(any(), any()) } returns Result.success(snapshotWith(weatherCode = 63))
+			location.complete(GeoLocation(52.52, 13.40))
+			refresh.await()
+			assertEquals(PrecipitationKind.RAIN, provider.paramsFor(1_000_030L).precipitation?.kind)
+		} finally {
+			refresh.cancel()
+		}
+	}
+
+	@Test
 	fun `changing location settings refetches within the throttle window`() = runTest {
 		val munich = AppSettings(useDeviceLocation = false, manualLatitude = 48.14, manualLongitude = 11.58)
-		every { settingsRepository.settings } returns flowOf(munich)
+		persistedSettings.value = munich
 		coEvery { weatherRepository.current(48.14, 11.58) } returns Result.success(snapshotWith(weatherCode = 61))
 
 		provider.refresh(1_000_000L)
 
 		val device = AppSettings(useDeviceLocation = true)
-		every { settingsRepository.settings } returns flowOf(device)
+		persistedSettings.value = device
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 3))
 
@@ -243,13 +328,13 @@ class WeatherSceneProviderTest {
 	@Test
 	fun `changing weather provider refetches within the throttle window`() = runTest {
 		val openMeteo = AppSettings(useDeviceLocation = true, weatherProvider = WeatherProviderType.OPEN_METEO)
-		every { settingsRepository.settings } returns flowOf(openMeteo)
+		persistedSettings.value = openMeteo
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 3))
 
 		provider.refresh(1_000_000L)
 
-		every { settingsRepository.settings } returns flowOf(openMeteo.copy(weatherProvider = WeatherProviderType.MET_NORWAY))
+		persistedSettings.value = openMeteo.copy(weatherProvider = WeatherProviderType.MET_NORWAY)
 		provider.refresh(1_000_060L)
 
 		coVerify(exactly = 2) { weatherRepository.current(52.52, 13.40) }
@@ -379,7 +464,7 @@ class WeatherSceneProviderTest {
 	@Test
 	fun `a newer failed same-target request does not discard an older success`() = runTest {
 		val settings = AppSettings(useDeviceLocation = true)
-		every { settingsRepository.settings } returns flowOf(settings)
+		persistedSettings.value = settings
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
 		val firstStarted = CompletableDeferred<Unit>()
 		val releaseFirst = CompletableDeferred<Unit>()
@@ -430,13 +515,13 @@ class WeatherSceneProviderTest {
 	@Test
 	fun `a failed provider switch only bypasses the throttle once`() = runTest {
 		val openMeteo = AppSettings(useDeviceLocation = true, weatherProvider = WeatherProviderType.OPEN_METEO)
-		every { settingsRepository.settings } returns flowOf(openMeteo)
+		persistedSettings.value = openMeteo
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 3))
 
 		provider.refresh(1_000_000L)
 
-		every { settingsRepository.settings } returns flowOf(openMeteo.copy(weatherProvider = WeatherProviderType.MET_NORWAY))
+		persistedSettings.value = openMeteo.copy(weatherProvider = WeatherProviderType.MET_NORWAY)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.failure(IllegalStateException("provider unavailable"))
 
 		provider.refresh(1_000_060L)
@@ -448,7 +533,7 @@ class WeatherSceneProviderTest {
 	@Test
 	fun `an unchanged location is throttled within the interval`() = runTest {
 		val device = AppSettings(useDeviceLocation = true, updateIntervalMinutes = 30)
-		every { settingsRepository.settings } returns flowOf(device)
+		persistedSettings.value = device
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 3))
 
@@ -461,13 +546,13 @@ class WeatherSceneProviderTest {
 	@Test
 	fun `celestial appearance settings reach scene params even when refresh is throttled`() = runTest {
 		val device = AppSettings(useDeviceLocation = true)
-		every { settingsRepository.settings } returns flowOf(device)
+		persistedSettings.value = device
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 3))
 
 		provider.refresh(1_000_000L)
 
-		every { settingsRepository.settings } returns flowOf(device.copy(sunVisible = false, moonVisible = false, sunSizeScale = 1.8f, sunColorPreset = SunColorPreset.ORANGE))
+		persistedSettings.value = device.copy(sunVisible = false, moonVisible = false, sunSizeScale = 1.8f, sunColorPreset = SunColorPreset.ORANGE)
 		provider.refresh(1_000_060L)
 
 		val params = provider.paramsFor(1_000_090L)
@@ -481,14 +566,14 @@ class WeatherSceneProviderTest {
 	@Test
 	fun `lens flare setting reaches scene params even when refresh is throttled`() = runTest {
 		val device = AppSettings(useDeviceLocation = true, lensFlareEnabled = true)
-		every { settingsRepository.settings } returns flowOf(device)
+		persistedSettings.value = device
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 3))
 
 		provider.refresh(1_000_000L)
 		assertTrue(provider.paramsFor(1_000_030L).lensFlareEnabled)
 
-		every { settingsRepository.settings } returns flowOf(device.copy(lensFlareEnabled = false))
+		persistedSettings.value = device.copy(lensFlareEnabled = false)
 		provider.refresh(1_000_060L)
 
 		assertFalse(provider.paramsFor(1_000_090L).lensFlareEnabled)
@@ -497,7 +582,7 @@ class WeatherSceneProviderTest {
 	@Test
 	fun `the backdrop choice reaches the scene params even when the refresh is throttled`() = runTest {
 		val device = AppSettings(useDeviceLocation = true, backdropScene = BackdropScene.MOUNTAINS)
-		every { settingsRepository.settings } returns flowOf(device)
+		persistedSettings.value = device
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 3))
 
@@ -505,7 +590,7 @@ class WeatherSceneProviderTest {
 		assertEquals(BackdropScene.MOUNTAINS, provider.paramsFor(1_000_030L).backdropScene)
 
 		// The user switches scenes; the next refresh is inside the throttle window but must still pick the new choice up.
-		every { settingsRepository.settings } returns flowOf(device.copy(backdropScene = BackdropScene.BEACH))
+		persistedSettings.value = device.copy(backdropScene = BackdropScene.BEACH)
 		provider.refresh(1_000_060L)
 
 		assertEquals(BackdropScene.BEACH, provider.paramsFor(1_000_090L).backdropScene)
@@ -513,7 +598,7 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `a photo import reaches the scene params even when the refresh is throttled`() = runTest {
-		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = true, backdropScene = BackdropScene.PHOTO))
+		persistedSettings.value = AppSettings(useDeviceLocation = true, backdropScene = BackdropScene.PHOTO)
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 3))
 
@@ -521,7 +606,7 @@ class WeatherSceneProviderTest {
 		val initialParams = provider.paramsFor(1_000_030L)
 
 		// The user replaces the photo behind the same bucket: nothing the settings know about changes, so the revision is the only thing that can tell the backdrop cache to redraw.
-		every { photoBackgroundRepository.revisionNow() } returns 1
+		photoState.value = photoState.value.copy(revision = 1)
 		provider.refresh(1_000_060L)
 
 		val throttledParams = provider.paramsFor(1_000_090L)
@@ -532,9 +617,9 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `the photo revision reaches the fallback scene before any weather loads`() = runTest {
-		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = true, backdropScene = BackdropScene.PHOTO))
+		persistedSettings.value = AppSettings(useDeviceLocation = true, backdropScene = BackdropScene.PHOTO)
 		coEvery { locationRepository.currentLocation() } returns null
-		every { photoBackgroundRepository.revisionNow() } returns 7
+		photoState.value = photoState.value.copy(revision = 7)
 
 		provider.refresh(1_000_000L)
 
@@ -544,10 +629,10 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `the photo revision stays out of the params while another scene draws`() = runTest {
-		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = true, backdropScene = BackdropScene.MOUNTAINS))
+		persistedSettings.value = AppSettings(useDeviceLocation = true, backdropScene = BackdropScene.MOUNTAINS)
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 3))
-		every { photoBackgroundRepository.revisionNow() } returns 9
+		photoState.value = photoState.value.copy(revision = 9)
 
 		provider.refresh(1_000_000L)
 
@@ -555,7 +640,7 @@ class WeatherSceneProviderTest {
 		assertEquals(0, provider.paramsFor(1_000_030L).photoRevision)
 
 		// Switching into PHOTO is what adopts it, and backdropScene has moved by then, so that frame re-rasterizes either way.
-		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = true, backdropScene = BackdropScene.PHOTO))
+		persistedSettings.value = AppSettings(useDeviceLocation = true, backdropScene = BackdropScene.PHOTO)
 		provider.refresh(1_000_060L)
 
 		assertEquals(9, provider.paramsFor(1_000_090L).photoRevision)
@@ -563,7 +648,7 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `the weather label with temperature reaches the scene params`() = runTest {
-		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = true, showWeatherLabel = true))
+		persistedSettings.value = AppSettings(useDeviceLocation = true, showWeatherLabel = true)
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 63))
 
@@ -574,7 +659,7 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `the weather label falls back to the bare temperature for an unknown code`() = runTest {
-		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = true, showWeatherLabel = true))
+		persistedSettings.value = AppSettings(useDeviceLocation = true, showWeatherLabel = true)
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 1234))
 
@@ -585,7 +670,7 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `no labels are drawn when both toggles are off`() = runTest {
-		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = true, showWeatherLabel = false, showLocationLabel = false))
+		persistedSettings.value = AppSettings(useDeviceLocation = true, showWeatherLabel = false, showLocationLabel = false)
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 63))
 
@@ -597,7 +682,7 @@ class WeatherSceneProviderTest {
 	@Test
 	fun `a provider failure is returned to background refresh callers`() = runTest {
 		val failure = IllegalStateException("provider unavailable")
-		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = false, manualLatitude = 34.06, manualLongitude = -117.65))
+		persistedSettings.value = AppSettings(useDeviceLocation = false, manualLatitude = 34.06, manualLongitude = -117.65)
 		coEvery { weatherRepository.current(34.06, -117.65) } returns Result.failure(failure)
 
 		val result = provider.refreshWithResult(1_000_000L, force = true)
@@ -609,7 +694,7 @@ class WeatherSceneProviderTest {
 	@Test
 	fun `the manual location label survives fallback when weather refresh fails`() = runTest {
 		val ontario = AppSettings(useDeviceLocation = false, manualLatitude = 34.06, manualLongitude = -117.65, manualLocationLabel = "Ontario, California, United States", showLocationLabel = true)
-		every { settingsRepository.settings } returns flowOf(ontario)
+		persistedSettings.value = ontario
 		coEvery { weatherRepository.current(34.06, -117.65) } returns Result.failure(IllegalStateException("provider unavailable"))
 
 		provider.refresh(1_000_000L, force = true)
@@ -623,7 +708,7 @@ class WeatherSceneProviderTest {
 	@Test
 	fun `the manual city label is used without reverse geocoding`() = runTest {
 		val munich = AppSettings(useDeviceLocation = false, manualLatitude = 48.14, manualLongitude = 11.58, manualLocationLabel = "Munich, Germany", showWeatherLabel = true, showLocationLabel = true)
-		every { settingsRepository.settings } returns flowOf(munich)
+		persistedSettings.value = munich
 		coEvery { weatherRepository.current(48.14, 11.58) } returns Result.success(snapshotWith(weatherCode = 63))
 
 		provider.refresh(1_000_000L)
@@ -634,7 +719,7 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `the device place name is reverse geocoded when the location label is on`() = runTest {
-		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = true, showLocationLabel = true))
+		persistedSettings.value = AppSettings(useDeviceLocation = true, showLocationLabel = true)
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(37.57, 126.98)
 		coEvery { weatherRepository.current(37.57, 126.98) } returns Result.success(snapshotWith(weatherCode = 63))
 		coEvery { reverseGeocodingRepository.placeName(37.57, 126.98) } returns "Seoul"
@@ -646,7 +731,7 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `a failed reverse geocode hides only the location line`() = runTest {
-		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = true, showWeatherLabel = true, showLocationLabel = true))
+		persistedSettings.value = AppSettings(useDeviceLocation = true, showWeatherLabel = true, showLocationLabel = true)
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(37.57, 126.98)
 		coEvery { weatherRepository.current(37.57, 126.98) } returns Result.success(snapshotWith(weatherCode = 63))
 		coEvery { reverseGeocodingRepository.placeName(37.57, 126.98) } returns null
@@ -658,7 +743,7 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `the reverse geocode is cached per location fix`() = runTest {
-		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = true, showLocationLabel = true))
+		persistedSettings.value = AppSettings(useDeviceLocation = true, showLocationLabel = true)
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(37.57, 126.98)
 		coEvery { weatherRepository.current(37.57, 126.98) } returns Result.success(snapshotWith(weatherCode = 63))
 		coEvery { reverseGeocodingRepository.placeName(37.57, 126.98) } returns "Seoul"
@@ -687,20 +772,17 @@ class WeatherSceneProviderTest {
 			manualLongitude = 126.98,
 			manualLocationLabel = "Seoul"
 		)
-		every { settingsRepository.settings } returns flowOf(manual)
+		persistedSettings.value = manual
 		coEvery { weatherRepository.current(37.57, 126.98) } returns Result.success(snapshotWith(weatherCode = 63))
 
 		provider.refresh(1_000_000L, resolveLocationName = true)
 
-		every {
-			settingsRepository.settings
-		} returns flowOf(
-			manual.copy(
-				manualLatitude = null,
-				manualLongitude = null,
-				manualLocationLabel = null
-			)
+		persistedSettings.value = manual.copy(
+			manualLatitude = null,
+			manualLongitude = null,
+			manualLocationLabel = null
 		)
+
 		coEvery { locationRepository.currentLocation() } returns null
 
 		provider.refresh(1_000_060L, resolveLocationName = true)
@@ -710,7 +792,7 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `a forced refresh bypasses the weather interval without forcing a device fix`() = runTest {
-		every { settingsRepository.settings } returns flowOf(AppSettings(useDeviceLocation = true, updateIntervalMinutes = 30))
+		persistedSettings.value = AppSettings(useDeviceLocation = true, updateIntervalMinutes = 30)
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(37.57, 126.98)
 		coEvery { weatherRepository.current(37.57, 126.98) } returns Result.success(snapshotWith(weatherCode = 63)) andThen Result.success(snapshotWith(weatherCode = 3))
 		coEvery { reverseGeocodingRepository.placeName(37.57, 126.98) } returns "Seoul"
@@ -730,7 +812,7 @@ class WeatherSceneProviderTest {
 	@Test
 	fun `label settings reach the scene params even when the refresh is throttled`() = runTest {
 		val device = AppSettings(useDeviceLocation = true, showWeatherLabel = true)
-		every { settingsRepository.settings } returns flowOf(device)
+		persistedSettings.value = device
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 63))
 
@@ -738,7 +820,7 @@ class WeatherSceneProviderTest {
 		assertEquals("Rain · 10°", provider.paramsFor(1_000_030L).overlayLabels?.weather)
 
 		// The user switches to Fahrenheit; the next refresh is inside the throttle window but must still pick the new unit up.
-		every { settingsRepository.settings } returns flowOf(device.copy(temperatureUnit = TemperatureUnit.FAHRENHEIT))
+		persistedSettings.value = device.copy(temperatureUnit = TemperatureUnit.FAHRENHEIT)
 		provider.refresh(1_000_060L)
 
 		assertEquals("Rain · 50°", provider.paramsFor(1_000_090L).overlayLabels?.weather)
@@ -747,14 +829,14 @@ class WeatherSceneProviderTest {
 	@Test
 	fun `enabling the location label mid-interval geocodes the cached fix`() = runTest {
 		val device = AppSettings(useDeviceLocation = true)
-		every { settingsRepository.settings } returns flowOf(device)
+		persistedSettings.value = device
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(37.57, 126.98)
 		coEvery { weatherRepository.current(37.57, 126.98) } returns Result.success(snapshotWith(weatherCode = 63))
 
 		provider.refresh(1_000_000L)
 
 		// The toggle flips inside the throttle window: no weather refetch, but the place name must still appear.
-		every { settingsRepository.settings } returns flowOf(device.copy(showLocationLabel = true))
+		persistedSettings.value = device.copy(showLocationLabel = true)
 		coEvery { reverseGeocodingRepository.placeName(37.57, 126.98) } returns "Seoul"
 		provider.refresh(1_000_060L)
 
@@ -765,7 +847,7 @@ class WeatherSceneProviderTest {
 	@Test
 	fun `cloud composition settings reach scene params even when the refresh is throttled`() = runTest {
 		val device = AppSettings(useDeviceLocation = true, cloudSizeScale = 1.5f, cloudCountScale = 0.75f)
-		every { settingsRepository.settings } returns flowOf(device)
+		persistedSettings.value = device
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 3))
 
@@ -775,7 +857,7 @@ class WeatherSceneProviderTest {
 		assertEquals(1.5f, initialParams.cloudSizeScale, 0.0001f)
 		assertEquals(0.75f, initialParams.cloudCountScale, 0.0001f)
 
-		every { settingsRepository.settings } returns flowOf(device.copy(cloudSizeScale = 0.6f, cloudCountScale = 1.8f))
+		persistedSettings.value = device.copy(cloudSizeScale = 0.6f, cloudCountScale = 1.8f)
 		provider.refresh(1_000_060L)
 
 		val throttledParams = provider.paramsFor(1_000_090L)
@@ -787,7 +869,7 @@ class WeatherSceneProviderTest {
 	@Test
 	fun `intensity scale settings reach the scene params even when the refresh is throttled`() = runTest {
 		val device = AppSettings(useDeviceLocation = true, precipitationIntensityScale = 1.5f, windIntensityScale = 0.5f, cloudIntensityScale = 0.8f, cloudContrastScale = 1.3f, skyBrightnessScale = 0.75f, nightBrightnessScale = 0.65f, skySaturationScale = 1.25f, skyColorPreset = SkyColorPreset.WARM)
-		every { settingsRepository.settings } returns flowOf(device)
+		persistedSettings.value = device
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 63))
 
@@ -806,7 +888,7 @@ class WeatherSceneProviderTest {
 		assertEquals(0.2872f, initialParams.windFactor, 0.0001f)
 
 		// The user adjusts the sliders; the next refresh is inside the throttle window but must still pick the new scales up.
-		every { settingsRepository.settings } returns flowOf(device.copy(precipitationIntensityScale = 0.25f, windIntensityScale = 2f, cloudIntensityScale = 1.5f, cloudContrastScale = 0.7f, skyBrightnessScale = 1.3f, nightBrightnessScale = 0.2f, skySaturationScale = 0.6f, skyColorPreset = SkyColorPreset.CYBERPUNK))
+		persistedSettings.value = device.copy(precipitationIntensityScale = 0.25f, windIntensityScale = 2f, cloudIntensityScale = 1.5f, cloudContrastScale = 0.7f, skyBrightnessScale = 1.3f, nightBrightnessScale = 0.2f, skySaturationScale = 0.6f, skyColorPreset = SkyColorPreset.CYBERPUNK)
 		provider.refresh(1_000_060L)
 
 		// The new wind scale reaches scene params while windFactor stays an honest observation reading.
@@ -822,8 +904,83 @@ class WeatherSceneProviderTest {
 		assertEquals(0.2872f, throttledParams.windFactor, 0.0001f)
 	}
 
+	@Test
+	fun `preview and wallpaper share a pending ordinary refresh`() = runTest {
+		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
+		val response = CompletableDeferred<Result<WeatherSnapshot>>()
+		coEvery { weatherRepository.current(any(), any()) } coAnswers { response.await() }
+
+		val preview = async { provider.refresh(1_000_000L) }
+
+		val wallpaper = async { provider.refresh(1_000_000L) }
+
+		runCurrent()
+
+		try {
+			coVerify(exactly = 1) { weatherRepository.current(52.52, 13.40) }
+
+			response.complete(Result.failure(IllegalStateException("Offline")))
+			preview.await()
+			wallpaper.await()
+			assertNull(provider.paramsFor(1_000_030L).precipitation)
+
+			coEvery { weatherRepository.current(any(), any()) } returns Result.success(snapshotWith(weatherCode = 63))
+			provider.refresh(1_000_060L)
+			assertEquals(PrecipitationKind.RAIN, provider.paramsFor(1_000_060L).precipitation?.kind)
+		} finally {
+			response.complete(Result.failure(IllegalStateException("Canceled")))
+			preview.cancel()
+			wallpaper.cancel()
+		}
+	}
+
+	@Test
+	fun `returning to an earlier city does not join its obsolete refresh`() = runTest {
+		val berlin = AppSettings(useDeviceLocation = false, manualLatitude = 52.52, manualLongitude = 13.40)
+		persistedSettings.value = berlin
+		val firstBerlinResponse = CompletableDeferred<Result<WeatherSnapshot>>()
+		val munichResponse = CompletableDeferred<Result<WeatherSnapshot>>()
+		var berlinCalls = 0
+		coEvery { weatherRepository.current(52.52, 13.40) } coAnswers {
+			if (berlinCalls++ == 0) {
+				firstBerlinResponse.await()
+			} else {
+				Result.success(snapshotWith(weatherCode = 63))
+			}
+		}
+
+		coEvery { weatherRepository.current(48.14, 11.58) } coAnswers { munichResponse.await() }
+
+		val firstBerlin = async { provider.refresh(1_000_000L) }
+
+		runCurrent()
+		persistedSettings.value = berlin.copy(manualLatitude = 48.14, manualLongitude = 11.58)
+		val munich = async { provider.refresh(1_000_010L) }
+
+		runCurrent()
+		persistedSettings.value = berlin
+		val latestBerlin = async { provider.refresh(1_000_020L) }
+
+		runCurrent()
+
+		try {
+			firstBerlinResponse.complete(Result.success(snapshotWith(weatherCode = 3)))
+			munichResponse.complete(Result.success(snapshotWith(weatherCode = 71)))
+			firstBerlin.await()
+			munich.await()
+			latestBerlin.await()
+			assertEquals(PrecipitationKind.RAIN, provider.paramsFor(1_000_030L).precipitation?.kind)
+		} finally {
+			firstBerlinResponse.complete(Result.failure(IllegalStateException("Canceled")))
+			munichResponse.complete(Result.failure(IllegalStateException("Canceled")))
+			firstBerlin.cancel()
+			munich.cancel()
+			latestBerlin.cancel()
+		}
+	}
+
 	private suspend fun assertSettingsLocationStatus(settings: AppSettings) {
-		every { settingsRepository.settings } returns flowOf(settings)
+		persistedSettings.value = settings
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(37.57, 126.98)
 		coEvery { weatherRepository.current(37.57, 126.98) } returns Result.success(snapshotWith(weatherCode = 63))
 		coEvery { reverseGeocodingRepository.placeName(37.57, 126.98) } returns "Seoul"
