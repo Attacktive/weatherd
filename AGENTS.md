@@ -39,7 +39,7 @@ Do not ask what the shorthand means and do not re-research or rediscover Weather
 - Merge by fast-forward only so the exact reviewed commit objects and their signatures survive unchanged.
 	- Refresh `main` and the pull-request head immediately before the merge.
 	- Move `main` to the pull-request head only when that move is a fast-forward.
-	- Never squash, rebase, or create a merge commit for this operation.
+	- Never squash, rebase, or create a merge commit via GitHub's merge options; local squashing or rebasing of feature branches and force-pushing to the pull request branch is permitted when requested, provided the merge into `main` remains a fast-forward.
 	- Afterward, verify that GitHub reports the pull request merged, `main` points at the former pull-request head, and the merged commits still report valid verification.
 	- If a fast-forward is impossible, stop and report it rather than rewriting signed commits.
 - Release immediately after the merge:
