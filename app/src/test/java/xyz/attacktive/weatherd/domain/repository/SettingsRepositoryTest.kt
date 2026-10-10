@@ -356,6 +356,7 @@ class SettingsRepositoryTest {
 			"showWeatherLabel",
 			"showLocationLabel",
 			"precipitationIntensityScale",
+			"glassDropletsEnabled",
 			"windIntensityScale",
 			"cloudIntensityScale",
 			"cloudSizeScale",
