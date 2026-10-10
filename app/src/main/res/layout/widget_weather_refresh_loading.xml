@@ -12,18 +12,6 @@
 	android:padding="4dp"
 >
 	<FrameLayout
-		android:id="@+id/weather_refresh_widget"
-		android:layout_width="56dp"
-		android:layout_height="56dp"
-		android:layout_gravity="center"
-		android:background="@drawable/widget_refresh_background"
-		android:clickable="false"
-		android:elevation="4dp"
-		android:focusable="false"
-		android:importantForAccessibility="no"
-	/>
-
-	<FrameLayout
 		android:id="@+id/weather_refresh_widget_status"
 		android:layout_width="56dp"
 		android:layout_height="56dp"
@@ -33,17 +21,15 @@
 		android:elevation="4dp"
 		android:focusable="false"
 		android:importantForAccessibility="no"
-		android:visibility="gone"
 	>
-		<TextView
-			android:id="@+id/weather_refresh_widget_result"
-			android:layout_width="match_parent"
-			android:layout_height="match_parent"
-			android:fontFamily="sans-serif-medium"
-			android:gravity="center"
-			android:includeFontPadding="false"
-			android:textColor="@android:color/white"
-			android:textSize="30sp"
+		<ProgressBar
+			android:id="@+id/weather_refresh_widget_progress"
+			style="?android:attr/progressBarStyleSmall"
+			android:layout_width="32dp"
+			android:layout_height="32dp"
+			android:layout_gravity="center"
+			android:indeterminate="true"
+			android:indeterminateTint="@android:color/white"
 		/>
 	</FrameLayout>
 </FrameLayout>

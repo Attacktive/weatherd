@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="hint_refresh_interval">Minimum time between automatic refreshes, not an exact timer. Manual refresh bypasses this interval.</string>
+	<string name="hint_weather_refresh_widget">Refresh now starts a refresh in the app. The home-screen widget queues one when a network connection is available; its press effect only confirms your tap.</string>
+</resources>

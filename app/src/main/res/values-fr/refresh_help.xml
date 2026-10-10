@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="hint_refresh_interval">Durée minimale entre les actualisations automatiques, pas une minuterie exacte. L’actualisation manuelle ignore cet intervalle.</string>
+	<string name="hint_weather_refresh_widget">Actualiser maintenant lance une actualisation dans l’application. Le widget de l’écran d’accueil en met une en file d’attente lorsqu’une connexion réseau est disponible ; son effet d’appui confirme seulement votre toucher.</string>
+</resources>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="hint_refresh_interval">Otomatik yenilemeler arasındaki en kısa süredir; kesin bir zamanlayıcı değildir. Manuel yenileme bu aralığı atlar.</string>
+	<string name="hint_weather_refresh_widget">Şimdi yenile, uygulamada bir yenileme başlatır. Ana ekran widget’ı ağ bağlantısı kullanılabilir olduğunda bir yenilemeyi kuyruğa alır; basma efekti yalnızca dokunuşunuzu onaylar.</string>
+</resources>

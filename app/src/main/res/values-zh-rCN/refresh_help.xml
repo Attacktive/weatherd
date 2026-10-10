@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="hint_refresh_interval">自动刷新之间的最短间隔，并非精确计时器。手动刷新会跳过此间隔。</string>
+	<string name="hint_weather_refresh_widget">“立即刷新”会在应用中开始刷新。主屏幕小组件会在网络连接可用时将刷新加入队列；按下效果仅表示已收到你的点击。</string>
+</resources>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="hint_refresh_interval">Minimale Zeit zwischen automatischen Aktualisierungen, kein exakter Zeitplan. Eine manuelle Aktualisierung umgeht dieses Intervall.</string>
+	<string name="hint_weather_refresh_widget">Jetzt aktualisieren startet eine Aktualisierung in der App. Das Startbildschirm-Widget reiht eine Aktualisierung ein, sobald eine Netzwerkverbindung verfügbar ist; der Druckeffekt bestätigt nur das Tippen.</string>
+</resources>

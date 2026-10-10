@@ -20,10 +20,20 @@ internal class WeatherRefreshWorker(appContext: Context, workerParams: WorkerPar
 		val refreshResult = sceneProvider.refreshWithResult(nowEpochSeconds(), force = true)
 
 		return when {
-			refreshResult.isSuccess -> Result.success()
+			refreshResult.isSuccess -> {
+				publishResult(WeatherRefreshWidgetState.SUCCESS)
+				Result.success()
+			}
 			runAttemptCount < MAX_RETRY_ATTEMPTS -> Result.retry()
-			else -> Result.failure()
+			else -> {
+				publishResult(WeatherRefreshWidgetState.ERROR)
+				Result.failure()
+			}
 		}
+	}
+
+	private fun publishResult(state: WeatherRefreshWidgetState) {
+		WeatherRefreshWidgetProvider.showTransientResult(applicationContext, state, id.toString())
 	}
 
 	private fun nowEpochSeconds() = System.currentTimeMillis() / 1000L

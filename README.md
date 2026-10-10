@@ -4,7 +4,7 @@
 
 Android live wallpaper that renders a procedural weather scene from Open-Meteo Best Match, [MET Norway](https://api.met.no), or explicit ICON models from DWD, ItaliaMeteo, and MeteoSwiss through [Open-Meteo](https://open-meteo.com). Regional models automatically use a user-configured global fallback outside their coverage or when their request fails.
 
-Uses device location or a manually searched city, refreshes on a configurable interval (15 min – 6 hr), and mirrors the live scene in an in-app preview.
+Uses device location or a manually searched city and mirrors the live scene in an in-app preview. Weather checks are triggered when the preview resumes, the wallpaper becomes visible, or relevant weather/location settings change; automatic fetches are throttled by a configurable minimum interval (15 min – 6 hr).
 
 High relative humidity can add a restrained atmospheric haze without changing the reported weather condition. The effect begins above 85% relative humidity and ramps smoothly to a capped strength at 100%, while provider-reported fog remains the full semantic fog state and takes precedence.
 
@@ -12,6 +12,12 @@ The scene simulator overrides the preview and live wallpaper without replacing t
 Returning to live mode displays cached weather without waiting for location or network requests when its location source and provider configuration still match the selected target.
 On a first launch or after changing targets, it displays a clock-lit fallback until matching weather becomes available.
 Refreshes happen separately, and a slow or failed request does not prevent switching modes.
+
+## Weather refresh timing
+
+The configured refresh interval is the minimum time between automatic weather fetches, not a background timer. Weatherd checks when the preview resumes, when the wallpaper becomes visible, and after relevant location or provider changes. **Refresh now** and the home-screen refresh widget bypass that interval.
+
+The widget queues network-constrained work. Its press effect confirms the tap immediately, an indeterminate progress indicator stays visible while the work is queued or running, and a brief ✓ or ! reports the worker's actual success or final failure before the refresh icon returns. If the device is offline, queued work waits for a network connection. Check **Settings → Weather → Last updated** to see when weather was last refreshed; the scene may still look the same when conditions have not changed.
 
 Enable **Settings → Appearance → Sun and moon → Motion-responsive reflections** to move the sun's optical reflections as you tilt your phone, in both the preview and the live wallpaper.
 The option is off by default, requires **Lens flare**, and is disabled on devices without a compatible motion sensor.

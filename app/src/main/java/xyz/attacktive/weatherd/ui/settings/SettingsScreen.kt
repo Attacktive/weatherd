@@ -800,6 +800,8 @@ private fun RefreshIntervalSection(settings: AppSettings, defaults: AppSettings,
 			}
 		}
 	}
+
+	HintText(stringResource(R.string.hint_refresh_interval))
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1611,6 +1613,8 @@ private fun CurrentLocationSummary(state: CurrentLocationSummaryState, onRefresh
 
 		Text(stringResource(R.string.refresh_now))
 	}
+
+	HintText(stringResource(R.string.hint_weather_refresh_widget))
 }
 
 @Composable
