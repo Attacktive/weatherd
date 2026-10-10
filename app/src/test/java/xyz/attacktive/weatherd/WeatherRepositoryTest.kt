@@ -1,9 +1,9 @@
 package xyz.attacktive.weatherd
 
-import io.mockk.coEvery
-import io.mockk.mockk
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.test.runTest
+import io.mockk.coEvery
+import io.mockk.mockk
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -53,15 +53,15 @@ class WeatherRepositoryTest {
 
 	@Test
 	fun `rethrows coroutine cancellation`() = runTest {
-		coEvery { provider.current(1.0, 2.0) } throws CancellationException("cancelled")
-		var cancelled = false
+		coEvery { provider.current(1.0, 2.0) } throws CancellationException("canceled")
+		var canceled = false
 
 		try {
 			repository.current(1.0, 2.0)
 		} catch (_: CancellationException) {
-			cancelled = true
+			canceled = true
 		}
 
-		assertTrue(cancelled)
+		assertTrue(canceled)
 	}
 }

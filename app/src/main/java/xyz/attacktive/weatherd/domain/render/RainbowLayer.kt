@@ -1,5 +1,6 @@
 package xyz.attacktive.weatherd.domain.render
 
+import kotlin.math.roundToInt
 import android.content.res.Resources
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
@@ -11,7 +12,6 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.RectF
 import androidx.annotation.DrawableRes
-import kotlin.math.roundToInt
 import xyz.attacktive.weatherd.domain.model.DayPhase
 
 /** Reuses decoded chromatic halo pixels, a sampling transform, and day-phase tint state between frames. */

@@ -1,16 +1,16 @@
 package xyz.attacktive.weatherd.domain.render
 
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.roundToInt
+import kotlin.math.sin
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import androidx.core.graphics.createBitmap
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import kotlin.math.PI
-import kotlin.math.abs
-import kotlin.math.cos
-import kotlin.math.roundToInt
-import kotlin.math.sin
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -205,19 +205,19 @@ class RainbowLayerTest {
 		return maxOf(
 			abs(Color.red(first) - Color.red(second)),
 			abs(Color.green(first) - Color.green(second)),
-			abs(Color.blue(first) - Color.blue(second)),
+			abs(Color.blue(first) - Color.blue(second))
 		)
 	}
 
 	private fun sunCenter(width: Int, height: Int) = PixelPoint(
 		x = (width * SUN_X_FRACTION).roundToInt(),
-		y = (height * MIDDAY_SUN_Y_FRACTION).roundToInt(),
+		y = (height * MIDDAY_SUN_Y_FRACTION).roundToInt()
 	)
 
 	private fun renderPair(width: Int, height: Int): RenderPair {
 		return RenderPair(
 			withHalo = renderLayer(Color.TRANSPARENT, width = width, height = height),
-			withoutHalo = createBitmap(width, height),
+			withoutHalo = createBitmap(width, height)
 		)
 	}
 
