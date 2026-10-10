@@ -83,21 +83,25 @@ internal class GlassDropletFrame {
 			GLASS_DROPLET_MAX_X_FRACTION,
 			unitFloat(glassDropletHash(slot, cycleIndex, GLASS_DROPLET_X_SALT))
 		)
+
 		anchorY = height * lerpGlassDroplet(
 			GLASS_DROPLET_MIN_Y_FRACTION,
 			GLASS_DROPLET_MAX_Y_FRACTION,
 			unitFloat(glassDropletHash(slot, cycleIndex, GLASS_DROPLET_Y_SALT))
 		)
+
 		baseRadius = shortEdge * lerpGlassDroplet(
 			GLASS_DROPLET_MIN_RADIUS_FRACTION,
 			GLASS_DROPLET_MAX_RADIUS_FRACTION,
 			unitFloat(glassDropletHash(slot, cycleIndex, GLASS_DROPLET_RADIUS_SALT))
 		)
+
 		laneSlope = lerpGlassDroplet(
 			-GLASS_DROPLET_MAX_LANE_SLOPE,
 			GLASS_DROPLET_MAX_LANE_SLOPE,
 			unitFloat(glassDropletHash(slot, cycleIndex, GLASS_DROPLET_SLOPE_SALT))
 		)
+
 		laneCurve = lerpGlassDroplet(
 			-GLASS_DROPLET_MAX_LANE_CURVE,
 			GLASS_DROPLET_MAX_LANE_CURVE,
