@@ -63,73 +63,25 @@ class HumidityWeatherSceneProviderTest {
 	@Test
 	fun `simulator pins haze while humid cached weather remains available`() {
 		val liveSettings = manualSettings()
-		val target = WeatherSceneTarget.from(liveSettings)
-		val humidSnapshot = snapshot(relativeHumidityPercent = 100.0)
 		val liveState = WeatherSceneState(
 			settings = liveSettings,
-			snapshot = humidSnapshot,
-			snapshotTarget = target,
+			snapshot = snapshot(relativeHumidityPercent = 100.0),
+			snapshotTarget = WeatherSceneTarget.from(liveSettings),
 			photoRevision = 7
 		)
 		val live = provider.paramsFor(NOW, liveState, debugToolsAvailable = false)
-
-		assertEquals(0f, live.fogDensity, TOLERANCE)
-		assertEquals(0.25f, live.humidityHazeDensity, TOLERANCE)
-		assertEquals(7, live.photoRevision)
-
-		val clearSimulation = provider.paramsFor(
-			NOW,
-			liveState.copy(
-				settings = liveSettings.copy(
-					sceneSimulatorEnabled = true,
-					sceneSimulatorActive = true,
-					sceneSimulatorPresetIndex = SCENE_PRESETS.indexOfFirst { it.name == "CLEAR" },
-					sceneSimulatorDayPhase = DayPhase.DAY
-				)
-			),
-			debugToolsAvailable = false
-		)
-
-		assertEquals(0f, clearSimulation.fogDensity, TOLERANCE)
-		assertEquals(0f, clearSimulation.humidityHazeDensity, TOLERANCE)
-		assertEquals(7, clearSimulation.photoRevision)
-
-		val hazeSimulation = provider.paramsFor(
-			NOW,
-			liveState.copy(
-				settings = liveSettings.copy(
-					sceneSimulatorEnabled = true,
-					sceneSimulatorActive = true,
-					sceneSimulatorPresetIndex = SCENE_PRESETS.indexOfFirst { it.name == "HUMID HAZE" },
-					sceneSimulatorDayPhase = DayPhase.DAY
-				)
-			),
-			debugToolsAvailable = false
-		)
-
-		assertEquals(0f, hazeSimulation.fogDensity, TOLERANCE)
-		assertEquals(0.25f, hazeSimulation.humidityHazeDensity, TOLERANCE)
-
-		val fogSimulation = provider.paramsFor(
-			NOW,
-			liveState.copy(
-				settings = liveSettings.copy(
-					sceneSimulatorEnabled = true,
-					sceneSimulatorActive = true,
-					sceneSimulatorPresetIndex = SCENE_PRESETS.indexOfFirst { it.name == "FOG" },
-					sceneSimulatorDayPhase = DayPhase.DAY
-				)
-			),
-			debugToolsAvailable = false
-		)
-
-		assertEquals(1f, fogSimulation.fogDensity, TOLERANCE)
-		assertEquals(0f, fogSimulation.humidityHazeDensity, TOLERANCE)
-
+		val clearSimulation = simulatedParams(liveSettings, liveState, "CLEAR")
+		val hazeSimulation = simulatedParams(liveSettings, liveState, "HUMID HAZE")
+		val fogSimulation = simulatedParams(liveSettings, liveState, "FOG")
 		val returnedLive = provider.paramsFor(NOW, liveState, debugToolsAvailable = false)
 
-		assertEquals(0f, returnedLive.fogDensity, TOLERANCE)
-		assertEquals(0.25f, returnedLive.humidityHazeDensity, TOLERANCE)
+		assertFogState(live, expectedFogDensity = 0f, expectedHumidityHazeDensity = 0.25f)
+		assertEquals(7, live.photoRevision)
+		assertFogState(clearSimulation, expectedFogDensity = 0f, expectedHumidityHazeDensity = 0f)
+		assertEquals(7, clearSimulation.photoRevision)
+		assertFogState(hazeSimulation, expectedFogDensity = 0f, expectedHumidityHazeDensity = 0.25f)
+		assertFogState(fogSimulation, expectedFogDensity = 1f, expectedHumidityHazeDensity = 0f)
+		assertFogState(returnedLive, expectedFogDensity = 0f, expectedHumidityHazeDensity = 0.25f)
 		assertEquals(7, returnedLive.photoRevision)
 	}
 
@@ -158,6 +110,24 @@ class HumidityWeatherSceneProviderTest {
 
 		assertEquals(0f, matching.fogDensity, TOLERANCE)
 		assertEquals(0f, matching.humidityHazeDensity, TOLERANCE)
+	}
+
+	private fun simulatedParams(liveSettings: AppSettings, liveState: WeatherSceneState, presetName: String) = provider.paramsFor(
+		NOW,
+		liveState.copy(
+			settings = liveSettings.copy(
+				sceneSimulatorEnabled = true,
+				sceneSimulatorActive = true,
+				sceneSimulatorPresetIndex = SCENE_PRESETS.indexOfFirst { it.name == presetName },
+				sceneSimulatorDayPhase = DayPhase.DAY
+			)
+		),
+		debugToolsAvailable = false
+	)
+
+	private fun assertFogState(params: SceneParams, expectedFogDensity: Float, expectedHumidityHazeDensity: Float) {
+		assertEquals(expectedFogDensity, params.fogDensity, TOLERANCE)
+		assertEquals(expectedHumidityHazeDensity, params.humidityHazeDensity, TOLERANCE)
 	}
 
 	private fun manualSettings(latitude: Double = 37.57, longitude: Double = 126.98) = AppSettings(
