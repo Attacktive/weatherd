@@ -16,6 +16,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
 import xyz.attacktive.weatherd.domain.render.SceneParams
 import xyz.attacktive.weatherd.domain.render.SceneRenderer
+import xyz.attacktive.weatherd.domain.render.SceneScreenEffects
 import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
 import xyz.attacktive.weatherd.domain.render.WeatherSceneState
 import xyz.attacktive.weatherd.domain.render.backdropSignature
@@ -45,6 +46,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 
 	private inner class SceneEngine: Engine(), Choreographer.FrameCallback {
 		private val renderer = SceneRenderer(resources)
+		private val screenEffects = SceneScreenEffects(renderer)
 		private val choreographer = Choreographer.getInstance()
 		private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -185,34 +187,34 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			}
 		}
 
-		/** Draws the scene, crossfading from the outgoing backdrop for a moment after a scene flip. */
+		/** Draws the scene, crossfading only world-space content before the screen-anchored effects are composited once at full strength. */
 		private fun drawScene(canvas: Canvas, backdrop: Bitmap, params: SceneParams, timeSeconds: Float, viewportLeft: Float) {
 			val outgoing = previousBackdrop
 			val elapsed = timeSeconds - fadeStartSeconds
 			if (outgoing == null || elapsed < 0f || elapsed >= SCENE_FADE_SECONDS) {
 				previousBackdrop = null
-				drawViewport(canvas, backdrop, params, timeSeconds, viewportLeft)
+				drawWorldViewport(canvas, backdrop, params, timeSeconds, viewportLeft)
+			} else {
+				/*
+				 * A smoothstepped layer alpha eases the incoming scene in over the outgoing backdrop.
+				 * The extra saveLayerAlpha compositing exists only while a fade runs — steady-state rendering never pays for it — and it happens to mask the incoming scene's first-frame tile rebuild too.
+				 * A negative elapsed means the fade straddled the clock wrap; the guard above just ends it.
+				 */
+				val linear = elapsed / SCENE_FADE_SECONDS
+				val eased = linear * linear * (3f - 2f * linear)
+				canvas.drawBitmap(outgoing, -viewportLeft, 0f, null)
 
-				return
+				val alpha = (eased * 255f).roundToInt().coerceIn(0, 255)
+				val saved = canvas.saveLayerAlpha(0f, 0f, width.toFloat(), height.toFloat(), alpha)
+				drawWorldViewport(canvas, backdrop, params, timeSeconds, viewportLeft)
+				canvas.restoreToCount(saved)
 			}
 
-			/*
-			 * A smoothstepped layer alpha eases the incoming scene in over the outgoing backdrop.
-			 * The extra saveLayerAlpha compositing exists only while a fade runs — steady-state rendering never pays for it — and it happens to mask the incoming scene's first-frame tile rebuild too.
-			 * A negative elapsed means the fade straddled the clock wrap; the guard above just ends it.
-			 */
-			val linear = elapsed / SCENE_FADE_SECONDS
-			val eased = linear * linear * (3f - 2f * linear)
-			canvas.drawBitmap(outgoing, -viewportLeft, 0f, null)
-
-			val alpha = (eased * 255f).roundToInt().coerceIn(0, 255)
-			val saved = canvas.saveLayerAlpha(0f, 0f, width.toFloat(), height.toFloat(), alpha)
-			drawViewport(canvas, backdrop, params, timeSeconds, viewportLeft)
-			canvas.restoreToCount(saved)
+			screenEffects.render(canvas, width, height, params, timeSeconds)
 		}
 
-		/** Draws one viewport into the wider virtual wallpaper scene without scaling it, so launcher offsets reveal real off-screen content instead of stretching the current frame. */
-		private fun drawViewport(canvas: Canvas, backdrop: Bitmap, params: SceneParams, timeSeconds: Float, viewportLeft: Float) {
+		/** Draws one world-space viewport into the wider virtual wallpaper scene without scaling it, so launcher offsets reveal real off-screen content instead of stretching the current frame. */
+		private fun drawWorldViewport(canvas: Canvas, backdrop: Bitmap, params: SceneParams, timeSeconds: Float, viewportLeft: Float) {
 			canvas.drawBitmap(backdrop, -viewportLeft, 0f, null)
 
 			val saved = canvas.save()
@@ -221,7 +223,6 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			renderer.lensFlareOffsetY = lensFlareMotionSensor.offsetY
 			renderer.renderForeground(canvas, backdrop.width, height, params, timeSeconds, includeOverlayLabels = false)
 			canvas.restoreToCount(saved)
-			renderer.renderOverlayLabels(canvas, width, height, params)
 		}
 
 		/** Repeated frames do not add leases; only eligibility and lifecycle transitions touch the sensor. */
