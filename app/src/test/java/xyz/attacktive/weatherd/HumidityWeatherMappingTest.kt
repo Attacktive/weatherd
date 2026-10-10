@@ -77,6 +77,7 @@ class HumidityWeatherMappingTest {
 					?.filter { it.isNotBlank() }
 					?.toSet()
 					.orEmpty()
+
 				requests += RequestContract(fields, url.queryParameter("models"))
 
 				return MockResponse()
@@ -85,6 +86,7 @@ class HumidityWeatherMappingTest {
 					.setBody(selectedOpenMeteoBody(fields))
 			}
 		}
+
 		server.start()
 
 		try {
@@ -93,6 +95,7 @@ class HumidityWeatherMappingTest {
 				.addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
 				.build()
 				.create(OpenMeteoApiService::class.java)
+
 			val provider = OpenMeteoWeatherProvider(api)
 
 			val bestMatch = provider.current(37.5, 127.0)
