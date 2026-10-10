@@ -129,9 +129,9 @@ internal fun effectiveOpaqueCloudiness(params: SceneParams) = params.cloudLayers
 private fun scaledCloudiness(params: SceneParams, cloudiness: Float) =
 	(cloudiness * params.cloudCountScale.coerceIn(CLOUD_COUNT_SCALE_RANGE.start, CLOUD_COUNT_SCALE_RANGE.endInclusive)).coerceIn(0f, 1f)
 
-/** Smoothly maps relative humidity above 85% onto a restrained 0..0.25 atmospheric overlay. */
-internal fun humidityHazeDensityFor(relativeHumidityPercent: Double?): Float {
-	if (relativeHumidityPercent == null || !relativeHumidityPercent.isFinite()) {
+/** Smoothly maps relative humidity above 85% onto a restrained 0..0.25 atmospheric overlay, unless provider-reported fog already owns the shared geometry. */
+internal fun humidityHazeDensityFor(relativeHumidityPercent: Double?, reportedFog: Boolean = false): Float {
+	if (reportedFog || relativeHumidityPercent == null || !relativeHumidityPercent.isFinite()) {
 		return 0f
 	}
 
@@ -174,7 +174,6 @@ fun sceneParamsFor(
 ): SceneParams {
 	val observation = snapshot.observation
 	val condition = observation.condition
-	val reportedFog = condition.fog
 	val dayPhase = dayPhaseFor(nowEpochSeconds, snapshot.sunriseEpochSeconds, snapshot.sunsetEpochSeconds, observation.isDay)
 	val cloudLayers = observation.cloudCover.layers?.let {
 		SceneCloudLayers(
@@ -187,7 +186,7 @@ fun sceneParamsFor(
 	return SceneParams(
 		dayPhase = dayPhase,
 		cloudiness = (observation.cloudCoverPercent / 100f).coerceIn(0f, 1f),
-		fogDensity = if (reportedFog) {
+		fogDensity = if (condition.fog) {
 			1f
 		} else {
 			0f
@@ -220,11 +219,7 @@ fun sceneParamsFor(
 		overlayLabels = overlayLabels,
 		lensFlareEnabled = lensFlareEnabled,
 		lensFlareMotionEnabled = lensFlareMotionEnabled,
-		humidityHazeDensity = if (reportedFog) {
-			0f
-		} else {
-			humidityHazeDensityFor(observation.relativeHumidityPercent)
-		}
+		humidityHazeDensity = humidityHazeDensityFor(observation.relativeHumidityPercent, condition.fog)
 	)
 }
 
