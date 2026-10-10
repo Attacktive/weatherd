@@ -47,6 +47,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 	private inner class SceneEngine: Engine(), Choreographer.FrameCallback {
 		private val renderer = SceneRenderer(resources)
 		private val screenEffects = SceneScreenEffects(renderer)
+		private val unlockRainEffect = UnlockRainEffect()
 		private val choreographer = Choreographer.getInstance()
 		private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -54,6 +55,8 @@ class WeatherLiveWallpaperService: WallpaperService() {
 		private var renderedParams: SceneParams? = null
 		private var previousBackdrop: Bitmap? = null
 		private var fadeStartSeconds = 0f
+		private var unlockRainEffectPending = false
+		private var unlockRainEffectStartSeconds = Float.NaN
 		private var activeParams: SceneParams? = null
 		private var activeSceneState: WeatherSceneState? = null
 		private var paramsComputedAtSecond = 0L
@@ -83,6 +86,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 		}
 
 		override fun onVisibilityChanged(visible: Boolean) {
+			val becameVisible = visible && !this.visible
 			this.visible = visible
 			choreographer.removeFrameCallback(this)
 			if (!visible) {
@@ -90,6 +94,11 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			}
 
 			if (visible) {
+				// PoC: visibility deliberately stands in for an unlock event so the flourish can be tested by simply returning Home.
+				if (becameVisible) {
+					unlockRainEffectPending = true
+				}
+
 				wallpaperScrollingSupported = wallpaperScrollingSupportedBy(currentHomeLauncher(this@WeatherLiveWallpaperService)?.packageName)
 				scope.launch { sceneProvider.refresh(nowEpochSeconds()) }
 				choreographer.postFrameCallback(this)
@@ -132,7 +141,13 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			}
 
 			// Use the shared monotonic frame clock so every scene surface renders the same animation phase.
-			drawFrame(frameTimeNanos, sceneAnimationTimeSeconds(frameTimeNanos))
+			val timeSeconds = sceneAnimationTimeSeconds(frameTimeNanos)
+			if (unlockRainEffectPending) {
+				unlockRainEffectPending = false
+				unlockRainEffectStartSeconds = timeSeconds
+			}
+
+			drawFrame(frameTimeNanos, timeSeconds)
 			scheduleNextFrame()
 		}
 
@@ -211,6 +226,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			}
 
 			screenEffects.render(canvas, width, height, params, timeSeconds)
+			unlockRainEffect.draw(canvas, width.toFloat(), height.toFloat(), timeSeconds - unlockRainEffectStartSeconds)
 		}
 
 		/** Draws one world-space viewport into the wider virtual wallpaper scene without scaling it, so launcher offsets reveal real off-screen content instead of stretching the current frame. */
