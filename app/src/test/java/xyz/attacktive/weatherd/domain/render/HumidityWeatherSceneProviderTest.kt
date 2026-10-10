@@ -39,9 +39,11 @@ class HumidityWeatherSceneProviderTest {
 		every { defaults } returns AppSettings()
 		every { settings } returns persistedSettings
 	}
+
 	private val photoBackgroundRepository = mockk<PhotoBackgroundRepository> {
 		every { state } returns photoState
 	}
+
 	private val logger = mockk<AppLogger>(relaxed = true)
 	private val applicationScope = CoroutineScope(UnconfinedTestDispatcher())
 	private val provider = WeatherSceneProvider(
@@ -69,6 +71,7 @@ class HumidityWeatherSceneProviderTest {
 			snapshotTarget = WeatherSceneTarget.from(liveSettings),
 			photoRevision = 7
 		)
+
 		val live = provider.paramsFor(NOW, liveState, debugToolsAvailable = false)
 		val clearSimulation = simulatedParams(liveSettings, liveState, "CLEAR")
 		val hazeSimulation = simulatedParams(liveSettings, liveState, "HUMID HAZE")
@@ -96,6 +99,7 @@ class HumidityWeatherSceneProviderTest {
 			snapshot = humidSnapshot,
 			snapshotTarget = seoulTarget
 		)
+
 		val fallback = provider.paramsFor(NOW, mismatchedState, debugToolsAvailable = false)
 
 		assertEquals(0f, fallback.fogDensity, TOLERANCE)
@@ -106,6 +110,7 @@ class HumidityWeatherSceneProviderTest {
 			snapshot = snapshot(relativeHumidityPercent = 60.0),
 			snapshotTarget = WeatherSceneTarget.from(busanSettings)
 		)
+
 		val matching = provider.paramsFor(NOW, matchingLowHumidityState, debugToolsAvailable = false)
 
 		assertEquals(0f, matching.fogDensity, TOLERANCE)

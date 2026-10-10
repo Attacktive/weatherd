@@ -39,16 +39,19 @@ class GlassDropletsWeatherSceneProviderTest {
 			glassDropletsEnabled = true
 		)
 	)
+
 	private val settingsRepository = mockk<SettingsRepository> {
 		every { defaults } returns AppSettings()
 		every { settings } returns persistedSettings
 	}
+
 	private val locationRepository = mockk<LocationRepository>()
 	private val weatherRepository = mockk<WeatherRepository>()
 	private val reverseGeocodingRepository = mockk<ReverseGeocodingRepository>()
 	private val photoBackgroundRepository = mockk<PhotoBackgroundRepository> {
 		every { state } returns MutableStateFlow(PhotoBackgroundState(emptySet()))
 	}
+
 	private val applicationScope = CoroutineScope(UnconfinedTestDispatcher())
 	private val provider = WeatherSceneProvider(
 		context = mockk<Context>(relaxed = true),

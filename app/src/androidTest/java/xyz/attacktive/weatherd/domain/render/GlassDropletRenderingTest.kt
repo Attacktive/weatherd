@@ -24,6 +24,7 @@ class GlassDropletRenderingTest {
 		val time = findSampleTime {
 			it.opacity > 0.99f && it.verticalStretch == 1f && isFullyVisible(it)
 		}
+
 		val frame = GlassDropletFrame()
 		frame.sample(0, WIDTH.toFloat(), HEIGHT.toFloat(), time)
 
@@ -38,12 +39,14 @@ class GlassDropletRenderingTest {
 			frame.centerY - frame.radius * 0.32f,
 			sampleRadius
 		)
+
 		val lowerRim = brightnessAround(
 			light,
 			frame.centerX,
 			frame.centerY + frame.radius * 0.9f,
 			sampleRadius
 		)
+
 		val neighboringLight = brightnessAround(
 			light,
 			frame.centerX + frame.radius * 1.7f,
@@ -66,6 +69,7 @@ class GlassDropletRenderingTest {
 		val time = findSampleTime(MATERIAL_SIZE, MATERIAL_SIZE) {
 			it.opacity > 0.99f && it.verticalStretch > 1.6f && it.radius > MATERIAL_MIN_RADIUS && isFullyVisible(it, MATERIAL_SIZE, MATERIAL_SIZE)
 		}
+
 		val frame = GlassDropletFrame()
 		frame.sample(0, MATERIAL_SIZE.toFloat(), MATERIAL_SIZE.toFloat(), time)
 
@@ -100,6 +104,7 @@ class GlassDropletRenderingTest {
 			rainy.copy(precipitation = rainy.precipitation?.copy(kind = PrecipitationKind.SLEET)),
 			rainy.copy(precipitationScale = 0f)
 		)
+
 		for (params in nonRain) {
 			bitmap.eraseColor(background)
 			layer.draw(Canvas(bitmap), TEST_WIDTH.toFloat(), TEST_HEIGHT.toFloat(), params, 7f)

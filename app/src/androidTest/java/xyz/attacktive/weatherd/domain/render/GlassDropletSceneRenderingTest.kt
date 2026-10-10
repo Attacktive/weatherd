@@ -24,6 +24,7 @@ class GlassDropletSceneRenderingTest {
 		val params = rainParams(
 			overlayLabels = OverlayLabels(weather = "RAIN", location = "Seoul")
 		)
+
 		val reusedRenderer = SceneRenderer(resources)
 		val reusedEffects = SceneScreenEffects(reusedRenderer)
 		val wideWorld = createBitmap(WIDE_WIDTH, HEIGHT)
@@ -35,6 +36,7 @@ class GlassDropletSceneRenderingTest {
 			TIME_SECONDS,
 			includeOverlayLabels = false
 		)
+
 		val reused = renderScreenEffects(reusedEffects, params, TIME_SECONDS)
 		val fresh = renderScreenEffects(SceneScreenEffects(SceneRenderer(resources)), params, TIME_SECONDS)
 
@@ -109,6 +111,7 @@ class GlassDropletSceneRenderingTest {
 			rain.copy(precipitation = rain.precipitation?.copy(kind = PrecipitationKind.SNOW)),
 			rain.copy(precipitation = rain.precipitation?.copy(kind = PrecipitationKind.SLEET))
 		)
+
 		for (params in nonRain) {
 			bitmap.eraseColor(background)
 			effects.render(Canvas(bitmap), WIDTH, HEIGHT, params, TIME_SECONDS)
