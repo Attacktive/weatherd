@@ -1,0 +1,4 @@
+<resources>
+	<string name="label_glass_droplets">Lluvia en el cristal</string>
+	<string name="subtitle_glass_droplets">Mostrar gotas deslizantes en primer plano cuando llueve.</string>
+</resources>

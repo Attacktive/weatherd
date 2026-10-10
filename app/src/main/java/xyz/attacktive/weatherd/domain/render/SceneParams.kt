@@ -27,6 +27,7 @@ import xyz.attacktive.weatherd.domain.weather.precipitationIntensity
  * It is an opaque number and never a file name or a bitmap — the params stay JVM-pure, and the renderer resolves the photo itself.
  * [overlayLabels] is the optional text overlay, already formatted for drawing; null keeps the wallpaper text-free.
  * [precipitationScale] is the user's preference rather than an observation, so it rides alongside [precipitation] instead of being folded into it: the renderer applies it past its own visibility floor, where it is the drop count the user actually sees.
+ * [glassDropletsEnabled] is the user's opt-in preference for screen-anchored rain-on-glass droplets; it does not alter the observed precipitation or the existing falling-rain renderer.
  * [windScale] is the user's preference rather than an observation, so it rides alongside [windFactor] instead of being folded into it: the renderer applies it past its own floors, where it actually moves visible wind effects.
  * [cloudScale] is the user's preference rather than an observation, so it rides alongside [cloudiness] instead of being folded into it: the renderer applies it past its own floors, where it scales cloud opacity.
  * [cloudSizeScale] changes individual fair-weather cloud body geometry, [cloudCountScale] scales rendered cloud coverage, and [cloudContrastScale] changes RGB separation inside cloud artwork without touching its alpha mask.
@@ -72,7 +73,8 @@ data class SceneParams(
 	val sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
 	val lensFlareEnabled: Boolean = true,
 	val lensFlareMotionEnabled: Boolean = false,
-	val humidityHazeDensity: Float = 0f
+	val humidityHazeDensity: Float = 0f,
+	val glassDropletsEnabled: Boolean = false
 )
 
 /** The two overlay text lines — the current weather ("Rain · 10°") and the place name — each omissible on its own. */
@@ -104,7 +106,8 @@ fun backdropSignature(params: SceneParams, backgroundPhotoAvailable: Boolean = f
 		sunSizeScale = 1f,
 		sunColorPreset = SunColorPreset.NATURAL,
 		lensFlareEnabled = true,
-		lensFlareMotionEnabled = false
+		lensFlareMotionEnabled = false,
+		glassDropletsEnabled = false
 	)
 }
 
@@ -170,7 +173,8 @@ fun sceneParamsFor(
 	sunSizeScale: Float = 1f,
 	sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
 	lensFlareEnabled: Boolean = true,
-	lensFlareMotionEnabled: Boolean = false
+	lensFlareMotionEnabled: Boolean = false,
+	glassDropletsEnabled: Boolean = false
 ): SceneParams {
 	val observation = snapshot.observation
 	val condition = observation.condition
@@ -219,7 +223,8 @@ fun sceneParamsFor(
 		overlayLabels = overlayLabels,
 		lensFlareEnabled = lensFlareEnabled,
 		lensFlareMotionEnabled = lensFlareMotionEnabled,
-		humidityHazeDensity = humidityHazeDensityFor(observation.relativeHumidityPercent, condition.fog)
+		humidityHazeDensity = humidityHazeDensityFor(observation.relativeHumidityPercent, condition.fog),
+		glassDropletsEnabled = glassDropletsEnabled
 	)
 }
 

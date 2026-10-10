@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -33,7 +34,7 @@ class AppearancePresetRepositoryTest {
 		val dataStore = dataStore()
 		val repository = AppearancePresetRepository(dataStore)
 		val firstSnapshot = AppSettings(backdropScene = BackdropScene.BEACH).toAppearancePresetSnapshot()
-		val secondSnapshot = AppSettings(backdropScene = BackdropScene.MOUNTAINS, skyColorPreset = SkyColorPreset.PASTEL).toAppearancePresetSnapshot()
+		val secondSnapshot = AppSettings(backdropScene = BackdropScene.MOUNTAINS, skyColorPreset = SkyColorPreset.PASTEL, glassDropletsEnabled = true).toAppearancePresetSnapshot()
 
 		assertTrue(repository.create("Coast", firstSnapshot).isSuccess)
 		val created = (repository.state.first() as AppearancePresetStorageState.Ready).presets.single()
@@ -45,9 +46,24 @@ class AppearancePresetRepositoryTest {
 		assertEquals(created.id, replaced.id)
 		assertEquals("Evening coast", replaced.name)
 		assertEquals(secondSnapshot, replaced.snapshot)
+		assertTrue(replaced.snapshot.glassDropletsEnabled)
 
 		assertTrue(reopened.delete(created.id).isSuccess)
 		assertTrue((reopened.state.first() as AppearancePresetStorageState.Ready).presets.isEmpty())
+	}
+
+	@Test
+	fun `version one presets migrate rain-on-glass to off`() = runTest {
+		val dataStore = dataStore()
+		val key = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)
+		val raw = """{"schemaVersion":1,"presets":[{"id":"legacy","name":"Legacy","snapshot":{"backdropScene":"NONE","showWeatherLabel":false,"showLocationLabel":false,"precipitationIntensityScale":1.0,"windIntensityScale":1.0,"cloudIntensityScale":1.0,"cloudSizeScale":1.0,"cloudCountScale":1.0,"cloudContrastScale":1.0,"skyBrightnessScale":1.0,"nightBrightnessScale":1.0,"skySaturationScale":1.0,"skyColorPreset":"NATURAL","sunVisible":true,"moonVisible":true,"sunSizeScale":1.0,"sunColorPreset":"NATURAL","lensFlareEnabled":true,"lensFlareMotionEnabled":false}}]}"""
+		dataStore.edit { preferences ->
+			preferences[key] = raw
+		}
+
+		val state = AppearancePresetRepository(dataStore).state.first() as AppearancePresetStorageState.Ready
+
+		assertFalse(state.presets.single().snapshot.glassDropletsEnabled)
 	}
 
 	@Test
@@ -111,7 +127,7 @@ class AppearancePresetRepositoryTest {
 		val dataStore = dataStore()
 		val key = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)
 		dataStore.edit { preferences ->
-			preferences[key] = """{"schemaVersion":1,"presets":[{"id":"id","name":"Broken","snapshot":{}}]}"""
+			preferences[key] = """{"schemaVersion":$APPEARANCE_PRESET_SCHEMA_VERSION,"presets":[{"id":"id","name":"Broken","snapshot":{}}]}"""
 		}
 		val repository = AppearancePresetRepository(dataStore)
 

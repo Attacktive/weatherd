@@ -85,7 +85,8 @@ fun debugSceneParams(
 	sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
 	lensFlareEnabled: Boolean = true,
 	celestialProgress: Float = 0.5f,
-	lensFlareMotionEnabled: Boolean = false
+	lensFlareMotionEnabled: Boolean = false,
+	glassDropletsEnabled: Boolean = false
 ) = SceneParams(
 	dayPhase = dayPhase,
 	cloudiness = preset.cloudiness,
@@ -112,5 +113,6 @@ fun debugSceneParams(
 	lensFlareEnabled = lensFlareEnabled,
 	celestialProgress = celestialProgress,
 	lensFlareMotionEnabled = lensFlareMotionEnabled,
+	glassDropletsEnabled = glassDropletsEnabled,
 	humidityHazeDensity = preset.humidityHazeDensity
 )

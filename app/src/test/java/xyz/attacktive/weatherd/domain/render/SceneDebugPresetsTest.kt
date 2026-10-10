@@ -17,6 +17,7 @@ class SceneDebugPresetsTest {
 			assertEquals(preset.windFactor, params.windFactor, 0.0001f)
 			assertEquals(preset.cloudLayers, params.cloudLayers)
 			assertEquals(1f, params.precipitationScale, 0.0001f)
+			assertFalse(params.glassDropletsEnabled)
 			assertEquals(1f, params.windScale, 0.0001f)
 			assertEquals(1f, params.cloudScale, 0.0001f)
 			assertEquals(1f, params.cloudSizeScale, 0.0001f)
@@ -76,6 +77,14 @@ class SceneDebugPresetsTest {
 		val params = debugSceneParams(preset, DayPhase.DAY, precipitationScale = 1.8f)
 
 		assertEquals(1.8f, params.precipitationScale, 0.0001f)
+	}
+
+	@Test
+	fun `rain-on-glass preference reaches scene params`() {
+		val preset = SCENE_PRESETS.first { it.name == "RAIN" }
+		val params = debugSceneParams(preset, DayPhase.DAY, glassDropletsEnabled = true)
+
+		assertTrue(params.glassDropletsEnabled)
 	}
 
 	@Test

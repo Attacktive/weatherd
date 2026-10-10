@@ -74,6 +74,27 @@ class GlassDropletSceneRenderingTest {
 	}
 
 	@Test
+	fun disabledPreferenceLeavesRainGlassUndrawn() {
+		val effects = SceneScreenEffects(SceneRenderer(resources))
+		val background = Color.rgb(78, 92, 108)
+		val bitmap = bitmapWithBackground(background)
+		val untouched = bitmapWithBackground(background)
+
+		effects.render(
+			Canvas(bitmap),
+			WIDTH,
+			HEIGHT,
+			rainParams(overlayLabels = null).copy(glassDropletsEnabled = false),
+			TIME_SECONDS
+		)
+
+		assertTrue("Rain-on-glass must be opt-in", bitmap.sameAs(untouched))
+
+		bitmap.recycle()
+		untouched.recycle()
+	}
+
+	@Test
 	fun weatherTransitionClearsScreenGlass() {
 		val effects = SceneScreenEffects(SceneRenderer(resources))
 		val rain = rainParams(overlayLabels = null)
@@ -106,7 +127,8 @@ class GlassDropletSceneRenderingTest {
 		thunder = true,
 		windFactor = 1f,
 		overlayLabels = overlayLabels,
-		precipitationScale = 2f
+		precipitationScale = 2f,
+		glassDropletsEnabled = true
 	)
 
 	private fun renderScreenEffects(effects: SceneScreenEffects, params: SceneParams, timeSeconds: Float): Bitmap {

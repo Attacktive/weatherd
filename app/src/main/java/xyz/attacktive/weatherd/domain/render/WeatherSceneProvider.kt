@@ -173,7 +173,8 @@ class WeatherSceneProvider @Inject constructor(
 			sunSizeScale = sunSizeScale,
 			sunColorPreset = sunColorPreset,
 			lensFlareEnabled = lensFlareEnabled,
-			lensFlareMotionEnabled = lensFlareMotionEnabled
+			lensFlareMotionEnabled = lensFlareMotionEnabled,
+			glassDropletsEnabled = glassDropletsEnabled
 		)
 	}
 
@@ -382,7 +383,8 @@ class WeatherSceneProvider @Inject constructor(
 			sunColorPreset = sunColorPreset,
 			lensFlareEnabled = lensFlareEnabled,
 			celestialProgress = sceneSimulatorCelestialProgress.coerceIn(0f, 1f),
-			lensFlareMotionEnabled = lensFlareMotionEnabled
+			lensFlareMotionEnabled = lensFlareMotionEnabled,
+			glassDropletsEnabled = glassDropletsEnabled
 		)
 			.copy(backdropScene = backdropScene, photoRevision = state.photoRevision)
 	}
@@ -592,6 +594,7 @@ class WeatherSceneProvider @Inject constructor(
 			sunColorPreset = sunColorPreset,
 			lensFlareEnabled = lensFlareEnabled,
 			lensFlareMotionEnabled = lensFlareMotionEnabled,
+			glassDropletsEnabled = glassDropletsEnabled,
 			overlayLabels = fallbackOverlayLabels(state)
 		)
 	}

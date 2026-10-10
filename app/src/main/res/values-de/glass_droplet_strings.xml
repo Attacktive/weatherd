@@ -1,0 +1,4 @@
+<resources>
+	<string name="label_glass_droplets">Regen auf Glas</string>
+	<string name="subtitle_glass_droplets">Bei Regen gleitende Tropfen im Vordergrund anzeigen.</string>
+</resources>

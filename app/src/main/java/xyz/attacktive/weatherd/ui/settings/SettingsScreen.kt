@@ -852,6 +852,17 @@ private fun IntensitySection(settings: AppSettings, defaults: AppSettings, onSav
 		onCommit = { onSave(settings.copy(precipitationIntensityScale = it)) }
 	)
 
+	Spacer(modifier = Modifier.height(12.dp))
+
+	ToggleSetting(
+		label = stringResource(R.string.label_glass_droplets),
+		subtitle = stringResource(R.string.subtitle_glass_droplets),
+		checked = settings.glassDropletsEnabled,
+		onToggle = { onSave(settings.copy(glassDropletsEnabled = it)) }
+	)
+
+	Spacer(modifier = Modifier.height(12.dp))
+
 	IntensitySlider(
 		label = stringResource(R.string.section_wind_intensity),
 		value = settings.windIntensityScale,

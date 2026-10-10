@@ -119,17 +119,17 @@ class AppearancePresetRepository @Inject constructor(private val dataStore: Data
 
 		return try {
 			val version = json.parseToJsonElement(raw).jsonObject["schemaVersion"]?.jsonPrimitive?.int ?: throw IllegalArgumentException("Missing schema version")
-			if (version != APPEARANCE_PRESET_SCHEMA_VERSION) {
+			if (version !in SUPPORTED_APPEARANCE_PRESET_SCHEMA_VERSIONS) {
 				return AppearancePresetStorageState.Unreadable(AppearancePresetUnreadableReason.UnsupportedVersion(version))
 			}
 
-			decodeVersionOne(json.decodeFromString<StoredEnvelope>(raw))
+			decodeSupportedVersion(json.decodeFromString<StoredEnvelope>(raw))
 		} catch (_: Exception) {
 			AppearancePresetStorageState.Unreadable(AppearancePresetUnreadableReason.Malformed)
 		}
 	}
 
-	private fun decodeVersionOne(envelope: StoredEnvelope): AppearancePresetStorageState {
+	private fun decodeSupportedVersion(envelope: StoredEnvelope): AppearancePresetStorageState {
 		val presets = envelope.presets.map { it.toDomain() }
 		require(presets.map { it.id }.distinct().size == presets.size)
 		require(presets.map { appearancePresetNameKey(it.name) }.distinct().size == presets.size)
@@ -176,6 +176,7 @@ private data class StoredSnapshot(
 	val showWeatherLabel: Boolean,
 	val showLocationLabel: Boolean,
 	val precipitationIntensityScale: Float,
+	val glassDropletsEnabled: Boolean = false,
 	val windIntensityScale: Float,
 	val cloudIntensityScale: Float,
 	val cloudSizeScale: Float,
@@ -197,6 +198,7 @@ private data class StoredSnapshot(
 		showWeatherLabel = showWeatherLabel,
 		showLocationLabel = showLocationLabel,
 		precipitationIntensityScale = precipitationIntensityScale,
+		glassDropletsEnabled = glassDropletsEnabled,
 		windIntensityScale = windIntensityScale,
 		cloudIntensityScale = cloudIntensityScale,
 		cloudSizeScale = cloudSizeScale,
@@ -226,6 +228,7 @@ private fun AppearancePresetSnapshot.toStored() = StoredSnapshot(
 	showWeatherLabel = showWeatherLabel,
 	showLocationLabel = showLocationLabel,
 	precipitationIntensityScale = precipitationIntensityScale,
+	glassDropletsEnabled = glassDropletsEnabled,
 	windIntensityScale = windIntensityScale,
 	cloudIntensityScale = cloudIntensityScale,
 	cloudSizeScale = cloudSizeScale,
@@ -248,7 +251,8 @@ private fun <T : Enum<T>> enumValue(name: String, values: Iterable<T>) = values.
 internal fun appearancePresetNameKey(name: String) = Normalizer.normalize(name.trim().lowercase(Locale.ROOT), Normalizer.Form.NFC)
 
 /** Bump whenever persisted preset snapshot fields are added, removed, renamed, or change meaning. */
-internal const val APPEARANCE_PRESET_SCHEMA_VERSION = 1
+internal const val APPEARANCE_PRESET_SCHEMA_VERSION = 2
 internal const val APPEARANCE_PRESET_NAME_MAX_LENGTH = 40
 internal const val APPEARANCE_PRESETS_KEY_NAME = "appearance_presets_json"
+private val SUPPORTED_APPEARANCE_PRESET_SCHEMA_VERSIONS = setOf(1, APPEARANCE_PRESET_SCHEMA_VERSION)
 private val PRESETS_KEY = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)

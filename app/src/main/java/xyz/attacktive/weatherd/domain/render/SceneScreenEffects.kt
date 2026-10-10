@@ -10,7 +10,10 @@ internal class SceneScreenEffects(private val renderer: SceneRenderer) {
 	private val glassDropletLayer = GlassDropletLayer()
 
 	fun render(canvas: Canvas, width: Int, height: Int, params: SceneParams, timeSeconds: Float) {
-		glassDropletLayer.draw(canvas, width.toFloat(), height.toFloat(), params, timeSeconds)
+		if (params.glassDropletsEnabled) {
+			glassDropletLayer.draw(canvas, width.toFloat(), height.toFloat(), params, timeSeconds)
+		}
+
 		renderer.renderOverlayLabels(canvas, width, height, params)
 	}
 }

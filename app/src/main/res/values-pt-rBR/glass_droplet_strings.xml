@@ -1,0 +1,4 @@
+<resources>
+	<string name="label_glass_droplets">Chuva no vidro</string>
+	<string name="subtitle_glass_droplets">Mostrar gotas deslizando em primeiro plano durante a chuva.</string>
+</resources>

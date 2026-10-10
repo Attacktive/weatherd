@@ -1,0 +1,4 @@
+<resources>
+	<string name="label_glass_droplets">玻璃上的雨滴</string>
+	<string name="subtitle_glass_droplets">下雨时显示在前景中滑落的水滴。</string>
+</resources>

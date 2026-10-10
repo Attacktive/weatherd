@@ -1,0 +1,4 @@
+<resources>
+	<string name="label_glass_droplets">Rain on glass</string>
+	<string name="subtitle_glass_droplets">Show sliding foreground droplets during rain.</string>
+</resources>

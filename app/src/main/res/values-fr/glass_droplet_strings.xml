@@ -1,0 +1,4 @@
+<resources>
+	<string name="label_glass_droplets">Pluie sur la vitre</string>
+	<string name="subtitle_glass_droplets">Afficher des gouttes glissantes au premier plan lorsqu’il pleut.</string>
+</resources>
