@@ -13,17 +13,20 @@ internal class GlassDropletLayer {
 			style = Paint.Style.FILL
 			color = Color.rgb(222, 232, 240)
 		}
+
 	private val rimPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 		.apply {
 			style = Paint.Style.STROKE
 			strokeCap = Paint.Cap.ROUND
 			color = Color.rgb(24, 34, 44)
 		}
+
 	private val highlightPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 		.apply {
 			style = Paint.Style.FILL
 			color = Color.WHITE
 		}
+
 	private val bodyPath = Path()
 	private val rimPath = Path()
 	private val bodyRect = RectF()
@@ -76,6 +79,7 @@ internal class GlassDropletLayer {
 			highlightCenterX + highlightRadiusX,
 			highlightCenterY + highlightRadiusY
 		)
+
 		canvas.drawOval(highlightRect, highlightPaint)
 	}
 
@@ -86,6 +90,7 @@ internal class GlassDropletLayer {
 			frame.centerX + frame.radius,
 			frame.centerY + frame.radius
 		)
+
 		canvas.drawOval(bodyRect, bodyPaint)
 		canvas.drawArc(bodyRect, GLASS_DROPLET_RIM_START_DEGREES, GLASS_DROPLET_RIM_SWEEP_DEGREES, false, rimPaint)
 	}
@@ -110,6 +115,7 @@ internal class GlassDropletLayer {
 			rightShoulderX,
 			lowerShoulderY
 		)
+
 		bodyPath.cubicTo(
 			rightBottomControlX,
 			bottom,
@@ -118,6 +124,7 @@ internal class GlassDropletLayer {
 			leftShoulderX,
 			lowerShoulderY
 		)
+
 		bodyPath.cubicTo(
 			frame.centerX - halfWidth,
 			frame.centerY + halfHeight * GLASS_DROPLET_SIDE_CONTROL_Y_FRACTION,
@@ -126,6 +133,7 @@ internal class GlassDropletLayer {
 			frame.centerX,
 			top
 		)
+
 		bodyPath.close()
 		canvas.drawPath(bodyPath, bodyPaint)
 
@@ -139,6 +147,7 @@ internal class GlassDropletLayer {
 			leftShoulderX,
 			lowerShoulderY
 		)
+
 		canvas.drawPath(rimPath, rimPaint)
 	}
 
