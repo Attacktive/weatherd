@@ -16,16 +16,22 @@ internal class GlassDropletFrame {
 
 	internal var anchorX = 0f
 		private set
+
 	internal var anchorY = 0f
 		private set
+
 	internal var baseRadius = 0f
 		private set
+
 	internal var cycleIndex = NO_GLASS_DROPLET_CYCLE
 		private set
+
 	internal var cycleStartSeconds = 0f
 		private set
+
 	internal var localSeconds = 0f
 		private set
+
 	internal var slideProgress = 0f
 		private set
 
