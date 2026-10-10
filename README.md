@@ -6,6 +6,8 @@ Android live wallpaper that renders a procedural weather scene from Open-Meteo B
 
 Uses device location or a manually searched city, refreshes on a configurable interval (15 min – 6 hr), and mirrors the live scene in an in-app preview.
 
+High relative humidity can add a restrained atmospheric haze without changing the reported weather condition. The effect begins above 85% relative humidity and ramps smoothly to a capped strength at 100%, while provider-reported fog remains the full semantic fog state and takes precedence.
+
 The scene simulator overrides the preview and live wallpaper without replacing the cached real weather.
 Returning to live mode displays cached weather without waiting for location or network requests when its location source and provider configuration still match the selected target.
 On a first launch or after changing targets, it displays a clock-lit fallback until matching weather becomes available.

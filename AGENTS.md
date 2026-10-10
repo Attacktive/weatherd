@@ -2,7 +2,7 @@
 
 Instructions and architectural invariants for agents working in the Weatherd codebase.
 
-- Version: 1.6.10 (2026-10-09)
+- Version: 1.6.11 (2026-10-10)
 - Persona: Coding assistant pair-programming with the user on Weatherd.
 
 ## Tools and Environment
@@ -136,6 +136,16 @@ fun debugSceneParams(
 - A cloud deck spans `CLOUD_TEXTURE_VIEWPORTS` viewport widths before repeating unless it passes its own `viewports`. Overcast banks deliberately use shorter spans so their source masses remain screen-dominant.
 - Dense fog without precipitation suppresses the animated overcast banks and relies on its own fog base plus drifting veil tiles instead. Fog uses broad, elongated, heavily blurred bands at multiple heights, never recognizable cumulus silhouettes; its layers share one prevailing drift with parallax instead of counter-scrolling like smoke, and their tint follows the day phase.
 - Overcast bank sources are decoded once during prewarm and then transformed, tinted, and alpha-scaled without rerasterizing their source pixels. Do not generate cloud masks from `renderForeground` / `drawCloudDrift`, and do not use artwork from the reference APK or third parties.
+
+### Humidity Haze Is Drawing Strength, Not Fog Semantics
+
+Provider relative humidity is optional weather data. Missing or non-finite humidity must behave exactly like no humidity haze.
+`SceneParams.fogDensity` remains reserved for provider-reported fog and continues to drive all semantic fog behavior such as palette, cloud, celestial, visibility, and optical decisions.
+`SceneParams.humidityHazeDensity` is a separate derived overlay: it is zero through 85% relative humidity, rises smoothly above that threshold, and is capped at 0.25 at 100% or higher.
+Provider-reported fog takes precedence and forces humidity haze to zero, so the shared fog layers never stack.
+`effectiveFogDensity()` combines those two values for drawing the existing fog base and drifting veil geometry only. Never feed that combined drawing strength back into weather classification or any semantic `fogDensity` consumer.
+Backdrop invalidation follows the derived `humidityHazeDensity`, not raw humidity: humidity changes below the onset threshold must not invalidate a static backdrop, while changes that alter the derived haze must invalidate it.
+The `HUMID HAZE` simulator preset stays at the end of `SCENE_PRESETS` so persisted preset indices remain stable.
 
 ### Cloud Coverage Belongs to Placement, Never to Paint Alpha
 
