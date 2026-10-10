@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
 #
-# Produce cleaned, flat release notes for a tag range — the single source of
-# truth shared by release.yaml (per-tag delta) and promotion-notes.yaml
-# (cumulative range for a beta -> production promotion).
+# Produce cleaned, flat release notes for a tag range — the single source of truth shared by release.yaml (per-tag delta) and promotion-notes.yaml (cumulative range for a beta -> production promotion).
 #
 # Usage: release-notes.sh <from-tag> <to-tag>
-#   <from-tag>  Exclusive lower bound. Empty => behave like a normal release and
-#               let GitHub auto-pick the previous tag (matches release.yaml).
-#   <to-tag>    Inclusive upper bound (required).
+# <from-tag> is the exclusive lower bound.
+# Leave it empty to behave like a normal release and let GitHub auto-pick the previous tag (matches release.yaml).
+# <to-tag> is the inclusive upper bound and is required.
 #
-# Prints cleaned notes to stdout. Applies no length limit; callers truncate as
-# needed (Play caps "what's new" at ~500 chars).
+# Prints cleaned notes to stdout.
+# Applies no length limit; callers truncate as needed (Play caps "what's new" at ~500 chars).
 set -euo pipefail
 
 # Conventional-commit types dropped as non-user-facing noise. refactor is kept on purpose — it can be user-visible.
