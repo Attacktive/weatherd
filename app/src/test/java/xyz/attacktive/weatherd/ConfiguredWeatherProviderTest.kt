@@ -1,12 +1,12 @@
 package xyz.attacktive.weatherd
 
 import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.runTest
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -34,6 +34,7 @@ class ConfiguredWeatherProviderTest {
 			weatherProvider = WeatherProviderType.ITALIA_METEO,
 			weatherFallbackProvider = WeatherProviderType.OPEN_METEO
 		)
+
 		every { settingsRepository.settings } returns flowOf(settings)
 		coEvery { openMeteo.current(44.5, 11.34, WeatherProviderType.ITALIA_METEO) } returns snapshot(WeatherProviderType.ITALIA_METEO)
 		coEvery { openMeteo.current(55.75, 37.61, WeatherProviderType.OPEN_METEO) } returns snapshot(WeatherProviderType.OPEN_METEO)
@@ -61,6 +62,7 @@ class ConfiguredWeatherProviderTest {
 				weatherFallbackProvider = WeatherProviderType.MET_NORWAY
 			)
 		)
+
 		coEvery { metNo.current(55.75, 37.61) } returns snapshot(WeatherProviderType.MET_NORWAY)
 
 		val actual = provider.current(55.75, 37.61)
@@ -79,6 +81,7 @@ class ConfiguredWeatherProviderTest {
 				weatherFallbackProvider = WeatherProviderType.MET_NORWAY
 			)
 		)
+
 		coEvery { openMeteo.current(37.5, 127.0, WeatherProviderType.DWD_ICON_GLOBAL) } throws IllegalStateException("primary unavailable")
 		coEvery { metNo.current(37.5, 127.0) } returns snapshot(WeatherProviderType.MET_NORWAY)
 
@@ -98,6 +101,7 @@ class ConfiguredWeatherProviderTest {
 				weatherFallbackProvider = WeatherProviderType.MET_NORWAY
 			)
 		)
+
 		coEvery { openMeteo.current(37.5, 127.0, WeatherProviderType.DWD_ICON_GLOBAL) } throws CancellationException("obsolete request")
 
 		val failure = runCatching { provider.current(37.5, 127.0) }.exceptionOrNull()
@@ -128,6 +132,7 @@ class ConfiguredWeatherProviderTest {
 				weatherFallbackProvider = WeatherProviderType.MET_NORWAY
 			)
 		)
+
 		coEvery { openMeteo.current(37.5, 127.0, WeatherProviderType.DWD_ICON_GLOBAL) } throws primaryFailure
 		coEvery { metNo.current(37.5, 127.0) } throws fallbackFailure
 

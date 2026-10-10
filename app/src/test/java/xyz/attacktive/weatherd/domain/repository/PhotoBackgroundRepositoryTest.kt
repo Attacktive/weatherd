@@ -1,13 +1,13 @@
 package xyz.attacktive.weatherd.domain.repository
 
 import java.nio.file.Files
+import kotlinx.coroutines.test.runTest
 import android.content.Context
 import android.content.res.Resources
 import android.net.Uri
 import android.util.DisplayMetrics
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -27,6 +27,7 @@ class PhotoBackgroundRepositoryTest {
 		}
 		every { contentResolver } throws IllegalArgumentException("invalid source")
 	}
+
 	private val logger = mockk<AppLogger>(relaxed = true)
 
 	@After

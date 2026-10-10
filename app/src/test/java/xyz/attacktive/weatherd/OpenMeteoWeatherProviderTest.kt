@@ -1,9 +1,9 @@
 package xyz.attacktive.weatherd
 
+import kotlinx.coroutines.test.runTest
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
-import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -87,6 +87,7 @@ class OpenMeteoWeatherProviderTest {
 			longitude = 8.0,
 			current = CurrentWeatherDto(1_751_889_600L, 2, 1, 20.0, 0.0, 8.0, 38)
 		)
+
 		val providers = listOf(
 			WeatherProviderType.DWD_ICON_GLOBAL to "dwd_icon_global",
 			WeatherProviderType.DWD_ICON_EU to "dwd_icon_eu",
