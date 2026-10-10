@@ -23,15 +23,18 @@ VEIL_PEAK_ALPHA = 0.025
 ATMOSPHERE_RGB = np.array([198, 211, 224], dtype=np.float32)
 SPECTRAL_WEIGHT = 0.80
 STOPS_U = np.array([0.0, 0.17, 0.33, 0.50, 0.67, 0.84, 1.0], dtype=np.float32)
-STOPS_RGB = np.array([
-	[244, 118, 122],
-	[246, 166, 118],
-	[242, 218, 142],
-	[160, 222, 174],
-	[116, 210, 222],
-	[110, 158, 236],
-	[180, 142, 224],
-], dtype=np.float32)
+STOPS_RGB = np.array(
+	[
+		[244, 118, 122],
+		[246, 166, 118],
+		[242, 218, 142],
+		[160, 222, 174],
+		[116, 210, 222],
+		[110, 158, 236],
+		[180, 142, 224],
+	],
+	dtype=np.float32
+)
 
 
 def spectral_color(radius):
