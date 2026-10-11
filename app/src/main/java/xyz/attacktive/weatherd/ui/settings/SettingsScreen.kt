@@ -93,6 +93,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import xyz.attacktive.weatherd.BuildConfig
 import xyz.attacktive.weatherd.R
+import xyz.attacktive.weatherd.domain.model.AnimationIdleTimeout
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.CLOUD_CONTRAST_SCALE_RANGE
@@ -309,6 +310,10 @@ private fun WallpaperSettingsTab(viewModel: SettingsViewModel, scrollState: Scro
 
 	SettingsTabContent(scrollState) {
 		WallpaperMotionSection(settings = settings, onSave = onSave)
+
+		Spacer(modifier = Modifier.height(24.dp))
+
+		AnimationIdleTimeoutSection(settings = settings, defaults = viewModel.defaults, onSave = onSave)
 
 		Spacer(modifier = Modifier.height(24.dp))
 
@@ -566,7 +571,7 @@ private fun PresetsSection(
 							Text(stringResource(R.string.preset_delete))
 						}
 					},
-					dismissButton = {
+				dismissButton = {
 						TextButton(
 							onClick = {
 								pendingDelete = null
@@ -802,6 +807,56 @@ private fun RefreshIntervalSection(settings: AppSettings, defaults: AppSettings,
 	}
 
 	HintText(stringResource(R.string.hint_refresh_interval))
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AnimationIdleTimeoutSection(settings: AppSettings, defaults: AppSettings, onSave: (AppSettings) -> Unit) {
+	var expanded by remember { mutableStateOf(false) }
+
+	ResettableSectionLabel(
+		text = stringResource(R.string.section_animation_idle_timeout),
+		isDefault = settings.animationIdleTimeout == defaults.animationIdleTimeout,
+		onReset = { onSave(settings.copy(animationIdleTimeout = defaults.animationIdleTimeout)) }
+	)
+
+	ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+		OutlinedTextField(
+			value = formatAnimationIdleTimeout(settings.animationIdleTimeout),
+			onValueChange = {},
+			readOnly = true,
+			trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+			modifier = Modifier
+				.fillMaxWidth()
+				.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+		)
+
+		ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+			AnimationIdleTimeout.entries.forEach { timeout ->
+				DropdownMenuItem(
+					text = { Text(formatAnimationIdleTimeout(timeout)) },
+					onClick = {
+						if (timeout != settings.animationIdleTimeout) {
+							onSave(settings.copy(animationIdleTimeout = timeout))
+						}
+
+						expanded = false
+					}
+				)
+			}
+		}
+	}
+
+	HintText(stringResource(R.string.hint_animation_idle_timeout))
+}
+
+@Composable
+private fun formatAnimationIdleTimeout(timeout: AnimationIdleTimeout) = when (timeout) {
+	AnimationIdleTimeout.NEVER -> stringResource(R.string.animation_idle_timeout_never)
+	AnimationIdleTimeout.SECONDS_30 -> stringResource(R.string.animation_idle_timeout_30_seconds)
+	AnimationIdleTimeout.MINUTE_1 -> stringResource(R.string.animation_idle_timeout_1_minute)
+	AnimationIdleTimeout.MINUTES_2 -> stringResource(R.string.animation_idle_timeout_2_minutes)
+	AnimationIdleTimeout.MINUTES_5 -> stringResource(R.string.animation_idle_timeout_5_minutes)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

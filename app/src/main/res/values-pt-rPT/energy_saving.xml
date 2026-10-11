@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="section_animation_idle_timeout">Pausar animação após</string>
+	<string name="hint_animation_idle_timeout">Interrompe o movimento contínuo do papel de parede após o tempo selecionado para poupar energia. Alterações do tempo e da fase do dia continuam a atualizar a cena estática.</string>
+	<string name="animation_idle_timeout_never">Nunca</string>
+	<string name="animation_idle_timeout_30_seconds">30 segundos</string>
+	<string name="animation_idle_timeout_1_minute">1 minuto</string>
+	<string name="animation_idle_timeout_2_minutes">2 minutos</string>
+	<string name="animation_idle_timeout_5_minutes">5 minutos</string>
+</resources>

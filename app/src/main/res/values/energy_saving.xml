@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="section_animation_idle_timeout">Pause animation after</string>
+	<string name="hint_animation_idle_timeout">Stops continuous wallpaper motion after the selected time to save power. Weather and day-phase changes still update the static scene.</string>
+	<string name="animation_idle_timeout_never">Never</string>
+	<string name="animation_idle_timeout_30_seconds">30 seconds</string>
+	<string name="animation_idle_timeout_1_minute">1 minute</string>
+	<string name="animation_idle_timeout_2_minutes">2 minutes</string>
+	<string name="animation_idle_timeout_5_minutes">5 minutes</string>
+</resources>

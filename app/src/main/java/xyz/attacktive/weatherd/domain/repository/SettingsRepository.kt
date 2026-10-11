@@ -13,6 +13,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import xyz.attacktive.weatherd.domain.model.AnimationIdleTimeout
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.AppearancePresetSnapshot
 import xyz.attacktive.weatherd.domain.model.BackdropScene
@@ -45,6 +46,7 @@ sealed interface SettingsMutation {
 	data class ShowLocationLabel(val enabled: Boolean): SettingsMutation
 	data class TemperatureUnitValue(val value: TemperatureUnit): SettingsMutation
 	data class FrameRate(val value: FrameRateCap): SettingsMutation
+	data class AnimationIdleTimeoutValue(val value: AnimationIdleTimeout): SettingsMutation
 	data class WallpaperScrolling(val enabled: Boolean): SettingsMutation
 	data class PrecipitationIntensity(val value: Float): SettingsMutation
 	data class GlassDropletsEnabled(val enabled: Boolean): SettingsMutation
@@ -83,6 +85,7 @@ internal fun settingsMutationsBetween(previous: AppSettings, updated: AppSetting
 		addIfChanged(previous.showLocationLabel, updated.showLocationLabel, SettingsMutation::ShowLocationLabel)
 		addIfChanged(previous.temperatureUnit, updated.temperatureUnit, SettingsMutation::TemperatureUnitValue)
 		addIfChanged(previous.frameRateCap, updated.frameRateCap, SettingsMutation::FrameRate)
+		addIfChanged(previous.animationIdleTimeout, updated.animationIdleTimeout, SettingsMutation::AnimationIdleTimeoutValue)
 		addIfChanged(previous.wallpaperScrollingEnabled, updated.wallpaperScrollingEnabled, SettingsMutation::WallpaperScrolling)
 		addIfChanged(previous.precipitationIntensityScale, updated.precipitationIntensityScale, SettingsMutation::PrecipitationIntensity)
 		addIfChanged(previous.glassDropletsEnabled, updated.glassDropletsEnabled, SettingsMutation::GlassDropletsEnabled)
@@ -155,6 +158,7 @@ private fun SettingsMutation.appliedTo(settings: AppSettings) = when (this) {
 	is SettingsMutation.ShowLocationLabel -> settings.copy(showLocationLabel = enabled)
 	is SettingsMutation.TemperatureUnitValue -> settings.copy(temperatureUnit = value)
 	is SettingsMutation.FrameRate -> settings.copy(frameRateCap = value)
+	is SettingsMutation.AnimationIdleTimeoutValue -> settings.copy(animationIdleTimeout = value)
 	is SettingsMutation.WallpaperScrolling -> settings.copy(wallpaperScrollingEnabled = enabled)
 	is SettingsMutation.PrecipitationIntensity -> settings.copy(precipitationIntensityScale = value)
 	is SettingsMutation.GlassDropletsEnabled -> settings.copy(glassDropletsEnabled = enabled)
@@ -198,6 +202,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		val SHOW_LOCATION_LABEL = booleanPreferencesKey("show_location_label")
 		val TEMPERATURE_UNIT = stringPreferencesKey("temperature_unit")
 		val FRAME_RATE_CAP = stringPreferencesKey("frame_rate_cap")
+		val ANIMATION_IDLE_TIMEOUT = stringPreferencesKey("animation_idle_timeout")
 		val WALLPAPER_SCROLLING_ENABLED = booleanPreferencesKey("wallpaper_scrolling_enabled")
 		val PRECIPITATION_INTENSITY_SCALE = floatPreferencesKey("precipitation_intensity_scale")
 		val GLASS_DROPLETS_ENABLED = booleanPreferencesKey("glass_droplets_enabled")
@@ -237,6 +242,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			showLocationLabel = preferences[Keys.SHOW_LOCATION_LABEL] ?: defaults.showLocationLabel,
 			temperatureUnit = enumOrDefault(preferences[Keys.TEMPERATURE_UNIT], TemperatureUnit.entries, defaults.temperatureUnit),
 			frameRateCap = enumOrDefault(preferences[Keys.FRAME_RATE_CAP], FrameRateCap.entries, defaults.frameRateCap),
+			animationIdleTimeout = enumOrDefault(preferences[Keys.ANIMATION_IDLE_TIMEOUT], AnimationIdleTimeout.entries, defaults.animationIdleTimeout),
 			wallpaperScrollingEnabled = preferences[Keys.WALLPAPER_SCROLLING_ENABLED] ?: defaults.wallpaperScrollingEnabled,
 			precipitationIntensityScale = preferences[Keys.PRECIPITATION_INTENSITY_SCALE] ?: defaults.precipitationIntensityScale,
 			glassDropletsEnabled = preferences[Keys.GLASS_DROPLETS_ENABLED] ?: defaults.glassDropletsEnabled,
@@ -296,6 +302,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			preferences[Keys.SHOW_LOCATION_LABEL] = settings.showLocationLabel
 			preferences[Keys.TEMPERATURE_UNIT] = settings.temperatureUnit.name
 			preferences[Keys.FRAME_RATE_CAP] = settings.frameRateCap.name
+			preferences[Keys.ANIMATION_IDLE_TIMEOUT] = settings.animationIdleTimeout.name
 			preferences[Keys.WALLPAPER_SCROLLING_ENABLED] = settings.wallpaperScrollingEnabled
 			preferences[Keys.PRECIPITATION_INTENSITY_SCALE] = settings.precipitationIntensityScale
 			preferences[Keys.GLASS_DROPLETS_ENABLED] = settings.glassDropletsEnabled
@@ -344,6 +351,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			is SettingsMutation.ShowLocationLabel -> this[Keys.SHOW_LOCATION_LABEL] = mutation.enabled
 			is SettingsMutation.TemperatureUnitValue -> this[Keys.TEMPERATURE_UNIT] = mutation.value.name
 			is SettingsMutation.FrameRate -> this[Keys.FRAME_RATE_CAP] = mutation.value.name
+			is SettingsMutation.AnimationIdleTimeoutValue -> this[Keys.ANIMATION_IDLE_TIMEOUT] = mutation.value.name
 			is SettingsMutation.WallpaperScrolling -> this[Keys.WALLPAPER_SCROLLING_ENABLED] = mutation.enabled
 			is SettingsMutation.PrecipitationIntensity -> this[Keys.PRECIPITATION_INTENSITY_SCALE] = mutation.value
 			is SettingsMutation.GlassDropletsEnabled -> this[Keys.GLASS_DROPLETS_ENABLED] = mutation.enabled

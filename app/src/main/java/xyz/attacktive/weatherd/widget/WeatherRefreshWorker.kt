@@ -7,6 +7,7 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
+import xyz.attacktive.weatherd.domain.render.SceneAnimationRestartController
 import xyz.attacktive.weatherd.domain.render.WeatherRefreshOutcome
 import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
 
@@ -15,16 +16,13 @@ internal class WeatherRefreshWorker(appContext: Context, workerParams: WorkerPar
 	override suspend fun doWork(): Result {
 		WeatherRefreshWidgetProvider.showRunning(applicationContext)
 
-		val sceneProvider = EntryPointAccessors.fromApplication(
-			applicationContext,
-			WeatherRefreshWorkerEntryPoint::class.java
-		).sceneProvider()
-
-		val refreshResult = sceneProvider.refreshWithResult(nowEpochSeconds(), force = true)
+		val entryPoint = weatherRefreshEntryPoint(applicationContext)
+		val refreshResult = entryPoint.sceneProvider().refreshWithResult(nowEpochSeconds(), force = true)
 		val refreshOutcome = refreshResult.getOrNull()
 
 		return when {
 			refreshOutcome == WeatherRefreshOutcome.REFRESHED -> {
+				entryPoint.sceneAnimationRestartController().restart()
 				publishResult(WeatherRefreshWidgetState.SUCCESS)
 				Result.success()
 			}
@@ -53,6 +51,12 @@ internal class WeatherRefreshWorker(appContext: Context, workerParams: WorkerPar
 
 @EntryPoint
 @InstallIn(SingletonComponent::class)
-internal interface WeatherRefreshWorkerEntryPoint {
+internal interface WeatherRefreshEntryPoint {
 	fun sceneProvider(): WeatherSceneProvider
+	fun sceneAnimationRestartController(): SceneAnimationRestartController
 }
+
+internal fun weatherRefreshEntryPoint(context: Context): WeatherRefreshEntryPoint = EntryPointAccessors.fromApplication(
+	context.applicationContext,
+	WeatherRefreshEntryPoint::class.java
+)

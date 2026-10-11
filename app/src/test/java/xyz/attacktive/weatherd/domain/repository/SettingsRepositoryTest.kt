@@ -383,6 +383,7 @@ class SettingsRepositoryTest {
 			"manualLocationLabel",
 			"temperatureUnit",
 			"frameRateCap",
+			"animationIdleTimeout",
 			"wallpaperScrollingEnabled",
 			"sceneSimulatorEnabled",
 			"sceneSimulatorActive",

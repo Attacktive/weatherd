@@ -65,11 +65,12 @@ import xyz.attacktive.weatherd.domain.render.lensFlareMotionActive
 import xyz.attacktive.weatherd.domain.render.renderImmutableBitmap
 import xyz.attacktive.weatherd.domain.render.sceneAnimationTimeSeconds
 import xyz.attacktive.weatherd.service.WeatherLiveWallpaperService
+import xyz.attacktive.weatherd.service.wallpaperAnimationActive
 
 /**
  * A live preview of the current scene — the same renderer and weather source the wallpaper uses, including the persisted scene-simulator override.
  * Refreshes weather on resume, reacts to shared scene-input changes immediately, and advances clock-derived lighting once a second.
- * Honors the user's frame-rate cap, so the preview animates exactly as choppily as the wallpaper it is previewing.
+ * Honors the user's frame-rate cap and animation idle timeout so the preview follows the same motion policy as the wallpaper.
  */
 @Composable
 fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hiltViewModel()) {
@@ -89,12 +90,15 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	}
 
 	var clockSeconds by remember { mutableLongStateOf(System.currentTimeMillis() / 1000L) }
+	var previewResumed by remember { mutableStateOf(false) }
+	var previewMotionStartedAtNanos by remember { mutableLongStateOf(System.nanoTime()) }
+	var previewMotionActive by remember { mutableStateOf(false) }
 
 	var controlsVisible by remember { mutableStateOf(true) }
 	val previewInteraction = remember { MutableInteractionSource() }
 	val sceneSimulatorVisible = debugToolsEnabled || settings.sceneSimulatorEnabled
 
-	// Read inside the frame loop, which is launched once and has to see a cap the user changes while it runs.
+	// Read inside the frame loop, which stays alive for the current motion window and has to see a cap the user changes while it runs.
 	val currentCap = rememberUpdatedState(settings.frameRateCap)
 
 	val params = remember(sceneState, clockSeconds, debugCelestialProgress) {
@@ -107,15 +111,21 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 		}
 	}
 
-	val motionActive = lensFlareMotionActive(params)
+	val motionActive = previewMotionActive && lensFlareMotionActive(params)
 	LifecycleResumeEffect(motionSensor, motionActive) {
 		motionSensor.setActive(motionOwner, motionActive)
 		onPauseOrDispose { motionSensor.setActive(motionOwner, false) }
 	}
 
 	LifecycleResumeEffect(Unit) {
+		previewMotionStartedAtNanos = System.nanoTime()
+		previewMotionActive = true
+		previewResumed = true
 		viewModel.refresh()
-		onPauseOrDispose { }
+		onPauseOrDispose {
+			previewResumed = false
+			previewMotionActive = false
+		}
 	}
 
 	LaunchedEffect(renderer) {
@@ -124,11 +134,25 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 		}
 	}
 
-	LaunchedEffect(Unit) {
+	LaunchedEffect(previewResumed, previewMotionStartedAtNanos, settings.animationIdleTimeout) {
+		if (!previewResumed) {
+			return@LaunchedEffect
+		}
+
 		while (true) {
-			withFrameNanos { frameNanos ->
-				motionSensor.advance(frameNanos)
-				timeSeconds = sceneAnimationTimeSeconds(frameNanos)
+			val continueAnimating = withFrameNanos { frameNanos ->
+				val active = wallpaperAnimationActive(settings.animationIdleTimeout, previewMotionStartedAtNanos, frameNanos)
+				previewMotionActive = active
+				if (active) {
+					motionSensor.advance(frameNanos)
+					timeSeconds = sceneAnimationTimeSeconds(frameNanos)
+				}
+
+				active
+			}
+
+			if (!continueAnimating) {
+				break
 			}
 
 			// Waiting before asking for the next frame is what idles the frame clock; gating the draw alone would still wake the compositor every vsync.
@@ -173,7 +197,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 			renderer.backgroundPhoto = photo
 
 			try {
-				renderImmutableBitmap(widthPx, heightPx) { canvas ->
+				return@remember renderImmutableBitmap(widthPx, heightPx) { canvas ->
 					renderer.renderBackdrop(canvas, widthPx, heightPx, params)
 				}
 			} finally {

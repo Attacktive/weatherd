@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="section_animation_idle_timeout">アニメーションを一時停止するまで</string>
+	<string name="hint_animation_idle_timeout">選択した時間が経過すると壁紙の連続アニメーションを停止して省電力化します。天気や時間帯が変わった場合は静止シーンも更新されます。</string>
+	<string name="animation_idle_timeout_never">停止しない</string>
+	<string name="animation_idle_timeout_30_seconds">30 秒</string>
+	<string name="animation_idle_timeout_1_minute">1 分</string>
+	<string name="animation_idle_timeout_2_minutes">2 分</string>
+	<string name="animation_idle_timeout_5_minutes">5 分</string>
+</resources>
