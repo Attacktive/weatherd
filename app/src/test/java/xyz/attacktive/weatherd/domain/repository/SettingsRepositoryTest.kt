@@ -49,7 +49,7 @@ class SettingsRepositoryTest {
 	@Test
 	fun `temperature defaults follow the regional weather convention`() {
 		assertEquals(TemperatureUnit.FAHRENHEIT, defaultAppSettings(Locale.US).temperatureUnit)
-		assertEquals(TemperatureUnit.FAHRENHEIT, defaultAppSettings(Locale("es", "PR")).temperatureUnit)
+		assertEquals(TemperatureUnit.FAHRENHEIT, defaultAppSettings(Locale.Builder().setLanguage("es").setRegion("PR").build()).temperatureUnit)
 		assertEquals(TemperatureUnit.CELSIUS, defaultAppSettings(Locale.KOREA).temperatureUnit)
 		assertEquals(TemperatureUnit.CELSIUS, defaultAppSettings(Locale.UK).temperatureUnit)
 	}
