@@ -2,4 +2,8 @@
 <resources>
 	<string name="hint_refresh_interval">Minimum time between automatic refreshes, not an exact timer. Manual refresh bypasses this interval.</string>
 	<string name="hint_weather_refresh_widget">Refresh now starts a refresh in the app. The home-screen widget queues one when a network connection is available; its press effect only confirms your tap.</string>
+	<string name="widget_refresh_loading_description">Refreshing weather. Refresh now.</string>
+	<string name="widget_refresh_success_description">Weather refreshed. Refresh now.</string>
+	<string name="widget_refresh_skipped_description">Weather was not refreshed. Refresh now.</string>
+	<string name="widget_refresh_error_description">Weather refresh failed. Refresh now.</string>
 </resources>

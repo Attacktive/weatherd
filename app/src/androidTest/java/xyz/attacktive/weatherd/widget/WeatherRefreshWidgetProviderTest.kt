@@ -7,8 +7,8 @@ import android.os.SystemClock
 import android.view.MotionEvent
 import android.view.View
 import android.widget.FrameLayout
-import android.widget.ProgressBar
 import android.widget.TextView
+import android.widget.ViewFlipper
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import java.util.concurrent.FutureTask
@@ -32,12 +32,16 @@ class WeatherRefreshWidgetProviderTest {
 	}
 
 	@Test
-	fun refreshStatesSwapArtworkForAnimatedLoaderAndResultFeedback() {
+	fun refreshStatesSwapArtworkForAnimatedLoaderAndSemanticResultFeedback() {
+		val context = InstrumentationRegistry.getInstrumentation().targetContext
 		val loading = createFixture(WeatherRefreshWidgetState.LOADING)
-		val loadingProgress = loading.root.findViewById<ProgressBar>(R.id.weather_refresh_widget_progress)
+		val loadingProgress = loading.root.findViewById<ViewFlipper>(R.id.weather_refresh_widget_progress)
 
 		assertEquals(View.VISIBLE, loading.root.findViewById<View>(R.id.weather_refresh_widget_status).visibility)
-		assertTrue(loadingProgress.isIndeterminate)
+		assertTrue(loadingProgress.isAutoStart)
+		assertEquals(8, loadingProgress.childCount)
+		assertEquals(View.ACCESSIBILITY_LIVE_REGION_POLITE, loading.root.accessibilityLiveRegion)
+		assertEquals(context.getString(R.string.widget_refresh_loading_description), loading.root.contentDescription.toString())
 
 		val success = createFixture(WeatherRefreshWidgetState.SUCCESS)
 		val successResult = success.root.findViewById<TextView>(R.id.weather_refresh_widget_result)
@@ -46,6 +50,13 @@ class WeatherRefreshWidgetProviderTest {
 		assertEquals(View.VISIBLE, success.root.findViewById<View>(R.id.weather_refresh_widget_status).visibility)
 		assertEquals(View.VISIBLE, successResult.visibility)
 		assertEquals("✓", successResult.text.toString())
+		assertEquals(context.getString(R.string.widget_refresh_success_description), success.root.contentDescription.toString())
+
+		val skipped = createFixture(WeatherRefreshWidgetState.SKIPPED)
+		val skippedResult = skipped.root.findViewById<TextView>(R.id.weather_refresh_widget_result)
+
+		assertEquals("!", skippedResult.text.toString())
+		assertEquals(context.getString(R.string.widget_refresh_skipped_description), skipped.root.contentDescription.toString())
 
 		val error = createFixture(WeatherRefreshWidgetState.ERROR)
 		val errorResult = error.root.findViewById<TextView>(R.id.weather_refresh_widget_result)
@@ -53,6 +64,7 @@ class WeatherRefreshWidgetProviderTest {
 		assertEquals(View.GONE, error.root.findViewById<View>(R.id.weather_refresh_widget).visibility)
 		assertEquals(View.VISIBLE, errorResult.visibility)
 		assertEquals("!", errorResult.text.toString())
+		assertEquals(context.getString(R.string.widget_refresh_error_description), error.root.contentDescription.toString())
 	}
 
 	@Test

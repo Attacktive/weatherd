@@ -4,6 +4,7 @@
 	android:id="@+id/weather_refresh_widget_container"
 	android:layout_width="match_parent"
 	android:layout_height="match_parent"
+	android:accessibilityLiveRegion="polite"
 	android:clickable="true"
 	android:contentDescription="@string/refresh_now"
 	android:focusable="true"
@@ -22,14 +23,70 @@
 		android:focusable="false"
 		android:importantForAccessibility="no"
 	>
-		<ProgressBar
+		<ViewFlipper
 			android:id="@+id/weather_refresh_widget_progress"
-			style="?android:attr/progressBarStyleSmall"
 			android:layout_width="32dp"
 			android:layout_height="32dp"
 			android:layout_gravity="center"
-			android:indeterminate="true"
-			android:indeterminateTint="@android:color/white"
-		/>
+			android:autoStart="true"
+			android:flipInterval="125"
+		>
+			<ImageView
+				android:layout_width="match_parent"
+				android:layout_height="match_parent"
+				android:importantForAccessibility="no"
+				android:rotation="0"
+				android:src="@drawable/widget_refresh_spinner_frame"
+			/>
+			<ImageView
+				android:layout_width="match_parent"
+				android:layout_height="match_parent"
+				android:importantForAccessibility="no"
+				android:rotation="45"
+				android:src="@drawable/widget_refresh_spinner_frame"
+			/>
+			<ImageView
+				android:layout_width="match_parent"
+				android:layout_height="match_parent"
+				android:importantForAccessibility="no"
+				android:rotation="90"
+				android:src="@drawable/widget_refresh_spinner_frame"
+			/>
+			<ImageView
+				android:layout_width="match_parent"
+				android:layout_height="match_parent"
+				android:importantForAccessibility="no"
+				android:rotation="135"
+				android:src="@drawable/widget_refresh_spinner_frame"
+			/>
+			<ImageView
+				android:layout_width="match_parent"
+				android:layout_height="match_parent"
+				android:importantForAccessibility="no"
+				android:rotation="180"
+				android:src="@drawable/widget_refresh_spinner_frame"
+			/>
+			<ImageView
+				android:layout_width="match_parent"
+				android:layout_height="match_parent"
+				android:importantForAccessibility="no"
+				android:rotation="225"
+				android:src="@drawable/widget_refresh_spinner_frame"
+			/>
+			<ImageView
+				android:layout_width="match_parent"
+				android:layout_height="match_parent"
+				android:importantForAccessibility="no"
+				android:rotation="270"
+				android:src="@drawable/widget_refresh_spinner_frame"
+			/>
+			<ImageView
+				android:layout_width="match_parent"
+				android:layout_height="match_parent"
+				android:importantForAccessibility="no"
+				android:rotation="315"
+				android:src="@drawable/widget_refresh_spinner_frame"
+			/>
+		</ViewFlipper>
 	</FrameLayout>
 </FrameLayout>

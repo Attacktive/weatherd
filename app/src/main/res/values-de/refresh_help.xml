@@ -2,4 +2,8 @@
 <resources>
 	<string name="hint_refresh_interval">Minimale Zeit zwischen automatischen Aktualisierungen, kein exakter Zeitplan. Eine manuelle Aktualisierung umgeht dieses Intervall.</string>
 	<string name="hint_weather_refresh_widget">Jetzt aktualisieren startet eine Aktualisierung in der App. Das Startbildschirm-Widget reiht eine Aktualisierung ein, sobald eine Netzwerkverbindung verfügbar ist; der Druckeffekt bestätigt nur das Tippen.</string>
+	<string name="widget_refresh_loading_description">Wetter wird aktualisiert. Jetzt aktualisieren.</string>
+	<string name="widget_refresh_success_description">Wetter aktualisiert. Jetzt aktualisieren.</string>
+	<string name="widget_refresh_skipped_description">Wetter wurde nicht aktualisiert. Jetzt aktualisieren.</string>
+	<string name="widget_refresh_error_description">Wetteraktualisierung fehlgeschlagen. Jetzt aktualisieren.</string>
 </resources>

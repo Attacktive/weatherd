@@ -2,4 +2,8 @@
 <resources>
 	<string name="hint_refresh_interval">自動更新の最短間隔であり、正確なタイマーではありません。手動更新ではこの間隔を無視します。</string>
 	<string name="hint_weather_refresh_widget">［今すぐ更新］はアプリ内で更新を開始します。ホーム画面のウィジェットはネットワーク接続が利用可能になると更新をキューに入れます。押したときの効果はタップを受け付けたことだけを示します。</string>
+	<string name="widget_refresh_loading_description">天気を更新しています。今すぐ更新。</string>
+	<string name="widget_refresh_success_description">天気を更新しました。今すぐ更新。</string>
+	<string name="widget_refresh_skipped_description">天気は更新されませんでした。今すぐ更新。</string>
+	<string name="widget_refresh_error_description">天気の更新に失敗しました。今すぐ更新。</string>
 </resources>

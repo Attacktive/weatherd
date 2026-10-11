@@ -21,6 +21,7 @@ internal enum class WeatherRefreshWidgetState {
 	IDLE,
 	LOADING,
 	SUCCESS,
+	SKIPPED,
 	ERROR
 }
 
@@ -34,11 +35,7 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 
 	override fun onReceive(context: Context, intent: Intent) {
 		if (intent.action == ACTION_REFRESH) {
-			val workManager = WorkManager.getInstance(context)
-
-			workManager.cancelUniqueWork(RESET_WORK_NAME)
-			updateWidgets(context, WeatherRefreshWidgetState.LOADING)
-			enqueueRefresh(context, workManager)
+			enqueueRefresh(context, WorkManager.getInstance(context))
 			return
 		}
 
@@ -66,13 +63,14 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 		val views = RemoteViews(context.packageName, layout)
 
 		views.setOnClickPendingIntent(R.id.weather_refresh_widget_container, refreshPendingIntent(context))
+		views.setContentDescription(R.id.weather_refresh_widget_container, context.getString(accessibilityDescription(state)))
 
 		when (state) {
 			WeatherRefreshWidgetState.IDLE -> {
 				views.setViewVisibility(R.id.weather_refresh_widget, View.VISIBLE)
 				views.setViewVisibility(R.id.weather_refresh_widget_status, View.GONE)
 			}
-			WeatherRefreshWidgetState.SUCCESS, WeatherRefreshWidgetState.ERROR -> {
+			WeatherRefreshWidgetState.SUCCESS, WeatherRefreshWidgetState.SKIPPED, WeatherRefreshWidgetState.ERROR -> {
 				val resultSymbol = if (state == WeatherRefreshWidgetState.SUCCESS) "✓" else "!"
 
 				views.setViewVisibility(R.id.weather_refresh_widget, View.GONE)
@@ -83,6 +81,14 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 		}
 
 		return views
+	}
+
+	private fun accessibilityDescription(state: WeatherRefreshWidgetState) = when (state) {
+		WeatherRefreshWidgetState.IDLE -> R.string.refresh_now
+		WeatherRefreshWidgetState.LOADING -> R.string.widget_refresh_loading_description
+		WeatherRefreshWidgetState.SUCCESS -> R.string.widget_refresh_success_description
+		WeatherRefreshWidgetState.SKIPPED -> R.string.widget_refresh_skipped_description
+		WeatherRefreshWidgetState.ERROR -> R.string.widget_refresh_error_description
 	}
 
 	private fun refreshPendingIntent(context: Context): PendingIntent {
@@ -102,6 +108,11 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 		private const val RESULT_TOKEN_KEY = "result_token"
 		private const val RESULT_DISPLAY_MILLIS = 1_500L
 		private val STATE_LOCK = Any()
+
+		internal fun showRunning(context: Context) {
+			WorkManager.getInstance(context).cancelUniqueWork(RESET_WORK_NAME)
+			updateWidgets(context, WeatherRefreshWidgetState.LOADING)
+		}
 
 		internal fun showTransientResult(context: Context, state: WeatherRefreshWidgetState, token: String) {
 			updateWidgets(context, state, token)

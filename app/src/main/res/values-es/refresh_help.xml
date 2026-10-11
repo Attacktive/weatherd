@@ -2,4 +2,8 @@
 <resources>
 	<string name="hint_refresh_interval">Tiempo mínimo entre actualizaciones automáticas, no un temporizador exacto. La actualización manual omite este intervalo.</string>
 	<string name="hint_weather_refresh_widget">Actualizar ahora inicia una actualización en la aplicación. El widget de la pantalla de inicio pone una en cola cuando hay conexión de red; el efecto al pulsar solo confirma el toque.</string>
+	<string name="widget_refresh_loading_description">Actualizando el tiempo. Actualizar ahora.</string>
+	<string name="widget_refresh_success_description">Tiempo actualizado. Actualizar ahora.</string>
+	<string name="widget_refresh_skipped_description">El tiempo no se actualizó. Actualizar ahora.</string>
+	<string name="widget_refresh_error_description">La actualización del tiempo falló. Actualizar ahora.</string>
 </resources>

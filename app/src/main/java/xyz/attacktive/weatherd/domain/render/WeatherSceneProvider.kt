@@ -75,6 +75,11 @@ private data class WeatherRequestToken(
 	val sequence: Long
 )
 
+internal enum class WeatherRefreshOutcome {
+	REFRESHED,
+	SKIPPED
+}
+
 internal fun sceneSimulatorOverridesWeather(
 	sceneSimulatorActive: Boolean,
 	sceneSimulatorEnabled: Boolean,
@@ -110,7 +115,7 @@ class WeatherSceneProvider @Inject constructor(
 	@Volatile private var lastAttemptedWeatherFallbackProvider: WeatherProviderType? = null
 	private val refreshLock = Any()
 	private var pendingRefreshTarget: WeatherRefreshTarget? = null
-	private var pendingRefresh: Deferred<Result<Unit>>? = null
+	private var pendingRefresh: Deferred<Result<WeatherRefreshOutcome>>? = null
 	private val weatherRequestLock = Any()
 	private var activeWeatherRequestKey: WeatherRequestKey? = null
 	private var weatherRequestGeneration = 0L
@@ -220,8 +225,8 @@ class WeatherSceneProvider @Inject constructor(
 		request.await()
 	}
 
-	/** The refresh result for background callers that need to distinguish a provider failure from a successful or intentionally skipped refresh. */
-	internal suspend fun refreshWithResult(nowEpochSeconds: Long, force: Boolean = false, resolveLocationName: Boolean = false, debugToolsAvailable: Boolean = debugToolsEnabled): Result<Unit> {
+	/** The refresh result for background callers that need to distinguish provider failure, a completed refresh, and an intentional skip. */
+	internal suspend fun refreshWithResult(nowEpochSeconds: Long, force: Boolean = false, resolveLocationName: Boolean = false, debugToolsAvailable: Boolean = debugToolsEnabled): Result<WeatherRefreshOutcome> {
 		if (force) {
 			synchronized(refreshLock) {
 				pendingRefresh = null
@@ -232,25 +237,25 @@ class WeatherSceneProvider @Inject constructor(
 		val settings = settingsRepository.settings.first()
 		if (sceneSimulatorOverridesWeather(settings.sceneSimulatorActive, settings.sceneSimulatorEnabled, debugToolsAvailable)) {
 			refreshSimulatorStatus(settings, resolveLocationName)
-			return Result.success(Unit)
+			return Result.success(WeatherRefreshOutcome.SKIPPED)
 		}
 
 		refreshLocationLabel(settings, resolveLocationName)
 
 		val locationKey = locationKey(settings)
 		if (weatherRefreshIsThrottled(settings, locationKey, nowEpochSeconds, force)) {
-			return Result.success(Unit)
+			return Result.success(WeatherRefreshOutcome.SKIPPED)
 		}
 
 		val location = resolveLocation(settings)
 		if (location == null) {
 			logger.debug(TAG, "no location fix; keeping ${weatherFallbackDescription()}")
-			return Result.success(Unit)
+			return Result.success(WeatherRefreshOutcome.SKIPPED)
 		}
 
 		if (!weatherRequestIsCurrent(settings)) {
 			logger.debug(TAG, "discarding obsolete weather request before location update")
-			return Result.success(Unit)
+			return Result.success(WeatherRefreshOutcome.SKIPPED)
 		}
 
 		// The device fix is remembered and the label refreshed again now that one exists — the first refresh has nothing cached for the pre-throttle pass to geocode.
@@ -259,7 +264,7 @@ class WeatherSceneProvider @Inject constructor(
 
 		if (!weatherRequestIsCurrent(settings)) {
 			logger.debug(TAG, "discarding obsolete weather request before fetch")
-			return Result.success(Unit)
+			return Result.success(WeatherRefreshOutcome.SKIPPED)
 		}
 
 		/*
@@ -271,7 +276,7 @@ class WeatherSceneProvider @Inject constructor(
 		val request = beginWeatherRequest(settings, location)
 		val weatherResult = weatherRepository.current(location.latitude, location.longitude)
 		if (weatherResult.isFailure) {
-			return weatherResult.map { }
+			return weatherResult.map { WeatherRefreshOutcome.REFRESHED }
 		}
 
 		val latestSettings = settingsRepository.settings.first()
@@ -279,11 +284,13 @@ class WeatherSceneProvider @Inject constructor(
 		return weatherResult.map { weather ->
 			if (!publishWeatherResponse(request, settings, latestSettings, weather, nowEpochSeconds, locationKey, location)) {
 				logger.debug(TAG, "discarding obsolete weather response")
-				return@map
+				return@map WeatherRefreshOutcome.SKIPPED
 			}
 
 			val cloudCover = weather.observation.cloudCover
 			logger.debug(TAG, "weather refreshed: provider=${weather.source.provider}, condition=${weather.observation.condition.label}, cloud=${cloudCover.totalPercent}%${cloudLayerDescription(weather)}")
+
+			WeatherRefreshOutcome.REFRESHED
 		}
 	}
 

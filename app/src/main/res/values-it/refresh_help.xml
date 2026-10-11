@@ -2,4 +2,8 @@
 <resources>
 	<string name="hint_refresh_interval">Tempo minimo tra gli aggiornamenti automatici, non un timer esatto. L’aggiornamento manuale ignora questo intervallo.</string>
 	<string name="hint_weather_refresh_widget">Aggiorna ora avvia un aggiornamento nell’app. Il widget della schermata Home ne mette uno in coda quando è disponibile una connessione di rete; l’effetto alla pressione conferma solo il tocco.</string>
+	<string name="widget_refresh_loading_description">Aggiornamento del meteo. Aggiorna ora.</string>
+	<string name="widget_refresh_success_description">Meteo aggiornato. Aggiorna ora.</string>
+	<string name="widget_refresh_skipped_description">Il meteo non è stato aggiornato. Aggiorna ora.</string>
+	<string name="widget_refresh_error_description">Aggiornamento del meteo non riuscito. Aggiorna ora.</string>
 </resources>

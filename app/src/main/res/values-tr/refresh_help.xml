@@ -2,4 +2,8 @@
 <resources>
 	<string name="hint_refresh_interval">Otomatik yenilemeler arasındaki en kısa süredir; kesin bir zamanlayıcı değildir. Manuel yenileme bu aralığı atlar.</string>
 	<string name="hint_weather_refresh_widget">Şimdi yenile, uygulamada bir yenileme başlatır. Ana ekran widget’ı ağ bağlantısı kullanılabilir olduğunda bir yenilemeyi kuyruğa alır; basma efekti yalnızca dokunuşunuzu onaylar.</string>
+	<string name="widget_refresh_loading_description">Hava durumu yenileniyor. Şimdi yenile.</string>
+	<string name="widget_refresh_success_description">Hava durumu yenilendi. Şimdi yenile.</string>
+	<string name="widget_refresh_skipped_description">Hava durumu yenilenmedi. Şimdi yenile.</string>
+	<string name="widget_refresh_error_description">Hava durumu yenilemesi başarısız oldu. Şimdi yenile.</string>
 </resources>

@@ -17,7 +17,7 @@ Refreshes happen separately, and a slow or failed request does not prevent switc
 
 The configured refresh interval is the minimum time between automatic weather fetches, not a background timer. Weatherd checks when the preview resumes, when the wallpaper becomes visible, and after relevant location or provider changes. **Refresh now** and the home-screen refresh widget bypass that interval.
 
-The widget queues network-constrained work. Its press effect confirms the tap immediately, an indeterminate progress indicator stays visible while the work is queued or running, and a brief ✓ or ! reports the worker's actual success or final failure before the refresh icon returns. If the device is offline, queued work waits for a network connection. Check **Settings → Weather → Last updated** to see when weather was last refreshed; the scene may still look the same when conditions have not changed.
+The widget queues network-constrained work. Its press effect confirms the tap immediately, an animated progress indicator appears when the accepted work starts running, and a brief ✓ reports a completed weather refresh. A brief ! means the refresh did not complete, including an unavailable location or a final provider failure. If the device is offline, queued work waits for a network connection. Check **Settings → Weather → Last updated** to see when weather was last refreshed; the scene may still look the same when conditions have not changed.
 
 Enable **Settings → Appearance → Sun and moon → Motion-responsive reflections** to move the sun's optical reflections as you tilt your phone, in both the preview and the live wallpaper.
 The option is off by default, requires **Lens flare**, and is disabled on devices without a compatible motion sensor.
