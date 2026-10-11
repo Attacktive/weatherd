@@ -72,8 +72,8 @@ class SceneParamsTest {
 		assertEquals(0.8f, params.cloudiness, 0.0001f)
 		assertNotNull(params.cloudLayers)
 		assertEquals(0.05f, params.cloudLayers!!.low, 0.0001f)
-		assertEquals(0.2f, params.cloudLayers!!.mid, 0.0001f)
-		assertEquals(0.8f, params.cloudLayers!!.high, 0.0001f)
+		assertEquals(0.2f, params.cloudLayers.mid, 0.0001f)
+		assertEquals(0.8f, params.cloudLayers.high, 0.0001f)
 	}
 
 	@Test
