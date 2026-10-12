@@ -1,0 +1,5 @@
+<resources>
+	<string name="tree_style">树木样式</string>
+	<string name="tree_style_rounded">圆润</string>
+	<string name="tree_style_conifer">针叶树</string>
+</resources>

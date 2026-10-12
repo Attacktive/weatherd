@@ -1,0 +1,5 @@
+<resources>
+	<string name="tree_style">Ağaç stili</string>
+	<string name="tree_style_rounded">Yuvarlak</string>
+	<string name="tree_style_conifer">İğne yapraklı</string>
+</resources>

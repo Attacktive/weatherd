@@ -1,0 +1,5 @@
+<resources>
+	<string name="tree_style">Stile albero</string>
+	<string name="tree_style_rounded">Arrotondato</string>
+	<string name="tree_style_conifer">Conifera</string>
+</resources>
