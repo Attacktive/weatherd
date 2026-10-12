@@ -32,6 +32,7 @@ version_name_for_tag() {
 
 	git show "${tag}:app/build.gradle.kts" 2>/dev/null | sed -nE 's/^[[:space:]]*versionName = "([^"]+)".*$/\1/p' | head -n 1
 }
+
 tag_for_version_code() {
 	local wanted="$1"
 	local tag code
