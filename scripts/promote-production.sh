@@ -202,7 +202,7 @@ notes="$(printf '%s' "${full_notes}" | python3 -c 'import sys; sys.stdout.write(
 payload="$(jq -cn \
 	--arg version_code "${target_version_code}" \
 	--arg notes "${notes}" \
-	'{releases:[({versionCodes:[$version_code],status:"completed"} + (if $notes == "" then {} else {releaseNotes:[{language:"en-US",text:$notes}]} end))]}' )"
+	'{releases:[({versionCodes:[$version_code],status:"completed"} + (if $notes == "" then {} else {releaseNotes:[{language:"en-US",text:$notes}]} end))]}')"
 
 play_api PUT "edits/${edit_id}/tracks/production" "${payload}" >/dev/null
 play_api POST "edits/${edit_id}:validate" '{}' >/dev/null
