@@ -1,17 +1,14 @@
 #!/usr/bin/env bash
 # Promote an already-published beta version to Google Play production without rebuilding it.
-# The target must be an existing Weatherd tag whose exact versionCode is completed on the beta track.
+# An explicit target must be an existing Weatherd tag whose exact versionCode is completed on the beta track.
+# With no target, the latest completed beta versionCode is mapped back to its Weatherd tag.
 set -euo pipefail
 
 PACKAGE_NAME='xyz.attacktive.weatherd'
 TARGET_VERSION="${1:-}"
 GOOGLE_PLAY_SERVICE_ACCOUNT_JSON="${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON:-}"
 
-if [ -z "${TARGET_VERSION}" ]; then
-	echo 'usage: promote-production.sh <target-version>' >&2
-	exit 2
-fi
-if [[ ! "${TARGET_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+if [ -n "${TARGET_VERSION}" ] && [[ ! "${TARGET_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
 	echo "Target version must be a semantic version tag such as 3.8.16: ${TARGET_VERSION}" >&2
 	exit 2
 fi
@@ -71,20 +68,24 @@ play_api() {
 	curl "${args[@]}" "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PACKAGE_NAME}/${path}"
 }
 
-git rev-parse -q --verify "refs/tags/${TARGET_VERSION}" >/dev/null || {
-	echo "Target tag does not exist: ${TARGET_VERSION}" >&2
-	exit 1
-}
+target_version_code=''
+target_version_name=''
+if [ -n "${TARGET_VERSION}" ]; then
+	git rev-parse -q --verify "refs/tags/${TARGET_VERSION}" >/dev/null || {
+		echo "Target tag does not exist: ${TARGET_VERSION}" >&2
+		exit 1
+	}
 
-target_version_code="$(version_code_for_tag "${TARGET_VERSION}" || true)"
-target_version_name="$(version_name_for_tag "${TARGET_VERSION}" || true)"
-if [ -z "${target_version_code}" ] || [ -z "${target_version_name}" ]; then
-	echo "Could not read versionCode/versionName from ${TARGET_VERSION}" >&2
-	exit 1
-fi
-if [ "${target_version_name}" != "${TARGET_VERSION}" ]; then
-	echo "Tag ${TARGET_VERSION} contains versionName ${target_version_name}" >&2
-	exit 1
+	target_version_code="$(version_code_for_tag "${TARGET_VERSION}" || true)"
+	target_version_name="$(version_name_for_tag "${TARGET_VERSION}" || true)"
+	if [ -z "${target_version_code}" ] || [ -z "${target_version_name}" ]; then
+		echo "Could not read versionCode/versionName from ${TARGET_VERSION}" >&2
+		exit 1
+	fi
+	if [ "${target_version_name}" != "${TARGET_VERSION}" ]; then
+		echo "Tag ${TARGET_VERSION} contains versionName ${target_version_name}" >&2
+		exit 1
+	fi
 fi
 
 credentials_file="$(mktemp)"
@@ -144,10 +145,34 @@ if [ -z "${edit_id}" ]; then
 fi
 
 beta_track="$(play_api GET "edits/${edit_id}/tracks/beta")"
-beta_status="$(jq -r --arg version_code "${target_version_code}" '.releases[]? | select(any(.versionCodes[]?; . == $version_code)) | .status' <<< "${beta_track}" | head -n 1)"
-if [ "${beta_status}" != 'completed' ]; then
-	echo "Version ${TARGET_VERSION} (${target_version_code}) is not a completed beta release" >&2
-	exit 1
+if [ -z "${TARGET_VERSION}" ]; then
+	target_version_code="$(jq -r '[.releases[]? | select(.status == "completed") | .versionCodes[]? | tonumber] | max // empty' <<< "${beta_track}")"
+	if [ -z "${target_version_code}" ]; then
+		echo 'Beta has no completed release to promote' >&2
+		exit 1
+	fi
+
+	TARGET_VERSION="$(tag_for_version_code "${target_version_code}" || true)"
+	if [ -z "${TARGET_VERSION}" ]; then
+		echo "Could not map latest completed beta versionCode ${target_version_code} to a Git tag" >&2
+		exit 1
+	fi
+	if [[ ! "${TARGET_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+		echo "Latest completed beta versionCode ${target_version_code} maps to a non-semantic tag: ${TARGET_VERSION}" >&2
+		exit 1
+	fi
+
+	target_version_name="$(version_name_for_tag "${TARGET_VERSION}" || true)"
+	if [ "${target_version_name}" != "${TARGET_VERSION}" ]; then
+		echo "Tag ${TARGET_VERSION} contains versionName ${target_version_name}" >&2
+		exit 1
+	fi
+else
+	beta_status="$(jq -r --arg version_code "${target_version_code}" '.releases[]? | select(any(.versionCodes[]?; . == $version_code)) | .status' <<< "${beta_track}" | head -n 1)"
+	if [ "${beta_status}" != 'completed' ]; then
+		echo "Version ${TARGET_VERSION} (${target_version_code}) is not a completed beta release" >&2
+		exit 1
+	fi
 fi
 
 production_track="$(play_api GET "edits/${edit_id}/tracks/production")"
@@ -165,7 +190,6 @@ fi
 
 production_version=''
 if [ -n "${production_version_code}" ]; then
-
 	production_version="$(tag_for_version_code "${production_version_code}" || true)"
 	if [ -z "${production_version}" ]; then
 		echo "Could not map production versionCode ${production_version_code} to a Git tag" >&2

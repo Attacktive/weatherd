@@ -3,8 +3,8 @@ on:
   workflow_dispatch:
     inputs:
       target_version:
-        description: 'Beta version to promote to production (e.g. 3.8.16)'
-        required: true
+        description: 'Beta version to promote. Blank = latest completed beta.'
+        required: false
         type: 'string'
 
 concurrency:
