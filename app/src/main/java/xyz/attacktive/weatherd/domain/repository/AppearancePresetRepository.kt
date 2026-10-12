@@ -23,6 +23,7 @@ import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.SavedAppearancePreset
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
+import xyz.attacktive.weatherd.domain.model.TreeStyle
 
 sealed interface AppearancePresetStorageState {
 	data class Ready(val presets: List<SavedAppearancePreset>): AppearancePresetStorageState
@@ -192,7 +193,8 @@ private data class StoredSnapshot(
 	val sunColorPreset: String,
 	val lensFlareEnabled: Boolean,
 	val lensFlareMotionEnabled: Boolean,
-	val distantAircraftEnabled: Boolean = true
+	val distantAircraftEnabled: Boolean = true,
+	val treeStyle: String = TreeStyle.ROUNDED.name
 ) {
 	fun toDomain() = AppearancePresetSnapshot(
 		backdropScene = enumValue(backdropScene, BackdropScene.entries),
@@ -215,7 +217,8 @@ private data class StoredSnapshot(
 		sunColorPreset = enumValue(sunColorPreset, SunColorPreset.entries),
 		lensFlareEnabled = lensFlareEnabled,
 		lensFlareMotionEnabled = lensFlareMotionEnabled,
-		distantAircraftEnabled = distantAircraftEnabled
+		distantAircraftEnabled = distantAircraftEnabled,
+		treeStyle = enumValue(treeStyle, TreeStyle.entries)
 	)
 }
 
@@ -246,7 +249,8 @@ private fun AppearancePresetSnapshot.toStored() = StoredSnapshot(
 	sunColorPreset = sunColorPreset.name,
 	lensFlareEnabled = lensFlareEnabled,
 	lensFlareMotionEnabled = lensFlareMotionEnabled,
-	distantAircraftEnabled = distantAircraftEnabled
+	distantAircraftEnabled = distantAircraftEnabled,
+	treeStyle = treeStyle.name
 )
 
 private fun <T : Enum<T>> enumValue(name: String, values: Iterable<T>) = values.firstOrNull { it.name == name } ?: throw IllegalArgumentException("Unknown enum value")
@@ -254,8 +258,8 @@ private fun <T : Enum<T>> enumValue(name: String, values: Iterable<T>) = values.
 internal fun appearancePresetNameKey(name: String) = Normalizer.normalize(name.trim().lowercase(Locale.ROOT), Normalizer.Form.NFC)
 
 /** Bump whenever persisted preset snapshot fields are added, removed, renamed, or change meaning. */
-internal const val APPEARANCE_PRESET_SCHEMA_VERSION = 3
+internal const val APPEARANCE_PRESET_SCHEMA_VERSION = 4
 internal const val APPEARANCE_PRESET_NAME_MAX_LENGTH = 40
 internal const val APPEARANCE_PRESETS_KEY_NAME = "appearance_presets_json"
-private val SUPPORTED_APPEARANCE_PRESET_SCHEMA_VERSIONS = setOf(1, 2, APPEARANCE_PRESET_SCHEMA_VERSION)
+private val SUPPORTED_APPEARANCE_PRESET_SCHEMA_VERSIONS = setOf(1, 2, 3, APPEARANCE_PRESET_SCHEMA_VERSION)
 private val PRESETS_KEY = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)
