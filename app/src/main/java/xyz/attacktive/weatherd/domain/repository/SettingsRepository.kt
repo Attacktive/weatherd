@@ -29,6 +29,7 @@ import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
+import xyz.attacktive.weatherd.domain.model.TreeStyle
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.defaultAppSettings
 import xyz.attacktive.weatherd.domain.model.definition
@@ -42,6 +43,7 @@ sealed interface SettingsMutation {
 	data class ManualLocation(val latitude: Double, val longitude: Double, val label: String?): SettingsMutation
 	data object ClearManualLocation: SettingsMutation
 	data class Backdrop(val value: BackdropScene): SettingsMutation
+	data class TreeStyleValue(val value: TreeStyle): SettingsMutation
 	data class ShowWeatherLabel(val enabled: Boolean): SettingsMutation
 	data class ShowLocationLabel(val enabled: Boolean): SettingsMutation
 	data class TemperatureUnitValue(val value: TemperatureUnit): SettingsMutation
@@ -82,6 +84,7 @@ internal fun settingsMutationsBetween(previous: AppSettings, updated: AppSetting
 		addManualLocationChange(previous, updated)
 		addIfChanged(previous.useDeviceLocation, updated.useDeviceLocation, SettingsMutation::UseDeviceLocation)
 		addIfChanged(previous.backdropScene, updated.backdropScene, SettingsMutation::Backdrop)
+		addIfChanged(previous.treeStyle, updated.treeStyle, SettingsMutation::TreeStyleValue)
 		addIfChanged(previous.showWeatherLabel, updated.showWeatherLabel, SettingsMutation::ShowWeatherLabel)
 		addIfChanged(previous.showLocationLabel, updated.showLocationLabel, SettingsMutation::ShowLocationLabel)
 		addIfChanged(previous.temperatureUnit, updated.temperatureUnit, SettingsMutation::TemperatureUnitValue)
@@ -156,6 +159,7 @@ private fun SettingsMutation.appliedTo(settings: AppSettings) = when (this) {
 	is SettingsMutation.ManualLocation -> settings.copy(useDeviceLocation = false, manualLatitude = latitude, manualLongitude = longitude, manualLocationLabel = label)
 	SettingsMutation.ClearManualLocation -> settings.copy(manualLatitude = null, manualLongitude = null, manualLocationLabel = null)
 	is SettingsMutation.Backdrop -> settings.copy(backdropScene = value)
+	is SettingsMutation.TreeStyleValue -> settings.copy(treeStyle = value)
 	is SettingsMutation.ShowWeatherLabel -> settings.copy(showWeatherLabel = enabled)
 	is SettingsMutation.ShowLocationLabel -> settings.copy(showLocationLabel = enabled)
 	is SettingsMutation.TemperatureUnitValue -> settings.copy(temperatureUnit = value)
@@ -201,6 +205,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		val MANUAL_LONGITUDE = doublePreferencesKey("manual_longitude")
 		val MANUAL_LOCATION_LABEL = stringPreferencesKey("manual_location_label")
 		val BACKDROP_SCENE = stringPreferencesKey("backdrop_scene")
+		val TREE_STYLE = stringPreferencesKey("tree_style")
 		val SHOW_WEATHER_LABEL = booleanPreferencesKey("show_weather_label")
 		val SHOW_LOCATION_LABEL = booleanPreferencesKey("show_location_label")
 		val TEMPERATURE_UNIT = stringPreferencesKey("temperature_unit")
@@ -271,6 +276,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			sceneSimulatorPresetIndex = (preferences[Keys.SCENE_SIMULATOR_PRESET_INDEX] ?: defaults.sceneSimulatorPresetIndex).coerceAtLeast(0),
 			sceneSimulatorDayPhase = enumOrDefault(preferences[Keys.SCENE_SIMULATOR_DAY_PHASE], DayPhase.entries, defaults.sceneSimulatorDayPhase),
 			sceneSimulatorCelestialProgress = (preferences[Keys.SCENE_SIMULATOR_CELESTIAL_PROGRESS] ?: defaults.sceneSimulatorCelestialProgress).coerceIn(0f, 1f),
+			treeStyle = enumOrDefault(preferences[Keys.TREE_STYLE], TreeStyle.entries, defaults.treeStyle)
 		)
 	}
 
@@ -303,6 +309,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			preferences.putOrRemove(Keys.MANUAL_LONGITUDE, settings.manualLongitude)
 			preferences.putOrRemove(Keys.MANUAL_LOCATION_LABEL, settings.manualLocationLabel)
 			preferences[Keys.BACKDROP_SCENE] = settings.backdropScene.name
+			preferences[Keys.TREE_STYLE] = settings.treeStyle.name
 			preferences[Keys.SHOW_WEATHER_LABEL] = settings.showWeatherLabel
 			preferences[Keys.SHOW_LOCATION_LABEL] = settings.showLocationLabel
 			preferences[Keys.TEMPERATURE_UNIT] = settings.temperatureUnit.name
@@ -353,6 +360,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 				remove(Keys.MANUAL_LOCATION_LABEL)
 			}
 			is SettingsMutation.Backdrop -> this[Keys.BACKDROP_SCENE] = mutation.value.name
+			is SettingsMutation.TreeStyleValue -> this[Keys.TREE_STYLE] = mutation.value.name
 			is SettingsMutation.ShowWeatherLabel -> this[Keys.SHOW_WEATHER_LABEL] = mutation.enabled
 			is SettingsMutation.ShowLocationLabel -> this[Keys.SHOW_LOCATION_LABEL] = mutation.enabled
 			is SettingsMutation.TemperatureUnitValue -> this[Keys.TEMPERATURE_UNIT] = mutation.value.name
@@ -392,6 +400,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 
 	private fun MutablePreferences.writeAppearancePreset(snapshot: AppearancePresetSnapshot) {
 		this[Keys.BACKDROP_SCENE] = snapshot.backdropScene.name
+		this[Keys.TREE_STYLE] = snapshot.treeStyle.name
 		this[Keys.SHOW_WEATHER_LABEL] = snapshot.showWeatherLabel
 		this[Keys.SHOW_LOCATION_LABEL] = snapshot.showLocationLabel
 		this[Keys.PRECIPITATION_INTENSITY_SCALE] = snapshot.precipitationIntensityScale
