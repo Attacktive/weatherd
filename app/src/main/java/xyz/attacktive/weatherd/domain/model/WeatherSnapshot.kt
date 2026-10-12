@@ -17,5 +17,7 @@ data class WeatherSnapshot(
 	val observedAtEpochSeconds: Long,
 	val sunriseEpochSeconds: Long?,
 	val sunsetEpochSeconds: Long?,
-	val source: WeatherSource = WeatherSource(WeatherProviderType.OPEN_METEO)
+	val source: WeatherSource = WeatherSource(WeatherProviderType.OPEN_METEO),
+	val locationLongitude: Double? = null,
+	val isDayAuthoritativeWithoutCompleteSolarTimes: Boolean = false
 )

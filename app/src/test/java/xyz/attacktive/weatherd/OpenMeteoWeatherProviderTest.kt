@@ -52,6 +52,7 @@ class OpenMeteoWeatherProviderTest {
 		assertEquals(10, snapshot.observation.cloudCover.layers?.highPercent)
 		assertEquals(1_751_866_500L, snapshot.sunriseEpochSeconds)
 		assertEquals(1_751_918_700L, snapshot.sunsetEpochSeconds)
+		assertEquals(127.0, snapshot.locationLongitude!!, 0.0001)
 		assertEquals(WeatherProviderType.OPEN_METEO, snapshot.source.provider)
 		assertNull(snapshot.source.model)
 	}
@@ -134,5 +135,7 @@ class OpenMeteoWeatherProviderTest {
 		assertFalse(snapshot.observation.isDay)
 		assertNull(snapshot.sunriseEpochSeconds)
 		assertNull(snapshot.sunsetEpochSeconds)
+		assertEquals(0.0, snapshot.locationLongitude!!, 0.0001)
+		assertFalse(snapshot.isDayAuthoritativeWithoutCompleteSolarTimes)
 	}
 }

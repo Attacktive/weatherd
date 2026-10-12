@@ -28,7 +28,13 @@ class MetNoWeatherProvider @Inject constructor(private val api: MetNoApiService)
 			api.sunrise(latitudeQuery, longitudeQuery, date).also { cachedSun = CachedSun(sunKey, it) }
 		}
 
-		return forecast.toSnapshot(sun)
+		val snapshot = forecast.toSnapshot(sun)
+		val noSolarEvents = snapshot.sunriseEpochSeconds == null && snapshot.sunsetEpochSeconds == null
+
+		return snapshot.copy(
+			locationLongitude = longitude,
+			isDayAuthoritativeWithoutCompleteSolarTimes = noSolarEvents
+		)
 	}
 }
 

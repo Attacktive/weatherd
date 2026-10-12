@@ -24,6 +24,6 @@ class OpenMeteoWeatherProvider @Inject constructor(private val api: OpenMeteoApi
 				provider = provider,
 				model = model
 			)
-		)
+		).copy(locationLongitude = longitude)
 	}
 }

@@ -11,9 +11,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import xyz.attacktive.weatherd.data.api.MetNoApiService
 import xyz.attacktive.weatherd.data.provider.MetNoWeatherProvider
+import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 import xyz.attacktive.weatherd.domain.model.WeatherLabel
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
+import xyz.attacktive.weatherd.domain.render.sceneParamsFor
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_HEAVY
 
 class MetNoWeatherProviderTest {
@@ -40,6 +42,7 @@ class MetNoWeatherProviderTest {
 		assertEquals(18.0, snapshot.observation.windSpeedKilometersPerHour, 0.0001)
 		assertEquals(77, snapshot.observation.cloudCoverPercent)
 		assertEquals(1_757_818_800L, snapshot.observedAtEpochSeconds)
+		assertEquals(127.000049, snapshot.locationLongitude!!, 0.000001)
 		assertEquals(WeatherProviderType.MET_NORWAY, snapshot.source.provider)
 	}
 
@@ -67,7 +70,7 @@ class MetNoWeatherProviderTest {
 	}
 
 	@Test
-	fun `polar twilight uses solar visibility instead of the symbol suffix`() = runTest {
+	fun `polar twilight keeps provider solar visibility after the freshness window`() = runTest {
 		coEvery { api.forecast("78.0000", "15.0000") } returns metNoForecastResponse("clearsky_polartwilight")
 		coEvery { api.sunrise("78.0000", "15.0000", "2025-09-14") } returns metNoSunResponse(
 			sunrise = null,
@@ -76,9 +79,27 @@ class MetNoWeatherProviderTest {
 		)
 
 		val snapshot = provider.current(78.0, 15.0)
+		val laterParams = sceneParamsFor(snapshot, snapshot.observedAtEpochSeconds + 8L * 60L * 60L)
 
 		assertFalse(snapshot.observation.isDay)
 		assertNull(snapshot.sunriseEpochSeconds)
 		assertNull(snapshot.sunsetEpochSeconds)
+		assertTrue(snapshot.isDayAuthoritativeWithoutCompleteSolarTimes)
+		assertEquals(DayPhase.NIGHT, laterParams.dayPhase)
+	}
+
+	@Test
+	fun `partial solar events do not pin provider is day after the freshness window`() = runTest {
+		coEvery { api.forecast("0.0000", "0.0000") } returns metNoForecastResponse("clearsky_day")
+		coEvery { api.sunrise("0.0000", "0.0000", "2025-09-14") } returns metNoSunResponse(
+			sunrise = "2025-09-14T00:00:00Z",
+			sunset = null
+		)
+
+		val snapshot = provider.current(0.0, 0.0)
+		val laterParams = sceneParamsFor(snapshot, snapshot.observedAtEpochSeconds + 20L * 60L * 60L)
+
+		assertFalse(snapshot.isDayAuthoritativeWithoutCompleteSolarTimes)
+		assertEquals(DayPhase.NIGHT, laterParams.dayPhase)
 	}
 }

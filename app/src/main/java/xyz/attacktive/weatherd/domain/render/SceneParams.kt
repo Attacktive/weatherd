@@ -190,7 +190,16 @@ fun sceneParamsFor(
 ): SceneParams {
 	val observation = snapshot.observation
 	val condition = observation.condition
-	val dayPhase = dayPhaseFor(nowEpochSeconds, snapshot.sunriseEpochSeconds, snapshot.sunsetEpochSeconds, observation.isDay)
+	val dayPhase = dayPhaseFor(
+		nowEpochSeconds = nowEpochSeconds,
+		sunriseEpochSeconds = snapshot.sunriseEpochSeconds,
+		sunsetEpochSeconds = snapshot.sunsetEpochSeconds,
+		isDay = observation.isDay,
+		observedAtEpochSeconds = snapshot.observedAtEpochSeconds,
+		fallbackLongitude = snapshot.locationLongitude,
+		isDayAuthoritativeWithoutCompleteSolarTimes = snapshot.isDayAuthoritativeWithoutCompleteSolarTimes
+	)
+
 	val cloudLayers = observation.cloudCover.layers?.let {
 		SceneCloudLayers(
 			low = (it.lowPercent / 100f).coerceIn(0f, 1f),
