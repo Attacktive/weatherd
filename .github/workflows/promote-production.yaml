@@ -1,0 +1,32 @@
+name: 'Promote to production'
+on:
+  workflow_dispatch:
+    inputs:
+      target_version:
+        description: 'Beta version to promote to production (e.g. 3.8.16)'
+        required: true
+        type: 'string'
+
+concurrency:
+  group: 'production-promotion'
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: 'Promote beta to production'
+    runs-on: 'ubuntu-latest'
+    permissions:
+      # scripts/release-notes.sh uses GitHub's generated-notes endpoint, which requires write access.
+      contents: 'write'
+    steps:
+      - name: 'Checkout'
+        uses: 'actions/checkout@v7'
+        with:
+          fetch-depth: 0
+
+      - name: 'Promote exact beta artifact'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          TARGET_VERSION: ${{ inputs.target_version }}
+        run: 'bash scripts/promote-production.sh "$TARGET_VERSION"'
