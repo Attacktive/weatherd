@@ -191,7 +191,8 @@ private data class StoredSnapshot(
 	val sunSizeScale: Float,
 	val sunColorPreset: String,
 	val lensFlareEnabled: Boolean,
-	val lensFlareMotionEnabled: Boolean
+	val lensFlareMotionEnabled: Boolean,
+	val distantAircraftEnabled: Boolean = true
 ) {
 	fun toDomain() = AppearancePresetSnapshot(
 		backdropScene = enumValue(backdropScene, BackdropScene.entries),
@@ -213,7 +214,8 @@ private data class StoredSnapshot(
 		sunSizeScale = sunSizeScale,
 		sunColorPreset = enumValue(sunColorPreset, SunColorPreset.entries),
 		lensFlareEnabled = lensFlareEnabled,
-		lensFlareMotionEnabled = lensFlareMotionEnabled
+		lensFlareMotionEnabled = lensFlareMotionEnabled,
+		distantAircraftEnabled = distantAircraftEnabled
 	)
 }
 
@@ -243,7 +245,8 @@ private fun AppearancePresetSnapshot.toStored() = StoredSnapshot(
 	sunSizeScale = sunSizeScale,
 	sunColorPreset = sunColorPreset.name,
 	lensFlareEnabled = lensFlareEnabled,
-	lensFlareMotionEnabled = lensFlareMotionEnabled
+	lensFlareMotionEnabled = lensFlareMotionEnabled,
+	distantAircraftEnabled = distantAircraftEnabled
 )
 
 private fun <T : Enum<T>> enumValue(name: String, values: Iterable<T>) = values.firstOrNull { it.name == name } ?: throw IllegalArgumentException("Unknown enum value")
@@ -251,8 +254,8 @@ private fun <T : Enum<T>> enumValue(name: String, values: Iterable<T>) = values.
 internal fun appearancePresetNameKey(name: String) = Normalizer.normalize(name.trim().lowercase(Locale.ROOT), Normalizer.Form.NFC)
 
 /** Bump whenever persisted preset snapshot fields are added, removed, renamed, or change meaning. */
-internal const val APPEARANCE_PRESET_SCHEMA_VERSION = 2
+internal const val APPEARANCE_PRESET_SCHEMA_VERSION = 3
 internal const val APPEARANCE_PRESET_NAME_MAX_LENGTH = 40
 internal const val APPEARANCE_PRESETS_KEY_NAME = "appearance_presets_json"
-private val SUPPORTED_APPEARANCE_PRESET_SCHEMA_VERSIONS = setOf(1, APPEARANCE_PRESET_SCHEMA_VERSION)
+private val SUPPORTED_APPEARANCE_PRESET_SCHEMA_VERSIONS = setOf(1, 2, APPEARANCE_PRESET_SCHEMA_VERSION)
 private val PRESETS_KEY = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)

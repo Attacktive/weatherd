@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="section_sky_details">天空细节</string>
+	<string name="label_distant_aircraft">远处的飞机</string>
+	<string name="subtitle_distant_aircraft">晴朗天空中偶尔出现的高空飞机和逐渐消散的凝结尾迹</string>
+</resources>

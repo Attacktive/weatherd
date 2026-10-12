@@ -65,6 +65,7 @@ sealed interface SettingsMutation {
 	data class SunColor(val value: SunColorPreset): SettingsMutation
 	data class LensFlareEnabled(val enabled: Boolean): SettingsMutation
 	data class LensFlareMotionEnabled(val enabled: Boolean): SettingsMutation
+	data class DistantAircraftEnabled(val enabled: Boolean): SettingsMutation
 	data class SceneSimulatorEnabled(val enabled: Boolean): SettingsMutation
 	data class SceneSimulatorActive(val active: Boolean): SettingsMutation
 	data class SceneSimulatorPresetIndex(val index: Int): SettingsMutation
@@ -104,6 +105,7 @@ internal fun settingsMutationsBetween(previous: AppSettings, updated: AppSetting
 		addIfChanged(previous.sunColorPreset, updated.sunColorPreset, SettingsMutation::SunColor)
 		addIfChanged(previous.lensFlareEnabled, updated.lensFlareEnabled, SettingsMutation::LensFlareEnabled)
 		addIfChanged(previous.lensFlareMotionEnabled, updated.lensFlareMotionEnabled, SettingsMutation::LensFlareMotionEnabled)
+		addIfChanged(previous.distantAircraftEnabled, updated.distantAircraftEnabled, SettingsMutation::DistantAircraftEnabled)
 		addIfChanged(previous.sceneSimulatorEnabled, updated.sceneSimulatorEnabled, SettingsMutation::SceneSimulatorEnabled)
 		addIfChanged(previous.sceneSimulatorActive, updated.sceneSimulatorActive, SettingsMutation::SceneSimulatorActive)
 		addIfChanged(previous.sceneSimulatorPresetIndex, updated.sceneSimulatorPresetIndex, SettingsMutation::SceneSimulatorPresetIndex)
@@ -177,6 +179,7 @@ private fun SettingsMutation.appliedTo(settings: AppSettings) = when (this) {
 	is SettingsMutation.SunColor -> settings.copy(sunColorPreset = value)
 	is SettingsMutation.LensFlareEnabled -> settings.copy(lensFlareEnabled = enabled)
 	is SettingsMutation.LensFlareMotionEnabled -> settings.copy(lensFlareMotionEnabled = enabled)
+	is SettingsMutation.DistantAircraftEnabled -> settings.copy(distantAircraftEnabled = enabled)
 	is SettingsMutation.SceneSimulatorEnabled -> settings.copy(sceneSimulatorEnabled = enabled, sceneSimulatorActive = settings.sceneSimulatorActive && enabled)
 	is SettingsMutation.SceneSimulatorActive -> settings.copy(sceneSimulatorActive = active)
 	is SettingsMutation.SceneSimulatorPresetIndex -> settings.copy(sceneSimulatorPresetIndex = index.coerceAtLeast(0))
@@ -221,6 +224,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		val SUN_COLOR_PRESET = stringPreferencesKey("sun_color_preset")
 		val LENS_FLARE_ENABLED = booleanPreferencesKey("lens_flare_enabled")
 		val LENS_FLARE_MOTION_ENABLED = booleanPreferencesKey("lens_flare_motion_enabled")
+		val DISTANT_AIRCRAFT_ENABLED = booleanPreferencesKey("distant_aircraft_enabled")
 		val SCENE_SIMULATOR_ENABLED = booleanPreferencesKey("scene_simulator_enabled")
 		val SCENE_SIMULATOR_ACTIVE = booleanPreferencesKey("scene_simulator_active")
 		val SCENE_SIMULATOR_PRESET_INDEX = intPreferencesKey("scene_simulator_preset_index")
@@ -261,6 +265,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			sunColorPreset = enumOrDefault(preferences[Keys.SUN_COLOR_PRESET], SunColorPreset.entries, defaults.sunColorPreset),
 			lensFlareEnabled = preferences[Keys.LENS_FLARE_ENABLED] ?: defaults.lensFlareEnabled,
 			lensFlareMotionEnabled = preferences[Keys.LENS_FLARE_MOTION_ENABLED] ?: defaults.lensFlareMotionEnabled,
+			distantAircraftEnabled = preferences[Keys.DISTANT_AIRCRAFT_ENABLED] ?: defaults.distantAircraftEnabled,
 			sceneSimulatorEnabled = preferences[Keys.SCENE_SIMULATOR_ENABLED] ?: defaults.sceneSimulatorEnabled,
 			sceneSimulatorActive = preferences[Keys.SCENE_SIMULATOR_ACTIVE] ?: defaults.sceneSimulatorActive,
 			sceneSimulatorPresetIndex = (preferences[Keys.SCENE_SIMULATOR_PRESET_INDEX] ?: defaults.sceneSimulatorPresetIndex).coerceAtLeast(0),
@@ -321,6 +326,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			preferences[Keys.SUN_COLOR_PRESET] = settings.sunColorPreset.name
 			preferences[Keys.LENS_FLARE_ENABLED] = settings.lensFlareEnabled
 			preferences[Keys.LENS_FLARE_MOTION_ENABLED] = settings.lensFlareMotionEnabled
+			preferences[Keys.DISTANT_AIRCRAFT_ENABLED] = settings.distantAircraftEnabled
 			preferences[Keys.SCENE_SIMULATOR_ENABLED] = settings.sceneSimulatorEnabled
 			preferences[Keys.SCENE_SIMULATOR_ACTIVE] = settings.sceneSimulatorActive
 			preferences[Keys.SCENE_SIMULATOR_PRESET_INDEX] = settings.sceneSimulatorPresetIndex
@@ -370,6 +376,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			is SettingsMutation.SunColor -> this[Keys.SUN_COLOR_PRESET] = mutation.value.name
 			is SettingsMutation.LensFlareEnabled -> this[Keys.LENS_FLARE_ENABLED] = mutation.enabled
 			is SettingsMutation.LensFlareMotionEnabled -> this[Keys.LENS_FLARE_MOTION_ENABLED] = mutation.enabled
+			is SettingsMutation.DistantAircraftEnabled -> this[Keys.DISTANT_AIRCRAFT_ENABLED] = mutation.enabled
 			is SettingsMutation.SceneSimulatorEnabled -> {
 				this[Keys.SCENE_SIMULATOR_ENABLED] = mutation.enabled
 				if (!mutation.enabled) {
@@ -404,6 +411,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		this[Keys.SUN_COLOR_PRESET] = snapshot.sunColorPreset.name
 		this[Keys.LENS_FLARE_ENABLED] = snapshot.lensFlareEnabled
 		this[Keys.LENS_FLARE_MOTION_ENABLED] = snapshot.lensFlareMotionEnabled
+		this[Keys.DISTANT_AIRCRAFT_ENABLED] = snapshot.distantAircraftEnabled
 	}
 
 }

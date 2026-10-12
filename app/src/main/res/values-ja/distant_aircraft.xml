@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="section_sky_details">空の詳細</string>
+	<string name="label_distant_aircraft">遠くの飛行機</string>
+	<string name="subtitle_distant_aircraft">晴天時の空に、高高度を飛ぶ飛行機と徐々に消える飛行機雲を時々表示します</string>
+</resources>

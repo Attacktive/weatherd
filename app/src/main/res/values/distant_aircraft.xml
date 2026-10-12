@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="section_sky_details">Sky details</string>
+	<string name="label_distant_aircraft">Distant aircraft</string>
+	<string name="subtitle_distant_aircraft">Occasional high-altitude planes with fading contrails in fair-weather skies</string>
+</resources>

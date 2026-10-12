@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="section_sky_details">Himmelsdetails</string>
+	<string name="label_distant_aircraft">Entfernte Flugzeuge</string>
+	<string name="subtitle_distant_aircraft">Gelegentliche hoch fliegende Flugzeuge mit verblassenden Kondensstreifen bei schönem Wetter</string>
+</resources>

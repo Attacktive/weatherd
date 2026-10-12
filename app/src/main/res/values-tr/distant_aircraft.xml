@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="section_sky_details">Gökyüzü ayrıntıları</string>
+	<string name="label_distant_aircraft">Uzaktaki uçaklar</string>
+	<string name="subtitle_distant_aircraft">Açık havalarda ara sıra yüksek irtifalı uçaklar ve solan yoğunlaşma izleri</string>
+</resources>

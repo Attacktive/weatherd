@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="section_sky_details">하늘 세부 요소</string>
+	<string name="label_distant_aircraft">먼 비행기</string>
+	<string name="subtitle_distant_aircraft">맑은 날 하늘에 높은 고도의 비행기와 서서히 사라지는 비행운을 가끔 표시합니다</string>
+</resources>

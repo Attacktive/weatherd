@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="section_sky_details">Detalhes do céu</string>
+	<string name="label_distant_aircraft">Aviões distantes</string>
+	<string name="subtitle_distant_aircraft">Aviões ocasionais a grande altitude com rastos de condensação que desaparecem em céus de bom tempo</string>
+</resources>

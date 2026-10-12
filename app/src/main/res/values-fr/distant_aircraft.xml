@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="section_sky_details">Détails du ciel</string>
+	<string name="label_distant_aircraft">Avions lointains</string>
+	<string name="subtitle_distant_aircraft">Avions occasionnels à haute altitude avec des traînées de condensation qui s’estompent par beau temps</string>
+</resources>

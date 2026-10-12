@@ -286,6 +286,10 @@ private fun AppearanceSettingsTab(viewModel: SettingsViewModel, scrollState: Scr
 
 		Spacer(modifier = Modifier.height(24.dp))
 
+		SkyDetailsSection(settings = settings, onSave = onSave)
+
+		Spacer(modifier = Modifier.height(24.dp))
+
 		CloudAppearanceSection(settings = settings, defaults = viewModel.defaults, onSave = onSave)
 
 		Spacer(modifier = Modifier.height(24.dp))
@@ -396,7 +400,6 @@ private fun SettingsTabContent(scrollState: ScrollState, content: @Composable Co
 		content = content
 	)
 }
-
 
 private sealed interface PresetNameEditor {
 	data object Create: PresetNameEditor
@@ -980,6 +983,18 @@ private fun SkyAppearanceSection(settings: AppSettings, defaults: AppSettings, o
 	HintText(stringResource(R.string.hint_sky_appearance))
 }
 
+@Composable
+private fun SkyDetailsSection(settings: AppSettings, onSave: (AppSettings) -> Unit) {
+	SectionLabel(stringResource(R.string.section_sky_details))
+
+	ToggleSetting(
+		label = stringResource(R.string.label_distant_aircraft),
+		subtitle = stringResource(R.string.subtitle_distant_aircraft),
+		checked = settings.distantAircraftEnabled,
+		onToggle = { onSave(settings.copy(distantAircraftEnabled = it)) }
+	)
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SkyColorPicker(settings: AppSettings, defaults: AppSettings, onSave: (AppSettings) -> Unit) {
@@ -1317,7 +1332,6 @@ private fun PhotoBackgroundSection(
 	onClear: (PhotoBucket) -> Unit,
 	onDismissFailure: () -> Unit
 ) {
-	// The failure belongs to the pick that caused it, so it dies with the section: switching the backdrop away and back must not bring back an error with nothing the user just did behind it.
 	DisposableEffect(Unit) {
 		onDispose(onDismissFailure)
 	}
@@ -1340,22 +1354,15 @@ private fun PhotoBackgroundSection(
 
 	HintText(stringResource(R.string.hint_photo_backgrounds))
 
-	// Dawn and dusk only ever borrow from day and night, so a set holding neither is one where the painted sky still covers every hour the user is awake for.
 	if (PhotoBucket.DAY !in buckets && PhotoBucket.NIGHT !in buckets) {
 		HintText(stringResource(R.string.hint_photo_incomplete))
 	}
 }
 
-/**
- * One photo slot: what it covers, whether it holds a photo, its thumbnail preview, and the picker and clear buttons for it.
- * The launcher belongs to the row rather than to the section so the picked [Uri] arrives already knowing which bucket asked for it, with no pending-bucket state to lose to a process death mid-pick.
- */
 @Composable
 private fun PhotoBucketRow(bucket: PhotoBucket, isSet: Boolean, thumbnail: Bitmap?, onChoose: (Uri) -> Unit, onClear: () -> Unit) {
-	// The chooser contract is what forces the system to show every registered handler — including Wallhavend — instead of routing ACTION_GET_CONTENT straight to the default photo app.
 	val contract = remember { ChoosableGetContent() }
 	val picker = rememberLauncherForActivityResult(contract) { picked ->
-		// Null is the user backing out of the picker, which is not a failure and must not be reported as one.
 		if (picked != null) {
 			onChoose(picked)
 		}
@@ -1370,7 +1377,6 @@ private fun PhotoBucketRow(bucket: PhotoBucket, isSet: Boolean, thumbnail: Bitma
 			Row(verticalAlignment = Alignment.CenterVertically) {
 				Text(formatPhotoBucket(bucket))
 
-				// A bucket with a parent has somewhere to fall back to, which is exactly what makes it optional.
 				if (bucket.parent != null) {
 					Spacer(modifier = Modifier.width(8.dp))
 
@@ -1386,7 +1392,6 @@ private fun PhotoBucketRow(bucket: PhotoBucket, isSet: Boolean, thumbnail: Bitma
 		}
 
 		if (isSet) {
-			// Four rows carry the same icon, so the description names the bucket it clears; a "Day, Clear" enumeration rather than a sentence, which keeps it out of the way of word order in the ten locales the strings are translated into.
 			val clearDescription = "${formatPhotoBucket(bucket)}, ${stringResource(R.string.photo_clear)}"
 
 			IconButton(onClick = onClear) {
@@ -1396,7 +1401,6 @@ private fun PhotoBucketRow(bucket: PhotoBucket, isSet: Boolean, thumbnail: Bitma
 	}
 }
 
-/** The decorative preview for one photo slot; the labeled Choose or Replace button owns picker access. */
 @Composable
 private fun PhotoBucketPreview(thumbnail: Bitmap?) {
 	if (thumbnail != null) {
@@ -1755,7 +1759,6 @@ private fun HintText(text: String) {
 	)
 }
 
-/** A [HintText] that went wrong: same weight and rhythm, in the error color, so a failed import reads as a problem rather than as one more note. */
 @Composable
 private fun ErrorText(text: String) {
 	Text(
@@ -1867,10 +1870,6 @@ private fun formatUnit(unit: TemperatureUnit) = when (unit) {
 	TemperatureUnit.FAHRENHEIT -> stringResource(R.string.unit_fahrenheit)
 }
 
-/**
- * [ActivityResultContract] that fires [Intent.ACTION_GET_CONTENT] for the given MIME type and wraps it in [Intent.createChooser], so the system presents every registered handler — including apps like Wallhavend — rather than routing straight to the default photo app.
- * The stock [androidx.activity.result.contract.ActivityResultContracts.GetContent] skips the chooser, which on many devices sends image MIME types directly to Google Photos.
- */
 private class ChoosableGetContent: ActivityResultContract<String, Uri?>() {
 	override fun createIntent(context: Context, input: String): Intent {
 		val content = Intent(Intent.ACTION_GET_CONTENT).apply {

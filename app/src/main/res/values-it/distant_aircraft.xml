@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="section_sky_details">Dettagli del cielo</string>
+	<string name="label_distant_aircraft">Aerei lontani</string>
+	<string name="subtitle_distant_aircraft">Aerei occasionali ad alta quota con scie di condensazione che svaniscono nei cieli sereni</string>
+</resources>

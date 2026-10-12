@@ -36,6 +36,7 @@ import xyz.attacktive.weatherd.domain.weather.precipitationIntensity
  * [sunVisible], [moonVisible], [sunSizeScale] and [sunColorPreset] customize the celestial bodies without changing the time-of-day lighting.
  * [lensFlareEnabled] is a display preference for camera-style streaks and optical ghosts around the sun; it does not disable the physical corona or atmospheric light shafts.
  * [lensFlareMotionEnabled] allows device tilt and motion sensors to subtly deflect camera optical reflections when [lensFlareEnabled] and direct sun are visible.
+ * [distantAircraftEnabled] controls the optional procedural aircraft and contrail foreground detail without changing weather classification.
  * [humidityHazeDensity] is a restrained atmospheric overlay derived from high humidity; it shares fog drawing without classifying the weather as fog.
  */
 data class SceneCloudLayers(
@@ -74,6 +75,7 @@ data class SceneParams(
 	val lensFlareEnabled: Boolean = true,
 	val lensFlareMotionEnabled: Boolean = false,
 	val humidityHazeDensity: Float = 0f,
+	val distantAircraftEnabled: Boolean = true,
 	val glassDropletsEnabled: Boolean = false
 )
 
@@ -107,6 +109,7 @@ fun backdropSignature(params: SceneParams, backgroundPhotoAvailable: Boolean = f
 		sunColorPreset = SunColorPreset.NATURAL,
 		lensFlareEnabled = true,
 		lensFlareMotionEnabled = false,
+		distantAircraftEnabled = true,
 		glassDropletsEnabled = false
 	)
 }
@@ -128,6 +131,14 @@ internal fun effectiveHighCloudiness(params: SceneParams) = params.cloudLayers?.
 internal fun effectiveOpaqueCloudiness(params: SceneParams) = params.cloudLayers?.let {
 	maxOf(scaledCloudiness(params, it.low), scaledCloudiness(params, it.mid))
 } ?: effectiveCloudiness(params)
+
+/** Distant aircraft are a fair-weather daylight detail; high cirrus and humidity haze do not classify the scene as grounded. */
+internal fun showsDistantAircraft(params: SceneParams) = params.distantAircraftEnabled &&
+	params.dayPhase != DayPhase.NIGHT &&
+	params.precipitation == null &&
+	params.fogDensity <= 0f &&
+	!params.thunder &&
+	effectiveOpaqueCloudiness(params) < 0.55f
 
 private fun scaledCloudiness(params: SceneParams, cloudiness: Float) =
 	(cloudiness * params.cloudCountScale.coerceIn(CLOUD_COUNT_SCALE_RANGE.start, CLOUD_COUNT_SCALE_RANGE.endInclusive)).coerceIn(0f, 1f)
@@ -174,6 +185,7 @@ fun sceneParamsFor(
 	sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
 	lensFlareEnabled: Boolean = true,
 	lensFlareMotionEnabled: Boolean = false,
+	distantAircraftEnabled: Boolean = true,
 	glassDropletsEnabled: Boolean = false
 ): SceneParams {
 	val observation = snapshot.observation
@@ -224,6 +236,7 @@ fun sceneParamsFor(
 		lensFlareEnabled = lensFlareEnabled,
 		lensFlareMotionEnabled = lensFlareMotionEnabled,
 		humidityHazeDensity = humidityHazeDensityFor(observation.relativeHumidityPercent, condition.fog),
+		distantAircraftEnabled = distantAircraftEnabled,
 		glassDropletsEnabled = glassDropletsEnabled
 	)
 }

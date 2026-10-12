@@ -25,8 +25,8 @@ class AppearancePresetRepositoryTest {
 	@get:Rule
 	val temporaryFolder = TemporaryFolder()
 
-	private fun TestScope.dataStore(): DataStore<Preferences> = PreferenceDataStoreFactory.create(scope = backgroundScope) {
-		temporaryFolder.newFile("preset-settings.preferences_pb")
+	private fun TestScope.dataStore(name: String = "preset-settings.preferences_pb"): DataStore<Preferences> = PreferenceDataStoreFactory.create(scope = backgroundScope) {
+		temporaryFolder.newFile(name)
 	}
 
 	@Test
@@ -34,7 +34,7 @@ class AppearancePresetRepositoryTest {
 		val dataStore = dataStore()
 		val repository = AppearancePresetRepository(dataStore)
 		val firstSnapshot = AppSettings(backdropScene = BackdropScene.BEACH).toAppearancePresetSnapshot()
-		val secondSnapshot = AppSettings(backdropScene = BackdropScene.MOUNTAINS, skyColorPreset = SkyColorPreset.PASTEL, glassDropletsEnabled = true).toAppearancePresetSnapshot()
+		val secondSnapshot = AppSettings(backdropScene = BackdropScene.MOUNTAINS, skyColorPreset = SkyColorPreset.PASTEL, glassDropletsEnabled = true, distantAircraftEnabled = false).toAppearancePresetSnapshot()
 
 		assertTrue(repository.create("Coast", firstSnapshot).isSuccess)
 		val created = (repository.state.first() as AppearancePresetStorageState.Ready).presets.single()
@@ -47,23 +47,51 @@ class AppearancePresetRepositoryTest {
 		assertEquals("Evening coast", replaced.name)
 		assertEquals(secondSnapshot, replaced.snapshot)
 		assertTrue(replaced.snapshot.glassDropletsEnabled)
+		assertFalse(replaced.snapshot.distantAircraftEnabled)
 
 		assertTrue(reopened.delete(created.id).isSuccess)
 		assertTrue((reopened.state.first() as AppearancePresetStorageState.Ready).presets.isEmpty())
 	}
 
 	@Test
-	fun `version one presets migrate rain-on-glass to off`() = runTest {
-		val dataStore = dataStore()
+	fun `versions one and two presets migrate aircraft to enabled`() = runTest {
 		val key = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)
-		val raw = """{"schemaVersion":1,"presets":[{"id":"legacy","name":"Legacy","snapshot":{"backdropScene":"NONE","showWeatherLabel":false,"showLocationLabel":false,"precipitationIntensityScale":1.0,"windIntensityScale":1.0,"cloudIntensityScale":1.0,"cloudSizeScale":1.0,"cloudCountScale":1.0,"cloudContrastScale":1.0,"skyBrightnessScale":1.0,"nightBrightnessScale":1.0,"skySaturationScale":1.0,"skyColorPreset":"NATURAL","sunVisible":true,"moonVisible":true,"sunSizeScale":1.0,"sunColorPreset":"NATURAL","lensFlareEnabled":true,"lensFlareMotionEnabled":false}}]}"""
-		dataStore.edit { preferences ->
-			preferences[key] = raw
+		val versionOneDataStore = dataStore("preset-settings-v1.preferences_pb")
+		val versionOneRaw = """{"schemaVersion":1,"presets":[{"id":"legacy-1","name":"Legacy 1","snapshot":{"backdropScene":"NONE","showWeatherLabel":false,"showLocationLabel":false,"precipitationIntensityScale":1.0,"windIntensityScale":1.0,"cloudIntensityScale":1.0,"cloudSizeScale":1.0,"cloudCountScale":1.0,"cloudContrastScale":1.0,"skyBrightnessScale":1.0,"nightBrightnessScale":1.0,"skySaturationScale":1.0,"skyColorPreset":"NATURAL","sunVisible":true,"moonVisible":true,"sunSizeScale":1.0,"sunColorPreset":"NATURAL","lensFlareEnabled":true,"lensFlareMotionEnabled":false}}]}"""
+		versionOneDataStore.edit { preferences ->
+			preferences[key] = versionOneRaw
 		}
 
-		val state = AppearancePresetRepository(dataStore).state.first() as AppearancePresetStorageState.Ready
+		val versionOneSnapshot = (AppearancePresetRepository(versionOneDataStore).state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot
+		assertTrue(versionOneSnapshot.distantAircraftEnabled)
+		assertFalse(versionOneSnapshot.glassDropletsEnabled)
 
-		assertFalse(state.presets.single().snapshot.glassDropletsEnabled)
+		val versionTwoDataStore = dataStore("preset-settings-v2.preferences_pb")
+		val versionTwoRaw = """{"schemaVersion":2,"presets":[{"id":"legacy-2","name":"Legacy 2","snapshot":{"backdropScene":"NONE","showWeatherLabel":false,"showLocationLabel":false,"precipitationIntensityScale":1.0,"glassDropletsEnabled":true,"windIntensityScale":1.0,"cloudIntensityScale":1.0,"cloudSizeScale":1.0,"cloudCountScale":1.0,"cloudContrastScale":1.0,"skyBrightnessScale":1.0,"nightBrightnessScale":1.0,"skySaturationScale":1.0,"skyColorPreset":"NATURAL","sunVisible":true,"moonVisible":true,"sunSizeScale":1.0,"sunColorPreset":"NATURAL","lensFlareEnabled":true,"lensFlareMotionEnabled":false}}]}"""
+		versionTwoDataStore.edit { preferences ->
+			preferences[key] = versionTwoRaw
+		}
+
+		val versionTwoSnapshot = (AppearancePresetRepository(versionTwoDataStore).state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot
+		assertTrue(versionTwoSnapshot.distantAircraftEnabled)
+		assertTrue(versionTwoSnapshot.glassDropletsEnabled)
+	}
+
+	@Test
+	fun `current schema round trips explicit aircraft off`() = runTest {
+		val dataStore = dataStore()
+		val repository = AppearancePresetRepository(dataStore)
+		val snapshot = AppSettings(distantAircraftEnabled = false).toAppearancePresetSnapshot()
+
+		assertTrue(repository.create("No aircraft", snapshot).isSuccess)
+
+		val reopened = AppearancePresetRepository(dataStore)
+		val restored = (reopened.state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot
+		assertFalse(restored.distantAircraftEnabled)
+
+		val raw = dataStore.data.first()[stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)]!!
+		assertTrue(raw.contains("\"schemaVersion\":$APPEARANCE_PRESET_SCHEMA_VERSION"))
+		assertTrue(raw.contains("\"distantAircraftEnabled\":false"))
 	}
 
 	@Test

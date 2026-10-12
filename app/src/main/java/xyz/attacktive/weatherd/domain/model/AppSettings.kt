@@ -33,6 +33,7 @@ data class AppSettings(
 	val sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
 	val lensFlareEnabled: Boolean = true,
 	val lensFlareMotionEnabled: Boolean = false,
+	val distantAircraftEnabled: Boolean = true,
 	val sceneSimulatorEnabled: Boolean = false,
 	val sceneSimulatorActive: Boolean = false,
 	val sceneSimulatorPresetIndex: Int = 0,

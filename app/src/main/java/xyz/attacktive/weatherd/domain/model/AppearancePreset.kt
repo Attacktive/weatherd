@@ -26,6 +26,7 @@ data class AppearancePresetSnapshot(
 	val sunColorPreset: SunColorPreset,
 	val lensFlareEnabled: Boolean,
 	val lensFlareMotionEnabled: Boolean,
+	val distantAircraftEnabled: Boolean = true,
 	val glassDropletsEnabled: Boolean = false
 )
 
@@ -49,6 +50,7 @@ fun AppSettings.toAppearancePresetSnapshot() = AppearancePresetSnapshot(
 	sunColorPreset = sunColorPreset,
 	lensFlareEnabled = lensFlareEnabled,
 	lensFlareMotionEnabled = lensFlareMotionEnabled,
+	distantAircraftEnabled = distantAircraftEnabled,
 	glassDropletsEnabled = glassDropletsEnabled
 )
 
@@ -72,5 +74,6 @@ fun AppearancePresetSnapshot.appliedTo(settings: AppSettings) = settings.copy(
 	sunColorPreset = sunColorPreset,
 	lensFlareEnabled = lensFlareEnabled,
 	lensFlareMotionEnabled = lensFlareMotionEnabled,
+	distantAircraftEnabled = distantAircraftEnabled,
 	glassDropletsEnabled = glassDropletsEnabled
 )
