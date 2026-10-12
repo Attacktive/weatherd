@@ -1,5 +1,6 @@
 package xyz.attacktive.weatherd.domain.render
 
+import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.pow
 import android.graphics.Canvas
@@ -76,9 +77,18 @@ internal class DistantAircraftLayer {
 	private fun drawAircraft(canvas: Canvas, dayPhase: DayPhase) {
 		val length = frame.bodyLength * PLANE_VISUAL_SCALE
 		val alpha = PLANE_PEAK_ALPHA * frame.planeOpacity
+		val horizontalScale = if (frame.directionX >= 0f) {
+			1f
+		} else {
+			-1f
+		}
+
+		val travelSlopeRadians = atan2(frame.directionY, abs(frame.directionX))
+		val aircraftRotationRadians = travelSlopeRadians * horizontalScale
 		val saveCount = canvas.save()
 		canvas.translate(frame.planeX, frame.planeY)
-		canvas.rotate(Math.toDegrees(atan2(frame.directionY, frame.directionX).toDouble()).toFloat())
+		canvas.rotate(Math.toDegrees(aircraftRotationRadians.toDouble()).toFloat())
+		canvas.scale(horizontalScale, 1f)
 
 		buildAircraftSilhouette(length)
 		paint.style = Paint.Style.FILL
@@ -100,26 +110,25 @@ internal class DistantAircraftLayer {
 	private fun buildAircraftSilhouette(length: Float) {
 		path.reset()
 		path.moveTo(length * 0.52f, 0f)
-		path.cubicTo(length * 0.46f, -length * 0.022f, length * 0.35f, -length * 0.038f, length * 0.10f, -length * 0.040f)
-		path.lineTo(length * 0.04f, -length * 0.040f)
-		path.lineTo(-length * 0.04f, -length * 0.28f)
-		path.lineTo(-length * 0.10f, -length * 0.265f)
-		path.lineTo(-length * 0.10f, -length * 0.044f)
-		path.lineTo(-length * 0.32f, -length * 0.036f)
-		path.lineTo(-length * 0.345f, -length * 0.09f)
-		path.lineTo(-length * 0.395f, -length * 0.085f)
-		path.lineTo(-length * 0.43f, -length * 0.030f)
+		path.cubicTo(length * 0.46f, -length * 0.020f, length * 0.34f, -length * 0.034f, length * 0.12f, -length * 0.036f)
+		path.lineTo(length * 0.08f, -length * 0.036f)
+		path.lineTo(-length * 0.12f, -length * 0.105f)
+		path.lineTo(-length * 0.20f, -length * 0.082f)
+		path.lineTo(-length * 0.06f, -length * 0.034f)
+		path.lineTo(-length * 0.30f, -length * 0.030f)
+		path.lineTo(-length * 0.39f, -length * 0.13f)
+		path.lineTo(-length * 0.47f, -length * 0.105f)
+		path.lineTo(-length * 0.42f, -length * 0.030f)
 		path.cubicTo(-length * 0.48f, -length * 0.026f, -length * 0.51f, -length * 0.013f, -length * 0.52f, 0f)
-		path.cubicTo(-length * 0.51f, length * 0.013f, -length * 0.48f, length * 0.026f, -length * 0.43f, length * 0.030f)
-		path.lineTo(-length * 0.405f, length * 0.10f)
-		path.lineTo(-length * 0.355f, length * 0.11f)
-		path.lineTo(-length * 0.32f, length * 0.036f)
-		path.lineTo(-length * 0.10f, length * 0.044f)
-		path.lineTo(-length * 0.14f, length * 0.33f)
-		path.lineTo(-length * 0.06f, length * 0.35f)
-		path.lineTo(length * 0.04f, length * 0.040f)
-		path.lineTo(length * 0.10f, length * 0.040f)
-		path.cubicTo(length * 0.35f, length * 0.038f, length * 0.46f, length * 0.022f, length * 0.52f, 0f)
+		path.cubicTo(-length * 0.51f, length * 0.013f, -length * 0.48f, length * 0.026f, -length * 0.42f, length * 0.030f)
+		path.lineTo(-length * 0.46f, length * 0.062f)
+		path.lineTo(-length * 0.39f, length * 0.070f)
+		path.lineTo(-length * 0.31f, length * 0.032f)
+		path.lineTo(-length * 0.08f, length * 0.038f)
+		path.lineTo(-length * 0.24f, length * 0.145f)
+		path.lineTo(-length * 0.20f, length * 0.16f)
+		path.lineTo(length * 0.12f, length * 0.038f)
+		path.cubicTo(length * 0.34f, length * 0.034f, length * 0.46f, length * 0.020f, length * 0.52f, 0f)
 		path.close()
 	}
 
@@ -127,14 +136,14 @@ internal class DistantAircraftLayer {
 		path.reset()
 		path.moveTo(length * 0.50f, 0f)
 		path.lineTo(length * 0.10f, length * 0.014f)
-		path.lineTo(length * 0.04f, length * 0.040f)
-		path.lineTo(-length * 0.06f, length * 0.35f)
-		path.lineTo(-length * 0.14f, length * 0.33f)
-		path.lineTo(-length * 0.10f, length * 0.044f)
-		path.lineTo(-length * 0.32f, length * 0.036f)
-		path.lineTo(-length * 0.355f, length * 0.11f)
-		path.lineTo(-length * 0.405f, length * 0.10f)
-		path.lineTo(-length * 0.43f, length * 0.030f)
+		path.lineTo(length * 0.12f, length * 0.038f)
+		path.lineTo(-length * 0.20f, length * 0.16f)
+		path.lineTo(-length * 0.24f, length * 0.145f)
+		path.lineTo(-length * 0.08f, length * 0.038f)
+		path.lineTo(-length * 0.31f, length * 0.032f)
+		path.lineTo(-length * 0.39f, length * 0.070f)
+		path.lineTo(-length * 0.46f, length * 0.062f)
+		path.lineTo(-length * 0.42f, length * 0.030f)
 		path.cubicTo(-length * 0.48f, length * 0.026f, -length * 0.51f, length * 0.013f, -length * 0.52f, 0f)
 		path.close()
 	}
@@ -151,17 +160,17 @@ internal class DistantAircraftLayer {
 	private fun drawAircraftDetails(canvas: Canvas, length: Float, dayPhase: DayPhase, alpha: Float) {
 		paint.color = withAlpha(aircraftAccentColor(dayPhase), alpha * AIRCRAFT_ACCENT_ALPHA_SCALE)
 		path.reset()
-		path.moveTo(-length * 0.31f, -length * 0.034f)
-		path.lineTo(-length * 0.345f, -length * 0.09f)
-		path.lineTo(-length * 0.395f, -length * 0.085f)
-		path.lineTo(-length * 0.43f, -length * 0.030f)
+		path.moveTo(-length * 0.30f, -length * 0.030f)
+		path.lineTo(-length * 0.39f, -length * 0.13f)
+		path.lineTo(-length * 0.47f, -length * 0.105f)
+		path.lineTo(-length * 0.42f, -length * 0.030f)
 		path.close()
 		canvas.drawPath(path, paint)
 
 		paint.color = withAlpha(aircraftCockpitColor(dayPhase), alpha * AIRCRAFT_COCKPIT_ALPHA_SCALE)
 		canvas.drawOval(length * 0.31f, -length * 0.024f, length * 0.41f, length * 0.024f, paint)
-		canvas.drawOval(-length * 0.03f, -length * 0.108f, length * 0.04f, -length * 0.076f, paint)
-		canvas.drawOval(-length * 0.04f, length * 0.085f, length * 0.05f, length * 0.125f, paint)
+		canvas.drawOval(-length * 0.02f, -length * 0.075f, length * 0.045f, -length * 0.050f, paint)
+		canvas.drawOval(-length * 0.035f, length * 0.075f, length * 0.05f, length * 0.108f, paint)
 	}
 
 	private fun trailWidth(shortEdge: Float, ageSeconds: Float): Float {
