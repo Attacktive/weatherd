@@ -29,4 +29,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
           TARGET_VERSION: ${{ inputs.target_version }}
-        run: 'bash scripts/promote-production.sh "$TARGET_VERSION"'
+        run: 'bash scripts/promote-production.sh'

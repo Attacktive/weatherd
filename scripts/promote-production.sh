@@ -5,7 +5,7 @@
 set -euo pipefail
 
 PACKAGE_NAME='xyz.attacktive.weatherd'
-TARGET_VERSION="${1:-}"
+TARGET_VERSION="${1:-${TARGET_VERSION:-}}"
 GOOGLE_PLAY_SERVICE_ACCOUNT_JSON="${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON:-}"
 
 if [ -n "${TARGET_VERSION}" ] && [[ ! "${TARGET_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -43,7 +43,7 @@ tag_for_version_code() {
 			printf '%s' "${tag}"
 			return 0
 		fi
-	done < <(git tag --sort=-version:refname)
+	done < <(git tag --sort=-version:refname | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' || true)
 
 	return 1
 }
@@ -168,7 +168,7 @@ if [ -z "${TARGET_VERSION}" ]; then
 		exit 1
 	fi
 else
-	beta_status="$(jq -r --arg version_code "${target_version_code}" '.releases[]? | select(any(.versionCodes[]?; . == $version_code)) | .status' <<< "${beta_track}" | head -n 1)"
+	beta_status="$(jq -r --arg version_code "${target_version_code}" '[.releases[]? | select(.status == "completed" and any(.versionCodes[]?; (. | tostring) == ($version_code | tostring)))] | if length > 0 then "completed" else empty end' <<< "${beta_track}")"
 	if [ "${beta_status}" != 'completed' ]; then
 		echo "Version ${TARGET_VERSION} (${target_version_code}) is not a completed beta release" >&2
 		exit 1
@@ -202,7 +202,7 @@ notes="$(printf '%s' "${full_notes}" | python3 -c 'import sys; sys.stdout.write(
 payload="$(jq -cn \
 	--arg version_code "${target_version_code}" \
 	--arg notes "${notes}" \
-	'{releases:[({versionCodes:[$version_code],status:"completed"} + (if $notes == "" then {} else {releaseNotes:[{language:"en-US",text:$notes}]} end))]}')"
+	'{releases:[({versionCodes:[$version_code],status:"completed"} + (if $notes == "" then {} else {releaseNotes:[{language:"en-US",text:$notes}]} end))]}' )"
 
 play_api PUT "edits/${edit_id}/tracks/production" "${payload}" >/dev/null
 play_api POST "edits/${edit_id}:validate" '{}' >/dev/null
