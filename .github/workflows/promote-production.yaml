@@ -16,17 +16,25 @@ concurrency:
 jobs:
   promote:
     name: 'Promote beta to production'
-    if: github.event_name == 'workflow_dispatch' || (github.event.client_payload.workflow == 'promote-production.yaml' && github.event.client_payload.ref == 'main')
     runs-on: 'ubuntu-latest'
     permissions:
       # scripts/release-notes.sh uses GitHub's generated-notes endpoint, which requires write access.
       contents: 'write'
     steps:
+      - name: 'Validate broker dispatch'
+        if: github.event_name == 'repository_dispatch'
+        env:
+          BROKER_REF: ${{ github.event.client_payload.ref }}
+          BROKER_WORKFLOW: ${{ github.event.client_payload.workflow }}
+        run: |
+          test "${BROKER_WORKFLOW}" = 'promote-production.yaml'
+          test "${BROKER_REF}" = 'main'
+
       - name: 'Checkout'
         uses: 'actions/checkout@v7'
         with:
           fetch-depth: 0
-          ref: ${{ github.event_name == 'repository_dispatch' && github.event.client_payload.ref || github.ref }}
+          ref: 'refs/heads/main'
 
       - name: 'Promote exact beta artifact'
         env:
