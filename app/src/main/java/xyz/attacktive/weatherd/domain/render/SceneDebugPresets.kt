@@ -12,6 +12,7 @@ import xyz.attacktive.weatherd.domain.model.SKY_SATURATION_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
+import xyz.attacktive.weatherd.domain.model.TreeStyle
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_DRIZZLE
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_HEAVY
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_STEADY
@@ -87,7 +88,8 @@ fun debugSceneParams(
 	celestialProgress: Float = 0.5f,
 	lensFlareMotionEnabled: Boolean = false,
 	distantAircraftEnabled: Boolean = true,
-	glassDropletsEnabled: Boolean = false
+	glassDropletsEnabled: Boolean = false,
+	treeStyle: TreeStyle = TreeStyle.ROUNDED
 ) = SceneParams(
 	dayPhase = dayPhase,
 	cloudiness = preset.cloudiness,
@@ -116,5 +118,6 @@ fun debugSceneParams(
 	lensFlareMotionEnabled = lensFlareMotionEnabled,
 	distantAircraftEnabled = distantAircraftEnabled,
 	glassDropletsEnabled = glassDropletsEnabled,
-	humidityHazeDensity = preset.humidityHazeDensity
+	humidityHazeDensity = preset.humidityHazeDensity,
+	treeStyle = treeStyle
 )

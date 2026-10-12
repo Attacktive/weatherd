@@ -13,6 +13,7 @@ import xyz.attacktive.weatherd.domain.model.SKY_SATURATION_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
+import xyz.attacktive.weatherd.domain.model.TreeStyle
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
 import xyz.attacktive.weatherd.domain.weather.dayPhaseFor
 import xyz.attacktive.weatherd.domain.weather.dayPhaseProgressFor
@@ -38,6 +39,7 @@ import xyz.attacktive.weatherd.domain.weather.precipitationIntensity
  * [lensFlareMotionEnabled] allows device tilt and motion sensors to subtly deflect camera optical reflections when [lensFlareEnabled] and direct sun are visible.
  * [distantAircraftEnabled] controls the optional procedural aircraft and contrail foreground detail without changing weather classification.
  * [humidityHazeDensity] is a restrained atmospheric overlay derived from high humidity; it shares fog drawing without classifying the weather as fog.
+ * [treeStyle] changes only foreground tree geometry and is ignored by the static backdrop cache.
  */
 data class SceneCloudLayers(
 	val low: Float,
@@ -76,7 +78,8 @@ data class SceneParams(
 	val lensFlareMotionEnabled: Boolean = false,
 	val humidityHazeDensity: Float = 0f,
 	val distantAircraftEnabled: Boolean = true,
-	val glassDropletsEnabled: Boolean = false
+	val glassDropletsEnabled: Boolean = false,
+	val treeStyle: TreeStyle = TreeStyle.ROUNDED
 )
 
 /** The two overlay text lines — the current weather ("Rain · 10°") and the place name — each omissible on its own. */
@@ -110,7 +113,8 @@ fun backdropSignature(params: SceneParams, backgroundPhotoAvailable: Boolean = f
 		lensFlareEnabled = true,
 		lensFlareMotionEnabled = false,
 		distantAircraftEnabled = true,
-		glassDropletsEnabled = false
+		glassDropletsEnabled = false,
+		treeStyle = TreeStyle.ROUNDED
 	)
 }
 
@@ -186,7 +190,8 @@ fun sceneParamsFor(
 	lensFlareEnabled: Boolean = true,
 	lensFlareMotionEnabled: Boolean = false,
 	distantAircraftEnabled: Boolean = true,
-	glassDropletsEnabled: Boolean = false
+	glassDropletsEnabled: Boolean = false,
+	treeStyle: TreeStyle = TreeStyle.ROUNDED
 ): SceneParams {
 	val observation = snapshot.observation
 	val condition = observation.condition
@@ -246,7 +251,8 @@ fun sceneParamsFor(
 		lensFlareMotionEnabled = lensFlareMotionEnabled,
 		humidityHazeDensity = humidityHazeDensityFor(observation.relativeHumidityPercent, condition.fog),
 		distantAircraftEnabled = distantAircraftEnabled,
-		glassDropletsEnabled = glassDropletsEnabled
+		glassDropletsEnabled = glassDropletsEnabled,
+		treeStyle = treeStyle
 	)
 }
 
