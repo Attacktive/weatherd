@@ -53,6 +53,7 @@ def light_to_color(intensity):
 @dataclass(frozen=True)
 class ConiferConfig:
 	"""Configuration parameters for a distinct conifer morphology."""
+
 	seed: int
 	apex_y: float
 	base_width: float
@@ -68,6 +69,7 @@ class ConiferConfig:
 @dataclass(frozen=True)
 class BranchGeometry:
 	"""A curved bough with painter-order depth and an independent foliage seed."""
+
 	points: list[tuple[float, float, float]]
 	reach: float
 	tier: float
