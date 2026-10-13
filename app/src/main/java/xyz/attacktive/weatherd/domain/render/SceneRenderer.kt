@@ -454,12 +454,17 @@ class SceneRenderer(resources: Resources) {
 
 	/** Rebuilds cached scenery paths and accents when the scene or surface size changes. */
 	private fun cacheScenery(width: Float, height: Float, params: SceneParams): Boolean {
-		val key = "${params.backdropScene}-${width.toInt()}x${height.toInt()}"
+		val treeStyleKey = if (params.backdropScene == BackdropScene.METROPOLIS) {
+			params.treeStyle
+		} else {
+			null
+		}
+		val key = "${params.backdropScene}-$treeStyleKey-${width.toInt()}x${height.toInt()}"
 		if (key == sceneryKey) {
 			return true
 		}
 
-		val outlines = sceneryOutlinesFor(params.backdropScene, width / height) ?: return false
+		val outlines = styledSceneryOutlinesFor(params.backdropScene, width / height, params.treeStyle) ?: return false
 		sceneryLayerPaths = outlines.layers.map { layer ->
 			val path = Path()
 			fillSceneryPath(path, layer.outline, width, height)
