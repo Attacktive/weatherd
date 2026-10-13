@@ -4,6 +4,10 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
@@ -92,23 +96,33 @@ class AppearancePresetRepositoryTest {
 		assertFalse(legacyV3Snapshot.treesEnabled)
 		assertTrue(legacyV3Snapshot.distantAircraftEnabled)
 		assertTrue(legacyV3Snapshot.glassDropletsEnabled)
+		assertEquals(legacyV3Raw, legacyV3DataStore.data.first()[key])
+
+		val repository = AppearancePresetRepository(legacyV3DataStore)
+		assertTrue(repository.rename("legacy-3", "Legacy forest").isSuccess)
+		val rewritten = legacyV3DataStore.data.first()[key]!!
+		assertEquals(4, Json.parseToJsonElement(rewritten).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+		val migrated = (AppearancePresetRepository(legacyV3DataStore).state.first() as AppearancePresetStorageState.Ready).presets.single()
+		assertFalse(migrated.snapshot.treesEnabled)
+		assertTrue(migrated.snapshot.glassDropletsEnabled)
+		assertTrue(migrated.snapshot.distantAircraftEnabled)
 	}
 
 	@Test
-	fun `current schema round trips explicit aircraft off`() = runTest {
+	fun `new preset schema preserves tree and aircraft choices while excluding older writers`() = runTest {
 		val dataStore = dataStore()
 		val repository = AppearancePresetRepository(dataStore)
-		val snapshot = AppSettings(distantAircraftEnabled = false).toAppearancePresetSnapshot()
+		val snapshot = AppSettings(treesEnabled = true, distantAircraftEnabled = false).toAppearancePresetSnapshot()
 
 		assertTrue(repository.create("No aircraft", snapshot).isSuccess)
 
 		val reopened = AppearancePresetRepository(dataStore)
 		val restored = (reopened.state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot
 		assertFalse(restored.distantAircraftEnabled)
+		assertTrue(restored.treesEnabled)
 
 		val raw = dataStore.data.first()[stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)]!!
-		assertTrue(raw.contains("\"schemaVersion\":$APPEARANCE_PRESET_SCHEMA_VERSION"))
-		assertTrue(raw.contains("\"distantAircraftEnabled\":false"))
+		assertEquals(4, Json.parseToJsonElement(raw).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
 	}
 
 	@Test
