@@ -40,6 +40,7 @@ data class AppSettings(
 	val sceneSimulatorDayPhase: DayPhase = DayPhase.DAY,
 	val sceneSimulatorCelestialProgress: Float = 0.5f,
 	val glassDropletsEnabled: Boolean = false,
+	val treesEnabled: Boolean = false,
 )
 
 /** Fresh-install settings, with region-sensitive choices resolved before persistence supplies any overrides. */

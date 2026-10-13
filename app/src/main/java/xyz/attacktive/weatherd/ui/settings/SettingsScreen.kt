@@ -282,6 +282,10 @@ private fun AppearanceSettingsTab(viewModel: SettingsViewModel, scrollState: Scr
 
 		Spacer(modifier = Modifier.height(24.dp))
 
+		TreesSection(settings = settings, onSave = onSave)
+
+		Spacer(modifier = Modifier.height(24.dp))
+
 		SkyAppearanceSection(settings = settings, defaults = viewModel.defaults, onSave = onSave)
 
 		Spacer(modifier = Modifier.height(24.dp))
@@ -1428,6 +1432,16 @@ private fun PhotoBucketPreview(thumbnail: Bitmap?) {
 			)
 		}
 	}
+}
+
+@Composable
+private fun TreesSection(settings: AppSettings, onSave: (AppSettings) -> Unit) {
+	ToggleSetting(
+		label = stringResource(R.string.label_trees),
+		subtitle = stringResource(R.string.subtitle_trees),
+		checked = settings.treesEnabled,
+		onToggle = { onSave(settings.copy(treesEnabled = it)) }
+	)
 }
 
 @Composable

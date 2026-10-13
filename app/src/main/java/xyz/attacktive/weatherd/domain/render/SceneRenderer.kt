@@ -54,6 +54,7 @@ class SceneRenderer(resources: Resources) {
 	private val blitPaint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
 	private val blitDest = RectF()
 	private val lightningBolt by lazy(LazyThreadSafetyMode.NONE) { LightningBoltLayer() }
+	private val foregroundTrees = ForegroundTreeLayer(resources)
 	private val birdPath = Path()
 	private val lightShaftPath = Path()
 	private val sunCloudUpperSamples = FloatArray(SUN_SHAFT_PROFILE_SAMPLES)
@@ -198,6 +199,14 @@ class SceneRenderer(resources: Resources) {
 		cirrusLayerDelegates.forEach { it.value }
 	}
 
+	val treeTexturesReady: Boolean
+		get() = foregroundTrees.texturesReady
+
+	/** Decodes the shared evergreen sources off the render thread only after the user opts in. */
+	fun prewarmTreeTextures() {
+		foregroundTrees.prewarm()
+	}
+
 	/** The static layers (sky, overcast ceiling, fog base, haze, vignette). Cache these — they don't animate frame-to-frame. */
 	fun renderBackdrop(canvas: Canvas, width: Int, height: Int, params: SceneParams) {
 		// Foreground drawing reuses this paint with translucent colors, so a phase-triggered backdrop rebuild must not inherit that alpha.
@@ -284,6 +293,8 @@ class SceneRenderer(resources: Resources) {
 		if (params.backdropScene.drawsScenery) {
 			drawScenery(canvas, w, h, params, timeSeconds)
 		}
+
+		foregroundTrees.draw(canvas, w, h, params)
 
 		if (fogDensity > 0f) {
 			drawFogDrift(canvas, w, h, params, fogDensity, timeSeconds)

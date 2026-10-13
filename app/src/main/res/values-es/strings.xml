@@ -44,6 +44,8 @@
 	<string name="section_refresh_interval">Intervalo de actualización del tiempo</string>
 	<string name="section_frame_rate">Frecuencia de fotogramas de la animación</string>
 	<string name="section_backdrop">Paisaje de fondo</string>
+	<string name="label_trees">Árboles</string>
+	<string name="subtitle_trees">Mostrar árboles perennes en primer plano</string>
 	<string name="section_wallpaper_motion">Movimiento del fondo</string>
 	<string name="label_wallpaper_scrolling">Desplazamiento de la pantalla de inicio</string>
 	<string name="subtitle_wallpaper_scrolling">Desplaza la escena horizontalmente al cambiar entre páginas de la pantalla de inicio</string>

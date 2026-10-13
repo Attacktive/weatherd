@@ -44,6 +44,8 @@
 	<string name="section_refresh_interval">Hava durumu yenileme sıklığı</string>
 	<string name="section_frame_rate">Animasyon kare hızı</string>
 	<string name="section_backdrop">Arka plan manzarası</string>
+	<string name="label_trees">Ağaçlar</string>
+	<string name="subtitle_trees">Ön planda yaprak dökmeyen ağaçları göster</string>
 	<string name="section_wallpaper_motion">Duvar kâğıdı hareketi</string>
 	<string name="label_wallpaper_scrolling">Ana ekran kaydırma</string>
 	<string name="subtitle_wallpaper_scrolling">Ana ekran sayfaları arasında kaydırırken sahneyi yatay olarak hareket ettirin</string>

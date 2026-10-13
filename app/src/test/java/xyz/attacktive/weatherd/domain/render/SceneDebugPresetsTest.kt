@@ -88,6 +88,19 @@ class SceneDebugPresetsTest {
 	}
 
 	@Test
+	fun `simulated weather preserves the opt-in foreground trees preference across every preset`() {
+		for (preset in SCENE_PRESETS) {
+			val enabled = debugSceneParams(preset, DayPhase.DAY, treesEnabled = true)
+			val disabled = debugSceneParams(preset, DayPhase.DAY, treesEnabled = false)
+
+			assertTrue(enabled.treesEnabled)
+			assertFalse(disabled.treesEnabled)
+			assertEquals(enabled.copy(treesEnabled = false), disabled)
+			assertEquals(backdropSignature(enabled), backdropSignature(disabled))
+		}
+	}
+
+	@Test
 	fun `non-default wind scale reaches scene params without mutating wind factor`() {
 		val preset = SCENE_PRESETS.first { it.name == "CLEAR" }
 		val params = debugSceneParams(preset, DayPhase.DAY, windScale = 1.5f)

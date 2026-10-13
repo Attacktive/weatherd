@@ -372,7 +372,8 @@ class SettingsRepositoryTest {
 			"sunColorPreset",
 			"lensFlareEnabled",
 			"lensFlareMotionEnabled",
-			"distantAircraftEnabled"
+			"distantAircraftEnabled",
+			"treesEnabled"
 		)
 		val excluded = setOf(
 			"weatherProvider",

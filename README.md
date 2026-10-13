@@ -13,6 +13,12 @@ Returning to live mode displays cached weather without waiting for location or n
 On a first launch or after changing targets, it displays a clock-lit fallback until matching weather becomes available.
 Refreshes happen separately, and a slow or failed request does not prevent switching modes.
 
+Enable **Settings → Appearance → Trees** to add a fixed composition of detailed foreground evergreens to any backdrop, including None and Photo.
+Trees are off by default and saved with appearance presets; old settings and presets keep them off.
+The preview, live wallpaper, simulator, and clock-lit fallback share the same tree preference and placement.
+Tree lighting follows day phase and cloudy weather, while fog and precipitation draw in front of the foliage.
+The three first-party source sprites are reproducibly generated with `uv run scripts/generate-tree-textures.py` and decoded once off the frame loop on first use; no artwork is copied from the reference app or third parties.
+
 ## Weather refresh timing
 
 The configured refresh interval is the minimum time between automatic weather fetches, not a background timer. Weatherd checks when the preview resumes, when the wallpaper becomes visible, and after relevant location or provider changes. **Refresh now** and the home-screen refresh widget bypass that interval.

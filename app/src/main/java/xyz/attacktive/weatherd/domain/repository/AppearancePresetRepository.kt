@@ -192,7 +192,8 @@ private data class StoredSnapshot(
 	val sunColorPreset: String,
 	val lensFlareEnabled: Boolean,
 	val lensFlareMotionEnabled: Boolean,
-	val distantAircraftEnabled: Boolean = true
+	val distantAircraftEnabled: Boolean = true,
+	val treesEnabled: Boolean = false
 ) {
 	fun toDomain() = AppearancePresetSnapshot(
 		backdropScene = enumValue(backdropScene, BackdropScene.entries),
@@ -215,7 +216,8 @@ private data class StoredSnapshot(
 		sunColorPreset = enumValue(sunColorPreset, SunColorPreset.entries),
 		lensFlareEnabled = lensFlareEnabled,
 		lensFlareMotionEnabled = lensFlareMotionEnabled,
-		distantAircraftEnabled = distantAircraftEnabled
+		distantAircraftEnabled = distantAircraftEnabled,
+		treesEnabled = treesEnabled
 	)
 }
 
@@ -246,7 +248,8 @@ private fun AppearancePresetSnapshot.toStored() = StoredSnapshot(
 	sunColorPreset = sunColorPreset.name,
 	lensFlareEnabled = lensFlareEnabled,
 	lensFlareMotionEnabled = lensFlareMotionEnabled,
-	distantAircraftEnabled = distantAircraftEnabled
+	distantAircraftEnabled = distantAircraftEnabled,
+	treesEnabled = treesEnabled
 )
 
 private fun <T : Enum<T>> enumValue(name: String, values: Iterable<T>) = values.firstOrNull { it.name == name } ?: throw IllegalArgumentException("Unknown enum value")

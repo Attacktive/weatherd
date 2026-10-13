@@ -145,6 +145,7 @@ class WeatherSceneProviderTest {
 		val preset = SCENE_PRESETS[presetIndex]
 		persistedSettings.value = AppSettings(
 			backdropScene = BackdropScene.BEACH,
+			treesEnabled = true,
 			precipitationIntensityScale = 1.5f,
 			windIntensityScale = 0.5f,
 			cloudIntensityScale = 0.8f,
@@ -174,6 +175,7 @@ class WeatherSceneProviderTest {
 		assertEquals(preset.precipitation, params.precipitation)
 		assertEquals(0.73f, params.celestialProgress, 0.0001f)
 		assertEquals(BackdropScene.BEACH, params.backdropScene)
+		assertTrue(params.treesEnabled)
 		assertEquals(1.5f, params.precipitationScale, 0.0001f)
 		assertEquals(0.5f, params.windScale, 0.0001f)
 		assertEquals(0.8f, params.cloudScale, 0.0001f)
@@ -617,7 +619,7 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `the photo revision reaches the fallback scene before any weather loads`() = runTest {
-		persistedSettings.value = AppSettings(useDeviceLocation = true, backdropScene = BackdropScene.PHOTO)
+		persistedSettings.value = AppSettings(useDeviceLocation = true, backdropScene = BackdropScene.PHOTO, treesEnabled = true)
 		coEvery { locationRepository.currentLocation() } returns null
 		photoState.value = photoState.value.copy(revision = 7)
 
@@ -625,6 +627,7 @@ class WeatherSceneProviderTest {
 
 		// No fix, so no snapshot; the clock-lit fallback still has to carry the revision or the very first photo import would never draw.
 		assertEquals(7, provider.paramsFor(1_000_030L).photoRevision)
+		assertTrue(provider.paramsFor(1_000_030L).treesEnabled)
 	}
 
 	@Test
@@ -868,7 +871,7 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `intensity scale settings reach the scene params even when the refresh is throttled`() = runTest {
-		val device = AppSettings(useDeviceLocation = true, precipitationIntensityScale = 1.5f, windIntensityScale = 0.5f, cloudIntensityScale = 0.8f, cloudContrastScale = 1.3f, skyBrightnessScale = 0.75f, nightBrightnessScale = 0.65f, skySaturationScale = 1.25f, skyColorPreset = SkyColorPreset.WARM)
+		val device = AppSettings(useDeviceLocation = true, precipitationIntensityScale = 1.5f, windIntensityScale = 0.5f, cloudIntensityScale = 0.8f, cloudContrastScale = 1.3f, skyBrightnessScale = 0.75f, nightBrightnessScale = 0.65f, skySaturationScale = 1.25f, skyColorPreset = SkyColorPreset.WARM, treesEnabled = true)
 		persistedSettings.value = device
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 63))
@@ -877,6 +880,7 @@ class WeatherSceneProviderTest {
 
 		// A wind of 5.0 km/h against the 40.0 km/h ceiling shapes to 0.2872; the 0.5x user preference rides on windScale.
 		val initialParams = provider.paramsFor(1_000_030L)
+		assertTrue(initialParams.treesEnabled)
 		assertEquals(1.5f, initialParams.precipitationScale, 0.0001f)
 		assertEquals(0.5f, initialParams.windScale, 0.0001f)
 		assertEquals(0.8f, initialParams.cloudScale, 0.0001f)
@@ -888,11 +892,12 @@ class WeatherSceneProviderTest {
 		assertEquals(0.2872f, initialParams.windFactor, 0.0001f)
 
 		// The user adjusts the sliders; the next refresh is inside the throttle window but must still pick the new scales up.
-		persistedSettings.value = device.copy(precipitationIntensityScale = 0.25f, windIntensityScale = 2f, cloudIntensityScale = 1.5f, cloudContrastScale = 0.7f, skyBrightnessScale = 1.3f, nightBrightnessScale = 0.2f, skySaturationScale = 0.6f, skyColorPreset = SkyColorPreset.CYBERPUNK)
+		persistedSettings.value = device.copy(precipitationIntensityScale = 0.25f, windIntensityScale = 2f, cloudIntensityScale = 1.5f, cloudContrastScale = 0.7f, skyBrightnessScale = 1.3f, nightBrightnessScale = 0.2f, skySaturationScale = 0.6f, skyColorPreset = SkyColorPreset.CYBERPUNK, treesEnabled = false)
 		provider.refresh(1_000_060L)
 
 		// The new wind scale reaches scene params while windFactor stays an honest observation reading.
 		val throttledParams = provider.paramsFor(1_000_090L)
+		assertFalse(throttledParams.treesEnabled)
 		assertEquals(0.25f, throttledParams.precipitationScale, 0.0001f)
 		assertEquals(2f, throttledParams.windScale, 0.0001f)
 		assertEquals(1.5f, throttledParams.cloudScale, 0.0001f)

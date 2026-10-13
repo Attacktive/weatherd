@@ -34,6 +34,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -82,6 +83,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	val motionSensor = viewModel.lensFlareMotionSensor
 	val motionOwner = remember { Any() }
 	var timeSeconds by remember { mutableFloatStateOf(0f) }
+	var treeTexturesReady by remember(renderer) { mutableStateOf(renderer.treeTexturesReady) }
 	val sceneState by viewModel.sceneState.collectAsStateWithLifecycle()
 	val settings = sceneState.settings
 	val debugEnabled = sceneState.simulatorActive
@@ -133,6 +135,16 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	LaunchedEffect(renderer) {
 		withContext(Dispatchers.Default) {
 			renderer.prewarmCloudTextures()
+		}
+	}
+
+	LaunchedEffect(renderer, params.treesEnabled) {
+		if (params.treesEnabled) {
+			withContext(Dispatchers.Default) {
+				renderer.prewarmTreeTextures()
+			}
+
+			treeTexturesReady = true
 		}
 	}
 
@@ -208,22 +220,24 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 			}
 		}
 
-		Canvas(
-			modifier = Modifier
-				.fillMaxSize()
-				.clickable(
-					interactionSource = previewInteraction,
-					indication = null,
-					onClick = { controlsVisible = !controlsVisible }
-				)
-		) {
-			drawIntoCanvas { canvas ->
-				canvas.nativeCanvas.drawBitmap(backdrop, 0f, 0f, null)
-				renderer.lensFlareOffsetX = motionSensor.offsetX
-				renderer.lensFlareOffsetY = motionSensor.offsetY
-				distantAircraftLayer.draw(canvas.nativeCanvas, widthPx.toFloat(), heightPx.toFloat(), params, timeSeconds)
-				renderer.renderForeground(canvas.nativeCanvas, widthPx, heightPx, params, timeSeconds, includeOverlayLabels = false)
-				screenEffects.render(canvas.nativeCanvas, widthPx, heightPx, params, timeSeconds)
+		key(treeTexturesReady) {
+			Canvas(
+				modifier = Modifier
+					.fillMaxSize()
+					.clickable(
+						interactionSource = previewInteraction,
+						indication = null,
+						onClick = { controlsVisible = !controlsVisible }
+					)
+			) {
+				drawIntoCanvas { canvas ->
+					canvas.nativeCanvas.drawBitmap(backdrop, 0f, 0f, null)
+					renderer.lensFlareOffsetX = motionSensor.offsetX
+					renderer.lensFlareOffsetY = motionSensor.offsetY
+					distantAircraftLayer.draw(canvas.nativeCanvas, widthPx.toFloat(), heightPx.toFloat(), params, timeSeconds)
+					renderer.renderForeground(canvas.nativeCanvas, widthPx, heightPx, params, timeSeconds, includeOverlayLabels = false)
+					screenEffects.render(canvas.nativeCanvas, widthPx, heightPx, params, timeSeconds)
+				}
 			}
 		}
 

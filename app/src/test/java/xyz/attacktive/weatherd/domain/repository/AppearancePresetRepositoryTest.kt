@@ -65,6 +65,7 @@ class AppearancePresetRepositoryTest {
 		val versionOneSnapshot = (AppearancePresetRepository(versionOneDataStore).state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot
 		assertTrue(versionOneSnapshot.distantAircraftEnabled)
 		assertFalse(versionOneSnapshot.glassDropletsEnabled)
+		assertFalse(versionOneSnapshot.treesEnabled)
 
 		val versionTwoDataStore = dataStore("preset-settings-v2.preferences_pb")
 		val versionTwoRaw = """{"schemaVersion":2,"presets":[{"id":"legacy-2","name":"Legacy 2","snapshot":{"backdropScene":"NONE","showWeatherLabel":false,"showLocationLabel":false,"precipitationIntensityScale":1.0,"glassDropletsEnabled":true,"windIntensityScale":1.0,"cloudIntensityScale":1.0,"cloudSizeScale":1.0,"cloudCountScale":1.0,"cloudContrastScale":1.0,"skyBrightnessScale":1.0,"nightBrightnessScale":1.0,"skySaturationScale":1.0,"skyColorPreset":"NATURAL","sunVisible":true,"moonVisible":true,"sunSizeScale":1.0,"sunColorPreset":"NATURAL","lensFlareEnabled":true,"lensFlareMotionEnabled":false}}]}"""
@@ -75,6 +76,22 @@ class AppearancePresetRepositoryTest {
 		val versionTwoSnapshot = (AppearancePresetRepository(versionTwoDataStore).state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot
 		assertTrue(versionTwoSnapshot.distantAircraftEnabled)
 		assertTrue(versionTwoSnapshot.glassDropletsEnabled)
+		assertFalse(versionTwoSnapshot.treesEnabled)
+	}
+
+	@Test
+	fun `version three presets missing trees field default trees to disabled`() = runTest {
+		val key = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)
+		val legacyV3DataStore = dataStore("preset-settings-v3-legacy.preferences_pb")
+		val legacyV3Raw = """{"schemaVersion":3,"presets":[{"id":"legacy-3","name":"Legacy 3","snapshot":{"backdropScene":"NONE","showWeatherLabel":false,"showLocationLabel":false,"precipitationIntensityScale":1.0,"glassDropletsEnabled":true,"windIntensityScale":1.0,"cloudIntensityScale":1.0,"cloudSizeScale":1.0,"cloudCountScale":1.0,"cloudContrastScale":1.0,"skyBrightnessScale":1.0,"nightBrightnessScale":1.0,"skySaturationScale":1.0,"skyColorPreset":"NATURAL","sunVisible":true,"moonVisible":true,"sunSizeScale":1.0,"sunColorPreset":"NATURAL","lensFlareEnabled":true,"lensFlareMotionEnabled":false,"distantAircraftEnabled":true}}]}"""
+		legacyV3DataStore.edit { preferences ->
+			preferences[key] = legacyV3Raw
+		}
+
+		val legacyV3Snapshot = (AppearancePresetRepository(legacyV3DataStore).state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot
+		assertFalse(legacyV3Snapshot.treesEnabled)
+		assertTrue(legacyV3Snapshot.distantAircraftEnabled)
+		assertTrue(legacyV3Snapshot.glassDropletsEnabled)
 	}
 
 	@Test

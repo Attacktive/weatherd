@@ -87,7 +87,8 @@ fun debugSceneParams(
 	celestialProgress: Float = 0.5f,
 	lensFlareMotionEnabled: Boolean = false,
 	distantAircraftEnabled: Boolean = true,
-	glassDropletsEnabled: Boolean = false
+	glassDropletsEnabled: Boolean = false,
+	treesEnabled: Boolean = false
 ) = SceneParams(
 	dayPhase = dayPhase,
 	cloudiness = preset.cloudiness,
@@ -116,5 +117,6 @@ fun debugSceneParams(
 	lensFlareMotionEnabled = lensFlareMotionEnabled,
 	distantAircraftEnabled = distantAircraftEnabled,
 	glassDropletsEnabled = glassDropletsEnabled,
+	treesEnabled = treesEnabled,
 	humidityHazeDensity = preset.humidityHazeDensity
 )

@@ -8,6 +8,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.service.wallpaper.WallpaperService
@@ -87,6 +88,14 @@ class WeatherLiveWallpaperService: WallpaperService() {
 					frameRateCap = it.frameRateCap
 					animationIdleTimeout = it.animationIdleTimeout
 					wallpaperScrollingPreferenceEnabled = it.wallpaperScrollingEnabled
+					if (it.treesEnabled && !renderer.treeTexturesReady) {
+						withContext(Dispatchers.Default) {
+							renderer.prewarmTreeTextures()
+						}
+
+						requestImmediateFrame()
+					}
+
 					if (visible) {
 						if (previousIdleTimeout != animationIdleTimeout) {
 							requestImmediateFrame()
