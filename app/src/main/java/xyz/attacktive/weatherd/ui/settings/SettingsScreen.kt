@@ -111,6 +111,7 @@ import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
+import xyz.attacktive.weatherd.domain.model.TreeStyle
 import xyz.attacktive.weatherd.domain.model.WeatherFallbackReason
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.WeatherSource
@@ -1316,6 +1317,49 @@ private fun BackdropSection(settings: AppSettings, defaults: AppSettings, onSave
 			}
 		}
 	}
+
+	if (settings.backdropScene == BackdropScene.METROPOLIS) {
+		TreeStyleField(settings = settings, defaults = defaults, onSave = onSave)
+	}
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TreeStyleField(settings: AppSettings, defaults: AppSettings, onSave: (AppSettings) -> Unit) {
+	var expanded by remember { mutableStateOf(false) }
+
+	ResettableSectionLabel(
+		text = stringResource(R.string.tree_style),
+		isDefault = settings.treeStyle == defaults.treeStyle,
+		onReset = { onSave(settings.copy(treeStyle = defaults.treeStyle)) }
+	)
+
+	ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+		OutlinedTextField(
+			value = formatTreeStyle(settings.treeStyle),
+			onValueChange = {},
+			readOnly = true,
+			trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+			modifier = Modifier
+				.fillMaxWidth()
+				.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+		)
+
+		ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+			TreeStyle.entries.forEach { style ->
+				DropdownMenuItem(
+					text = { Text(formatTreeStyle(style)) },
+					onClick = {
+						if (style != settings.treeStyle) {
+							onSave(settings.copy(treeStyle = style))
+						}
+
+						expanded = false
+					}
+				)
+			}
+		}
+	}
 }
 
 /**
@@ -1822,6 +1866,12 @@ private fun formatSunColor(preset: SunColorPreset) = when (preset) {
 	SunColorPreset.WHITE -> stringResource(R.string.sun_color_white)
 	SunColorPreset.GOLDEN -> stringResource(R.string.sun_color_golden)
 	SunColorPreset.ORANGE -> stringResource(R.string.sun_color_orange)
+}
+
+@Composable
+private fun formatTreeStyle(style: TreeStyle) = when (style) {
+	TreeStyle.ROUNDED -> stringResource(R.string.tree_style_rounded)
+	TreeStyle.CONIFER -> stringResource(R.string.tree_style_conifer)
 }
 
 @Composable

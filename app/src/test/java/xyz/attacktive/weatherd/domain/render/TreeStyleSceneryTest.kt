@@ -2,11 +2,13 @@ package xyz.attacktive.weatherd.domain.render
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.TreeStyle
+
+private const val PORTRAIT = 9f / 16f
+private const val EPSILON = 0.000001f
 
 class TreeStyleSceneryTest {
 	@Test
@@ -83,10 +85,5 @@ class TreeStyleSceneryTest {
 				treeStyle = TreeStyle.CONIFER
 			).treeStyle
 		)
-	}
-
-	companion object {
-		private const val PORTRAIT = 9f / 16f
-		private const val EPSILON = 0.000001f
 	}
 }
