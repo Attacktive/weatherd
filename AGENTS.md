@@ -2,7 +2,7 @@
 
 Instructions and architectural invariants for agents working in the Weatherd codebase.
 
-- Version: 1.6.11 (2026-10-10)
+- Version: 1.6.12 (2026-10-14)
 - Persona: Coding assistant pair-programming with the user on Weatherd.
 
 ## Tools and Environment
@@ -46,10 +46,9 @@ Do not ask what the shorthand means and do not re-research or rediscover Weather
 	1. Read `versionCode` and `versionName` from `app/build.gradle.kts`.
 	2. Unless the user specified a version or a different semantic-version bump, increment `versionCode` by one and increment the patch component of `versionName` by one.
 	3. Commit only that version bump directly to `main`, using the global version-bump exception to the pull-request rule.
-		- Use the broker's `commit_files` operation.
 		- Use the commit message `chore: bump version to <versionName>`.
 		- Include the active model's required `Co-authored-by` trailer.
-		- Verify the commit is authored by `attacktive-gremlin[bot]` and has a valid GitHub signature.
+		- Verify the commit has a valid GitHub signature.
 	4. Create tag `<versionName>` at that exact signed version-bump commit.
 		- Do not tag the feature pull-request head or any earlier commit.
 	5. The existing tag-triggered `Release` workflow is the release mechanism.
