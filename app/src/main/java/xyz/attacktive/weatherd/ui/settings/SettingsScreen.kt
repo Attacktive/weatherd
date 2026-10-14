@@ -110,6 +110,7 @@ import xyz.attacktive.weatherd.domain.model.SavedAppearancePreset
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
+import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherFallbackReason
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
@@ -1208,6 +1209,8 @@ private fun SunEffectsSection(settings: AppSettings, defaults: AppSettings, onSa
 	AnimatedVisibility(visible = settings.sunVisible) {
 		Column {
 			Spacer(modifier = Modifier.height(12.dp))
+			SunStylePicker(settings = settings, defaults = defaults, onSave = onSave)
+			Spacer(modifier = Modifier.height(12.dp))
 			SunSizeSlider(settings = settings, defaults = defaults, onSave = onSave)
 			Spacer(modifier = Modifier.height(12.dp))
 			SunColorPicker(settings = settings, defaults = defaults, onSave = onSave)
@@ -1228,6 +1231,49 @@ private fun SunEffectsSection(settings: AppSettings, defaults: AppSettings, onSa
 				enabled = motionSupported && settings.lensFlareEnabled,
 			)
 		}
+	}
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SunStylePicker(settings: AppSettings, defaults: AppSettings, onSave: (AppSettings) -> Unit) {
+	var expanded by remember { mutableStateOf(false) }
+
+	ResettableSectionLabel(
+		text = stringResource(R.string.label_sun_style),
+		isDefault = settings.sunStyle == defaults.sunStyle,
+		onReset = { onSave(settings.copy(sunStyle = defaults.sunStyle)) }
+	)
+
+	ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+		OutlinedTextField(
+			value = formatSunStyle(settings.sunStyle),
+			onValueChange = {},
+			readOnly = true,
+			trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+			modifier = Modifier
+				.fillMaxWidth()
+				.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+		)
+
+		ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+			SunStyle.entries.forEach { style ->
+				DropdownMenuItem(
+					text = { Text(formatSunStyle(style)) },
+					onClick = {
+						if (style != settings.sunStyle) {
+							onSave(settings.copy(sunStyle = style))
+						}
+
+						expanded = false
+					}
+				)
+			}
+		}
+	}
+
+	if (settings.sunStyle == SunStyle.RADIANT) {
+		HintText(stringResource(R.string.hint_radiant_sun))
 	}
 }
 
@@ -1828,6 +1874,12 @@ private fun formatSkyColor(preset: SkyColorPreset) = when (preset) {
 	SkyColorPreset.WARM -> stringResource(R.string.sky_color_warm)
 	SkyColorPreset.PASTEL -> stringResource(R.string.sky_color_pastel)
 	SkyColorPreset.CYBERPUNK -> stringResource(R.string.sky_color_cyberpunk)
+}
+
+@Composable
+private fun formatSunStyle(style: SunStyle) = when (style) {
+	SunStyle.CLASSIC -> stringResource(R.string.sun_style_classic)
+	SunStyle.RADIANT -> stringResource(R.string.sun_style_radiant)
 }
 
 @Composable

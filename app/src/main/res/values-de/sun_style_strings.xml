@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="label_sun_style">Sonnenstil</string>
+	<string name="sun_style_classic">Klassisch</string>
+	<string name="sun_style_radiant">Strahlend</string>
+	<string name="hint_radiant_sun">Das Bild enthält festes Leuchten und Reflexionen. Lens Flare steuert zusätzliche Effekte.</string>
+</resources>

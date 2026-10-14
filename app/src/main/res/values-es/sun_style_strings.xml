@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="label_sun_style">Estilo del sol</string>
+	<string name="sun_style_classic">Clásico</string>
+	<string name="sun_style_radiant">Radiante</string>
+	<string name="hint_radiant_sun">La imagen incluye brillo y reflejos fijos. El destello de lente controla los efectos adicionales.</string>
+</resources>

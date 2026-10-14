@@ -7,6 +7,7 @@ import org.junit.Test
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
+import xyz.attacktive.weatherd.domain.model.SunStyle
 
 class SceneDebugPresetsTest {
 	@Test
@@ -151,12 +152,13 @@ class SceneDebugPresetsTest {
 	@Test
 	fun `celestial appearance preferences reach debug scene params`() {
 		val preset = SCENE_PRESETS.first { it.name == "CLEAR" }
-		val params = debugSceneParams(preset, DayPhase.DAY, sunVisible = false, moonVisible = false, sunSizeScale = 1.7f, sunColorPreset = SunColorPreset.ORANGE)
+		val params = debugSceneParams(preset, DayPhase.DAY, sunVisible = false, moonVisible = false, sunSizeScale = 1.7f, sunColorPreset = SunColorPreset.ORANGE, sunStyle = SunStyle.RADIANT)
 
 		assertFalse(params.sunVisible)
 		assertFalse(params.moonVisible)
 		assertEquals(1.7f, params.sunSizeScale, 0.0001f)
 		assertEquals(SunColorPreset.ORANGE, params.sunColorPreset)
+		assertEquals(SunStyle.RADIANT, params.sunStyle)
 	}
 
 	@Test

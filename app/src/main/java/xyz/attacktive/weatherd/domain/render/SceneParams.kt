@@ -13,6 +13,7 @@ import xyz.attacktive.weatherd.domain.model.SKY_SATURATION_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
+import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
 import xyz.attacktive.weatherd.domain.weather.dayPhaseFor
 import xyz.attacktive.weatherd.domain.weather.dayPhaseProgressFor
@@ -34,7 +35,7 @@ import xyz.attacktive.weatherd.domain.weather.precipitationIntensity
  * [cloudSizeScale] changes individual fair-weather cloud body geometry, [cloudCountScale] scales rendered cloud coverage, and [cloudContrastScale] changes RGB separation inside cloud artwork without touching its alpha mask.
  * [skyBrightnessScale], [skySaturationScale] and [skyColorPreset] customize the painted phase gradient before weather grayness and storm darkening are applied.
  * [nightBrightnessScale] dims the completed static night backdrop after weather transforms, so 0 makes the background black without dimming dawn, day, dusk, stars, celestial bodies or animated weather.
- * [sunVisible], [moonVisible], [sunSizeScale] and [sunColorPreset] customize the celestial bodies without changing the time-of-day lighting.
+ * [sunVisible], [moonVisible], [sunSizeScale], [sunColorPreset] and [sunStyle] customize the celestial bodies without changing the time-of-day lighting.
  * [lensFlareEnabled] is a display preference for camera-style streaks and optical ghosts around the sun; it does not disable the physical corona or atmospheric light shafts.
  * [lensFlareMotionEnabled] allows device tilt and motion sensors to subtly deflect camera optical reflections when [lensFlareEnabled] and direct sun are visible.
  * [distantAircraftEnabled] controls the optional procedural aircraft and contrail foreground detail without changing weather classification.
@@ -73,6 +74,7 @@ data class SceneParams(
 	val moonVisible: Boolean = true,
 	val sunSizeScale: Float = 1f,
 	val sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
+	val sunStyle: SunStyle = SunStyle.CLASSIC,
 	val lensFlareEnabled: Boolean = true,
 	val lensFlareMotionEnabled: Boolean = false,
 	val humidityHazeDensity: Float = 0f,
@@ -109,6 +111,7 @@ fun backdropSignature(params: SceneParams, backgroundPhotoAvailable: Boolean = f
 		moonVisible = true,
 		sunSizeScale = 1f,
 		sunColorPreset = SunColorPreset.NATURAL,
+		sunStyle = SunStyle.CLASSIC,
 		lensFlareEnabled = true,
 		lensFlareMotionEnabled = false,
 		distantAircraftEnabled = true,
@@ -186,6 +189,7 @@ fun sceneParamsFor(
 	moonVisible: Boolean = true,
 	sunSizeScale: Float = 1f,
 	sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
+	sunStyle: SunStyle = SunStyle.CLASSIC,
 	lensFlareEnabled: Boolean = true,
 	lensFlareMotionEnabled: Boolean = false,
 	distantAircraftEnabled: Boolean = true,
@@ -241,6 +245,7 @@ fun sceneParamsFor(
 		moonVisible = moonVisible,
 		sunSizeScale = sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive),
 		sunColorPreset = sunColorPreset,
+		sunStyle = sunStyle,
 		moonPhase = moonPhaseFor(nowEpochSeconds),
 		celestialProgress = dayPhaseProgressFor(nowEpochSeconds, snapshot.sunriseEpochSeconds, snapshot.sunsetEpochSeconds, dayPhase),
 		backdropScene = backdropScene,

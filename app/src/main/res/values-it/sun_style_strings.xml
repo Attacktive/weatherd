@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="label_sun_style">Stile del sole</string>
+	<string name="sun_style_classic">Classico</string>
+	<string name="sun_style_radiant">Radiante</string>
+	<string name="hint_radiant_sun">L’immagine include bagliore e riflessi fissi. Il riflesso lente controlla gli effetti aggiuntivi.</string>
+</resources>

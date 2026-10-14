@@ -15,10 +15,16 @@ Refreshes happen separately, and a slow or failed request does not prevent switc
 
 Enable **Settings → Appearance → Trees** to add a fixed composition of detailed foreground evergreens to any backdrop, including None and Photo.
 Trees are off by default and saved with appearance presets; old settings and presets keep them off.
-New preset writes use schema v4; v1–v3 presets remain readable, while older builds reject the new bank instead of silently discarding the tree choice.
+New preset writes use schema v5; v1–v4 presets remain readable, while older builds reject the new bank instead of silently discarding the sun-style choice.
 The preview, live wallpaper, simulator, and clock-lit fallback share the same tree preference and placement.
 Tree lighting follows day phase and cloudy weather, while fog and precipitation draw in front of the foliage.
 The three first-party source sprites are reproducibly generated with `uv run scripts/generate-tree-textures.py` and decoded once off the frame loop on first use; no artwork is copied from the reference app or third parties.
+
+Choose **Settings → Appearance → Sun and moon → Sun style** to switch between **Classic**, the existing procedural sun, and **Radiant**, the transparent sun image submitted by [@emanuelelina2014-arch in #255](https://github.com/Attacktive/weatherd/issues/255).
+Classic remains the default for existing settings and presets; the choice is saved with appearance presets and shared by the preview, live wallpaper, simulator, and clock-lit fallback.
+Both styles follow the existing sun visibility, size, color, weather veiling, and sunset fade controls.
+Radiant includes fixed glow and reflections baked into its image; **Lens flare** and **Motion-responsive reflections** control additional procedural effects, not those fixed reflections.
+The [submitted PNG](https://github.com/user-attachments/assets/68a92bcf-016d-4276-bc35-4c1e38ae6b78) is bundled unchanged and decoded once off the frame loop on first use.
 
 ## Weather refresh timing
 

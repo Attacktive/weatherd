@@ -12,6 +12,7 @@ import xyz.attacktive.weatherd.domain.model.SKY_SATURATION_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
+import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_DRIZZLE
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_HEAVY
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_STEADY
@@ -83,6 +84,7 @@ fun debugSceneParams(
 	moonVisible: Boolean = true,
 	sunSizeScale: Float = 1f,
 	sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
+	sunStyle: SunStyle = SunStyle.CLASSIC,
 	lensFlareEnabled: Boolean = true,
 	celestialProgress: Float = 0.5f,
 	lensFlareMotionEnabled: Boolean = false,
@@ -112,6 +114,7 @@ fun debugSceneParams(
 	moonVisible = moonVisible,
 	sunSizeScale = sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive),
 	sunColorPreset = sunColorPreset,
+	sunStyle = sunStyle,
 	lensFlareEnabled = lensFlareEnabled,
 	celestialProgress = celestialProgress,
 	lensFlareMotionEnabled = lensFlareMotionEnabled,

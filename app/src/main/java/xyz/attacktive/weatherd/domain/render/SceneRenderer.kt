@@ -11,11 +11,13 @@ import kotlin.math.sin
 import kotlin.random.Random
 import android.content.res.Resources
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.ComposeShader
 import android.graphics.LinearGradient
+import android.graphics.LightingColorFilter
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PorterDuff
@@ -35,6 +37,7 @@ import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
+import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.drawsScenery
 import xyz.attacktive.weatherd.domain.render.SceneRenderer.Companion.DOT_CORE_STOP
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_DRIZZLE
@@ -55,6 +58,7 @@ class SceneRenderer(resources: Resources) {
 	private val blitDest = RectF()
 	private val lightningBolt by lazy(LazyThreadSafetyMode.NONE) { LightningBoltLayer() }
 	private val foregroundTrees = ForegroundTreeLayer(resources)
+	private val radiantSun = RadiantSunLayer(resources)
 	private val birdPath = Path()
 	private val lightShaftPath = Path()
 	private val sunCloudUpperSamples = FloatArray(SUN_SHAFT_PROFILE_SAMPLES)
@@ -206,6 +210,12 @@ class SceneRenderer(resources: Resources) {
 	fun prewarmTreeTextures() {
 		foregroundTrees.prewarm()
 	}
+
+	val sunTextureReady: Boolean
+		get() = radiantSun.textureReady
+
+	/** Decodes the submitted Radiant artwork off the render thread only after the user opts in. */
+	fun prewarmSunTexture() = radiantSun.prewarm()
 
 	/** The static layers (sky, overcast ceiling, fog base, haze, vignette). Cache these — they don't animate frame-to-frame. */
 	fun renderBackdrop(canvas: Canvas, width: Int, height: Int, params: SceneParams) {
@@ -1197,6 +1207,12 @@ class SceneRenderer(resources: Resources) {
 		}
 
 		val directRadius = radius * SUN_DIRECT_BODY_SCALE
+		if (sun.params.sunStyle == SunStyle.RADIANT && !sun.params.thunder) {
+			// The submitted image already contains its bloom, rays, and fixed lens ghosts; only the independent procedural flare above remains optional.
+			radiantSun.draw(canvas, sun.centerX, sun.centerY, directRadius * SUN_DIRECT_DISC_SCALE, sun.params, sun.visibility)
+			return
+		}
+
 		drawDirectSunGlow(canvas, sun, directRadius, core, halo, atmosphere)
 
 		val disc = tile("sunDisc", SUN_SPRITE_SIZE, SUN_SPRITE_SIZE) { buildSunSprite(it, core) }
@@ -3559,6 +3575,57 @@ class SceneRenderer(resources: Resources) {
 
 		/** Shifts close-drop indices into their own hash namespace so they never mirror a far or near streak's lane. */
 		private const val CLOSE_DROP_LANE_OFFSET = 100_000
+	}
+}
+
+/** The original transparent artwork, anchored by its measured solar core rather than its off-center sheet bounds. */
+private class RadiantSunLayer(private val resources: Resources) {
+	private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
+	private val destination = RectF()
+	val textureReady: Boolean
+		get() = source != null
+
+	fun prewarm() {
+		if (textureReady) {
+			return
+		}
+
+		synchronized(RadiantSunLayer::class.java) {
+			if (source == null) {
+				val options = BitmapFactory.Options().apply { inScaled = false }
+				source = checkNotNull(BitmapFactory.decodeResource(resources, R.drawable.sun_radiant, options))
+			}
+		}
+	}
+
+	fun draw(canvas: Canvas, centerX: Float, centerY: Float, discRadius: Float, params: SceneParams, visibility: Float) {
+		val bitmap = source ?: return
+		val scale = discRadius * CORE_DISC_FRACTION / SOURCE_CORE_RADIUS
+		val left = centerX - SOURCE_CORE_X * scale
+		val top = centerY - SOURCE_CORE_Y * scale
+		destination.set(left, top, left + bitmap.width * scale, top + bitmap.height * scale)
+		paint.alpha = sunAlpha(255f, visibility)
+		paint.colorFilter = colorFilters[params.dayPhase.ordinal][params.sunColorPreset.ordinal]
+		canvas.drawBitmap(bitmap, null, destination, paint)
+	}
+
+	private companion object {
+		@Volatile
+		var source: Bitmap? = null
+
+		val colorFilters = Array(DayPhase.entries.size) { phase ->
+			Array(SunColorPreset.entries.size) { preset ->
+				LightingColorFilter(sunColor(DayPhase.entries[phase], SunColorPreset.entries[preset]), 0)
+			}
+		}
+
+		// Measured from the submitted 1254×1254 RGBA PNG: the clipped-white core is near (596, 488), with an approximately 88px radius.
+		const val SOURCE_CORE_X = 596.175f
+		const val SOURCE_CORE_Y = 488.061f
+		const val SOURCE_CORE_RADIUS = 88f
+
+		// Match the compact white-to-shoulder portion of Classic's feathered disc, not the full bloom in either style.
+		const val CORE_DISC_FRACTION = 0.22f
 	}
 }
 

@@ -58,6 +58,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.debugToolsEnabled
 import xyz.attacktive.weatherd.domain.model.DayPhase
+import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.render.DistantAircraftLayer
 import xyz.attacktive.weatherd.domain.render.SCENE_PRESETS
 import xyz.attacktive.weatherd.domain.render.SceneRenderer
@@ -84,6 +85,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	val motionOwner = remember { Any() }
 	var timeSeconds by remember { mutableFloatStateOf(0f) }
 	var treeTexturesReady by remember(renderer) { mutableStateOf(renderer.treeTexturesReady) }
+	var sunTextureReady by remember(renderer) { mutableStateOf(renderer.sunTextureReady) }
 	val sceneState by viewModel.sceneState.collectAsStateWithLifecycle()
 	val settings = sceneState.settings
 	val debugEnabled = sceneState.simulatorActive
@@ -145,6 +147,16 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 			}
 
 			treeTexturesReady = true
+		}
+	}
+
+	LaunchedEffect(renderer, params.sunStyle) {
+		if (params.sunStyle == SunStyle.RADIANT) {
+			withContext(Dispatchers.Default) {
+				renderer.prewarmSunTexture()
+			}
+
+			sunTextureReady = true
 		}
 	}
 
@@ -220,7 +232,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 			}
 		}
 
-		key(treeTexturesReady) {
+		key(treeTexturesReady, sunTextureReady) {
 			Canvas(
 				modifier = Modifier
 					.fillMaxSize()

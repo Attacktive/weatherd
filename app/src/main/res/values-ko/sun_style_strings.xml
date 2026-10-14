@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="label_sun_style">태양 스타일</string>
+	<string name="sun_style_classic">클래식</string>
+	<string name="sun_style_radiant">빛나는 태양</string>
+	<string name="hint_radiant_sun">이미지에 고정된 빛과 반사가 포함되어 있습니다. 렌즈 플레어는 추가 효과를 제어합니다.</string>
+</resources>

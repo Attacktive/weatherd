@@ -31,6 +31,7 @@ data class AppSettings(
 	val moonVisible: Boolean = true,
 	val sunSizeScale: Float = 1f,
 	val sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
+	val sunStyle: SunStyle = SunStyle.CLASSIC,
 	val lensFlareEnabled: Boolean = true,
 	val lensFlareMotionEnabled: Boolean = false,
 	val distantAircraftEnabled: Boolean = true,

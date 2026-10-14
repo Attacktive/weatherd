@@ -25,10 +25,12 @@ import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
+import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.appliedTo
 import xyz.attacktive.weatherd.domain.model.defaultAppSettings
+import xyz.attacktive.weatherd.domain.model.toAppearancePresetSnapshot
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsRepositoryTest {
@@ -110,6 +112,7 @@ class SettingsRepositoryTest {
 			moonVisible = false,
 			sunSizeScale = 1.65f,
 			sunColorPreset = SunColorPreset.GOLDEN,
+			sunStyle = SunStyle.RADIANT,
 			lensFlareEnabled = false,
 			lensFlareMotionEnabled = true,
 			sceneSimulatorEnabled = true,
@@ -300,6 +303,7 @@ class SettingsRepositoryTest {
 			moonVisible = false,
 			sunSizeScale = 1.6f,
 			sunColorPreset = SunColorPreset.GOLDEN,
+			sunStyle = SunStyle.RADIANT,
 			lensFlareEnabled = false,
 			lensFlareMotionEnabled = true
 		)
@@ -332,6 +336,7 @@ class SettingsRepositoryTest {
 			moonVisible = true,
 			sunSizeScale = 1.2f,
 			sunColorPreset = SunColorPreset.ORANGE,
+			sunStyle = SunStyle.RADIANT,
 			lensFlareEnabled = true,
 			lensFlareMotionEnabled = true
 		)
@@ -370,6 +375,7 @@ class SettingsRepositoryTest {
 			"moonVisible",
 			"sunSizeScale",
 			"sunColorPreset",
+			"sunStyle",
 			"lensFlareEnabled",
 			"lensFlareMotionEnabled",
 			"distantAircraftEnabled",
@@ -400,6 +406,38 @@ class SettingsRepositoryTest {
 
 		assertTrue(owned.intersect(excluded).isEmpty())
 		assertEquals(actual, owned + excluded)
+	}
+
+	@Test
+	fun `legacy settings keep classic sun and default appearance restores it`() = runTest {
+		val store = dataStore()
+		store.edit { it[stringPreferencesKey("sun_color_preset")] = SunColorPreset.GOLDEN.name }
+		val repository = SettingsRepository(store)
+		assertEquals(SunStyle.CLASSIC, repository.settings.first().sunStyle)
+		assertEquals(SunColorPreset.GOLDEN, repository.settings.first().sunColorPreset)
+
+		repository.update(listOf(SettingsMutation.SunStyle(SunStyle.RADIANT), SettingsMutation.ShowLocationLabel(true)))
+		repository.applyAppearancePreset(defaultAppSettings().toAppearancePresetSnapshot())
+
+		assertEquals(SunStyle.CLASSIC, SettingsRepository(store).settings.first().sunStyle)
+	}
+
+	@Test
+	fun `sun style mutations preserve unrelated changes from stale settings`() = runTest {
+		val store = dataStore()
+		val repository = SettingsRepository(store)
+		val stale = repository.settings.first()
+		repository.update(settingsMutationsBetween(stale, stale.copy(sunStyle = SunStyle.RADIANT)))
+		repository.update(settingsMutationsBetween(stale, stale.copy(showLocationLabel = true)))
+
+		val reopened = SettingsRepository(store).settings.first()
+		assertEquals(SunStyle.RADIANT, reopened.sunStyle)
+		assertTrue(reopened.showLocationLabel)
+		assertEquals("RADIANT", store.data.first()[stringPreferencesKey("sun_style")])
+
+		repository.update(listOf(SettingsMutation.SunStyle(SunStyle.CLASSIC)))
+		assertEquals(SunStyle.CLASSIC, SettingsRepository(store).settings.first().sunStyle)
+		assertTrue(repository.settings.first().showLocationLabel)
 	}
 
 

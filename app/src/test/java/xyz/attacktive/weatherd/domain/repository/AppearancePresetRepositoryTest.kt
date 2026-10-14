@@ -22,6 +22,7 @@ import org.junit.rules.TemporaryFolder
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
+import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.toAppearancePresetSnapshot
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -38,7 +39,7 @@ class AppearancePresetRepositoryTest {
 		val dataStore = dataStore()
 		val repository = AppearancePresetRepository(dataStore)
 		val firstSnapshot = AppSettings(backdropScene = BackdropScene.BEACH).toAppearancePresetSnapshot()
-		val secondSnapshot = AppSettings(backdropScene = BackdropScene.MOUNTAINS, skyColorPreset = SkyColorPreset.PASTEL, glassDropletsEnabled = true, distantAircraftEnabled = false).toAppearancePresetSnapshot()
+		val secondSnapshot = AppSettings(backdropScene = BackdropScene.MOUNTAINS, skyColorPreset = SkyColorPreset.PASTEL, glassDropletsEnabled = true, distantAircraftEnabled = false, sunStyle = SunStyle.RADIANT).toAppearancePresetSnapshot()
 
 		assertTrue(repository.create("Coast", firstSnapshot).isSuccess)
 		val created = (repository.state.first() as AppearancePresetStorageState.Ready).presets.single()
@@ -70,6 +71,7 @@ class AppearancePresetRepositoryTest {
 		assertTrue(versionOneSnapshot.distantAircraftEnabled)
 		assertFalse(versionOneSnapshot.glassDropletsEnabled)
 		assertFalse(versionOneSnapshot.treesEnabled)
+		assertEquals(SunStyle.CLASSIC, versionOneSnapshot.sunStyle)
 
 		val versionTwoDataStore = dataStore("preset-settings-v2.preferences_pb")
 		val versionTwoRaw = """{"schemaVersion":2,"presets":[{"id":"legacy-2","name":"Legacy 2","snapshot":{"backdropScene":"NONE","showWeatherLabel":false,"showLocationLabel":false,"precipitationIntensityScale":1.0,"glassDropletsEnabled":true,"windIntensityScale":1.0,"cloudIntensityScale":1.0,"cloudSizeScale":1.0,"cloudCountScale":1.0,"cloudContrastScale":1.0,"skyBrightnessScale":1.0,"nightBrightnessScale":1.0,"skySaturationScale":1.0,"skyColorPreset":"NATURAL","sunVisible":true,"moonVisible":true,"sunSizeScale":1.0,"sunColorPreset":"NATURAL","lensFlareEnabled":true,"lensFlareMotionEnabled":false}}]}"""
@@ -81,6 +83,7 @@ class AppearancePresetRepositoryTest {
 		assertTrue(versionTwoSnapshot.distantAircraftEnabled)
 		assertTrue(versionTwoSnapshot.glassDropletsEnabled)
 		assertFalse(versionTwoSnapshot.treesEnabled)
+		assertEquals(SunStyle.CLASSIC, versionTwoSnapshot.sunStyle)
 	}
 
 	@Test
@@ -96,12 +99,13 @@ class AppearancePresetRepositoryTest {
 		assertFalse(legacyV3Snapshot.treesEnabled)
 		assertTrue(legacyV3Snapshot.distantAircraftEnabled)
 		assertTrue(legacyV3Snapshot.glassDropletsEnabled)
+		assertEquals(SunStyle.CLASSIC, legacyV3Snapshot.sunStyle)
 		assertEquals(legacyV3Raw, legacyV3DataStore.data.first()[key])
 
 		val repository = AppearancePresetRepository(legacyV3DataStore)
 		assertTrue(repository.rename("legacy-3", "Legacy forest").isSuccess)
 		val rewritten = legacyV3DataStore.data.first()[key]!!
-		assertEquals(4, Json.parseToJsonElement(rewritten).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+		assertEquals(5, Json.parseToJsonElement(rewritten).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
 		val migrated = (AppearancePresetRepository(legacyV3DataStore).state.first() as AppearancePresetStorageState.Ready).presets.single()
 		assertFalse(migrated.snapshot.treesEnabled)
 		assertTrue(migrated.snapshot.glassDropletsEnabled)
@@ -109,10 +113,28 @@ class AppearancePresetRepositoryTest {
 	}
 
 	@Test
+	fun `version four presets retain their appearance and migrate sun style to classic`() = runTest {
+		val store = dataStore()
+		val key = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)
+		val raw = """{"schemaVersion":4,"presets":[{"id":"legacy-4","name":"Legacy 4","snapshot":{"backdropScene":"NONE","showWeatherLabel":false,"showLocationLabel":false,"precipitationIntensityScale":1.0,"glassDropletsEnabled":true,"windIntensityScale":1.0,"cloudIntensityScale":1.0,"cloudSizeScale":1.0,"cloudCountScale":1.0,"cloudContrastScale":1.0,"skyBrightnessScale":1.0,"nightBrightnessScale":1.0,"skySaturationScale":1.0,"skyColorPreset":"NATURAL","sunVisible":true,"moonVisible":true,"sunSizeScale":1.0,"sunColorPreset":"NATURAL","lensFlareEnabled":true,"lensFlareMotionEnabled":false,"distantAircraftEnabled":false,"treesEnabled":true}}]}"""
+		store.edit { it[key] = raw }
+
+		val repository = AppearancePresetRepository(store)
+		val snapshot = (repository.state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot
+		assertEquals(SunStyle.CLASSIC, snapshot.sunStyle)
+		assertTrue(snapshot.treesEnabled)
+		assertFalse(snapshot.distantAircraftEnabled)
+		assertEquals(raw, store.data.first()[key])
+		assertTrue(repository.rename("legacy-4", "Migrated").isSuccess)
+		assertEquals(5, Json.parseToJsonElement(store.data.first()[key]!!).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+		assertEquals(snapshot, (AppearancePresetRepository(store).state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot)
+	}
+
+	@Test
 	fun `new preset schema preserves tree and aircraft choices while excluding older writers`() = runTest {
 		val dataStore = dataStore()
 		val repository = AppearancePresetRepository(dataStore)
-		val snapshot = AppSettings(treesEnabled = true, distantAircraftEnabled = false).toAppearancePresetSnapshot()
+		val snapshot = AppSettings(treesEnabled = true, distantAircraftEnabled = false, sunStyle = SunStyle.RADIANT).toAppearancePresetSnapshot()
 
 		assertTrue(repository.create("No aircraft", snapshot).isSuccess)
 
@@ -120,9 +142,10 @@ class AppearancePresetRepositoryTest {
 		val restored = (reopened.state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot
 		assertFalse(restored.distantAircraftEnabled)
 		assertTrue(restored.treesEnabled)
+		assertEquals(SunStyle.RADIANT, restored.sunStyle)
 
 		val raw = dataStore.data.first()[stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)]!!
-		assertEquals(4, Json.parseToJsonElement(raw).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+		assertEquals(5, Json.parseToJsonElement(raw).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
 	}
 
 	@Test

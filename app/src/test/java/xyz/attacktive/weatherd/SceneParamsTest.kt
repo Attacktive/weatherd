@@ -14,6 +14,7 @@ import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
+import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
 import xyz.attacktive.weatherd.domain.render.OverlayLabels
@@ -245,6 +246,15 @@ class SceneParamsTest {
 		// The wallpaper caches its backdrop against backdropSignature and the preview remembers against it too, so both redraw on exactly this inequality and nothing else.
 		assertNotEquals(before, after)
 		assertNotEquals(backdropSignature(before), backdropSignature(after))
+	}
+
+	@Test
+	fun `sun style changes leave cached backdrop pixels reusable`() {
+		val classic = fullyPopulatedParams().copy(sunStyle = SunStyle.CLASSIC)
+		val radiant = classic.copy(sunStyle = SunStyle.RADIANT)
+
+		assertNotEquals(classic, radiant)
+		assertEquals(backdropSignature(classic), backdropSignature(radiant))
 	}
 
 	@Test

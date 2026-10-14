@@ -29,6 +29,7 @@ import xyz.attacktive.weatherd.domain.model.GeoLocation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
+import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.CloudCover
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
@@ -160,6 +161,7 @@ class WeatherSceneProviderTest {
 			moonVisible = false,
 			sunSizeScale = 1.6f,
 			sunColorPreset = SunColorPreset.GOLDEN,
+			sunStyle = SunStyle.RADIANT,
 			lensFlareEnabled = false,
 			sceneSimulatorActive = true,
 			sceneSimulatorPresetIndex = presetIndex,
@@ -190,6 +192,7 @@ class WeatherSceneProviderTest {
 		assertFalse(params.moonVisible)
 		assertEquals(1.6f, params.sunSizeScale, 0.0001f)
 		assertEquals(SunColorPreset.GOLDEN, params.sunColorPreset)
+		assertEquals(SunStyle.RADIANT, params.sunStyle)
 		assertFalse(params.lensFlareEnabled)
 		assertEquals(moonPhaseFor(1_000_030L), params.moonPhase, 0.0001f)
 		coVerify(exactly = 0) { locationRepository.currentLocation() }
@@ -293,11 +296,12 @@ class WeatherSceneProviderTest {
 			runCurrent()
 			assertEquals(PrecipitationKind.SNOW, provider.paramsFor(1_000_030L).precipitation?.kind)
 
-			settings.value = settings.value.copy(sceneSimulatorActive = false, windIntensityScale = 1.5f)
+			settings.value = settings.value.copy(sceneSimulatorActive = false, windIntensityScale = 1.5f, sunStyle = SunStyle.RADIANT)
 			runCurrent()
 			val fallback = provider.paramsFor(1_000_030L)
 			assertNull(fallback.precipitation)
 			assertEquals(1.5f, fallback.windScale, 0.0001f)
+			assertEquals(SunStyle.RADIANT, fallback.sunStyle)
 			assertFalse(refresh.isCompleted)
 
 			coEvery { weatherRepository.current(any(), any()) } returns Result.success(snapshotWith(weatherCode = 63))
@@ -554,7 +558,7 @@ class WeatherSceneProviderTest {
 
 		provider.refresh(1_000_000L)
 
-		persistedSettings.value = device.copy(sunVisible = false, moonVisible = false, sunSizeScale = 1.8f, sunColorPreset = SunColorPreset.ORANGE)
+		persistedSettings.value = device.copy(sunVisible = false, moonVisible = false, sunSizeScale = 1.8f, sunColorPreset = SunColorPreset.ORANGE, sunStyle = SunStyle.RADIANT)
 		provider.refresh(1_000_060L)
 
 		val params = provider.paramsFor(1_000_090L)
@@ -562,6 +566,7 @@ class WeatherSceneProviderTest {
 		assertFalse(params.moonVisible)
 		assertEquals(1.8f, params.sunSizeScale, 0.0001f)
 		assertEquals(SunColorPreset.ORANGE, params.sunColorPreset)
+		assertEquals(SunStyle.RADIANT, params.sunStyle)
 		coVerify(exactly = 1) { weatherRepository.current(52.52, 13.40) }
 	}
 
