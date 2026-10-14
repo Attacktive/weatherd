@@ -2,7 +2,7 @@
 
 Instructions and architectural invariants for agents working in the Weatherd codebase.
 
-- Version: 1.6.12 (2026-10-14)
+- Version: 1.6.13 (2026-10-15)
 - Persona: Coding assistant pair-programming with the user on Weatherd.
 
 ## Tools and Environment
@@ -65,6 +65,16 @@ Do not ask what the shorthand means and do not re-research or rediscover Weather
 - A request to only `release` does not imply merging unrelated pull requests.
 
 ## Architectural Invariants
+
+### Settings Navigation Is UI State
+
+Settings opens on Appearance, followed by Weather, Wallpaper, and Advanced.
+Appearance categories have their own titles and hide the top-level tab strip; toolbar and system Back return to the hub before leaving Settings.
+Keep the keyed `SaveableStateHolder` owned by `SettingsScreen` so the hub and every category retain independent scroll positions across visits and recreation.
+Measure the header and page together, and wait for the view's first pre-draw before composing restorable page content: transient header or zero-inset viewports otherwise clamp saved scroll offsets before the final viewport is known.
+Keep category summaries to one or two high-signal settings facts, localized consistently, rather than serializing every control.
+Category regrouping must not change stored setting keys, defaults, reset scope, preset membership, simulator behavior, or the shared scene-provider path.
+Weather/Wallpaper internals stay in place unless an actual setting move requires touching them; MET Norway attribution belongs with Weather.
 
 ### Scene Simulator Overrides Live Weather
 

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="appearance_category_scenery">Paisaje y fotos</string>
+	<string name="appearance_category_sky">Cielo</string>
+	<string name="appearance_category_clouds">Nubes</string>
+	<string name="appearance_category_sun">Sol y luna</string>
+	<string name="appearance_category_weather_effects">Efectos del tiempo</string>
+	<string name="appearance_category_text">Texto en pantalla</string>
+	<string name="appearance_category_presets">Preajustes</string>
+
+	<string name="appearance_summary_scenery">%1$s · %2$s</string>
+	<string name="appearance_summary_trees_on">Árboles activados</string>
+	<string name="appearance_summary_trees_off">Árboles desactivados</string>
+	<string name="appearance_summary_sky">%1$s · %2$d%% de brillo</string>
+	<string name="appearance_summary_clouds">Cantidad %1$d%% · Opacidad %2$d%%</string>
+	<string name="appearance_summary_sun">%1$s · %2$s</string>
+	<string name="appearance_summary_sun_shown">Sol visible</string>
+	<string name="appearance_summary_sun_hidden">Sol oculto</string>
+	<string name="appearance_summary_weather_effects">Precipitación %1$d%% · Viento %2$d%%</string>
+	<string name="appearance_summary_text_both">Tiempo y ubicación</string>
+	<string name="appearance_summary_text_weather">Solo tiempo</string>
+	<string name="appearance_summary_text_location">Solo ubicación</string>
+	<string name="appearance_summary_text_hidden">Oculto</string>
+	<string name="appearance_summary_presets_unavailable">No disponible</string>
+	<string name="appearance_hint_weather_effects">Ajusta la precipitación y el viento en relación con el tiempo observado.</string>
+
+	<plurals name="appearance_summary_presets">
+		<item quantity="one">%1$d preajuste guardado</item>
+		<item quantity="other">%1$d preajustes guardados</item>
+	</plurals>
+</resources>

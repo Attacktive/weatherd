@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="appearance_category_scenery">풍경 및 사진</string>
+	<string name="appearance_category_sky">하늘</string>
+	<string name="appearance_category_clouds">구름</string>
+	<string name="appearance_category_sun">태양과 달</string>
+	<string name="appearance_category_weather_effects">날씨 효과</string>
+	<string name="appearance_category_text">화면 텍스트</string>
+	<string name="appearance_category_presets">프리셋</string>
+
+	<string name="appearance_summary_scenery">%1$s · %2$s</string>
+	<string name="appearance_summary_trees_on">나무 켬</string>
+	<string name="appearance_summary_trees_off">나무 끔</string>
+	<string name="appearance_summary_sky">%1$s · 밝기 %2$d%%</string>
+	<string name="appearance_summary_clouds">구름 양 %1$d%% · 불투명도 %2$d%%</string>
+	<string name="appearance_summary_sun">%1$s · %2$s</string>
+	<string name="appearance_summary_sun_shown">태양 표시</string>
+	<string name="appearance_summary_sun_hidden">태양 숨김</string>
+	<string name="appearance_summary_weather_effects">강수 %1$d%% · 바람 %2$d%%</string>
+	<string name="appearance_summary_text_both">날씨 및 위치</string>
+	<string name="appearance_summary_text_weather">날씨만</string>
+	<string name="appearance_summary_text_location">위치만</string>
+	<string name="appearance_summary_text_hidden">숨김</string>
+	<string name="appearance_summary_presets_unavailable">사용 불가</string>
+	<string name="appearance_hint_weather_effects">관측된 날씨를 기준으로 강수 강도와 바람의 세기를 조절합니다.</string>
+
+	<plurals name="appearance_summary_presets">
+		<item quantity="other">저장된 프리셋 %1$d개</item>
+	</plurals>
+</resources>

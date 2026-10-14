@@ -122,7 +122,6 @@
 	<string name="hint_cloud_contrast">Cambia la separación entre luces y sombras dentro de las nubes sin modificar su opacidad.</string>
 	<string name="intensity_subtle">Sutil</string>
 	<string name="intensity_intense">Intenso</string>
-	<string name="hint_intensity">Ajusta cuánto precipita, la fuerza del viento y la visibilidad de las nubes en relación con el clima observado.</string>
 	<string name="app_version">weatherd %1$s</string>
 
 	<!-- Refresh interval formatting -->

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="appearance_category_scenery">Scenery &amp; photos</string>
+	<string name="appearance_category_sky">Sky</string>
+	<string name="appearance_category_clouds">Clouds</string>
+	<string name="appearance_category_sun">Sun &amp; moon</string>
+	<string name="appearance_category_weather_effects">Weather effects</string>
+	<string name="appearance_category_text">On-screen text</string>
+	<string name="appearance_category_presets">Presets</string>
+
+	<string name="appearance_summary_scenery">%1$s · %2$s</string>
+	<string name="appearance_summary_trees_on">Trees on</string>
+	<string name="appearance_summary_trees_off">Trees off</string>
+	<string name="appearance_summary_sky">%1$s · %2$d%% brightness</string>
+	<string name="appearance_summary_clouds">Count %1$d%% · Opacity %2$d%%</string>
+	<string name="appearance_summary_sun">%1$s · %2$s</string>
+	<string name="appearance_summary_sun_shown">Sun shown</string>
+	<string name="appearance_summary_sun_hidden">Sun hidden</string>
+	<string name="appearance_summary_weather_effects">Precipitation %1$d%% · Wind %2$d%%</string>
+	<string name="appearance_summary_text_both">Weather and location</string>
+	<string name="appearance_summary_text_weather">Weather only</string>
+	<string name="appearance_summary_text_location">Location only</string>
+	<string name="appearance_summary_text_hidden">Hidden</string>
+	<string name="appearance_summary_presets_unavailable">Unavailable</string>
+	<string name="appearance_hint_weather_effects">Scales precipitation and wind relative to the observed weather.</string>
+
+	<plurals name="appearance_summary_presets">
+		<item quantity="one">%1$d saved preset</item>
+		<item quantity="other">%1$d saved presets</item>
+	</plurals>
+</resources>

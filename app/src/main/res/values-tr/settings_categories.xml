@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="appearance_category_scenery">Manzara ve fotoğraflar</string>
+	<string name="appearance_category_sky">Gökyüzü</string>
+	<string name="appearance_category_clouds">Bulutlar</string>
+	<string name="appearance_category_sun">Güneş ve ay</string>
+	<string name="appearance_category_weather_effects">Hava durumu efektleri</string>
+	<string name="appearance_category_text">Ekrandaki metin</string>
+	<string name="appearance_category_presets">Ön ayarlar</string>
+
+	<string name="appearance_summary_scenery">%1$s · %2$s</string>
+	<string name="appearance_summary_trees_on">Ağaçlar açık</string>
+	<string name="appearance_summary_trees_off">Ağaçlar kapalı</string>
+	<string name="appearance_summary_sky">%1$s · %%%2$d parlaklık</string>
+	<string name="appearance_summary_clouds">Miktar %%%1$d · Opaklık %%%2$d</string>
+	<string name="appearance_summary_sun">%1$s · %2$s</string>
+	<string name="appearance_summary_sun_shown">Güneş gösteriliyor</string>
+	<string name="appearance_summary_sun_hidden">Güneş gizli</string>
+	<string name="appearance_summary_weather_effects">Yağış %%%1$d · Rüzgar %%%2$d</string>
+	<string name="appearance_summary_text_both">Hava durumu ve konum</string>
+	<string name="appearance_summary_text_weather">Yalnızca hava durumu</string>
+	<string name="appearance_summary_text_location">Yalnızca konum</string>
+	<string name="appearance_summary_text_hidden">Gizli</string>
+	<string name="appearance_summary_presets_unavailable">Kullanılamıyor</string>
+	<string name="appearance_hint_weather_effects">Gözlenen hava durumuna göre yağış ve rüzgar şiddetini ayarlar.</string>
+
+	<plurals name="appearance_summary_presets">
+		<item quantity="one">%1$d kayıtlı ön ayar</item>
+		<item quantity="other">%1$d kayıtlı ön ayar</item>
+	</plurals>
+</resources>

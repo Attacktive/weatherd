@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="appearance_category_scenery">风光与照片</string>
+	<string name="appearance_category_sky">天空</string>
+	<string name="appearance_category_clouds">云层</string>
+	<string name="appearance_category_sun">太阳和月亮</string>
+	<string name="appearance_category_weather_effects">天气效果</string>
+	<string name="appearance_category_text">屏幕文本</string>
+	<string name="appearance_category_presets">预设</string>
+
+	<string name="appearance_summary_scenery">%1$s · %2$s</string>
+	<string name="appearance_summary_trees_on">树木开启</string>
+	<string name="appearance_summary_trees_off">树木关闭</string>
+	<string name="appearance_summary_sky">%1$s · 亮度 %2$d%%</string>
+	<string name="appearance_summary_clouds">云量 %1$d%% · 不透明度 %2$d%%</string>
+	<string name="appearance_summary_sun">%1$s · %2$s</string>
+	<string name="appearance_summary_sun_shown">太阳显示</string>
+	<string name="appearance_summary_sun_hidden">太阳隐藏</string>
+	<string name="appearance_summary_weather_effects">降水 %1$d%% · 风力 %2$d%%</string>
+	<string name="appearance_summary_text_both">天气与位置</string>
+	<string name="appearance_summary_text_weather">仅天气</string>
+	<string name="appearance_summary_text_location">仅位置</string>
+	<string name="appearance_summary_text_hidden">隐藏</string>
+	<string name="appearance_summary_presets_unavailable">不可用</string>
+	<string name="appearance_hint_weather_effects">根据实际天气调整降水和风力强度。</string>
+
+	<plurals name="appearance_summary_presets">
+		<item quantity="other">%1$d 个已保存的预设</item>
+	</plurals>
+</resources>

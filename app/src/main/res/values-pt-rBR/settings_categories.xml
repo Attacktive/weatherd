@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="appearance_category_scenery">Cenário e fotos</string>
+	<string name="appearance_category_sky">Céu</string>
+	<string name="appearance_category_clouds">Nuvens</string>
+	<string name="appearance_category_sun">Sol e lua</string>
+	<string name="appearance_category_weather_effects">Efeitos do tempo</string>
+	<string name="appearance_category_text">Texto na tela</string>
+	<string name="appearance_category_presets">Predefinições</string>
+
+	<string name="appearance_summary_scenery">%1$s · %2$s</string>
+	<string name="appearance_summary_trees_on">Árvores ativadas</string>
+	<string name="appearance_summary_trees_off">Árvores desativadas</string>
+	<string name="appearance_summary_sky">%1$s · %2$d%% de brilho</string>
+	<string name="appearance_summary_clouds">Quantidade %1$d%% · Opacidade %2$d%%</string>
+	<string name="appearance_summary_sun">%1$s · %2$s</string>
+	<string name="appearance_summary_sun_shown">Sol visível</string>
+	<string name="appearance_summary_sun_hidden">Sol oculto</string>
+	<string name="appearance_summary_weather_effects">Precipitação %1$d%% · Vento %2$d%%</string>
+	<string name="appearance_summary_text_both">Clima e localização</string>
+	<string name="appearance_summary_text_weather">Apenas clima</string>
+	<string name="appearance_summary_text_location">Apenas localização</string>
+	<string name="appearance_summary_text_hidden">Oculto</string>
+	<string name="appearance_summary_presets_unavailable">Indisponível</string>
+	<string name="appearance_hint_weather_effects">Ajusta a precipitação e o vento em relação ao clima observado.</string>
+
+	<plurals name="appearance_summary_presets">
+		<item quantity="one">%1$d predefinição salva</item>
+		<item quantity="other">%1$d predefinições salvas</item>
+	</plurals>
+</resources>

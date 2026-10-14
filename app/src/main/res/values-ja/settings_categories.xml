@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="appearance_category_scenery">風景と写真</string>
+	<string name="appearance_category_sky">空</string>
+	<string name="appearance_category_clouds">雲</string>
+	<string name="appearance_category_sun">太陽と月</string>
+	<string name="appearance_category_weather_effects">天候エフェクト</string>
+	<string name="appearance_category_text">画面上のテキスト</string>
+	<string name="appearance_category_presets">プリセット</string>
+
+	<string name="appearance_summary_scenery">%1$s · %2$s</string>
+	<string name="appearance_summary_trees_on">樹木オン</string>
+	<string name="appearance_summary_trees_off">樹木オフ</string>
+	<string name="appearance_summary_sky">%1$s · 明るさ %2$d%%</string>
+	<string name="appearance_summary_clouds">雲の量 %1$d%% · 不透明度 %2$d%%</string>
+	<string name="appearance_summary_sun">%1$s · %2$s</string>
+	<string name="appearance_summary_sun_shown">太陽を表示</string>
+	<string name="appearance_summary_sun_hidden">太陽を非表示</string>
+	<string name="appearance_summary_weather_effects">降水 %1$d%% · 風 %2$d%%</string>
+	<string name="appearance_summary_text_both">天気と位置情報</string>
+	<string name="appearance_summary_text_weather">天気のみ</string>
+	<string name="appearance_summary_text_location">位置情報のみ</string>
+	<string name="appearance_summary_text_hidden">非表示</string>
+	<string name="appearance_summary_presets_unavailable">利用不可</string>
+	<string name="appearance_hint_weather_effects">観測された天気を基準に、降水の強さと風の勢いを調整します。</string>
+
+	<plurals name="appearance_summary_presets">
+		<item quantity="other">保存済みプリセット %1$d件</item>
+	</plurals>
+</resources>

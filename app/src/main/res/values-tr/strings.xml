@@ -122,7 +122,6 @@
 	<string name="hint_cloud_contrast">Bulutların opaklığını değiştirmeden açık ve koyu bölgeler arasındaki farkı ayarlar.</string>
 	<string name="intensity_subtle">Hafif</string>
 	<string name="intensity_intense">Şiddetli</string>
-	<string name="hint_intensity">Gözlenen hava durumuna göre yağış şiddetini, rüzgâr gücünü ve bulutların görünürlüğünü ayarlar.</string>
 	<string name="app_version">weatherd %1$s</string>
 
 	<!-- Refresh interval formatting -->

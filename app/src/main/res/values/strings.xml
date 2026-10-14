@@ -146,7 +146,6 @@
 	<string name="hint_cloud_contrast">Changes light-to-shadow separation inside clouds without changing opacity.</string>
 	<string name="intensity_subtle">Subtle</string>
 	<string name="intensity_intense">Intense</string>
-	<string name="hint_intensity">Scales how heavily precipitation falls, how hard the wind drives, and how visible the clouds are, relative to the observed weather.</string>
 	<string name="app_version">weatherd %1$s</string>
 
 	<!-- Refresh interval formatting -->

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="appearance_category_scenery">Kulisse &amp; Fotos</string>
+	<string name="appearance_category_sky">Himmel</string>
+	<string name="appearance_category_clouds">Wolken</string>
+	<string name="appearance_category_sun">Sonne &amp; Mond</string>
+	<string name="appearance_category_weather_effects">Wettereffekte</string>
+	<string name="appearance_category_text">Bildschirmtext</string>
+	<string name="appearance_category_presets">Voreinstellungen</string>
+
+	<string name="appearance_summary_scenery">%1$s · %2$s</string>
+	<string name="appearance_summary_trees_on">Bäume an</string>
+	<string name="appearance_summary_trees_off">Bäume aus</string>
+	<string name="appearance_summary_sky">%1$s · %2$d%% Helligkeit</string>
+	<string name="appearance_summary_clouds">Menge %1$d%% · Deckkraft %2$d%%</string>
+	<string name="appearance_summary_sun">%1$s · %2$s</string>
+	<string name="appearance_summary_sun_shown">Sonne sichtbar</string>
+	<string name="appearance_summary_sun_hidden">Sonne verborgen</string>
+	<string name="appearance_summary_weather_effects">Niederschlag %1$d%% · Wind %2$d%%</string>
+	<string name="appearance_summary_text_both">Wetter und Standort</string>
+	<string name="appearance_summary_text_weather">Nur Wetter</string>
+	<string name="appearance_summary_text_location">Nur Standort</string>
+	<string name="appearance_summary_text_hidden">Ausgeblendet</string>
+	<string name="appearance_summary_presets_unavailable">Nicht verfügbar</string>
+	<string name="appearance_hint_weather_effects">Stellt Niederschlag und Wind relativ zum beobachteten Wetter ein.</string>
+
+	<plurals name="appearance_summary_presets">
+		<item quantity="one">%1$d gespeicherte Voreinstellung</item>
+		<item quantity="other">%1$d gespeicherte Voreinstellungen</item>
+	</plurals>
+</resources>

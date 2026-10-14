@@ -122,7 +122,6 @@
 	<string name="hint_cloud_contrast">调整云层亮部与暗部的差异，而不改变不透明度。</string>
 	<string name="intensity_subtle">微弱</string>
 	<string name="intensity_intense">强烈</string>
-	<string name="hint_intensity">根据实际天气调整降水强度、风力大小和云层的可见程度。</string>
 	<string name="app_version">weatherd %1$s</string>
 
 	<!-- Refresh interval formatting -->

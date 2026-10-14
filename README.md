@@ -13,19 +13,39 @@ Returning to live mode displays cached weather without waiting for location or n
 On a first launch or after changing targets, it displays a clock-lit fallback until matching weather becomes available.
 Refreshes happen separately, and a slow or failed request does not prevent switching modes.
 
-Enable **Settings → Appearance → Trees** to add a fixed composition of detailed foreground evergreens to any backdrop, including None and Photo.
+Enable **Settings → Appearance → Scenery & photos → Trees** to add a fixed composition of detailed foreground evergreens to any backdrop, including None and Photo.
 Trees are off by default and saved with appearance presets; old settings and presets keep them off.
 New preset writes use schema v5; v1–v4 presets remain readable, while older builds reject the new bank instead of silently discarding the sun-style choice.
 The preview, live wallpaper, simulator, and clock-lit fallback share the same tree preference and placement.
 Tree lighting follows day phase and cloudy weather, while fog and precipitation draw in front of the foliage.
 The three first-party source sprites are reproducibly generated with `uv run scripts/generate-tree-textures.py` and decoded once off the frame loop on first use; no artwork is copied from the reference app or third parties.
 
-Choose **Settings → Appearance → Sun and moon → Sun style** to switch between **Classic**, the existing procedural sun, and **Radiant**, the transparent sun image submitted by [@emanuelelina2014-arch in #255](https://github.com/Attacktive/weatherd/issues/255).
+Choose **Settings → Appearance → Sun & moon → Sun style** to switch between **Classic**, the existing procedural sun, and **Radiant**, the transparent sun image submitted by [@emanuelelina2014-arch in #255](https://github.com/Attacktive/weatherd/issues/255).
 Classic remains the default for existing settings and presets; the choice is saved with appearance presets and shared by the preview, live wallpaper, simulator, and clock-lit fallback.
 Both styles follow the existing sun visibility, size, color, weather veiling, and sunset fade controls.
 Radiant preserves the image’s bright core and short rays, but its cached rendering texture fades the outer haze and distant baked reflections smoothly to transparent before the image borders, avoiding a pale ring or clipped edge.
 Its additional wide optical halos are restrained; **Lens flare** and **Motion-responsive reflections** still control the separate procedural reflections and their motion.
 The [submitted PNG](https://github.com/user-attachments/assets/68a92bcf-016d-4276-bc35-4c1e38ae6b78) is bundled unchanged; the softened immutable rendering texture is generated once off the frame loop on first use.
+
+## Settings navigation
+
+Settings opens on **Appearance**, followed by **Weather**, **Wallpaper**, and **Advanced**.
+Appearance is a category hub with short summaries rather than a single long list of controls:
+
+- **Scenery & photos:** backdrop scenery, conditional photo slots, and the independent Trees switch.
+- **Sky:** palette, brightness, night brightness, saturation, and distant aircraft.
+- **Clouds:** size, count, opacity, and contrast together.
+- **Sun & moon:** visibility, sun style, size, color, lens flare, and motion-responsive reflections.
+- **Weather effects:** precipitation intensity, glass droplets, and wind intensity.
+- **On-screen text:** weather/location visibility and temperature unit.
+- **Presets:** save, apply, rename, replace, and delete appearance presets.
+
+Opening a category replaces the Settings title and hides the top-level tabs.
+Toolbar and system Back both return to the Appearance hub; Back from the hub leaves Settings.
+Hub and category scroll positions are retained during the Settings session and activity recreation.
+Weather retains location, provider, and refresh controls, with applicable MET Norway attribution beside the weather configuration.
+Wallpaper retains motion and performance controls, while Advanced contains the scene simulator.
+The reorganization does not change stored settings, defaults, reset scope, preset contents, or the shared preview/live-wallpaper behavior.
 
 ## Weather refresh timing
 
@@ -33,7 +53,7 @@ The configured refresh interval is the minimum time between automatic weather fe
 
 The widget queues network-constrained work. Its press effect confirms the tap immediately, an animated progress indicator appears when the accepted work starts running, and a brief ✓ reports a completed weather refresh. A brief ! means the refresh did not complete, including an unavailable location or a final provider failure. If the device is offline, queued work waits for a network connection. Check **Settings → Weather → Last updated** to see when weather was last refreshed; the scene may still look the same when conditions have not changed.
 
-Enable **Settings → Appearance → Sun and moon → Motion-responsive reflections** to move the sun's optical reflections as you tilt your phone, in both the preview and the live wallpaper.
+Enable **Settings → Appearance → Sun & moon → Motion-responsive reflections** to move the sun's optical reflections as you tilt your phone, in both the preview and the live wallpaper.
 The option is off by default, requires **Lens flare**, and is disabled on devices without a compatible motion sensor.
 It uses a gravity sensor or an accelerometer fallback only while a visible scene can draw sun reflections; collection stops when the scene is hidden, the screen is off, or weather/night hides the reflections.
 Motion can use extra battery and reduce performance while active, and the reflections recenter after collection stops or the display rotates.

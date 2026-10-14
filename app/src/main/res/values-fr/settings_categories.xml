@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="appearance_category_scenery">Décor et photos</string>
+	<string name="appearance_category_sky">Ciel</string>
+	<string name="appearance_category_clouds">Nuages</string>
+	<string name="appearance_category_sun">Soleil et lune</string>
+	<string name="appearance_category_weather_effects">Effets météo</string>
+	<string name="appearance_category_text">Texte à l’écran</string>
+	<string name="appearance_category_presets">Préréglages</string>
+
+	<string name="appearance_summary_scenery">%1$s · %2$s</string>
+	<string name="appearance_summary_trees_on">Arbres activés</string>
+	<string name="appearance_summary_trees_off">Arbres désactivés</string>
+	<string name="appearance_summary_sky">%1$s · %2$d%% de luminosité</string>
+	<string name="appearance_summary_clouds">Quantité %1$d%% · Opacité %2$d%%</string>
+	<string name="appearance_summary_sun">%1$s · %2$s</string>
+	<string name="appearance_summary_sun_shown">Soleil affiché</string>
+	<string name="appearance_summary_sun_hidden">Soleil masqué</string>
+	<string name="appearance_summary_weather_effects">Précipitations %1$d%% · Vent %2$d%%</string>
+	<string name="appearance_summary_text_both">Météo et lieu</string>
+	<string name="appearance_summary_text_weather">Météo uniquement</string>
+	<string name="appearance_summary_text_location">Lieu uniquement</string>
+	<string name="appearance_summary_text_hidden">Masqué</string>
+	<string name="appearance_summary_presets_unavailable">Indisponible</string>
+	<string name="appearance_hint_weather_effects">Ajuste les précipitations et le vent par rapport à la météo observée.</string>
+
+	<plurals name="appearance_summary_presets">
+		<item quantity="one">%1$d préréglage enregistré</item>
+		<item quantity="other">%1$d préréglages enregistrés</item>
+	</plurals>
+</resources>
