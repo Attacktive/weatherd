@@ -17,6 +17,7 @@ class WorkManagerInitializationTest {
 	@Test
 	fun automaticInitializerIsRemovedFromMergedManifest() {
 		val context = InstrumentationRegistry.getInstrumentation().targetContext
+
 		@Suppress("DEPRECATION")
 		val provider = context.packageManager.getProviderInfo(
 			ComponentName(context.packageName, "androidx.startup.InitializationProvider"),
