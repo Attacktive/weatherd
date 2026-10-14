@@ -14,6 +14,10 @@ Agents use standard file inspection, editing tools, and Gradle tasks (`./gradlew
 - To preserve an existing installation, build the app and test APKs, install both with `adb install -r -t`, and run `adb shell am instrument -w xyz.attacktive.weatherd.test/androidx.test.runner.AndroidJUnitRunner` directly.
 - Back up app data separately from the APK before any test workflow that removes packages; saving the APK does not preserve settings or photos.
 
+### Roadmap Updates
+
+- When finishing work on an issue, update the [Weatherd roadmap](https://github.com/Attacktive/weatherd/issues/194) to reflect the issue’s completion and any resulting roadmap changes before considering the work complete.
+
 ### GitHub Actions Are Not a General-Purpose Remote Shell
 
 - Do not create disposable or one-off GitHub Actions workflows to perform development work.
