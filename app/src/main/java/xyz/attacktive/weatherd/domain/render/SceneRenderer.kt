@@ -1340,7 +1340,13 @@ class SceneRenderer(resources: Resources) {
 		val axisY = opticalCenterY - sun.centerY
 		val haloCenterX = sun.centerX + axisX * SUN_LENS_HALO_AXIS_OFFSET
 		val haloCenterY = sun.centerY + axisY * SUN_LENS_HALO_AXIS_OFFSET
-		val haloPhaseStrength = lensHaloPhaseStrength(sun.params.dayPhase, sun.params.celestialProgress)
+		val haloAlphaScale = if (sun.params.sunStyle == SunStyle.RADIANT && !sun.params.thunder) {
+			RADIANT_LENS_HALO_ALPHA_SCALE
+		} else {
+			1f
+		}
+
+		val haloPhaseStrength = lensHaloPhaseStrength(sun.params.dayPhase, sun.params.celestialProgress) * haloAlphaScale
 		val lensHalo = tile("sunLensHalo-reference", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildLensHaloSprite(it) }
 		val lensHaloAlpha = SUN_LENS_HALO_ALPHA * haloPhaseStrength
 		blitCoveredSunSprite(canvas, lensHalo, haloCenterX, haloCenterY, radius * SUN_LENS_HALO_REACH, sunAlpha(lensHaloAlpha, sun.visibility), glowPaint)
@@ -3546,6 +3552,8 @@ class SceneRenderer(resources: Resources) {
 		/** Large optical haze around the direct sun; its cached sprite is brightest inside and fades continuously through the outer atmosphere. */
 		private const val SUN_LENS_HALO_REACH = 5.6f
 		private const val SUN_LENS_HALO_ALPHA = 58f
+		/** The submitted artwork already supplies near-source bloom; additional wide optical haze stays restrained. */
+		private const val RADIANT_LENS_HALO_ALPHA_SCALE = 0.25f
 		private const val SUN_LENS_HALO_AXIS_OFFSET = 0.18f
 		private const val SUN_LENS_HALO_RADIUS_FRACTION = 0.72f
 		private const val SUN_LENS_HALO_SPRITE_ALPHA = 24
@@ -3578,7 +3586,7 @@ class SceneRenderer(resources: Resources) {
 	}
 }
 
-/** The original transparent artwork, anchored by its measured solar core rather than its off-center sheet bounds. */
+/** A cached, core-preserving falloff of the submitted artwork, anchored by its measured solar core rather than its sheet bounds. */
 private class RadiantSunLayer(private val resources: Resources) {
 	private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
 	private val destination = RectF()
@@ -3593,7 +3601,12 @@ private class RadiantSunLayer(private val resources: Resources) {
 		synchronized(RadiantSunLayer::class.java) {
 			if (source == null) {
 				val options = BitmapFactory.Options().apply { inScaled = false }
-				source = checkNotNull(BitmapFactory.decodeResource(resources, R.drawable.sun_radiant, options))
+				val original = checkNotNull(BitmapFactory.decodeResource(resources, R.drawable.sun_radiant, options))
+				try {
+					source = softenedTexture(original)
+				} finally {
+					original.recycle()
+				}
 			}
 		}
 	}
@@ -3607,6 +3620,42 @@ private class RadiantSunLayer(private val resources: Resources) {
 		paint.alpha = sunAlpha(255f, visibility)
 		paint.colorFilter = colorFilters[params.dayPhase.ordinal][params.sunColorPreset.ordinal]
 		canvas.drawBitmap(bitmap, null, destination, paint)
+	}
+
+	/** Conditions alpha once, keeping the bright core intact while removing the opaque outer annulus, distant baked blob, and exposed sheet edges. */
+	private fun softenedTexture(original: Bitmap): Bitmap {
+		val width = original.width
+		val height = original.height
+		val pixels = IntArray(width * height)
+		original.getPixels(pixels, 0, width, 0, 0, width, height)
+		val innerRadiusSquared = GLOW_INNER_RADIUS * GLOW_INNER_RADIUS
+		val outerRadiusSquared = GLOW_OUTER_RADIUS * GLOW_OUTER_RADIUS
+		val inverseFalloffSpan = 1f / (outerRadiusSquared - innerRadiusSquared)
+		for (y in 0 until height) {
+			val dy = y - SOURCE_CORE_Y
+			val verticalDistanceSquared = dy * dy
+			for (x in 0 until width) {
+				val index = y * width + x
+				val color = pixels[index]
+				if (Color.alpha(color) == 0) {
+					continue
+				}
+
+				val dx = x - SOURCE_CORE_X
+				val distanceSquared = dx * dx + verticalDistanceSquared
+				if (distanceSquared >= outerRadiusSquared) {
+					pixels[index] = Color.TRANSPARENT
+				} else if (distanceSquared > innerRadiusSquared) {
+					val progress = (distanceSquared - innerRadiusSquared) * inverseFalloffSpan
+					val remaining = 1f - progress
+					val falloff = remaining * remaining * (1f + 2f * progress)
+					val alpha = (Color.alpha(color) * falloff * falloff).roundToInt()
+					pixels[index] = (color and 0x00FFFFFF) or (alpha shl 24)
+				}
+			}
+		}
+
+		return Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888)
 	}
 
 	private companion object {
@@ -3626,6 +3675,10 @@ private class RadiantSunLayer(private val resources: Resources) {
 
 		// Match the compact white-to-shoulder portion of Classic's feathered disc, not the full bloom in either style.
 		const val CORE_DISC_FRACTION = 0.22f
+
+		// Preserve the core and short rays; the smooth support ends before the closest source border.
+		const val GLOW_INNER_RADIUS = SOURCE_CORE_RADIUS * 1.75f
+		const val GLOW_OUTER_RADIUS = SOURCE_CORE_RADIUS * 4.75f
 	}
 }
 

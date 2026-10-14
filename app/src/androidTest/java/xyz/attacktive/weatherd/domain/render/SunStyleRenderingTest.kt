@@ -199,6 +199,65 @@ class SunStyleRenderingTest {
 		disabledMoved.recycle()
 	}
 
+	@Test
+	fun radiantGlowFadesBeforeTheTopTextureBoundary() {
+		for ((width, height) in listOf(360 to 780, 780 to 360)) {
+			val bitmap = render(clearParams().copy(sunStyle = SunStyle.RADIANT), width = width, height = height)
+			val span = minOf(width, height)
+			val centerX = width * 0.72f
+			// The submitted sheet's top border lands here at the default core-matched size.
+			val top = (height * 0.17f - span * 0.109f).roundToInt()
+			val left = (centerX - span * 0.06f).roundToInt()
+			val right = (centerX + span * 0.06f).roundToInt()
+
+			try {
+				for (y in top - 1..top + 2) {
+					for (x in left..right) {
+						assertTrue("The outer glow must disappear before its rectangular texture boundary at $x,$y", Color.alpha(bitmap.getPixel(x, y)) <= 2)
+					}
+				}
+			} finally {
+				bitmap.recycle()
+			}
+		}
+	}
+
+	@Test
+	fun radiantOuterHazeAndBakedTailStaySubtleWithoutDimmingTheCore() {
+		val bitmap = render(clearParams().copy(sunStyle = SunStyle.RADIANT))
+		val centerX = WIDTH * 0.72f
+		val centerY = HEIGHT * 0.17f
+		val outerHazeX = (centerX + WIDTH * 0.08f).roundToInt()
+		val tailX = (centerX + WIDTH * 0.07f).roundToInt()
+		val tailY = (centerY + WIDTH * 0.135f).roundToInt()
+
+		try {
+			assertTrue("The solar core must retain its overexposed opacity", Color.alpha(bitmap.getPixel(centerX.roundToInt(), centerY.roundToInt())) >= 245)
+			assertTrue("The outer haze must not form an opaque pale annulus", Color.alpha(bitmap.getPixel(outerHazeX, centerY.roundToInt())) <= 32)
+			assertTrue("The distant baked reflection must not form a separate glowing blob", Color.alpha(bitmap.getPixel(tailX, tailY)) <= 2)
+		} finally {
+			bitmap.recycle()
+		}
+	}
+
+	@Test
+	fun radiantLensHaloDoesNotWashOutTheDistantClearSky() {
+		val bitmap = render(clearParams().copy(sunStyle = SunStyle.RADIANT, lensFlareEnabled = true))
+		var strongestAlpha = 0
+		try {
+			// This band crosses the broad optical halo, away from the solar core and the individual lens ghosts.
+			for (y in 190..280) {
+				for (x in 95..150) {
+					strongestAlpha = maxOf(strongestAlpha, Color.alpha(bitmap.getPixel(x, y)))
+				}
+			}
+
+			assertTrue("The wide optical haze must stay subtle over a clear sky, but reached alpha $strongestAlpha", strongestAlpha <= 8)
+		} finally {
+			bitmap.recycle()
+		}
+	}
+
 	private fun renderer() = SceneRenderer(resources).apply {
 		prewarmCloudTextures()
 		prewarmSunTexture()
