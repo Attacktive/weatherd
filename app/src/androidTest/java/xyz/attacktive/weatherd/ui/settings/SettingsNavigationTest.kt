@@ -152,13 +152,31 @@ class SettingsNavigationTest {
 		waitUntil("Clouds detail") { !isVisible(R.string.settings_tab_weather) }
 	}
 
-	private fun assertTopLevelTabsPresent() = listOf(
-		R.string.settings_tab_appearance,
-		R.string.settings_tab_weather,
-		R.string.settings_tab_wallpaper,
-		R.string.settings_tab_advanced
-	).forEach { label ->
-		waitForNode("tab ${text(label)}") { matchesText(it, text(label)) }
+	private fun assertTopLevelTabsPresent() {
+		listOf(
+			R.string.settings_tab_appearance,
+			R.string.settings_tab_weather,
+			R.string.settings_tab_wallpaper,
+			R.string.settings_tab_advanced
+		).forEach { label ->
+			waitUntil("reachable tab ${text(label)}") {
+				if (isVisible(label)) {
+					true
+				} else {
+					swipeTabStrip(forward = true)
+					false
+				}
+			}
+		}
+
+		waitUntil("initial tabs restored") {
+			if (isVisible(R.string.settings_tab_appearance) && isVisible(R.string.settings_tab_weather)) {
+				true
+			} else {
+				swipeTabStrip(forward = false)
+				false
+			}
+		}
 	}
 
 	private fun assertTopLevelTabsAbsent() = listOf(
@@ -198,6 +216,21 @@ class SettingsNavigationTest {
 
 	private fun verticalScroller() = findNode(automation.rootInActiveWindow) {
 		it.isScrollable && it.className == "android.widget.ScrollView"
+	}
+
+	private fun swipeTabStrip(forward: Boolean) {
+		val scroller = waitForNode("horizontal tab strip") {
+			it.isScrollable && it.className != "android.widget.ScrollView"
+		}
+
+		val bounds = Rect().also { scroller.getBoundsInScreen(it) }
+		val left = bounds.left + bounds.width() / 4
+		val right = bounds.right - bounds.width() / 4
+		val start = if (forward) right else left
+		val end = if (forward) left else right
+		ParcelFileDescriptor.AutoCloseInputStream(
+			automation.executeShellCommand("input swipe $start ${bounds.centerY()} $end ${bounds.centerY()} 250")
+		).use { it.readBytes() }
 	}
 
 	private fun scrollAndCapture(@StringRes first: Int, @StringRes anchor: Int, prefix: Boolean = false): Rect {
