@@ -1,6 +1,7 @@
 package xyz.attacktive.weatherd.domain.render
 
-import java.time.LocalTime
+import java.time.Instant
+import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
@@ -32,6 +33,9 @@ import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.ReverseGeocodingRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
 import xyz.attacktive.weatherd.domain.repository.WeatherRepository
+import xyz.attacktive.weatherd.domain.weather.LocalSolarTimesCache
+import xyz.attacktive.weatherd.domain.weather.dayPhaseFor
+import xyz.attacktive.weatherd.domain.weather.dayPhaseProgressFor
 import xyz.attacktive.weatherd.domain.weather.moonPhaseFor
 import xyz.attacktive.weatherd.domain.weather.weatherLabelFor
 import xyz.attacktive.weatherd.util.AppLogger
@@ -106,13 +110,17 @@ class WeatherSceneProvider @Inject constructor(
 
 	private val _sceneState = MutableStateFlow(WeatherSceneState(settingsRepository.defaults))
 	val sceneState: StateFlow<WeatherSceneState> = _sceneState.asStateFlow()
+
 	private val snapshot: WeatherSnapshot?
 		get() = _sceneState.value.snapshot
+
+	private val localSolarTimes = LocalSolarTimesCache()
 
 	@Volatile private var lastRefreshEpochSeconds = 0L
 	@Volatile private var lastLocationKey: String? = null
 	@Volatile private var lastAttemptedWeatherProvider: WeatherProviderType? = null
 	@Volatile private var lastAttemptedWeatherFallbackProvider: WeatherProviderType? = null
+
 	private val refreshLock = Any()
 	private var pendingRefreshTarget: WeatherRefreshTarget? = null
 	private var pendingRefresh: Deferred<Result<WeatherRefreshOutcome>>? = null
@@ -127,6 +135,7 @@ class WeatherSceneProvider @Inject constructor(
 	private val deviceFixLock = Any()
 	private val lastDeviceFix: GeoLocation?
 		get() = _sceneState.value.deviceLocation
+
 	@Volatile private var lastRefreshLocation: GeoLocation? = null
 	@Volatile private var geocodedKey: String? = null
 
@@ -584,13 +593,27 @@ class WeatherSceneProvider @Inject constructor(
 	/** A cheap signature of the effective location source; changing device↔manual or choosing a new city triggers a refetch even mid-interval. */
 	private fun locationKey(settings: AppSettings) = selectedManualLocation(settings)?.let(::locationFixKey) ?: "device"
 
-	/** Until weather loads we still want the right time of day — and the right moon — so lean on the local wall clock. */
+	/** Derives offline lighting from the captured location; only an unknown location needs a coarse local-clock approximation. */
 	private fun fallbackParams(nowEpochSeconds: Long, state: WeatherSceneState): SceneParams = with(state.settings) {
-		val phase = when (LocalTime.now().hour) {
-			in DAWN_HOUR until DAY_HOUR -> DayPhase.DAWN
-			in DAY_HOUR until DUSK_HOUR -> DayPhase.DAY
-			in DUSK_HOUR until NIGHT_HOUR -> DayPhase.DUSK
-			else -> DayPhase.NIGHT
+		val usesDeviceLocation = WeatherSceneTarget.selectsDeviceLocation(state.settings)
+		val latitude = if (usesDeviceLocation) state.deviceLocation?.latitude else manualLatitude
+		val longitude = if (usesDeviceLocation) state.deviceLocation?.longitude else manualLongitude
+
+		val solarTimes = if (latitude != null && longitude != null) {
+			localSolarTimes.forLocation(nowEpochSeconds, latitude, longitude)
+		} else {
+			null
+		}
+
+		val phase = if (solarTimes != null) {
+			dayPhaseFor(nowEpochSeconds, solarTimes.sunriseEpochSeconds, solarTimes.sunsetEpochSeconds, solarTimes.isDay)
+		} else {
+			when (Instant.ofEpochSecond(nowEpochSeconds).atZone(ZoneId.systemDefault()).hour) {
+				in DAWN_HOUR until DAY_HOUR -> DayPhase.DAWN
+				in DAY_HOUR until DUSK_HOUR -> DayPhase.DAY
+				in DUSK_HOUR until NIGHT_HOUR -> DayPhase.DUSK
+				else -> DayPhase.NIGHT
+			}
 		}
 
 		SceneParams(
@@ -601,6 +624,7 @@ class WeatherSceneProvider @Inject constructor(
 			thunder = false,
 			windFactor = 0.2f,
 			moonPhase = moonPhaseFor(nowEpochSeconds),
+			celestialProgress = dayPhaseProgressFor(nowEpochSeconds, solarTimes?.sunriseEpochSeconds, solarTimes?.sunsetEpochSeconds, phase),
 			backdropScene = backdropScene,
 			photoRevision = state.photoRevision,
 			precipitationScale = precipitationIntensityScale,

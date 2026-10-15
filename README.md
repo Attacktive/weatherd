@@ -11,6 +11,8 @@ High relative humidity can add a restrained atmospheric haze without changing th
 The scene simulator overrides the preview and live wallpaper without replacing the cached real weather.
 Returning to live mode displays cached weather without waiting for location or network requests when its location source and provider configuration still match the selected target.
 On a first launch or after changing targets, it displays a clock-lit fallback until matching weather becomes available.
+When a selected city or known device fix is available, the fallback calculates approximate sunrise and sunset locally for that location and date, including polar day/night, and advances celestial progress without a weather request.
+Only an unavailable or invalid location uses a coarse device-local clock approximation; valid provider solar times and explicit simulator selections retain precedence.
 Refreshes happen separately, and a slow or failed request does not prevent switching modes.
 
 Enable **Settings → Appearance → Scenery & photos → Trees** to add a fixed composition of detailed foreground evergreens to any backdrop, including None and Photo.
