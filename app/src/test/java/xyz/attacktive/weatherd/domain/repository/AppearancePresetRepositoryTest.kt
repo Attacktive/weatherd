@@ -72,6 +72,7 @@ class AppearancePresetRepositoryTest {
 		assertFalse(versionOneSnapshot.glassDropletsEnabled)
 		assertFalse(versionOneSnapshot.treesEnabled)
 		assertEquals(SunStyle.CLASSIC, versionOneSnapshot.sunStyle)
+		assertEquals(0.09f, versionOneSnapshot.labelVerticalPosition, 0.0001f)
 
 		val versionTwoDataStore = dataStore("preset-settings-v2.preferences_pb")
 		val versionTwoRaw = """{"schemaVersion":2,"presets":[{"id":"legacy-2","name":"Legacy 2","snapshot":{"backdropScene":"NONE","showWeatherLabel":false,"showLocationLabel":false,"precipitationIntensityScale":1.0,"glassDropletsEnabled":true,"windIntensityScale":1.0,"cloudIntensityScale":1.0,"cloudSizeScale":1.0,"cloudCountScale":1.0,"cloudContrastScale":1.0,"skyBrightnessScale":1.0,"nightBrightnessScale":1.0,"skySaturationScale":1.0,"skyColorPreset":"NATURAL","sunVisible":true,"moonVisible":true,"sunSizeScale":1.0,"sunColorPreset":"NATURAL","lensFlareEnabled":true,"lensFlareMotionEnabled":false}}]}"""
@@ -84,6 +85,7 @@ class AppearancePresetRepositoryTest {
 		assertTrue(versionTwoSnapshot.glassDropletsEnabled)
 		assertFalse(versionTwoSnapshot.treesEnabled)
 		assertEquals(SunStyle.CLASSIC, versionTwoSnapshot.sunStyle)
+		assertEquals(0.09f, versionTwoSnapshot.labelVerticalPosition, 0.0001f)
 	}
 
 	@Test
@@ -100,12 +102,13 @@ class AppearancePresetRepositoryTest {
 		assertTrue(legacyV3Snapshot.distantAircraftEnabled)
 		assertTrue(legacyV3Snapshot.glassDropletsEnabled)
 		assertEquals(SunStyle.CLASSIC, legacyV3Snapshot.sunStyle)
+		assertEquals(0.09f, legacyV3Snapshot.labelVerticalPosition, 0.0001f)
 		assertEquals(legacyV3Raw, legacyV3DataStore.data.first()[key])
 
 		val repository = AppearancePresetRepository(legacyV3DataStore)
 		assertTrue(repository.rename("legacy-3", "Legacy forest").isSuccess)
 		val rewritten = legacyV3DataStore.data.first()[key]!!
-		assertEquals(5, Json.parseToJsonElement(rewritten).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+		assertEquals(6, Json.parseToJsonElement(rewritten).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
 		val migrated = (AppearancePresetRepository(legacyV3DataStore).state.first() as AppearancePresetStorageState.Ready).presets.single()
 		assertFalse(migrated.snapshot.treesEnabled)
 		assertTrue(migrated.snapshot.glassDropletsEnabled)
@@ -122,11 +125,12 @@ class AppearancePresetRepositoryTest {
 		val repository = AppearancePresetRepository(store)
 		val snapshot = (repository.state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot
 		assertEquals(SunStyle.CLASSIC, snapshot.sunStyle)
+		assertEquals(0.09f, snapshot.labelVerticalPosition, 0.0001f)
 		assertTrue(snapshot.treesEnabled)
 		assertFalse(snapshot.distantAircraftEnabled)
 		assertEquals(raw, store.data.first()[key])
 		assertTrue(repository.rename("legacy-4", "Migrated").isSuccess)
-		assertEquals(5, Json.parseToJsonElement(store.data.first()[key]!!).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+		assertEquals(6, Json.parseToJsonElement(store.data.first()[key]!!).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
 		assertEquals(snapshot, (AppearancePresetRepository(store).state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot)
 	}
 
@@ -143,9 +147,10 @@ class AppearancePresetRepositoryTest {
 		assertFalse(restored.distantAircraftEnabled)
 		assertTrue(restored.treesEnabled)
 		assertEquals(SunStyle.RADIANT, restored.sunStyle)
+		assertEquals(0.09f, restored.labelVerticalPosition, 0.0001f)
 
 		val raw = dataStore.data.first()[stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)]!!
-		assertEquals(5, Json.parseToJsonElement(raw).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+		assertEquals(6, Json.parseToJsonElement(raw).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
 	}
 
 	@Test

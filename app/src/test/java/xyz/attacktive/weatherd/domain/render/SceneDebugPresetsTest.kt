@@ -139,7 +139,8 @@ class SceneDebugPresetsTest {
 			skyBrightnessScale = 0.8f,
 			nightBrightnessScale = 0.35f,
 			skySaturationScale = 1.2f,
-			skyColorPreset = SkyColorPreset.CYBERPUNK
+			skyColorPreset = SkyColorPreset.CYBERPUNK,
+			labelVerticalPosition = 0.65f
 		)
 
 		assertEquals(1.4f, params.cloudContrastScale, 0.0001f)
@@ -147,6 +148,8 @@ class SceneDebugPresetsTest {
 		assertEquals(0.35f, params.nightBrightnessScale, 0.0001f)
 		assertEquals(1.2f, params.skySaturationScale, 0.0001f)
 		assertEquals(SkyColorPreset.CYBERPUNK, params.skyColorPreset)
+		assertEquals(0.65f, params.labelVerticalPosition, 0.0001f)
+		assertEquals(backdropSignature(params), backdropSignature(params.copy(labelVerticalPosition = 0.04f)))
 	}
 
 	@Test

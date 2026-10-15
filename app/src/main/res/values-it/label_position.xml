@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="label_vertical_position">Posizione verticale: %1$d%%</string>
+	<string name="label_vertical_position_top">In alto</string>
+	<string name="label_vertical_position_bottom">In basso</string>
+</resources>

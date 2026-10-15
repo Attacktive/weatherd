@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="label_vertical_position">垂直位置: %1$d%%</string>
+	<string name="label_vertical_position_top">上</string>
+	<string name="label_vertical_position_bottom">下</string>
+</resources>

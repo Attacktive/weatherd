@@ -42,6 +42,7 @@ data class AppSettings(
 	val sceneSimulatorCelestialProgress: Float = 0.5f,
 	val glassDropletsEnabled: Boolean = false,
 	val treesEnabled: Boolean = false,
+	val labelVerticalPosition: Float = 0.09f
 )
 
 /** Fresh-install settings, with region-sensitive choices resolved before persistence supplies any overrides. */
@@ -61,3 +62,6 @@ val INTENSITY_SCALE_RANGE = 0.1f..2f
 /** Bounds for fair-weather cloud body size and rendered cloud coverage. */
 val CLOUD_SIZE_SCALE_RANGE = 0.5f..2f
 val CLOUD_COUNT_SCALE_RANGE = 0.5f..2f
+
+/** Bounds for weather overlay text baseline vertical position as a fraction of scene height. */
+val LABEL_VERTICAL_POSITION_RANGE = 0.04f..0.94f

@@ -29,7 +29,8 @@ data class AppearancePresetSnapshot(
 	val lensFlareMotionEnabled: Boolean,
 	val distantAircraftEnabled: Boolean = true,
 	val glassDropletsEnabled: Boolean = false,
-	val treesEnabled: Boolean = false
+	val treesEnabled: Boolean = false,
+	val labelVerticalPosition: Float = 0.09f
 )
 
 fun AppSettings.toAppearancePresetSnapshot() = AppearancePresetSnapshot(
@@ -55,7 +56,8 @@ fun AppSettings.toAppearancePresetSnapshot() = AppearancePresetSnapshot(
 	lensFlareMotionEnabled = lensFlareMotionEnabled,
 	distantAircraftEnabled = distantAircraftEnabled,
 	glassDropletsEnabled = glassDropletsEnabled,
-	treesEnabled = treesEnabled
+	treesEnabled = treesEnabled,
+	labelVerticalPosition = labelVerticalPosition
 )
 
 fun AppearancePresetSnapshot.appliedTo(settings: AppSettings) = settings.copy(
@@ -81,5 +83,6 @@ fun AppearancePresetSnapshot.appliedTo(settings: AppSettings) = settings.copy(
 	lensFlareMotionEnabled = lensFlareMotionEnabled,
 	distantAircraftEnabled = distantAircraftEnabled,
 	glassDropletsEnabled = glassDropletsEnabled,
-	treesEnabled = treesEnabled
+	treesEnabled = treesEnabled,
+	labelVerticalPosition = labelVerticalPosition
 )

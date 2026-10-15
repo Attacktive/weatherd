@@ -15,7 +15,7 @@ Refreshes happen separately, and a slow or failed request does not prevent switc
 
 Enable **Settings → Appearance → Scenery & photos → Trees** to add a fixed composition of detailed foreground evergreens to any backdrop, including None and Photo.
 Trees are off by default and saved with appearance presets; old settings and presets keep them off.
-New preset writes use schema v5; v1–v4 presets remain readable, while older builds reject the new bank instead of silently discarding the sun-style choice.
+New preset writes use schema v6; v1–v5 presets remain readable, while older builds reject the new bank instead of silently discarding the text-position choice.
 The preview, live wallpaper, simulator, and clock-lit fallback share the same tree preference and placement.
 Tree lighting follows day phase and cloudy weather, while fog and precipitation draw in front of the foliage.
 The three first-party source sprites are reproducibly generated with `uv run scripts/generate-tree-textures.py` and decoded once off the frame loop on first use; no artwork is copied from the reference app or third parties.
@@ -37,7 +37,7 @@ Appearance is a category hub with short summaries rather than a single long list
 - **Clouds:** size, count, opacity, and contrast together.
 - **Sun & moon:** visibility, sun style, size, color, lens flare, and motion-responsive reflections.
 - **Weather effects:** precipitation intensity, glass droplets, and wind intensity.
-- **On-screen text:** weather/location visibility and temperature unit.
+- **On-screen text:** weather/location visibility, shared vertical position, and temperature unit.
 - **Presets:** save, apply, rename, replace, and delete appearance presets.
 
 Opening a category replaces the Settings title and hides the top-level tabs.
@@ -46,6 +46,11 @@ Hub and category scroll positions are retained during the Settings session and a
 Weather retains location, provider, and refresh controls, with applicable MET Norway attribution beside the weather configuration.
 Wallpaper retains motion and performance controls, while Advanced contains the scene simulator.
 The reorganization does not change stored settings, defaults, reset scope, preset contents, or the shared preview/live-wallpaper behavior.
+
+In **Settings → Appearance → On-screen text**, enable either text label to reveal the **Vertical position** slider.
+It moves current weather and the location name together, preserving their spacing and horizontal alignment in both the preview and live wallpaper.
+The percentage measures downward from the top of the scene, with margins to keep both lines on-screen; **Reset** restores the original near-top placement.
+The position is saved with appearance presets, and older settings and presets retain the original placement.
 
 ## Weather refresh timing
 

@@ -61,6 +61,7 @@ import xyz.attacktive.weatherd.domain.model.CLOUD_CONTRAST_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_COUNT_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.INTENSITY_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.LABEL_VERTICAL_POSITION_RANGE
 import xyz.attacktive.weatherd.domain.model.NIGHT_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.PhotoBucket
 import xyz.attacktive.weatherd.domain.model.SKY_BRIGHTNESS_SCALE_RANGE
@@ -661,6 +662,22 @@ internal fun LabelsSection(settings: AppSettings, defaults: AppSettings, onSave:
 		checked = settings.showLocationLabel,
 		onToggle = { onSave(settings.copy(showLocationLabel = it)) },
 	)
+
+	AnimatedVisibility(visible = settings.showWeatherLabel || settings.showLocationLabel) {
+		Column {
+			Spacer(modifier = Modifier.height(12.dp))
+
+			PercentageSlider(
+				label = R.string.label_vertical_position,
+				value = settings.labelVerticalPosition,
+				defaultValue = defaults.labelVerticalPosition,
+				valueRange = LABEL_VERTICAL_POSITION_RANGE,
+				lowLabel = R.string.label_vertical_position_top,
+				highLabel = R.string.label_vertical_position_bottom,
+				onCommit = { onSave(settings.copy(labelVerticalPosition = it)) }
+			)
+		}
+	}
 }
 
 @Composable

@@ -22,6 +22,7 @@ import xyz.attacktive.weatherd.domain.model.CLOUD_CONTRAST_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
+import xyz.attacktive.weatherd.domain.model.LABEL_VERTICAL_POSITION_RANGE
 import xyz.attacktive.weatherd.domain.model.NIGHT_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SKY_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SKY_SATURATION_SCALE_RANGE
@@ -74,6 +75,7 @@ sealed interface SettingsMutation {
 	data class SceneSimulatorPresetIndex(val index: Int): SettingsMutation
 	data class SceneSimulatorDayPhase(val dayPhase: DayPhase): SettingsMutation
 	data class SceneSimulatorCelestialProgress(val progress: Float): SettingsMutation
+	data class LabelVerticalPosition(val value: Float): SettingsMutation
 }
 
 
@@ -116,6 +118,7 @@ internal fun settingsMutationsBetween(previous: AppSettings, updated: AppSetting
 		addIfChanged(previous.sceneSimulatorPresetIndex, updated.sceneSimulatorPresetIndex, SettingsMutation::SceneSimulatorPresetIndex)
 		addIfChanged(previous.sceneSimulatorDayPhase, updated.sceneSimulatorDayPhase, SettingsMutation::SceneSimulatorDayPhase)
 		addIfChanged(previous.sceneSimulatorCelestialProgress, updated.sceneSimulatorCelestialProgress, SettingsMutation::SceneSimulatorCelestialProgress)
+		addIfChanged(previous.labelVerticalPosition, updated.labelVerticalPosition, SettingsMutation::LabelVerticalPosition)
 	}
 
 	val replayed = mutations.fold(previous) { settings, mutation ->
@@ -192,6 +195,7 @@ private fun SettingsMutation.appliedTo(settings: AppSettings) = when (this) {
 	is SettingsMutation.SceneSimulatorPresetIndex -> settings.copy(sceneSimulatorPresetIndex = index.coerceAtLeast(0))
 	is SettingsMutation.SceneSimulatorDayPhase -> settings.copy(sceneSimulatorDayPhase = dayPhase)
 	is SettingsMutation.SceneSimulatorCelestialProgress -> settings.copy(sceneSimulatorCelestialProgress = progress.coerceIn(0f, 1f))
+	is SettingsMutation.LabelVerticalPosition -> settings.copy(labelVerticalPosition = value.coerceIn(LABEL_VERTICAL_POSITION_RANGE.start, LABEL_VERTICAL_POSITION_RANGE.endInclusive))
 }
 
 /** Persists [AppSettings] to a DataStore; defaults are resolved once when the repository is created and reused for absent keys. */
@@ -239,6 +243,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		val SCENE_SIMULATOR_PRESET_INDEX = intPreferencesKey("scene_simulator_preset_index")
 		val SCENE_SIMULATOR_DAY_PHASE = stringPreferencesKey("scene_simulator_day_phase")
 		val SCENE_SIMULATOR_CELESTIAL_PROGRESS = floatPreferencesKey("scene_simulator_celestial_progress")
+		val LABEL_VERTICAL_POSITION = floatPreferencesKey("label_vertical_position")
 	}
 
 	val settings: Flow<AppSettings> = dataStore.data.map { preferences ->
@@ -282,6 +287,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			sceneSimulatorPresetIndex = (preferences[Keys.SCENE_SIMULATOR_PRESET_INDEX] ?: defaults.sceneSimulatorPresetIndex).coerceAtLeast(0),
 			sceneSimulatorDayPhase = enumOrDefault(preferences[Keys.SCENE_SIMULATOR_DAY_PHASE], DayPhase.entries, defaults.sceneSimulatorDayPhase),
 			sceneSimulatorCelestialProgress = (preferences[Keys.SCENE_SIMULATOR_CELESTIAL_PROGRESS] ?: defaults.sceneSimulatorCelestialProgress).coerceIn(0f, 1f),
+			labelVerticalPosition = (preferences[Keys.LABEL_VERTICAL_POSITION] ?: defaults.labelVerticalPosition).coerceIn(LABEL_VERTICAL_POSITION_RANGE.start, LABEL_VERTICAL_POSITION_RANGE.endInclusive),
 		)
 	}
 
@@ -345,6 +351,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			preferences[Keys.SCENE_SIMULATOR_PRESET_INDEX] = settings.sceneSimulatorPresetIndex
 			preferences[Keys.SCENE_SIMULATOR_DAY_PHASE] = settings.sceneSimulatorDayPhase.name
 			preferences[Keys.SCENE_SIMULATOR_CELESTIAL_PROGRESS] = settings.sceneSimulatorCelestialProgress.coerceIn(0f, 1f)
+			preferences[Keys.LABEL_VERTICAL_POSITION] = settings.labelVerticalPosition.coerceIn(LABEL_VERTICAL_POSITION_RANGE.start, LABEL_VERTICAL_POSITION_RANGE.endInclusive)
 		}
 	}
 
@@ -402,6 +409,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			is SettingsMutation.SceneSimulatorPresetIndex -> this[Keys.SCENE_SIMULATOR_PRESET_INDEX] = mutation.index.coerceAtLeast(0)
 			is SettingsMutation.SceneSimulatorDayPhase -> this[Keys.SCENE_SIMULATOR_DAY_PHASE] = mutation.dayPhase.name
 			is SettingsMutation.SceneSimulatorCelestialProgress -> this[Keys.SCENE_SIMULATOR_CELESTIAL_PROGRESS] = mutation.progress.coerceIn(0f, 1f)
+			is SettingsMutation.LabelVerticalPosition -> this[Keys.LABEL_VERTICAL_POSITION] = mutation.value.coerceIn(LABEL_VERTICAL_POSITION_RANGE.start, LABEL_VERTICAL_POSITION_RANGE.endInclusive)
 		}
 	}
 
@@ -429,6 +437,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		this[Keys.LENS_FLARE_ENABLED] = snapshot.lensFlareEnabled
 		this[Keys.LENS_FLARE_MOTION_ENABLED] = snapshot.lensFlareMotionEnabled
 		this[Keys.DISTANT_AIRCRAFT_ENABLED] = snapshot.distantAircraftEnabled
+		this[Keys.LABEL_VERTICAL_POSITION] = snapshot.labelVerticalPosition.coerceIn(LABEL_VERTICAL_POSITION_RANGE.start, LABEL_VERTICAL_POSITION_RANGE.endInclusive)
 	}
 
 }

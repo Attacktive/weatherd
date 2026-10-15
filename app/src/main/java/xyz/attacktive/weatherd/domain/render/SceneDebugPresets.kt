@@ -4,6 +4,7 @@ import xyz.attacktive.weatherd.domain.model.CLOUD_CONTRAST_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_COUNT_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.DayPhase
+import xyz.attacktive.weatherd.domain.model.LABEL_VERTICAL_POSITION_RANGE
 import xyz.attacktive.weatherd.domain.model.NIGHT_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
@@ -90,7 +91,8 @@ fun debugSceneParams(
 	lensFlareMotionEnabled: Boolean = false,
 	distantAircraftEnabled: Boolean = true,
 	glassDropletsEnabled: Boolean = false,
-	treesEnabled: Boolean = false
+	treesEnabled: Boolean = false,
+	labelVerticalPosition: Float = 0.09f
 ) = SceneParams(
 	dayPhase = dayPhase,
 	cloudiness = preset.cloudiness,
@@ -121,5 +123,6 @@ fun debugSceneParams(
 	distantAircraftEnabled = distantAircraftEnabled,
 	glassDropletsEnabled = glassDropletsEnabled,
 	treesEnabled = treesEnabled,
+	labelVerticalPosition = labelVerticalPosition.coerceIn(LABEL_VERTICAL_POSITION_RANGE.start, LABEL_VERTICAL_POSITION_RANGE.endInclusive),
 	humidityHazeDensity = preset.humidityHazeDensity
 )

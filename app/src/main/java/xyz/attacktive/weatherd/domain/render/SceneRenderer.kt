@@ -32,6 +32,7 @@ import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.CLOUD_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.DayPhase
+import xyz.attacktive.weatherd.domain.model.LABEL_VERTICAL_POSITION_RANGE
 import xyz.attacktive.weatherd.domain.model.NIGHT_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
@@ -334,30 +335,31 @@ class SceneRenderer(resources: Resources) {
 	/** Draws the optional weather/location HUD independently of scene translation, so live-wallpaper parallax does not slide interface text across launcher pages. */
 	fun renderOverlayLabels(canvas: Canvas, width: Int, height: Int, params: SceneParams) {
 		params.overlayLabels?.let {
-			drawOverlayLabels(canvas, width.toFloat(), height.toFloat(), it)
+			drawOverlayLabels(canvas, width.toFloat(), height.toFloat(), it, params.labelVerticalPosition)
 		}
 	}
 
 	/**
 	 * The optional text overlay, drawn above everything so no weather ever obscures it.
 	 *
-	 * It rides at the top of the sky, just under the status bar.
-	 * Everywhere lower is spoken for: the scenery's silhouettes own the bottom third and are far too busy to read text against, while below them a launcher's dock and the lock screen's shortcuts claim the rest.
-	 * The one thing that shares this band is the sun or moon drifting through, so the text keeps a shadow and simply draws over it.
+	 * Both lines share a vertical offset while retaining their original spacing and the default position below the status bar.
+	 * The shadow preserves readability when the user places them over scenery or a passing celestial body.
 	 */
-	private fun drawOverlayLabels(canvas: Canvas, width: Float, height: Float, labels: OverlayLabels) {
+	private fun drawOverlayLabels(canvas: Canvas, width: Float, height: Float, labels: OverlayLabels, verticalPosition: Float) {
+		val position = verticalPosition.coerceIn(LABEL_VERTICAL_POSITION_RANGE.start, LABEL_VERTICAL_POSITION_RANGE.endInclusive)
+		val offset = height * (position - 0.09f)
 		textPaint.setShadowLayer(height * 0.005f, 0f, height * 0.0012f, Color.argb(165, 8, 12, 20))
 
 		labels.weather?.let {
 			textPaint.textSize = height * 0.024f
 			textPaint.color = Color.argb(225, 240, 245, 252)
-			canvas.drawText(it, width / 2f, height * 0.09f, textPaint)
+			canvas.drawText(it, width / 2f, height * 0.09f + offset, textPaint)
 		}
 
 		labels.location?.let {
 			textPaint.textSize = height * 0.0165f
 			textPaint.color = Color.argb(180, 228, 236, 248)
-			canvas.drawText(it, width / 2f, height * 0.121f, textPaint)
+			canvas.drawText(it, width / 2f, height * 0.121f + offset, textPaint)
 		}
 	}
 

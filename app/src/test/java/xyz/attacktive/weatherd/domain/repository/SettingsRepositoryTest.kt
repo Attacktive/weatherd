@@ -305,7 +305,8 @@ class SettingsRepositoryTest {
 			sunColorPreset = SunColorPreset.GOLDEN,
 			sunStyle = SunStyle.RADIANT,
 			lensFlareEnabled = false,
-			lensFlareMotionEnabled = true
+			lensFlareMotionEnabled = true,
+			labelVerticalPosition = 0.33f
 		)
 
 		repository.save(original)
@@ -338,7 +339,8 @@ class SettingsRepositoryTest {
 			sunColorPreset = SunColorPreset.ORANGE,
 			sunStyle = SunStyle.RADIANT,
 			lensFlareEnabled = true,
-			lensFlareMotionEnabled = true
+			lensFlareMotionEnabled = true,
+			labelVerticalPosition = 0.5f
 		)
 		val excludedMutation = SettingsMutation.FrameRate(FrameRateCap.FPS_10)
 		val expected = preset.appliedTo(original).copy(frameRateCap = FrameRateCap.FPS_10)
@@ -379,7 +381,8 @@ class SettingsRepositoryTest {
 			"lensFlareEnabled",
 			"lensFlareMotionEnabled",
 			"distantAircraftEnabled",
-			"treesEnabled"
+			"treesEnabled",
+			"labelVerticalPosition"
 		)
 		val excluded = setOf(
 			"weatherProvider",

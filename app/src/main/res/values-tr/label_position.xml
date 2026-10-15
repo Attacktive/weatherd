@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="label_vertical_position">Dikey konum: %1$d%%</string>
+	<string name="label_vertical_position_top">Üst</string>
+	<string name="label_vertical_position_bottom">Alt</string>
+</resources>

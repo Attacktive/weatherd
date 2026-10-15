@@ -147,6 +147,7 @@ class WeatherSceneProviderTest {
 		persistedSettings.value = AppSettings(
 			backdropScene = BackdropScene.BEACH,
 			treesEnabled = true,
+			labelVerticalPosition = 0.7f,
 			precipitationIntensityScale = 1.5f,
 			windIntensityScale = 0.5f,
 			cloudIntensityScale = 0.8f,
@@ -178,6 +179,7 @@ class WeatherSceneProviderTest {
 		assertEquals(0.73f, params.celestialProgress, 0.0001f)
 		assertEquals(BackdropScene.BEACH, params.backdropScene)
 		assertTrue(params.treesEnabled)
+		assertEquals(0.7f, params.labelVerticalPosition, 0.0001f)
 		assertEquals(1.5f, params.precipitationScale, 0.0001f)
 		assertEquals(0.5f, params.windScale, 0.0001f)
 		assertEquals(0.8f, params.cloudScale, 0.0001f)
@@ -685,6 +687,31 @@ class WeatherSceneProviderTest {
 		provider.refresh(1_000_000L)
 
 		assertNull(provider.paramsFor(1_000_030L).overlayLabels)
+	}
+
+	@Test
+	fun `position changes use the latest captured settings without refreshing weather`() = runTest {
+		persistedSettings.value = AppSettings(
+			useDeviceLocation = false,
+			manualLatitude = 41.9,
+			manualLongitude = 12.5,
+			manualLocationLabel = "Rome",
+			showLocationLabel = true,
+			labelVerticalPosition = 0.2f
+		)
+
+		val fallbackState = provider.sceneState.value
+		assertEquals("Rome", provider.paramsFor(1_000_000L, fallbackState).overlayLabels?.location)
+		assertEquals(0.2f, provider.paramsFor(1_000_000L, fallbackState).labelVerticalPosition, 0.0001f)
+		coEvery { weatherRepository.current(41.9, 12.5) } returns Result.success(snapshotWith(weatherCode = 63))
+		provider.refresh(1_000_000L)
+		val liveState = provider.sceneState.value
+		persistedSettings.value = persistedSettings.value.copy(labelVerticalPosition = 0.8f)
+
+		assertEquals(0.8f, provider.paramsFor(1_000_030L).labelVerticalPosition, 0.0001f)
+		assertEquals(0.2f, provider.paramsFor(1_000_030L, liveState).labelVerticalPosition, 0.0001f)
+		assertEquals(0.2f, provider.paramsFor(1_000_030L, fallbackState).labelVerticalPosition, 0.0001f)
+		assertEquals("Rome", provider.paramsFor(1_000_030L).overlayLabels?.location)
 	}
 
 	@Test
