@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="appearance_category_readability">Lesbarkeit</string>
+	<string name="appearance_summary_readability">Abdunklung %1$d%% · Oberer Schatten %2$d%%</string>
+	<string name="section_wallpaper_dimming">Hintergrund abdunkeln: %1$d%%</string>
+	<string name="section_status_bar_shade">Statusleistenschatten: %1$d%%</string>
+	<string name="readability_off">Aus</string>
+	<string name="readability_stronger">Stärker</string>
+	<string name="hint_wallpaper_dimming">Verdunkelt den gesamten Hintergrund hinter Symbolen und Widgets.</string>
+	<string name="hint_status_bar_shade">Fügt einen dunklen oberen Rand hinzu, der unterhalb der Statusleiste ausblendet.</string>
+	<string name="hint_readability_surfaces">Gilt für Start- und Sperrbildschirm, wo Weatherd verwendet wird. Wetter- und Standorttext bleiben hell.</string>
+</resources>

@@ -8,12 +8,14 @@ import android.graphics.Canvas
  */
 internal class SceneScreenEffects(private val renderer: SceneRenderer) {
 	private val glassDropletLayer = GlassDropletLayer()
+	private val readabilityOverlayLayer = ReadabilityOverlayLayer()
 
 	fun render(canvas: Canvas, width: Int, height: Int, params: SceneParams, timeSeconds: Float) {
 		if (params.glassDropletsEnabled) {
 			glassDropletLayer.draw(canvas, width.toFloat(), height.toFloat(), params, timeSeconds)
 		}
 
+		readabilityOverlayLayer.draw(canvas, width.toFloat(), height.toFloat(), params)
 		renderer.renderOverlayLabels(canvas, width, height, params)
 	}
 }

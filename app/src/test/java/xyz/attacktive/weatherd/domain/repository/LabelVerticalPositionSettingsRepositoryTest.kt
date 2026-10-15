@@ -12,6 +12,7 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import xyz.attacktive.weatherd.domain.repository.APPEARANCE_PRESET_SCHEMA_VERSION
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -127,7 +128,7 @@ class LabelVerticalPositionSettingsRepositoryTest {
 		assertEquals(SunStyle.RADIANT, restored.sunStyle)
 
 		val raw = dataStore.data.first()[stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)]!!
-		assertEquals(8, Json.parseToJsonElement(raw).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+		assertEquals(APPEARANCE_PRESET_SCHEMA_VERSION, Json.parseToJsonElement(raw).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
 	}
 
 	@Test
@@ -146,7 +147,7 @@ class LabelVerticalPositionSettingsRepositoryTest {
 
 		assertTrue(repository.rename("legacy-5", "Migrated 5").isSuccess)
 		val rewritten = store.data.first()[key]!!
-		assertEquals(8, Json.parseToJsonElement(rewritten).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+		assertEquals(APPEARANCE_PRESET_SCHEMA_VERSION, Json.parseToJsonElement(rewritten).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
 		val migrated = (AppearancePresetRepository(store).state.first() as AppearancePresetStorageState.Ready).presets.single()
 		assertEquals(0.09f, migrated.snapshot.labelVerticalPosition, 0.0001f)
 	}
@@ -165,7 +166,7 @@ class LabelVerticalPositionSettingsRepositoryTest {
 			assertEquals(SunStyle.RADIANT, snapshot.sunStyle)
 			assertTrue(repository.rename("legacy-$version", "Anchored").isSuccess)
 			val rewritten = store.data.first()[key]!!
-			assertEquals(8, Json.parseToJsonElement(rewritten).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+			assertEquals(APPEARANCE_PRESET_SCHEMA_VERSION, Json.parseToJsonElement(rewritten).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
 			assertEquals(0.75f, (repository.state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot.labelVerticalPosition, 0.0001f)
 		}
 	}

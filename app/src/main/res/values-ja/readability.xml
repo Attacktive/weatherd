@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="appearance_category_readability">見やすさ</string>
+	<string name="appearance_summary_readability">全体の暗さ %1$d%% · 上部の影 %2$d%%</string>
+	<string name="section_wallpaper_dimming">壁紙の暗さ: %1$d%%</string>
+	<string name="section_status_bar_shade">ステータスバーの影: %1$d%%</string>
+	<string name="readability_off">オフ</string>
+	<string name="readability_stronger">濃く</string>
+	<string name="hint_wallpaper_dimming">アイコンやウィジェットの背後にある壁紙全体を暗くします。</string>
+	<string name="hint_status_bar_shade">画面上端に影を加え、ステータスバーの下で透明になるようにぼかします。</string>
+	<string name="hint_readability_surfaces">Weatherdを使用するホーム画面とロック画面で同じ設定が適用されます。天気と場所の文字の明るさは変わりません。</string>
+</resources>

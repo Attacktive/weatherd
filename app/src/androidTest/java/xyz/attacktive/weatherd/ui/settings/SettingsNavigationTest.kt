@@ -67,6 +67,7 @@ class SettingsNavigationTest {
 			R.string.appearance_category_sun,
 			R.string.appearance_category_weather_effects,
 			R.string.appearance_category_text,
+			R.string.appearance_category_readability,
 			R.string.appearance_category_presets
 		)
 

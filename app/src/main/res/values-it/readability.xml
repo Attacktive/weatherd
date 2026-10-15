@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="appearance_category_readability">Leggibilità</string>
+	<string name="appearance_summary_readability">Oscuramento %1$d%% · Ombra superiore %2$d%%</string>
+	<string name="section_wallpaper_dimming">Oscuramento sfondo: %1$d%%</string>
+	<string name="section_status_bar_shade">Ombra barra di stato: %1$d%%</string>
+	<string name="readability_off">Disattivato</string>
+	<string name="readability_stronger">Più intenso</string>
+	<string name="hint_wallpaper_dimming">Oscura tutto lo sfondo dietro icone e widget.</string>
+	<string name="hint_status_bar_shade">Aggiunge un’ombra sul bordo superiore che sfuma sotto la barra di stato.</string>
+	<string name="hint_readability_surfaces">Condiviso tra schermata Home e blocco dove viene usato Weatherd. I testi di meteo e posizione restano luminosi.</string>
+</resources>

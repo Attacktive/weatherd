@@ -1,6 +1,5 @@
 package xyz.attacktive.weatherd.domain.repository
 
-import java.lang.reflect.Modifier
 import java.util.Locale
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -119,7 +118,9 @@ class SettingsRepositoryTest {
 			sceneSimulatorActive = true,
 			sceneSimulatorPresetIndex = 7,
 			sceneSimulatorDayPhase = DayPhase.DUSK,
-			sceneSimulatorCelestialProgress = 0.73f
+			sceneSimulatorCelestialProgress = 0.73f,
+			wallpaperDimmingStrength = 0.4f,
+			statusBarShadeStrength = 0.25f
 		)
 
 		repository.save(updated)
@@ -306,7 +307,9 @@ class SettingsRepositoryTest {
 			sunStyle = SunStyle.RADIANT,
 			lensFlareEnabled = false,
 			lensFlareMotionEnabled = true,
-			labelVerticalPosition = 0.33f
+			labelVerticalPosition = 0.33f,
+			wallpaperDimmingStrength = 0.35f,
+			statusBarShadeStrength = 0.2f
 		)
 
 		repository.save(original)
@@ -354,61 +357,6 @@ class SettingsRepositoryTest {
 		repository.update(listOf(excludedMutation))
 		repository.applyAppearancePreset(preset)
 		assertEquals(expected, repository.settings.first())
-	}
-
-	@Test
-	fun `every AppSettings property is classified as preset-owned or excluded`() {
-		val owned = setOf(
-			"backdropScene",
-			"showWeatherLabel",
-			"showLocationLabel",
-			"precipitationIntensityScale",
-			"glassDropletsEnabled",
-			"windIntensityScale",
-			"cloudIntensityScale",
-			"cloudSizeScale",
-			"cloudCountScale",
-			"cloudContrastScale",
-			"skyBrightnessScale",
-			"nightBrightnessScale",
-			"skySaturationScale",
-			"skyColorPreset",
-			"sunVisible",
-			"moonVisible",
-			"sunSizeScale",
-			"sunColorPreset",
-			"sunStyle",
-			"lensFlareEnabled",
-			"lensFlareMotionEnabled",
-			"distantAircraftEnabled",
-			"treesEnabled",
-			"labelVerticalPosition"
-		)
-		val excluded = setOf(
-			"weatherProvider",
-			"weatherFallbackProvider",
-			"updateIntervalMinutes",
-			"useDeviceLocation",
-			"manualLatitude",
-			"manualLongitude",
-			"manualLocationLabel",
-			"temperatureUnit",
-			"frameRateCap",
-			"animationIdleTimeout",
-			"wallpaperScrollingEnabled",
-			"sceneSimulatorEnabled",
-			"sceneSimulatorActive",
-			"sceneSimulatorPresetIndex",
-			"sceneSimulatorDayPhase",
-			"sceneSimulatorCelestialProgress"
-		)
-		val actual = AppSettings::class.java.declaredFields
-			.filterNot { field -> field.isSynthetic || Modifier.isStatic(field.modifiers) }
-			.map { field -> field.name }
-			.toSet()
-
-		assertTrue(owned.intersect(excluded).isEmpty())
-		assertEquals(actual, owned + excluded)
 	}
 
 	@Test

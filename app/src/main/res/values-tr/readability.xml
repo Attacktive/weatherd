@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="appearance_category_readability">Okunabilirlik</string>
+	<string name="appearance_summary_readability">Karartma %1$d%% · Üst gölge %2$d%%</string>
+	<string name="section_wallpaper_dimming">Duvar kağıdı karartma: %1$d%%</string>
+	<string name="section_status_bar_shade">Durum çubuğu gölgesi: %1$d%%</string>
+	<string name="readability_off">Kapalı</string>
+	<string name="readability_stronger">Daha güçlü</string>
+	<string name="hint_wallpaper_dimming">Simgelerin ve widget’ların arkasındaki duvar kağıdının tamamını karartır.</string>
+	<string name="hint_status_bar_shade">Üst kenara durum çubuğunun altında kaybolan koyu bir gölge ekler.</string>
+	<string name="hint_readability_surfaces">Weatherd kullanılan ana ekran ve kilit ekranında aynı ayarlar uygulanır. Hava durumu ve konum yazıları parlak kalır.</string>
+</resources>

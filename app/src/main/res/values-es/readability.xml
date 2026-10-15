@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="appearance_category_readability">Legibilidad</string>
+	<string name="appearance_summary_readability">Oscurecimiento %1$d%% · Sombra superior %2$d%%</string>
+	<string name="section_wallpaper_dimming">Oscurecer fondo: %1$d%%</string>
+	<string name="section_status_bar_shade">Sombra de la barra de estado: %1$d%%</string>
+	<string name="readability_off">Desactivado</string>
+	<string name="readability_stronger">Más intenso</string>
+	<string name="hint_wallpaper_dimming">Oscurece todo el fondo detrás de los iconos y widgets.</string>
+	<string name="hint_status_bar_shade">Añade una sombra superior que se desvanece debajo de la barra de estado.</string>
+	<string name="hint_readability_surfaces">Se aplica al inicio y al bloqueo donde se use Weatherd. Los textos del tiempo y la ubicación mantienen su brillo.</string>
+</resources>

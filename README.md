@@ -15,7 +15,7 @@ Refreshes happen separately, and a slow or failed request does not prevent switc
 
 Enable **Settings → Appearance → Scenery & photos → Trees** to add a fixed composition of detailed foreground evergreens to any backdrop, including None and Photo.
 Trees are off by default and saved with appearance presets; old settings and presets keep them off.
-New preset writes use schema v8; v1–v7 presets remain readable, while older builds reject the new bank instead of silently applying a different text-position mapping.
+New preset writes use schema v9; v1–v8 presets remain readable, while older builds reject the new bank instead of silently dropping appearance settings.
 The preview, live wallpaper, simulator, and clock-lit fallback share the same tree preference and placement.
 Tree lighting follows day phase and cloudy weather, while fog and precipitation draw in front of the foliage.
 The three first-party source sprites are reproducibly generated with `uv run scripts/generate-tree-textures.py` and decoded once off the frame loop on first use; no artwork is copied from the reference app or third parties.
@@ -38,6 +38,7 @@ Appearance is a category hub with short summaries rather than a single long list
 - **Sun & moon:** visibility, sun style, size, color, lens flare, and motion-responsive reflections.
 - **Weather effects:** precipitation intensity, glass droplets, and wind intensity.
 - **On-screen text:** weather/location visibility, shared vertical position, and temperature unit.
+- **Readability:** independent wallpaper dimming and status-bar shade, shared by Home and Lock.
 - **Presets:** save, apply, rename, replace, and delete appearance presets.
 
 Opening a category replaces the Settings title and hides the top-level tabs.
@@ -54,6 +55,13 @@ Bounds adapt to whichever lines are visible without changing their font sizes or
 Travel is continuous and linear from the top endpoint to that anchor and from the anchor to the bottom endpoint; percentages are not uniformly spaced over the entire scene height.
 The position is saved with appearance presets. Earlier stored percentages keep their numeric value under this anchored mapping, while presets without a position retain the historical default placement.
 The simulator honors both visibility switches and the saved position: its weather line shows the selected simulated condition without inventing a temperature, while the location line uses the selected or resolved real place name.
+
+In **Settings → Appearance → Readability**, **Wallpaper dimming** darkens the completed scene behind launcher icons and widgets.
+**Status-bar shade** adds an independent dark top edge that fades to transparent over the upper 18% of the visible wallpaper.
+Both strengths range from **0%** (off, the default) to **60%** opacity; each **Reset** turns only that control off.
+The settings apply to the preview, simulator, fallback, and Home/Lock wherever Android displays Weatherd, including photo backgrounds.
+The shading stays fixed while the wallpaper scrolls, covers animated weather and glass droplets, and leaves Weatherd’s weather/location labels bright.
+Both strengths are saved with appearance presets; older presets without them apply with both off.
 
 ## Weather refresh timing
 

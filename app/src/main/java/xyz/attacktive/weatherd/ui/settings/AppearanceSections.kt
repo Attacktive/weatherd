@@ -64,6 +64,7 @@ import xyz.attacktive.weatherd.domain.model.INTENSITY_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.LABEL_VERTICAL_POSITION_RANGE
 import xyz.attacktive.weatherd.domain.model.NIGHT_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.PhotoBucket
+import xyz.attacktive.weatherd.domain.model.READABILITY_STRENGTH_RANGE
 import xyz.attacktive.weatherd.domain.model.SKY_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SKY_SATURATION_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
@@ -614,6 +615,36 @@ internal fun TreesSection(settings: AppSettings, onSave: (AppSettings) -> Unit) 
 	checked = settings.treesEnabled,
 	onToggle = { onSave(settings.copy(treesEnabled = it)) }
 )
+
+@Composable
+internal fun ReadabilitySection(settings: AppSettings, defaults: AppSettings, onSave: (AppSettings) -> Unit) {
+	PercentageSlider(
+		label = R.string.section_wallpaper_dimming,
+		value = settings.wallpaperDimmingStrength,
+		defaultValue = defaults.wallpaperDimmingStrength,
+		valueRange = READABILITY_STRENGTH_RANGE,
+		lowLabel = R.string.readability_off,
+		highLabel = R.string.readability_stronger,
+		onCommit = { onSave(settings.copy(wallpaperDimmingStrength = it)) }
+	)
+
+	HintText(stringResource(R.string.hint_wallpaper_dimming))
+	Spacer(modifier = Modifier.height(24.dp))
+
+	PercentageSlider(
+		label = R.string.section_status_bar_shade,
+		value = settings.statusBarShadeStrength,
+		defaultValue = defaults.statusBarShadeStrength,
+		valueRange = READABILITY_STRENGTH_RANGE,
+		lowLabel = R.string.readability_off,
+		highLabel = R.string.readability_stronger,
+		onCommit = { onSave(settings.copy(statusBarShadeStrength = it)) }
+	)
+
+	HintText(stringResource(R.string.hint_status_bar_shade))
+	Spacer(modifier = Modifier.height(16.dp))
+	HintText(stringResource(R.string.hint_readability_surfaces))
+}
 
 @Composable
 internal fun LabelsSection(settings: AppSettings, defaults: AppSettings, onSave: (AppSettings) -> Unit) {

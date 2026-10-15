@@ -30,7 +30,9 @@ data class AppearancePresetSnapshot(
 	val distantAircraftEnabled: Boolean = true,
 	val glassDropletsEnabled: Boolean = false,
 	val treesEnabled: Boolean = false,
-	val labelVerticalPosition: Float = DEFAULT_LABEL_VERTICAL_POSITION
+	val labelVerticalPosition: Float = DEFAULT_LABEL_VERTICAL_POSITION,
+	val wallpaperDimmingStrength: Float = 0f,
+	val statusBarShadeStrength: Float = 0f
 )
 
 fun AppSettings.toAppearancePresetSnapshot() = AppearancePresetSnapshot(
@@ -57,7 +59,9 @@ fun AppSettings.toAppearancePresetSnapshot() = AppearancePresetSnapshot(
 	distantAircraftEnabled = distantAircraftEnabled,
 	glassDropletsEnabled = glassDropletsEnabled,
 	treesEnabled = treesEnabled,
-	labelVerticalPosition = labelVerticalPosition
+	labelVerticalPosition = labelVerticalPosition,
+	wallpaperDimmingStrength = normalizeReadabilityStrength(wallpaperDimmingStrength),
+	statusBarShadeStrength = normalizeReadabilityStrength(statusBarShadeStrength)
 )
 
 fun AppearancePresetSnapshot.appliedTo(settings: AppSettings) = settings.copy(
@@ -84,5 +88,7 @@ fun AppearancePresetSnapshot.appliedTo(settings: AppSettings) = settings.copy(
 	distantAircraftEnabled = distantAircraftEnabled,
 	glassDropletsEnabled = glassDropletsEnabled,
 	treesEnabled = treesEnabled,
-	labelVerticalPosition = labelVerticalPosition
+	labelVerticalPosition = labelVerticalPosition,
+	wallpaperDimmingStrength = normalizeReadabilityStrength(wallpaperDimmingStrength),
+	statusBarShadeStrength = normalizeReadabilityStrength(statusBarShadeStrength)
 )

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="appearance_category_readability">Lisibilité</string>
+	<string name="appearance_summary_readability">Assombrissement %1$d%% · Ombre supérieure %2$d%%</string>
+	<string name="section_wallpaper_dimming">Assombrir le fond : %1$d%%</string>
+	<string name="section_status_bar_shade">Ombre de la barre d’état : %1$d%%</string>
+	<string name="readability_off">Désactivé</string>
+	<string name="readability_stronger">Plus intense</string>
+	<string name="hint_wallpaper_dimming">Assombrit tout le fond derrière les icônes et les widgets.</string>
+	<string name="hint_status_bar_shade">Ajoute une ombre en haut qui disparaît sous la barre d’état.</string>
+	<string name="hint_readability_surfaces">Partagé par les écrans d’accueil et de verrouillage utilisant Weatherd. Les textes météo et de lieu restent lumineux.</string>
+</resources>

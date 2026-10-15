@@ -19,6 +19,8 @@ class SceneDebugPresetsTest {
 			assertEquals(preset.cloudLayers, params.cloudLayers)
 			assertEquals(1f, params.precipitationScale, 0.0001f)
 			assertFalse(params.glassDropletsEnabled)
+			assertEquals(0f, params.wallpaperDimmingStrength, 0.0001f)
+			assertEquals(0f, params.statusBarShadeStrength, 0.0001f)
 			assertEquals(1f, params.windScale, 0.0001f)
 			assertEquals(1f, params.cloudScale, 0.0001f)
 			assertEquals(1f, params.cloudSizeScale, 0.0001f)
@@ -224,6 +226,34 @@ class SceneDebugPresetsTest {
 		assertEquals(1.5f, params.windScale, 0.0001f)
 		assertEquals(0.8f, params.cloudScale, 0.0001f)
 		assertEquals(preset.windFactor, params.windFactor, 0.0001f)
+	}
+
+	@Test
+	fun `readability overlay settings reach debug scene params and are clamped to valid range`() {
+		val preset = SCENE_PRESETS.first { it.name == "CLEAR" }
+		val params = debugSceneParams(
+			preset = preset,
+			dayPhase = DayPhase.DAY,
+			wallpaperDimmingStrength = 0.55f,
+			statusBarShadeStrength = 1.0f
+		)
+
+		assertEquals(0.55f, params.wallpaperDimmingStrength, 0.0001f)
+		assertEquals(0.6f, params.statusBarShadeStrength, 0.0001f)
+	}
+
+	@Test
+	fun `non-finite readability overlay strengths resolve to off in debug scene params`() {
+		val preset = SCENE_PRESETS.first { it.name == "CLEAR" }
+		val params = debugSceneParams(
+			preset = preset,
+			dayPhase = DayPhase.DAY,
+			wallpaperDimmingStrength = Float.NaN,
+			statusBarShadeStrength = Float.NEGATIVE_INFINITY
+		)
+
+		assertEquals(0f, params.wallpaperDimmingStrength, 0.0001f)
+		assertEquals(0f, params.statusBarShadeStrength, 0.0001f)
 	}
 
 }

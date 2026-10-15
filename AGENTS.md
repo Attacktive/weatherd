@@ -2,7 +2,7 @@
 
 Instructions and architectural invariants for agents working in the Weatherd codebase.
 
-- Version: 1.6.14 (2026-10-15)
+- Version: 1.6.15 (2026-10-15)
 - Persona: Coding assistant pair-programming with the user on Weatherd.
 
 ## Tools and Environment
@@ -142,6 +142,8 @@ fun debugSceneParams(
 
 - `renderBackdrop(canvas, width, height, params)`: Static layers (sky gradient, overcast ceiling, fog base, haze, vignette). Cached into a `Bitmap` by `WeatherLiveWallpaperService` and `HomeScreen`; re-rasterized only when `backdropSignature(params)` changes.
 - `renderForeground(canvas, width, height, params, timeSeconds)`: Dynamic animated layers (stars, celestial body, birds, clouds, scenery, fog drift, precipitation, lightning, overlay text). Redrawn every frame.
+- `SceneScreenEffects` draws once after restoring world translation and completing backdrop crossfades: glass droplets, readability overlays, then weather/location labels. Both production surfaces suppress foreground labels and use this shared viewport-sized pass so screen effects do not scroll or double-composite.
+- Readability strengths are opt-in display settings shared by Home/Lock, preview, simulator, live weather, and fallback. `wallpaperDimmingStrength` and `statusBarShadeStrength` normalize to 0–0.6, with non-finite values resolving off. Uniform black dimming covers the completed scene; the additional top gradient fades out over 18% of visible height. Cache its shader by height, preserve label brightness, and exclude both strengths from `backdropSignature`.
 - `LightningBoltLayer` builds deterministic, midpoint-displaced channels with tapered filled cores and branches rooted on parent vertices. It caches geometry and an immutable downscaled software-blurred bloom by strike seed and surface dimensions; per-frame drawing changes only flash opacity. Keep blur generation out of steady-state frames and preserve `SceneRenderer`'s shared strike schedule, echoes, sheet lightning, and rain illumination.
 - Cloud decks use `CloudLayer`; fair-weather cumulus uses seeded placement populations, while overcast uses the dedicated `cloud_overcast_hero`, `cloud_overcast_support`, and `cloud_overcast_veil` sources.
 - `scripts/generate-cloud-textures.py` reproducibly regenerates the procedural clear-sky cloud textures it owns with `uv run scripts/generate-cloud-textures.py` and samples no third-party artwork. The dedicated overcast sources are first-party authored assets and are not derived from the reference APK.

@@ -12,6 +12,7 @@ import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 import xyz.attacktive.weatherd.domain.model.SKY_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SKY_SATURATION_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.normalizeReadabilityStrength
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
@@ -93,7 +94,9 @@ fun debugSceneParams(
 	distantAircraftEnabled: Boolean = true,
 	glassDropletsEnabled: Boolean = false,
 	treesEnabled: Boolean = false,
-	labelVerticalPosition: Float = DEFAULT_LABEL_VERTICAL_POSITION
+	labelVerticalPosition: Float = DEFAULT_LABEL_VERTICAL_POSITION,
+	wallpaperDimmingStrength: Float = 0f,
+	statusBarShadeStrength: Float = 0f
 ) = SceneParams(
 	dayPhase = dayPhase,
 	cloudiness = preset.cloudiness,
@@ -125,5 +128,7 @@ fun debugSceneParams(
 	glassDropletsEnabled = glassDropletsEnabled,
 	treesEnabled = treesEnabled,
 	labelVerticalPosition = labelVerticalPosition.coerceIn(LABEL_VERTICAL_POSITION_RANGE.start, LABEL_VERTICAL_POSITION_RANGE.endInclusive),
+	wallpaperDimmingStrength = normalizeReadabilityStrength(wallpaperDimmingStrength),
+	statusBarShadeStrength = normalizeReadabilityStrength(statusBarShadeStrength),
 	humidityHazeDensity = preset.humidityHazeDensity
 )

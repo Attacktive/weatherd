@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="appearance_category_readability">가독성</string>
+	<string name="appearance_summary_readability">전체 어둡기 %1$d%% · 상단 음영 %2$d%%</string>
+	<string name="section_wallpaper_dimming">배경화면 어둡기: %1$d%%</string>
+	<string name="section_status_bar_shade">상태 표시줄 음영: %1$d%%</string>
+	<string name="readability_off">끄기</string>
+	<string name="readability_stronger">진하게</string>
+	<string name="hint_wallpaper_dimming">아이콘과 위젯 뒤의 배경화면 전체를 어둡게 합니다.</string>
+	<string name="hint_status_bar_shade">화면 상단에 어두운 음영을 추가하며 상태 표시줄 아래로 갈수록 투명해집니다.</string>
+	<string name="hint_readability_surfaces">Weatherd를 사용하는 홈 화면과 잠금 화면에 같은 설정이 적용됩니다. 날씨와 위치 텍스트는 밝기를 유지합니다.</string>
+</resources>

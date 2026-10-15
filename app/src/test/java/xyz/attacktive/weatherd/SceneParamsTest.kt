@@ -225,6 +225,37 @@ class SceneParamsTest {
 	}
 
 	@Test
+	fun `readability overlay settings reach scene params and are clamped to valid range`() {
+		val snapshot = snapshot(weatherCode = 2, precipitationMillimeters = 0.0, windSpeedKilometersPerHour = 10.0, cloudCoverPercent = 40)
+
+		val params = sceneParamsFor(
+			snapshot,
+			NOW,
+			wallpaperDimmingStrength = 0.45f,
+			statusBarShadeStrength = 0.9f
+		)
+
+		assertEquals(0.45f, params.wallpaperDimmingStrength, 0.0001f)
+		assertEquals(0.6f, params.statusBarShadeStrength, 0.0001f)
+	}
+
+	@Test
+	fun `non-finite readability overlay strengths resolve to off in scene params`() {
+		val snapshot = snapshot(weatherCode = 2, precipitationMillimeters = 0.0, windSpeedKilometersPerHour = 10.0, cloudCoverPercent = 40)
+
+		val params = sceneParamsFor(
+			snapshot,
+			NOW,
+			wallpaperDimmingStrength = Float.NaN,
+			statusBarShadeStrength = Float.POSITIVE_INFINITY
+		)
+
+		assertEquals(0f, params.wallpaperDimmingStrength, 0.0001f)
+		assertEquals(0f, params.statusBarShadeStrength, 0.0001f)
+	}
+
+
+	@Test
 	fun `the scales leave a dry calm snapshot alone`() {
 		val snapshot = snapshot(weatherCode = 2, precipitationMillimeters = 0.0, windSpeedKilometersPerHour = 0.0, cloudCoverPercent = 40)
 
@@ -450,6 +481,18 @@ class SceneParamsTest {
 
 		assertNotEquals(params, relabeled)
 		assertEquals(backdropSignature(params), backdropSignature(relabeled))
+	}
+
+	@Test
+	fun `readability overlay changes do not invalidate the backdrop signature`() {
+		val base = fullyPopulatedParams()
+		val shaded = base.copy(
+			wallpaperDimmingStrength = 0.4f,
+			statusBarShadeStrength = 0.5f
+		)
+
+		assertNotEquals(base, shaded)
+		assertEquals(backdropSignature(base), backdropSignature(shaded))
 	}
 
 	@Test

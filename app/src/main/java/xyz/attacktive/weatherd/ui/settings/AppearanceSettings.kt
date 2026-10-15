@@ -34,6 +34,7 @@ internal enum class AppearanceCategory(@StringRes val label: Int) {
 	SUN(R.string.appearance_category_sun),
 	WEATHER_EFFECTS(R.string.appearance_category_weather_effects),
 	TEXT(R.string.appearance_category_text),
+	READABILITY(R.string.appearance_category_readability),
 	PRESETS(R.string.appearance_category_presets)
 }
 
@@ -63,6 +64,7 @@ internal fun AppearanceSettingsTab(viewModel: SettingsViewModel, category: Appea
 			AppearanceCategory.SUN -> SunEffectsSection(settings = settings, defaults = viewModel.defaults, onSave = onSave)
 			AppearanceCategory.WEATHER_EFFECTS -> WeatherEffectsSection(settings = settings, defaults = viewModel.defaults, onSave = onSave)
 			AppearanceCategory.TEXT -> LabelsSection(settings = settings, defaults = viewModel.defaults, onSave = onSave)
+			AppearanceCategory.READABILITY -> ReadabilitySection(settings = settings, defaults = viewModel.defaults, onSave = onSave)
 			AppearanceCategory.PRESETS -> PresetSettings(viewModel)
 		}
 	}
@@ -123,6 +125,12 @@ private fun appearanceSummary(category: AppearanceCategory, settings: AppSetting
 			settings.showLocationLabel -> R.string.appearance_summary_text_location
 			else -> R.string.appearance_summary_text_hidden
 		}
+	)
+
+	AppearanceCategory.READABILITY -> stringResource(
+		R.string.appearance_summary_readability,
+		(settings.wallpaperDimmingStrength * 100f).roundToInt(),
+		(settings.statusBarShadeStrength * 100f).roundToInt()
 	)
 
 	AppearanceCategory.PRESETS -> when (presetState) {

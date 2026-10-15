@@ -42,7 +42,9 @@ data class AppSettings(
 	val sceneSimulatorCelestialProgress: Float = 0.5f,
 	val glassDropletsEnabled: Boolean = false,
 	val treesEnabled: Boolean = false,
-	val labelVerticalPosition: Float = DEFAULT_LABEL_VERTICAL_POSITION
+	val labelVerticalPosition: Float = DEFAULT_LABEL_VERTICAL_POSITION,
+	val wallpaperDimmingStrength: Float = 0f,
+	val statusBarShadeStrength: Float = 0f
 )
 
 /** Fresh-install settings, with region-sensitive choices resolved before persistence supplies any overrides. */
@@ -68,3 +70,13 @@ const val DEFAULT_LABEL_VERTICAL_POSITION = 0.09f
 
 /** Bounds for the visible overlay block's full travel, with the reset coordinate preserving historical placement. */
 val LABEL_VERTICAL_POSITION_RANGE = 0f..1f
+
+/** Bounds for whole-scene wallpaper dimming and top status-bar shading. */
+val READABILITY_STRENGTH_RANGE = 0f..0.6f
+
+/** Normalizes a readability strength into [READABILITY_STRENGTH_RANGE], safely resolving non-finite values to off. */
+fun normalizeReadabilityStrength(value: Float) = if (value.isFinite()) {
+	value.coerceIn(READABILITY_STRENGTH_RANGE.start, READABILITY_STRENGTH_RANGE.endInclusive)
+} else {
+	0f
+}

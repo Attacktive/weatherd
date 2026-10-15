@@ -13,6 +13,7 @@ import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.SKY_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SKY_SATURATION_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.READABILITY_STRENGTH_RANGE
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
@@ -21,6 +22,7 @@ import xyz.attacktive.weatherd.domain.weather.dayPhaseFor
 import xyz.attacktive.weatherd.domain.weather.dayPhaseProgressFor
 import xyz.attacktive.weatherd.domain.weather.moonPhaseFor
 import xyz.attacktive.weatherd.domain.weather.precipitationIntensity
+import xyz.attacktive.weatherd.domain.model.normalizeReadabilityStrength
 
 /**
  * Everything the renderer needs, as orthogonal features rather than a scene taxonomy: lighting phase, continuous cloud cover, fog, what precipitates (if anything), lightning, wind, and the day-quantized synodic moon phase (0 = new, 0.5 = full — the default keeps previews and fallbacks on a full moon).
@@ -84,7 +86,9 @@ data class SceneParams(
 	val distantAircraftEnabled: Boolean = true,
 	val glassDropletsEnabled: Boolean = false,
 	val treesEnabled: Boolean = false,
-	val labelVerticalPosition: Float = DEFAULT_LABEL_VERTICAL_POSITION
+	val labelVerticalPosition: Float = DEFAULT_LABEL_VERTICAL_POSITION,
+	val wallpaperDimmingStrength: Float = 0f,
+	val statusBarShadeStrength: Float = 0f
 )
 
 /** The two overlay text lines — the current weather ("Rain · 10°") and the place name — each omissible on its own. */
@@ -121,7 +125,9 @@ fun backdropSignature(params: SceneParams, backgroundPhotoAvailable: Boolean = f
 		lensFlareMotionEnabled = false,
 		distantAircraftEnabled = true,
 		glassDropletsEnabled = false,
-		treesEnabled = false
+		treesEnabled = false,
+		wallpaperDimmingStrength = 0f,
+		statusBarShadeStrength = 0f
 	)
 }
 
@@ -200,7 +206,9 @@ fun sceneParamsFor(
 	distantAircraftEnabled: Boolean = true,
 	glassDropletsEnabled: Boolean = false,
 	treesEnabled: Boolean = false,
-	labelVerticalPosition: Float = DEFAULT_LABEL_VERTICAL_POSITION
+	labelVerticalPosition: Float = DEFAULT_LABEL_VERTICAL_POSITION,
+	wallpaperDimmingStrength: Float = 0f,
+	statusBarShadeStrength: Float = 0f
 ): SceneParams {
 	val observation = snapshot.observation
 	val condition = observation.condition
@@ -263,7 +271,9 @@ fun sceneParamsFor(
 		distantAircraftEnabled = distantAircraftEnabled,
 		glassDropletsEnabled = glassDropletsEnabled,
 		treesEnabled = treesEnabled,
-		labelVerticalPosition = labelVerticalPosition.coerceIn(LABEL_VERTICAL_POSITION_RANGE.start, LABEL_VERTICAL_POSITION_RANGE.endInclusive)
+		labelVerticalPosition = labelVerticalPosition.coerceIn(LABEL_VERTICAL_POSITION_RANGE.start, LABEL_VERTICAL_POSITION_RANGE.endInclusive),
+		wallpaperDimmingStrength = normalizeReadabilityStrength(wallpaperDimmingStrength),
+		statusBarShadeStrength = normalizeReadabilityStrength(statusBarShadeStrength)
 	)
 }
 

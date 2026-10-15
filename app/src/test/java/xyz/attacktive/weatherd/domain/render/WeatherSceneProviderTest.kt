@@ -1220,6 +1220,52 @@ class WeatherSceneProviderTest {
 		}
 	}
 
+	@Test
+	fun `readability overlay settings reach fallback scene params`() = runTest {
+		persistedSettings.value = AppSettings(
+			useDeviceLocation = false,
+			wallpaperDimmingStrength = 0.35f,
+			statusBarShadeStrength = 0.45f
+		)
+
+		val params = provider.paramsFor(1_000_000L)
+		assertEquals(0.35f, params.wallpaperDimmingStrength, 0.0001f)
+		assertEquals(0.45f, params.statusBarShadeStrength, 0.0001f)
+	}
+
+	@Test
+	fun `readability overlay settings reach live scene params`() = runTest {
+		persistedSettings.value = AppSettings(
+			useDeviceLocation = false,
+			manualLatitude = 52.52,
+			manualLongitude = 13.40,
+			wallpaperDimmingStrength = 0.5f,
+			statusBarShadeStrength = 0.25f
+		)
+
+		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 0))
+		provider.refresh(1_000_000L)
+
+		val params = provider.paramsFor(1_000_030L)
+		assertEquals(0.5f, params.wallpaperDimmingStrength, 0.0001f)
+		assertEquals(0.25f, params.statusBarShadeStrength, 0.0001f)
+	}
+
+	@Test
+	fun `readability overlay settings reach simulated scene params`() = runTest {
+		persistedSettings.value = AppSettings(
+			useDeviceLocation = false,
+			sceneSimulatorEnabled = true,
+			sceneSimulatorActive = true,
+			wallpaperDimmingStrength = 0.6f,
+			statusBarShadeStrength = 0.15f
+		)
+
+		val params = provider.paramsFor(1_000_000L)
+		assertEquals(0.6f, params.wallpaperDimmingStrength, 0.0001f)
+		assertEquals(0.15f, params.statusBarShadeStrength, 0.0001f)
+	}
+
 	private suspend fun assertSettingsLocationStatus(settings: AppSettings) {
 		persistedSettings.value = settings
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(37.57, 126.98)

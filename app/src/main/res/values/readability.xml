@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="appearance_category_readability">Readability</string>
+	<string name="appearance_summary_readability">Dimming %1$d%% · Top shade %2$d%%</string>
+	<string name="section_wallpaper_dimming">Wallpaper dimming: %1$d%%</string>
+	<string name="section_status_bar_shade">Status-bar shade: %1$d%%</string>
+	<string name="readability_off">Off</string>
+	<string name="readability_stronger">Stronger</string>
+	<string name="hint_wallpaper_dimming">Darkens the entire wallpaper behind icons and widgets.</string>
+	<string name="hint_status_bar_shade">Adds a dark top edge that fades out below the status bar.</string>
+	<string name="hint_readability_surfaces">Shared by Home and Lock wherever Weatherd is used. Weather and location labels stay bright.</string>
+</resources>
