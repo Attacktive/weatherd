@@ -295,7 +295,15 @@ class SettingsNavigationTest {
 
 	private fun waitUntil(description: String, condition: () -> Boolean) {
 		val deadline = SystemClock.uptimeMillis() + 10_000L
-		while (!condition()) {
+		while (true) {
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+				automation.clearCache()
+			}
+
+			if (condition()) {
+				return
+			}
+
 			if (SystemClock.uptimeMillis() >= deadline) {
 				throw AssertionError("Timed out waiting for $description")
 			}
