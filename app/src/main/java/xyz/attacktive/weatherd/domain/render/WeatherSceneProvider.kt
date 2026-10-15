@@ -374,8 +374,10 @@ class WeatherSceneProvider @Inject constructor(
 
 	/** The persisted simulator scene, carrying the same display preferences as live weather while replacing its meteorological fields. */
 	private fun simulatorParams(nowEpochSeconds: Long, state: WeatherSceneState) = with(state.settings) {
+		val preset = SCENE_PRESETS[sceneSimulatorPresetIndex.coerceIn(0, SCENE_PRESETS.lastIndex)]
+
 		debugSceneParams(
-			preset = SCENE_PRESETS[sceneSimulatorPresetIndex.coerceIn(0, SCENE_PRESETS.lastIndex)],
+			preset = preset,
 			dayPhase = sceneSimulatorDayPhase,
 			precipitationScale = precipitationIntensityScale,
 			windScale = windIntensityScale,
@@ -401,7 +403,11 @@ class WeatherSceneProvider @Inject constructor(
 			treesEnabled = treesEnabled,
 			labelVerticalPosition = labelVerticalPosition
 		)
-			.copy(backdropScene = backdropScene, photoRevision = state.photoRevision)
+			.copy(
+				backdropScene = backdropScene,
+				photoRevision = state.photoRevision,
+				overlayLabels = overlayLabels(snapshot = null, state = state, simulatedWeather = preset.name)
+			)
 	}
 
 	/** Manual coordinates win only when the user opted out of device location and actually set a place; otherwise the device fix. */
@@ -482,7 +488,7 @@ class WeatherSceneProvider @Inject constructor(
 	}
 
 	private suspend fun refreshSimulatorStatus(settings: AppSettings, resolveLocationName: Boolean) {
-		if (!resolveLocationName) {
+		if (!resolveLocationName && !settings.showLocationLabel) {
 			return
 		}
 
@@ -539,9 +545,9 @@ class WeatherSceneProvider @Inject constructor(
 		first.manualLongitude == second.manualLongitude
 
 	/** The formatted overlay lines, or null when nothing is toggled on — the renderer skips the text pass entirely. */
-	private fun overlayLabels(snapshot: WeatherSnapshot, state: WeatherSceneState): OverlayLabels? = with(state.settings) {
+	private fun overlayLabels(snapshot: WeatherSnapshot?, state: WeatherSceneState, simulatedWeather: String? = null): OverlayLabels? = with(state.settings) {
 		val weather = if (showWeatherLabel) {
-			weatherText(snapshot.observation, temperatureUnit)
+			simulatedWeather ?: snapshot?.let { weatherText(it.observation, temperatureUnit) }
 		} else {
 			null
 		}
@@ -614,18 +620,8 @@ class WeatherSceneProvider @Inject constructor(
 			glassDropletsEnabled = glassDropletsEnabled,
 			treesEnabled = treesEnabled,
 			labelVerticalPosition = labelVerticalPosition,
-			overlayLabels = fallbackOverlayLabels(state)
+			overlayLabels = overlayLabels(snapshot = null, state = state)
 		)
-	}
-
-	private fun fallbackOverlayLabels(state: WeatherSceneState): OverlayLabels? {
-		val location = displayedLocationLabel(state).takeIf { state.settings.showLocationLabel }
-
-		return if (location == null) {
-			null
-		} else {
-			OverlayLabels(weather = null, location = location)
-		}
 	}
 
 	companion object {

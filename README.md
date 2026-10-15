@@ -51,6 +51,7 @@ In **Settings → Appearance → On-screen text**, enable either text label to r
 It moves current weather and the location name together, preserving their spacing and horizontal alignment in both the preview and live wallpaper.
 The percentage measures downward from the top of the scene, with margins to keep both lines on-screen; **Reset** restores the original near-top placement.
 The position is saved with appearance presets, and older settings and presets retain the original placement.
+The simulator honors both visibility switches and the saved position: its weather line shows the selected simulated condition without inventing a temperature, while the location line uses the selected or resolved real place name.
 
 ## Weather refresh timing
 

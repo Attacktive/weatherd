@@ -202,6 +202,55 @@ class WeatherSceneProviderTest {
 	}
 
 	@Test
+	fun `simulation resolves an enabled device location label without live weather`() = runTest {
+		persistedSettings.value = AppSettings(
+			useDeviceLocation = true,
+			showWeatherLabel = true,
+			showLocationLabel = true,
+			sceneSimulatorActive = true
+		)
+
+		coEvery { locationRepository.currentLocation() } returns GeoLocation(37.57, 126.98)
+		coEvery { reverseGeocodingRepository.placeName(37.57, 126.98) } returns "Seoul"
+		provider.refresh(1_000_000L)
+
+		assertEquals(OverlayLabels(weather = "CLEAR", location = "Seoul"), provider.paramsFor(1_000_030L).overlayLabels)
+	}
+
+	@Test
+	fun `simulation preserves enabled labels without waiting for live weather`() = runTest {
+		persistedSettings.value = AppSettings(
+			useDeviceLocation = false,
+			manualLatitude = 41.9,
+			manualLongitude = 12.5,
+			manualLocationLabel = "Rome",
+			showWeatherLabel = true,
+			showLocationLabel = true,
+			sceneSimulatorActive = true,
+			sceneSimulatorPresetIndex = 0,
+			labelVerticalPosition = 0.65f
+		)
+
+		val captured = provider.sceneState.value
+		val clear = provider.paramsFor(1_000_000L, captured)
+		assertEquals(OverlayLabels(weather = "CLEAR", location = "Rome"), clear.overlayLabels)
+		assertEquals(0.65f, clear.labelVerticalPosition, 0.0001f)
+
+		persistedSettings.value = persistedSettings.value.copy(sceneSimulatorPresetIndex = SCENE_PRESETS.indexOfFirst { it.name == "RAIN" })
+		assertEquals(OverlayLabels(weather = "RAIN", location = "Rome"), provider.paramsFor(1_000_030L).overlayLabels)
+		assertEquals(OverlayLabels(weather = "CLEAR", location = "Rome"), provider.paramsFor(1_000_030L, captured).overlayLabels)
+
+		persistedSettings.value = persistedSettings.value.copy(showWeatherLabel = false)
+		assertEquals(OverlayLabels(weather = null, location = "Rome"), provider.paramsFor(1_000_030L).overlayLabels)
+
+		persistedSettings.value = persistedSettings.value.copy(showLocationLabel = false)
+		assertNull(provider.paramsFor(1_000_030L).overlayLabels)
+
+		persistedSettings.value = persistedSettings.value.copy(showWeatherLabel = true)
+		assertEquals(OverlayLabels(weather = "RAIN", location = null), provider.paramsFor(1_000_030L).overlayLabels)
+	}
+
+	@Test
 	fun `scene simulator adopts the real calendar lunar phase at the evaluated moment`() = runTest {
 		persistedSettings.value = AppSettings(
 			useDeviceLocation = true,
@@ -1087,6 +1136,7 @@ class WeatherSceneProviderTest {
 	fun `switching from a manual place to device location hides its weather and label`() = runTest {
 		persistedSettings.value = AppSettings(useDeviceLocation = false, manualLatitude = 52.52, manualLongitude = 13.40, manualLocationLabel = "Berlin", showLocationLabel = true)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 63))
+		coEvery { locationRepository.currentLocation() } returns null
 		provider.refresh(1_000_000L)
 		persistedSettings.value = persistedSettings.value.copy(sceneSimulatorActive = true, useDeviceLocation = true)
 		provider.refresh(1_000_060L)
