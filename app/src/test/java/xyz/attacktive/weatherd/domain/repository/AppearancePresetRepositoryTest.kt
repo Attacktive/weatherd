@@ -108,7 +108,7 @@ class AppearancePresetRepositoryTest {
 		val repository = AppearancePresetRepository(legacyV3DataStore)
 		assertTrue(repository.rename("legacy-3", "Legacy forest").isSuccess)
 		val rewritten = legacyV3DataStore.data.first()[key]!!
-		assertEquals(7, Json.parseToJsonElement(rewritten).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+		assertEquals(8, Json.parseToJsonElement(rewritten).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
 		val migrated = (AppearancePresetRepository(legacyV3DataStore).state.first() as AppearancePresetStorageState.Ready).presets.single()
 		assertFalse(migrated.snapshot.treesEnabled)
 		assertTrue(migrated.snapshot.glassDropletsEnabled)
@@ -130,7 +130,7 @@ class AppearancePresetRepositoryTest {
 		assertFalse(snapshot.distantAircraftEnabled)
 		assertEquals(raw, store.data.first()[key])
 		assertTrue(repository.rename("legacy-4", "Migrated").isSuccess)
-		assertEquals(7, Json.parseToJsonElement(store.data.first()[key]!!).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+		assertEquals(8, Json.parseToJsonElement(store.data.first()[key]!!).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
 		assertEquals(snapshot, (AppearancePresetRepository(store).state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot)
 	}
 
@@ -150,7 +150,7 @@ class AppearancePresetRepositoryTest {
 		assertEquals(0.09f, restored.labelVerticalPosition, 0.0001f)
 
 		val raw = dataStore.data.first()[stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)]!!
-		assertEquals(7, Json.parseToJsonElement(raw).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+		assertEquals(8, Json.parseToJsonElement(raw).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
 	}
 
 	@Test

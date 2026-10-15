@@ -20,6 +20,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import xyz.attacktive.weatherd.domain.model.AppearancePresetSnapshot
 import xyz.attacktive.weatherd.domain.model.BackdropScene
+import xyz.attacktive.weatherd.domain.model.DEFAULT_LABEL_VERTICAL_POSITION
 import xyz.attacktive.weatherd.domain.model.SavedAppearancePreset
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
@@ -196,7 +197,7 @@ private data class StoredSnapshot(
 	val lensFlareMotionEnabled: Boolean,
 	val distantAircraftEnabled: Boolean = true,
 	val treesEnabled: Boolean = false,
-	val labelVerticalPosition: Float = 0.09f
+	val labelVerticalPosition: Float = DEFAULT_LABEL_VERTICAL_POSITION
 ) {
 	fun toDomain() = AppearancePresetSnapshot(
 		backdropScene = enumValue(backdropScene, BackdropScene.entries),
@@ -264,8 +265,8 @@ private fun <T : Enum<T>> enumValue(name: String, values: Iterable<T>) = values.
 internal fun appearancePresetNameKey(name: String) = Normalizer.normalize(name.trim().lowercase(Locale.ROOT), Normalizer.Form.NFC)
 
 /** Bump whenever persisted preset snapshot fields are added, removed, renamed, or change meaning. */
-internal const val APPEARANCE_PRESET_SCHEMA_VERSION = 7
+internal const val APPEARANCE_PRESET_SCHEMA_VERSION = 8
 internal const val APPEARANCE_PRESET_NAME_MAX_LENGTH = 40
 internal const val APPEARANCE_PRESETS_KEY_NAME = "appearance_presets_json"
-private val SUPPORTED_APPEARANCE_PRESET_SCHEMA_VERSIONS = setOf(1, 2, 3, 4, 5, 6, APPEARANCE_PRESET_SCHEMA_VERSION)
+private val SUPPORTED_APPEARANCE_PRESET_SCHEMA_VERSIONS = setOf(1, 2, 3, 4, 5, 6, 7, APPEARANCE_PRESET_SCHEMA_VERSION)
 private val PRESETS_KEY = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)

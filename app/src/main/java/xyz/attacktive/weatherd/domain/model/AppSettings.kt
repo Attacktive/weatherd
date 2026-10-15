@@ -42,7 +42,7 @@ data class AppSettings(
 	val sceneSimulatorCelestialProgress: Float = 0.5f,
 	val glassDropletsEnabled: Boolean = false,
 	val treesEnabled: Boolean = false,
-	val labelVerticalPosition: Float = 0.09f
+	val labelVerticalPosition: Float = DEFAULT_LABEL_VERTICAL_POSITION
 )
 
 /** Fresh-install settings, with region-sensitive choices resolved before persistence supplies any overrides. */
@@ -63,5 +63,8 @@ val INTENSITY_SCALE_RANGE = 0.1f..2f
 val CLOUD_SIZE_SCALE_RANGE = 0.5f..2f
 val CLOUD_COUNT_SCALE_RANGE = 0.5f..2f
 
-/** Bounds for the visible overlay text block's normalized travel between the drawable top and bottom. */
+/** Reset coordinate anchored to the historical fixed weather/location baselines. */
+const val DEFAULT_LABEL_VERTICAL_POSITION = 0.09f
+
+/** Bounds for the visible overlay block's full travel, with the reset coordinate preserving historical placement. */
 val LABEL_VERTICAL_POSITION_RANGE = 0f..1f

@@ -15,7 +15,7 @@ Refreshes happen separately, and a slow or failed request does not prevent switc
 
 Enable **Settings → Appearance → Scenery & photos → Trees** to add a fixed composition of detailed foreground evergreens to any backdrop, including None and Photo.
 Trees are off by default and saved with appearance presets; old settings and presets keep them off.
-New preset writes use schema v7; v1–v6 presets remain readable, while older builds reject the new bank instead of silently reinterpreting normalized text travel as a baseline coordinate.
+New preset writes use schema v8; v1–v7 presets remain readable, while older builds reject the new bank instead of silently applying a different text-position mapping.
 The preview, live wallpaper, simulator, and clock-lit fallback share the same tree preference and placement.
 Tree lighting follows day phase and cloudy weather, while fog and precipitation draw in front of the foliage.
 The three first-party source sprites are reproducibly generated with `uv run scripts/generate-tree-textures.py` and decoded once off the frame loop on first use; no artwork is copied from the reference app or third parties.
@@ -50,8 +50,9 @@ The reorganization does not change stored settings, defaults, reset scope, prese
 In **Settings → Appearance → On-screen text**, enable either text label to reveal the **Vertical position** slider.
 It moves current weather and the location name together, preserving their spacing and horizontal alignment in both the preview and live wallpaper.
 The slider maps **0%** to the visible text block's top edge at the drawable area's top and **100%** to its bottom edge at the drawable area's bottom, with intermediate values using the full available travel.
-Bounds adapt to whichever lines are visible without changing their font sizes or spacing; **Reset** returns to the near-top 9% setting.
-The position is saved with appearance presets. Earlier stored percentages keep their numeric value under this normalized mapping, while presets without a position use the near-top default.
+Bounds adapt to whichever lines are visible without changing their font sizes or spacing. **Reset** and unset preferences use the 9% compatibility anchor, reproducing the historical weather baseline at 9% of scene height and location baseline at 12.1%, including when only one line is enabled.
+Travel is continuous and linear from the top endpoint to that anchor and from the anchor to the bottom endpoint; percentages are not uniformly spaced over the entire scene height.
+The position is saved with appearance presets. Earlier stored percentages keep their numeric value under this anchored mapping, while presets without a position retain the historical default placement.
 The simulator honors both visibility switches and the saved position: its weather line shows the selected simulated condition without inventing a temperature, while the location line uses the selected or resolved real place name.
 
 ## Weather refresh timing

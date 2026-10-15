@@ -13,6 +13,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.DayPhase
 
 @RunWith(AndroidJUnit4::class)
@@ -21,38 +22,62 @@ class OverlayLabelsRenderingTest {
 	private val labelCases = listOf(OverlayLabels("Light rain · 10°", null), OverlayLabels(null, "Ålesund"), OverlayLabels("Light rain · 10°", "Ålesund"))
 
 	@Test
-	fun endpointsAlignTheWholeVisibleBlockWithoutClippingEitherLine() {
+	fun defaultPositionMatchesHistoricalBaselinesAndPixelsForEveryVisibilityMode() {
+		val defaults = AppSettings()
 		for ((width, height) in listOf(400 to 1000, 1000 to 400)) {
 			for (labels in labelCases) {
-				val middle = bounds(render(width, height, 0.5f, labels))
-				val top = bounds(render(width, height, 0f, labels))
-				val bottom = bounds(render(width, height, 1f, labels))
+				val baselines = mutableListOf<Float>()
+				val actual = render(width, height, defaults.labelVerticalPosition, labels, baselines)
+				val expectedBaselines = buildList {
+					if (labels.weather != null) {
+						add(height * 0.09f)
+					}
 
-				assertTrue("0% must reach the drawable top: $labels at ${width}x$height", top.top <= 1)
-				assertTrue("100% must reach the drawable bottom: $labels at ${width}x$height", bottom.bottom >= height - 1)
-				for (edge in listOf(top, bottom)) {
-					assertTrue("Moving to an edge must not clip or resize the text block", abs(edge.height() - middle.height()) <= 1)
-					assertTrue("Horizontal alignment must not change", abs(edge.left - middle.left) <= 1)
-					assertTrue("Horizontal alignment must not change", abs(edge.right - middle.right) <= 1)
+					if (labels.location != null) {
+						add(height * 0.121f)
+					}
 				}
+
+				assertEquals("The unset/default position must keep the historical baselines for $labels", expectedBaselines, baselines)
+				val historical = renderHistoricalLabels(width, height, labels)
+				assertTrue("The default must be pixel-identical to the pre-slider overlay for $labels", historical.sameAs(actual))
+				actual.recycle()
+				historical.recycle()
 			}
 		}
 	}
 
 	@Test
-	fun intermediatePositionsUseTheWholeAvailableTravel() {
+	fun endpointsReachTheDrawableEdgesForEveryVisibilityMode() {
 		for ((width, height) in listOf(400 to 1000, 1000 to 400)) {
 			for (labels in labelCases) {
-				val top = mutableListOf<Float>()
-				val bottom = mutableListOf<Float>()
-				render(width, height, 0f, labels, top).recycle()
-				render(width, height, 1f, labels, bottom).recycle()
-				for (position in listOf(0.01f, 0.25f, 0.75f, 0.99f)) {
-					val actual = mutableListOf<Float>()
-					render(width, height, position, labels, actual).recycle()
-					for (line in top.indices) {
-						val expected = top[line] + (bottom[line] - top[line]) * position
-						assertEquals("The emitted baseline must use the full available travel", expected, actual[line], 0.001f)
+				val top = bounds(render(width, height, 0f, labels))
+				val bottom = bounds(render(width, height, 1f, labels))
+
+				assertTrue("0% must reach the drawable top: $labels at ${width}x$height", top.top in 0..1)
+				assertTrue("100% must reach the drawable bottom: $labels at ${width}x$height", bottom.bottom in height - 1..height)
+			}
+		}
+	}
+
+	@Test
+	fun intermediatePositionsUseContinuousTravelOnBothSidesOfTheDefault() {
+		val default = AppSettings().labelVerticalPosition
+		for ((width, height) in listOf(400 to 1000, 1000 to 400)) {
+			for (labels in labelCases) {
+				for ((start, end) in listOf(0f to default, default to 1f)) {
+					val first = mutableListOf<Float>()
+					val last = mutableListOf<Float>()
+					render(width, height, start, labels, first).recycle()
+					render(width, height, end, labels, last).recycle()
+					for (fraction in listOf(0.01f, 0.25f, 0.5f, 0.75f, 0.99f)) {
+						val actual = mutableListOf<Float>()
+						val position = start + (end - start) * fraction
+						render(width, height, position, labels, actual).recycle()
+						for (line in first.indices) {
+							val expected = first[line] + (last[line] - first[line]) * fraction
+							assertEquals("The baseline must move continuously through the historical default", expected, actual[line], 0.001f)
+						}
 					}
 				}
 			}
@@ -101,6 +126,30 @@ class OverlayLabelsRenderingTest {
 		)
 
 		renderer.renderOverlayLabels(canvas, width, height, params)
+		return bitmap
+	}
+
+	private fun renderHistoricalLabels(width: Int, height: Int, labels: OverlayLabels): Bitmap {
+		val bitmap = createBitmap(width, height)
+		val canvas = Canvas(bitmap)
+		val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+			textAlign = Paint.Align.CENTER
+			letterSpacing = 0.03f
+		}
+
+		paint.setShadowLayer(height * 0.005f, 0f, height * 0.0012f, Color.argb(165, 8, 12, 20))
+		labels.weather?.let {
+			paint.textSize = height * 0.024f
+			paint.color = Color.argb(225, 240, 245, 252)
+			canvas.drawText(it, width / 2f, height * 0.09f, paint)
+		}
+
+		labels.location?.let {
+			paint.textSize = height * 0.0165f
+			paint.color = Color.argb(180, 228, 236, 248)
+			canvas.drawText(it, width / 2f, height * 0.121f, paint)
+		}
+
 		return bitmap
 	}
 

@@ -31,6 +31,7 @@ import androidx.core.graphics.withClip
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.CLOUD_SIZE_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.DEFAULT_LABEL_VERTICAL_POSITION
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.LABEL_VERTICAL_POSITION_RANGE
 import xyz.attacktive.weatherd.domain.model.NIGHT_BRIGHTNESS_SCALE_RANGE
@@ -169,7 +170,9 @@ class SceneRenderer(resources: Resources) {
 	private var overlayMeasuredLabels: OverlayLabels? = null
 	private var overlayMeasuredHeight = -1f
 	private var overlayTextTop = Float.POSITIVE_INFINITY
-	private var overlayTextTravel = 0f
+	private var overlayTextBottomOffset = 0f
+	private var overlayDefaultWeatherBaseline = 0f
+	private var overlayDefaultLocationBaseline = 0f
 
 	// Per-frame lightning state, recomputed by [updateLightning] before anything that reacts to a flash draws.
 	private var flashWash = 0f
@@ -358,19 +361,24 @@ class SceneRenderer(resources: Resources) {
 		}
 
 		val position = verticalPosition.coerceIn(LABEL_VERTICAL_POSITION_RANGE.start, LABEL_VERTICAL_POSITION_RANGE.endInclusive)
-		val baseline = overlayTextTravel * position - overlayTextTop
+		val offset = if (position <= DEFAULT_LABEL_VERTICAL_POSITION) {
+			lerp(-overlayTextTop, 0f, position / DEFAULT_LABEL_VERTICAL_POSITION)
+		} else {
+			lerp(0f, overlayTextBottomOffset, (position - DEFAULT_LABEL_VERTICAL_POSITION) / (1f - DEFAULT_LABEL_VERTICAL_POSITION))
+		}
+
 		textPaint.setShadowLayer(height * 0.005f, 0f, height * 0.0012f, Color.argb(165, 8, 12, 20))
 
 		labels.weather?.let {
 			textPaint.textSize = height * 0.024f
 			textPaint.color = Color.argb(225, 240, 245, 252)
-			canvas.drawText(it, width / 2f, baseline, textPaint)
+			canvas.drawText(it, width / 2f, overlayDefaultWeatherBaseline + offset, textPaint)
 		}
 
 		labels.location?.let {
 			textPaint.textSize = height * 0.0165f
 			textPaint.color = Color.argb(180, 228, 236, 248)
-			canvas.drawText(it, width / 2f, baseline + height * 0.031f, textPaint)
+			canvas.drawText(it, width / 2f, overlayDefaultLocationBaseline + offset, textPaint)
 		}
 	}
 
@@ -380,14 +388,19 @@ class SceneRenderer(resources: Resources) {
 			return
 		}
 
+		if (height != overlayMeasuredHeight) {
+			overlayDefaultWeatherBaseline = height * 0.09f
+			overlayDefaultLocationBaseline = height * 0.121f
+		}
+
 		var top = Float.POSITIVE_INFINITY
 		var bottom = Float.NEGATIVE_INFINITY
 		labels.weather?.let {
 			textPaint.textSize = height * 0.024f
 			textPaint.getTextBounds(it, 0, it.length, overlayTextBounds)
 			if (!overlayTextBounds.isEmpty) {
-				top = overlayTextBounds.top.toFloat()
-				bottom = overlayTextBounds.bottom.toFloat()
+				top = overlayDefaultWeatherBaseline + overlayTextBounds.top
+				bottom = overlayDefaultWeatherBaseline + overlayTextBounds.bottom
 			}
 		}
 
@@ -395,14 +408,13 @@ class SceneRenderer(resources: Resources) {
 			textPaint.textSize = height * 0.0165f
 			textPaint.getTextBounds(it, 0, it.length, overlayTextBounds)
 			if (!overlayTextBounds.isEmpty) {
-				val lineOffset = height * 0.031f
-				top = minOf(top, lineOffset + overlayTextBounds.top)
-				bottom = maxOf(bottom, lineOffset + overlayTextBounds.bottom)
+				top = minOf(top, overlayDefaultLocationBaseline + overlayTextBounds.top)
+				bottom = maxOf(bottom, overlayDefaultLocationBaseline + overlayTextBounds.bottom)
 			}
 		}
 
 		overlayTextTop = top
-		overlayTextTravel = (height - (bottom - top)).coerceAtLeast(0f)
+		overlayTextBottomOffset = height - bottom
 		overlayMeasuredHeight = height
 		overlayMeasuredLabels = labels
 	}

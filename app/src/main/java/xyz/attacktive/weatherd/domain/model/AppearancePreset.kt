@@ -30,7 +30,7 @@ data class AppearancePresetSnapshot(
 	val distantAircraftEnabled: Boolean = true,
 	val glassDropletsEnabled: Boolean = false,
 	val treesEnabled: Boolean = false,
-	val labelVerticalPosition: Float = 0.09f
+	val labelVerticalPosition: Float = DEFAULT_LABEL_VERTICAL_POSITION
 )
 
 fun AppSettings.toAppearancePresetSnapshot() = AppearancePresetSnapshot(

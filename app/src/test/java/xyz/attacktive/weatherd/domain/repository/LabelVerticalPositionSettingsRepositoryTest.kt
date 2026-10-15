@@ -127,7 +127,7 @@ class LabelVerticalPositionSettingsRepositoryTest {
 		assertEquals(SunStyle.RADIANT, restored.sunStyle)
 
 		val raw = dataStore.data.first()[stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)]!!
-		assertEquals(7, Json.parseToJsonElement(raw).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+		assertEquals(8, Json.parseToJsonElement(raw).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
 	}
 
 	@Test
@@ -146,25 +146,27 @@ class LabelVerticalPositionSettingsRepositoryTest {
 
 		assertTrue(repository.rename("legacy-5", "Migrated 5").isSuccess)
 		val rewritten = store.data.first()[key]!!
-		assertEquals(7, Json.parseToJsonElement(rewritten).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+		assertEquals(8, Json.parseToJsonElement(rewritten).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
 		val migrated = (AppearancePresetRepository(store).state.first() as AppearancePresetStorageState.Ready).presets.single()
 		assertEquals(0.09f, migrated.snapshot.labelVerticalPosition, 0.0001f)
 	}
 
 	@Test
-	fun `version six presets retain their numeric position under normalized travel`() = runTest {
+	fun `version six and seven presets retain numeric positions under anchored travel`() = runTest {
 		val key = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)
-		val store = dataStore("preset-settings-v6.preferences_pb")
-		val raw = """{"schemaVersion":6,"presets":[{"id":"legacy-6","name":"Legacy 6","snapshot":{"backdropScene":"NONE","showWeatherLabel":true,"showLocationLabel":true,"precipitationIntensityScale":1.0,"windIntensityScale":1.0,"cloudIntensityScale":1.0,"cloudSizeScale":1.0,"cloudCountScale":1.0,"cloudContrastScale":1.0,"skyBrightnessScale":1.0,"nightBrightnessScale":1.0,"skySaturationScale":1.0,"skyColorPreset":"NATURAL","sunVisible":true,"moonVisible":true,"sunSizeScale":1.0,"sunColorPreset":"NATURAL","sunStyle":"RADIANT","lensFlareEnabled":true,"lensFlareMotionEnabled":false,"labelVerticalPosition":0.75}}]}"""
-		store.edit { it[key] = raw }
+		for (version in listOf(6, 7)) {
+			val store = dataStore("preset-settings-v$version.preferences_pb")
+			val raw = """{"schemaVersion":$version,"presets":[{"id":"legacy-$version","name":"Legacy $version","snapshot":{"backdropScene":"NONE","showWeatherLabel":true,"showLocationLabel":true,"precipitationIntensityScale":1.0,"windIntensityScale":1.0,"cloudIntensityScale":1.0,"cloudSizeScale":1.0,"cloudCountScale":1.0,"cloudContrastScale":1.0,"skyBrightnessScale":1.0,"nightBrightnessScale":1.0,"skySaturationScale":1.0,"skyColorPreset":"NATURAL","sunVisible":true,"moonVisible":true,"sunSizeScale":1.0,"sunColorPreset":"NATURAL","sunStyle":"RADIANT","lensFlareEnabled":true,"lensFlareMotionEnabled":false,"labelVerticalPosition":0.75}}]}"""
+			store.edit { it[key] = raw }
 
-		val repository = AppearancePresetRepository(store)
-		val snapshot = (repository.state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot
-		assertEquals(0.75f, snapshot.labelVerticalPosition, 0.0001f)
-		assertEquals(SunStyle.RADIANT, snapshot.sunStyle)
-		assertTrue(repository.rename("legacy-6", "Normalized").isSuccess)
-		val rewritten = store.data.first()[key]!!
-		assertEquals(7, Json.parseToJsonElement(rewritten).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
-		assertEquals(0.75f, (repository.state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot.labelVerticalPosition, 0.0001f)
+			val repository = AppearancePresetRepository(store)
+			val snapshot = (repository.state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot
+			assertEquals(0.75f, snapshot.labelVerticalPosition, 0.0001f)
+			assertEquals(SunStyle.RADIANT, snapshot.sunStyle)
+			assertTrue(repository.rename("legacy-$version", "Anchored").isSuccess)
+			val rewritten = store.data.first()[key]!!
+			assertEquals(8, Json.parseToJsonElement(rewritten).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+			assertEquals(0.75f, (repository.state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot.labelVerticalPosition, 0.0001f)
+		}
 	}
 }

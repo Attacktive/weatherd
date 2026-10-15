@@ -3,6 +3,7 @@ package xyz.attacktive.weatherd.domain.render
 import xyz.attacktive.weatherd.domain.model.CLOUD_CONTRAST_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_COUNT_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_SIZE_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.DEFAULT_LABEL_VERTICAL_POSITION
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.LABEL_VERTICAL_POSITION_RANGE
 import xyz.attacktive.weatherd.domain.model.NIGHT_BRIGHTNESS_SCALE_RANGE
@@ -92,7 +93,7 @@ fun debugSceneParams(
 	distantAircraftEnabled: Boolean = true,
 	glassDropletsEnabled: Boolean = false,
 	treesEnabled: Boolean = false,
-	labelVerticalPosition: Float = 0.09f
+	labelVerticalPosition: Float = DEFAULT_LABEL_VERTICAL_POSITION
 ) = SceneParams(
 	dayPhase = dayPhase,
 	cloudiness = preset.cloudiness,
