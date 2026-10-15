@@ -19,7 +19,6 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
-import xyz.attacktive.weatherd.domain.model.LABEL_VERTICAL_POSITION_RANGE
 import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.toAppearancePresetSnapshot
 
@@ -45,27 +44,40 @@ class LabelVerticalPositionSettingsRepositoryTest {
 	}
 
 	@Test
+	fun `positions throughout the full travel survive persistence without clipping`() = runTest {
+		val store = dataStore()
+		val repository = SettingsRepository(store)
+		for (position in listOf(0f, 0.01f, 0.99f, 1f)) {
+			repository.save(AppSettings(labelVerticalPosition = position))
+			assertEquals(position, SettingsRepository(store).settings.first().labelVerticalPosition, 0.0001f)
+			val mutatedPosition = 1f - position
+			repository.update(listOf(SettingsMutation.LabelVerticalPosition(mutatedPosition)))
+			assertEquals(mutatedPosition, repository.settings.first().labelVerticalPosition, 0.0001f)
+		}
+	}
+
+	@Test
 	fun `out-of-range values are clamped on read and save`() = runTest {
 		val dataStore = dataStore()
 		val repository = SettingsRepository(dataStore)
 
-		repository.save(AppSettings(labelVerticalPosition = 0.01f))
-		assertEquals(LABEL_VERTICAL_POSITION_RANGE.start, SettingsRepository(dataStore).settings.first().labelVerticalPosition, 0.0001f)
+		repository.save(AppSettings(labelVerticalPosition = -0.01f))
+		assertEquals(0f, SettingsRepository(dataStore).settings.first().labelVerticalPosition, 0.0001f)
 
-		repository.save(AppSettings(labelVerticalPosition = 0.99f))
-		assertEquals(LABEL_VERTICAL_POSITION_RANGE.endInclusive, SettingsRepository(dataStore).settings.first().labelVerticalPosition, 0.0001f)
+		repository.save(AppSettings(labelVerticalPosition = 1.01f))
+		assertEquals(1f, SettingsRepository(dataStore).settings.first().labelVerticalPosition, 0.0001f)
 
 		repository.update(listOf(SettingsMutation.LabelVerticalPosition(-0.5f)))
-		assertEquals(LABEL_VERTICAL_POSITION_RANGE.start, SettingsRepository(dataStore).settings.first().labelVerticalPosition, 0.0001f)
+		assertEquals(0f, SettingsRepository(dataStore).settings.first().labelVerticalPosition, 0.0001f)
 
 		repository.update(listOf(SettingsMutation.LabelVerticalPosition(1.5f)))
-		assertEquals(LABEL_VERTICAL_POSITION_RANGE.endInclusive, SettingsRepository(dataStore).settings.first().labelVerticalPosition, 0.0001f)
+		assertEquals(1f, SettingsRepository(dataStore).settings.first().labelVerticalPosition, 0.0001f)
 
 		dataStore.edit { preferences ->
-			preferences[floatPreferencesKey("label_vertical_position")] = 0.02f
+			preferences[floatPreferencesKey("label_vertical_position")] = -0.02f
 		}
 
-		assertEquals(LABEL_VERTICAL_POSITION_RANGE.start, SettingsRepository(dataStore).settings.first().labelVerticalPosition, 0.0001f)
+		assertEquals(0f, SettingsRepository(dataStore).settings.first().labelVerticalPosition, 0.0001f)
 	}
 
 	@Test
@@ -102,7 +114,7 @@ class LabelVerticalPositionSettingsRepositoryTest {
 	}
 
 	@Test
-	fun `schema 6 preset serializes and round-trips position`() = runTest {
+	fun `current preset schema serializes and round-trips position`() = runTest {
 		val dataStore = dataStore()
 		val repository = AppearancePresetRepository(dataStore)
 		val snapshot = AppSettings(labelVerticalPosition = 0.8f, sunStyle = SunStyle.RADIANT).toAppearancePresetSnapshot()
@@ -115,7 +127,7 @@ class LabelVerticalPositionSettingsRepositoryTest {
 		assertEquals(SunStyle.RADIANT, restored.sunStyle)
 
 		val raw = dataStore.data.first()[stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)]!!
-		assertEquals(6, Json.parseToJsonElement(raw).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+		assertEquals(7, Json.parseToJsonElement(raw).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
 	}
 
 	@Test
@@ -134,8 +146,25 @@ class LabelVerticalPositionSettingsRepositoryTest {
 
 		assertTrue(repository.rename("legacy-5", "Migrated 5").isSuccess)
 		val rewritten = store.data.first()[key]!!
-		assertEquals(6, Json.parseToJsonElement(rewritten).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+		assertEquals(7, Json.parseToJsonElement(rewritten).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
 		val migrated = (AppearancePresetRepository(store).state.first() as AppearancePresetStorageState.Ready).presets.single()
 		assertEquals(0.09f, migrated.snapshot.labelVerticalPosition, 0.0001f)
+	}
+
+	@Test
+	fun `version six presets retain their numeric position under normalized travel`() = runTest {
+		val key = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)
+		val store = dataStore("preset-settings-v6.preferences_pb")
+		val raw = """{"schemaVersion":6,"presets":[{"id":"legacy-6","name":"Legacy 6","snapshot":{"backdropScene":"NONE","showWeatherLabel":true,"showLocationLabel":true,"precipitationIntensityScale":1.0,"windIntensityScale":1.0,"cloudIntensityScale":1.0,"cloudSizeScale":1.0,"cloudCountScale":1.0,"cloudContrastScale":1.0,"skyBrightnessScale":1.0,"nightBrightnessScale":1.0,"skySaturationScale":1.0,"skyColorPreset":"NATURAL","sunVisible":true,"moonVisible":true,"sunSizeScale":1.0,"sunColorPreset":"NATURAL","sunStyle":"RADIANT","lensFlareEnabled":true,"lensFlareMotionEnabled":false,"labelVerticalPosition":0.75}}]}"""
+		store.edit { it[key] = raw }
+
+		val repository = AppearancePresetRepository(store)
+		val snapshot = (repository.state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot
+		assertEquals(0.75f, snapshot.labelVerticalPosition, 0.0001f)
+		assertEquals(SunStyle.RADIANT, snapshot.sunStyle)
+		assertTrue(repository.rename("legacy-6", "Normalized").isSuccess)
+		val rewritten = store.data.first()[key]!!
+		assertEquals(7, Json.parseToJsonElement(rewritten).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+		assertEquals(0.75f, (repository.state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot.labelVerticalPosition, 0.0001f)
 	}
 }

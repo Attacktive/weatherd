@@ -29,7 +29,7 @@ import xyz.attacktive.weatherd.domain.weather.precipitationIntensity
  * [photoRevision] counts changes to the user's stored photos, which are otherwise invisible to these params: picking a new photo for a bucket that already had one leaves every other field identical, and the wallpaper's backdrop cache would go on drawing the old one until the next phase flip.
  * It is an opaque number and never a file name or a bitmap — the params stay JVM-pure, and the renderer resolves the photo itself.
  * [overlayLabels] is the optional text overlay, already formatted for drawing; null keeps the wallpaper text-free.
- * [labelVerticalPosition] moves both overlay baselines together as a fraction of scene height, independently of the cached backdrop.
+ * [labelVerticalPosition] moves the visible overlay block through its full available vertical travel, independently of the cached backdrop.
  * [precipitationScale] is the user's preference rather than an observation, so it rides alongside [precipitation] instead of being folded into it: the renderer applies it past its own visibility floor, where it is the drop count the user actually sees.
  * [glassDropletsEnabled] is the user's opt-in preference for screen-anchored rain-on-glass droplets; it does not alter the observed precipitation or the existing falling-rain renderer.
  * [windScale] is the user's preference rather than an observation, so it rides alongside [windFactor] instead of being folded into it: the renderer applies it past its own floors, where it actually moves visible wind effects.

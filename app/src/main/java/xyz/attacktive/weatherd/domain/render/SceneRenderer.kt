@@ -165,6 +165,12 @@ class SceneRenderer(resources: Resources) {
 			letterSpacing = 0.03f
 		}
 
+	private val overlayTextBounds = Rect()
+	private var overlayMeasuredLabels: OverlayLabels? = null
+	private var overlayMeasuredHeight = -1f
+	private var overlayTextTop = Float.POSITIVE_INFINITY
+	private var overlayTextTravel = 0f
+
 	// Per-frame lightning state, recomputed by [updateLightning] before anything that reacts to a flash draws.
 	private var flashWash = 0f
 	private var flashBolt = 0f
@@ -342,25 +348,63 @@ class SceneRenderer(resources: Resources) {
 	/**
 	 * The optional text overlay, drawn above everything so no weather ever obscures it.
 	 *
-	 * Both lines share a vertical offset while retaining their original spacing and the default position below the status bar.
+	 * The visible glyph block travels from top to bottom while both lines retain their size, spacing, and horizontal alignment.
 	 * The shadow preserves readability when the user places them over scenery or a passing celestial body.
 	 */
 	private fun drawOverlayLabels(canvas: Canvas, width: Float, height: Float, labels: OverlayLabels, verticalPosition: Float) {
+		updateOverlayTextBounds(height, labels)
+		if (!overlayTextTop.isFinite()) {
+			return
+		}
+
 		val position = verticalPosition.coerceIn(LABEL_VERTICAL_POSITION_RANGE.start, LABEL_VERTICAL_POSITION_RANGE.endInclusive)
-		val offset = height * (position - 0.09f)
+		val baseline = overlayTextTravel * position - overlayTextTop
 		textPaint.setShadowLayer(height * 0.005f, 0f, height * 0.0012f, Color.argb(165, 8, 12, 20))
 
 		labels.weather?.let {
 			textPaint.textSize = height * 0.024f
 			textPaint.color = Color.argb(225, 240, 245, 252)
-			canvas.drawText(it, width / 2f, height * 0.09f + offset, textPaint)
+			canvas.drawText(it, width / 2f, baseline, textPaint)
 		}
 
 		labels.location?.let {
 			textPaint.textSize = height * 0.0165f
 			textPaint.color = Color.argb(180, 228, 236, 248)
-			canvas.drawText(it, width / 2f, height * 0.121f + offset, textPaint)
+			canvas.drawText(it, width / 2f, baseline + height * 0.031f, textPaint)
 		}
+	}
+
+	/** Measures only on text or height changes; moving the slider and drawing steady frames reuse the same glyph bounds. */
+	private fun updateOverlayTextBounds(height: Float, labels: OverlayLabels) {
+		if (height == overlayMeasuredHeight && labels == overlayMeasuredLabels) {
+			return
+		}
+
+		var top = Float.POSITIVE_INFINITY
+		var bottom = Float.NEGATIVE_INFINITY
+		labels.weather?.let {
+			textPaint.textSize = height * 0.024f
+			textPaint.getTextBounds(it, 0, it.length, overlayTextBounds)
+			if (!overlayTextBounds.isEmpty) {
+				top = overlayTextBounds.top.toFloat()
+				bottom = overlayTextBounds.bottom.toFloat()
+			}
+		}
+
+		labels.location?.let {
+			textPaint.textSize = height * 0.0165f
+			textPaint.getTextBounds(it, 0, it.length, overlayTextBounds)
+			if (!overlayTextBounds.isEmpty) {
+				val lineOffset = height * 0.031f
+				top = minOf(top, lineOffset + overlayTextBounds.top)
+				bottom = maxOf(bottom, lineOffset + overlayTextBounds.bottom)
+			}
+		}
+
+		overlayTextTop = top
+		overlayTextTravel = (height - (bottom - top)).coerceAtLeast(0f)
+		overlayMeasuredHeight = height
+		overlayMeasuredLabels = labels
 	}
 
 	private fun drawSky(canvas: Canvas, width: Float, height: Float, params: SceneParams) {

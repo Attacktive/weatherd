@@ -63,5 +63,5 @@ val INTENSITY_SCALE_RANGE = 0.1f..2f
 val CLOUD_SIZE_SCALE_RANGE = 0.5f..2f
 val CLOUD_COUNT_SCALE_RANGE = 0.5f..2f
 
-/** Bounds for weather overlay text baseline vertical position as a fraction of scene height. */
-val LABEL_VERTICAL_POSITION_RANGE = 0.04f..0.94f
+/** Bounds for the visible overlay text block's normalized travel between the drawable top and bottom. */
+val LABEL_VERTICAL_POSITION_RANGE = 0f..1f
