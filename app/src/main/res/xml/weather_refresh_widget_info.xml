@@ -2,7 +2,7 @@
 <appwidget-provider
 	xmlns:android="http://schemas.android.com/apk/res/android"
 	android:description="@string/refresh_now"
-	android:initialLayout="@layout/widget_weather_refresh"
+	android:initialLayout="@layout/widget_weather_refresh_initial"
 	android:minWidth="48dp"
 	android:minHeight="48dp"
 	android:previewLayout="@layout/widget_weather_refresh"

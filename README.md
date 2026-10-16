@@ -78,6 +78,8 @@ The configured refresh interval is the minimum time between automatic weather fe
 
 The widget queues network-constrained work. Its press effect confirms the tap immediately, an animated progress indicator appears when the accepted work starts running, and a brief ✓ reports a completed weather refresh. A brief ! means the refresh did not complete, including an unavailable location or a final provider failure. If the device is offline, queued work waits for a network connection. Check **Settings → Weather → Last updated** to see when weather was last refreshed; the scene may still look the same when conditions have not changed.
 
+After an app update, Weatherd republishes the widget's refresh action without launching the app or forcing a weather fetch. While Android is still initializing the widget, taps are ignored rather than opening the scene preview; tap again once initialization finishes.
+
 Enable **Settings → Appearance → Sun & moon → Motion-responsive reflections** to move the sun's optical reflections as you tilt your phone, in both the preview and the live wallpaper.
 The option is off by default, requires **Lens flare**, and is disabled on devices without a compatible motion sensor.
 It uses a gravity sensor or an accelerometer fallback only while a visible scene can draw sun reflections; collection stops when the scene is hidden, the screen is off, or weather/night hides the reflections.

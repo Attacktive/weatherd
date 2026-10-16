@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AppWidgetHostView installs an app-launch listener on this root before RemoteViews arrive; the full-cell clickable child consumes taps instead. -->
+<FrameLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	android:importantForAccessibility="no"
+>
+	<include layout="@layout/widget_weather_refresh" />
+</FrameLayout>

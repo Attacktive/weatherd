@@ -34,6 +34,14 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 	}
 
 	override fun onReceive(context: Context, intent: Intent) {
+		if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) {
+			synchronized(STATE_LOCK) {
+				renderWidgets(context, readState(context))
+			}
+
+			return
+		}
+
 		if (intent.action == ACTION_REFRESH) {
 			weatherRefreshEntryPoint(context).sceneAnimationRestartController().restart()
 			enqueueRefresh(context, WorkManager.getInstance(context))
