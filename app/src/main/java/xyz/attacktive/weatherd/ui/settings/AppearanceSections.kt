@@ -158,7 +158,7 @@ internal fun SkyAppearanceSection(settings: AppSettings, defaults: AppSettings, 
 }
 
 @Composable
-internal fun SkyDetailsSection(settings: AppSettings, onSave: (AppSettings) -> Unit) {
+internal fun SkyDetailsSection(settings: AppSettings, defaults: AppSettings, onSave: (AppSettings) -> Unit) {
 	SectionLabel(stringResource(R.string.section_sky_details))
 
 	ToggleSetting(
@@ -167,6 +167,9 @@ internal fun SkyDetailsSection(settings: AppSettings, onSave: (AppSettings) -> U
 		checked = settings.distantAircraftEnabled,
 		onToggle = { onSave(settings.copy(distantAircraftEnabled = it)) }
 	)
+
+	Spacer(modifier = Modifier.height(16.dp))
+	BirdSettings(settings = settings, defaults = defaults, onSave = onSave)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

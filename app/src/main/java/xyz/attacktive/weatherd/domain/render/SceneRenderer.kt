@@ -62,6 +62,7 @@ class SceneRenderer(resources: Resources) {
 	private val foregroundTrees = ForegroundTreeLayer(resources)
 	private val radiantSun = RadiantSunLayer(resources)
 	private val birdPath = Path()
+	private val birdFrame = BirdFlockFrame()
 	private val lightShaftPath = Path()
 	private val sunCloudUpperSamples = FloatArray(SUN_SHAFT_PROFILE_SAMPLES)
 	private val sunCloudLowerSamples = FloatArray(SUN_SHAFT_PROFILE_SAMPLES)
@@ -294,7 +295,7 @@ class SceneRenderer(resources: Resources) {
 		drawCirrus(canvas, w, h, params, timeSeconds)
 
 		if (showsBirds(params)) {
-			drawBirds(canvas, w, h, timeSeconds, params.dayPhase)
+			drawBirds(canvas, w, h, timeSeconds, params)
 		}
 
 		if (params.precipitation == null && effectiveOpaqueCloudiness(params) > SCATTERED_CLOUD_FLOOR && effectiveOpaqueCloudiness(params) <= CLOUD_DECK_THRESHOLD) {
@@ -1545,38 +1546,24 @@ class SceneRenderer(resources: Resources) {
 	}
 
 	/**
-	 * A small flock crossing every few minutes on fair days: staggered wing glyphs with phase-offset wingbeats and a light vertical bob.
-	 * Slot-scheduled like meteors and lightning, so most of the time the sky is empty and a crossing stays a treat.
+	 * A configurable flock of staggered wing glyphs with phase-offset wingbeats and a light vertical bob.
+	 * The shared animation clock drives both natural and explicit appearance intervals without background timers.
 	 * Drawn behind the cloud sheets for depth.
 	 */
-	private fun drawBirds(canvas: Canvas, width: Float, height: Float, timeSeconds: Float, dayPhase: DayPhase) {
-		val slot = (timeSeconds / BIRD_SLOT_SECONDS).toInt()
-		val random = Random(BIRD_SEED + slot)
-		val quiet = random.nextFloat() < 0.45f
-		if (quiet) {
+	private fun drawBirds(canvas: Canvas, width: Float, height: Float, timeSeconds: Float, params: SceneParams) {
+		if (!birdFrame.sample(timeSeconds, params.birdFlockSize, params.birdAppearanceInterval)) {
 			return
 		}
 
-		val start = random.nextFloat(BIRD_SLOT_SECONDS - BIRD_CROSSING_SECONDS)
-		val local = timeSeconds - slot * BIRD_SLOT_SECONDS - start
-		if (local !in 0f..BIRD_CROSSING_SECONDS) {
-			return
-		}
-
-		val progress = local / BIRD_CROSSING_SECONDS
-		val direction = if (random.nextFloat() < 0.5f) {
-			-1f
-		} else {
-			1f
-		}
-
-		val flockSize = 3 + random.nextFloat(3f).toInt()
-		val baseY = height * random.nextFloat(0.14f, 0.26f)
-		val span = width * 1.2f
+		val slot = birdFrame.slot
+		val direction = birdFrame.direction
+		val flockSize = birdFrame.flockSize
+		val baseY = height * birdFrame.heightFraction
+		val span = width * (1.2f + (flockSize - 1) * 0.045f)
 		val leadX = if (direction > 0f) {
-			-width * 0.1f + span * progress
+			-width * 0.1f + span * birdFrame.progress
 		} else {
-			width * 1.1f - span * progress
+			width * 1.1f - span * birdFrame.progress
 		}
 
 		val wing = width * 0.011f
@@ -1584,7 +1571,7 @@ class SceneRenderer(resources: Resources) {
 		paint.strokeCap = Paint.Cap.ROUND
 		paint.strokeJoin = Paint.Join.ROUND
 		paint.strokeWidth = wing * 0.22f
-		paint.color = birdColor(dayPhase)
+		paint.color = birdColor(params.dayPhase)
 
 		repeat(flockSize) { j ->
 			val trailing = j * width * 0.045f * direction
@@ -3292,7 +3279,6 @@ class SceneRenderer(resources: Resources) {
 		private const val PRECIP_SEED = 3L
 		private const val BOLT_SEED = 5L
 		private const val METEOR_SEED = 7L
-		private const val BIRD_SEED = 11L
 		private const val HELICOPTER_SEED = 13L
 		private const val SUN_CORONA_SEED = 17L
 		private const val STAR_AREA_PER_STAR = 22_000f
@@ -3317,11 +3303,6 @@ class SceneRenderer(resources: Resources) {
 		private const val METEOR_SLOT_SECONDS = 149f
 
 		private const val METEOR_DURATION = 0.8f
-
-		/** Length of one bird scheduling slot; a bit over half the slots host one flock crossing. */
-		private const val BIRD_SLOT_SECONDS = 217f
-
-		private const val BIRD_CROSSING_SECONDS = 22f
 
 		/** Length of one helicopter scheduling slot over the metropolis; about half the slots host one crossing. */
 		private const val HELICOPTER_SLOT_SECONDS = 193f
@@ -3804,9 +3785,6 @@ internal fun showsSunVeil(params: SceneParams) = params.sunVisible && params.day
 
 /** A heavy dry deck still transmits a broad patch of daylight even when the solar limb itself is no longer visible. */
 private fun showsOvercastSunTransmission(params: SceneParams) = params.sunVisible && params.dayPhase != DayPhase.NIGHT && params.precipitation == null && params.fogDensity <= 0f && !params.thunder && effectiveOpaqueCloudiness(params) > CLOUD_DECK_THRESHOLD
-
-/** Birds fly only through fair daylight skies: no precipitation, no fog, cover below the deck threshold, and never at night. */
-private fun showsBirds(params: SceneParams) = params.precipitation == null && params.fogDensity <= 0f && effectiveOpaqueCloudiness(params) < 0.55f && params.dayPhase != DayPhase.NIGHT
 
 /** The chromatic halo follows direct daylight visibility and disappears with the user's sun visibility preference. */
 internal fun showsRainbow(params: SceneParams) = params.sunVisible && params.dayPhase != DayPhase.NIGHT && params.precipitation == null && params.fogDensity <= 0f && effectiveOpaqueCloudiness(params) <= DIRECT_SUN_MAX_CLOUDINESS

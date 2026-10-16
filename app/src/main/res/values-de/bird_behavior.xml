@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="section_bird_flock_size">Vögel</string>
+	<string name="bird_flock_size_off">Aus</string>
+	<string name="bird_flock_size_small">Kleiner Schwarm</string>
+	<string name="bird_flock_size_medium">Mittlerer Schwarm</string>
+	<string name="bird_flock_size_large">Großer Schwarm</string>
+	<string name="section_bird_appearance_interval">Vogel-Intervall</string>
+	<string name="bird_appearance_interval_natural">Natürlich</string>
+	<string name="bird_appearance_interval_30_seconds">30 Sekunden</string>
+	<string name="bird_appearance_interval_1_minute">1 Minute</string>
+	<string name="bird_appearance_interval_2_minutes">2 Minuten</string>
+	<string name="bird_appearance_interval_5_minutes">5 Minuten</string>
+	<string name="bird_appearance_interval_10_minutes">10 Minuten</string>
+	<string name="hint_bird_behavior">Vögel erscheinen nur bei schönem Wetter am Tag. Die Intervalle folgen der animierten Szenenzeit und keinen Hintergrundweckern.</string>
+</resources>

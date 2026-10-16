@@ -57,7 +57,7 @@ internal fun AppearanceSettingsTab(viewModel: SettingsViewModel, category: Appea
 			AppearanceCategory.SKY -> {
 				SkyAppearanceSection(settings = settings, defaults = viewModel.defaults, onSave = onSave)
 				Spacer(modifier = Modifier.height(24.dp))
-				SkyDetailsSection(settings = settings, onSave = onSave)
+				SkyDetailsSection(settings = settings, defaults = viewModel.defaults, onSave = onSave)
 			}
 
 			AppearanceCategory.CLOUDS -> CloudAppearanceSection(settings = settings, defaults = viewModel.defaults, onSave = onSave)

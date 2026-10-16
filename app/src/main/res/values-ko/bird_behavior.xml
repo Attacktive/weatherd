@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="section_bird_flock_size">새</string>
+	<string name="bird_flock_size_off">끄기</string>
+	<string name="bird_flock_size_small">작은 무리</string>
+	<string name="bird_flock_size_medium">중간 무리</string>
+	<string name="bird_flock_size_large">큰 무리</string>
+	<string name="section_bird_appearance_interval">새 등장 주기</string>
+	<string name="bird_appearance_interval_natural">자연스럽게</string>
+	<string name="bird_appearance_interval_30_seconds">30초</string>
+	<string name="bird_appearance_interval_1_minute">1분</string>
+	<string name="bird_appearance_interval_2_minutes">2분</string>
+	<string name="bird_appearance_interval_5_minutes">5분</string>
+	<string name="bird_appearance_interval_10_minutes">10분</string>
+	<string name="hint_bird_behavior">새는 맑은 날 낮에만 나타납니다. 주기는 백그라운드 알람 대신 애니메이션 재생 시간을 따릅니다.</string>
+</resources>

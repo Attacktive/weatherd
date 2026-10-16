@@ -2,6 +2,8 @@ package xyz.attacktive.weatherd.domain.render
 
 import kotlin.math.pow
 import xyz.attacktive.weatherd.domain.model.BackdropScene
+import xyz.attacktive.weatherd.domain.model.BirdAppearanceInterval
+import xyz.attacktive.weatherd.domain.model.BirdFlockSize
 import xyz.attacktive.weatherd.domain.model.CLOUD_CONTRAST_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_COUNT_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_SIZE_SCALE_RANGE
@@ -44,6 +46,7 @@ import xyz.attacktive.weatherd.domain.model.normalizeReadabilityStrength
  * [lensFlareEnabled] is a display preference for camera-style streaks and optical ghosts around the sun; it does not disable the physical corona or atmospheric light shafts.
  * [lensFlareMotionEnabled] allows device tilt and motion sensors to subtly deflect camera optical reflections when [lensFlareEnabled] and direct sun are visible.
  * [distantAircraftEnabled] controls the optional procedural aircraft and contrail foreground detail without changing weather classification.
+ * [birdFlockSize] and [birdAppearanceInterval] customize foreground flocks without changing their fair-weather daylight eligibility.
  * [humidityHazeDensity] is a restrained atmospheric overlay derived from high humidity; it shares fog drawing without classifying the weather as fog.
  */
 data class SceneCloudLayers(
@@ -88,7 +91,9 @@ data class SceneParams(
 	val treesEnabled: Boolean = false,
 	val labelVerticalPosition: Float = DEFAULT_LABEL_VERTICAL_POSITION,
 	val wallpaperDimmingStrength: Float = 0f,
-	val statusBarShadeStrength: Float = 0f
+	val statusBarShadeStrength: Float = 0f,
+	val birdFlockSize: BirdFlockSize = BirdFlockSize.SMALL,
+	val birdAppearanceInterval: BirdAppearanceInterval = BirdAppearanceInterval.NATURAL
 )
 
 /** The two overlay text lines — the current weather ("Rain · 10°") and the place name — each omissible on its own. */
@@ -127,7 +132,9 @@ fun backdropSignature(params: SceneParams, backgroundPhotoAvailable: Boolean = f
 		glassDropletsEnabled = false,
 		treesEnabled = false,
 		wallpaperDimmingStrength = 0f,
-		statusBarShadeStrength = 0f
+		statusBarShadeStrength = 0f,
+		birdFlockSize = BirdFlockSize.SMALL,
+		birdAppearanceInterval = BirdAppearanceInterval.NATURAL
 	)
 }
 
@@ -156,6 +163,13 @@ internal fun showsDistantAircraft(params: SceneParams) = params.distantAircraftE
 	params.fogDensity <= 0f &&
 	!params.thunder &&
 	effectiveOpaqueCloudiness(params) < 0.55f
+
+/** Birds retain their existing fair-weather daylight gate independently of the chosen appearance interval. */
+internal fun showsBirds(params: SceneParams) = params.birdFlockSize != BirdFlockSize.OFF &&
+	params.precipitation == null &&
+	params.fogDensity <= 0f &&
+	effectiveOpaqueCloudiness(params) < 0.55f &&
+	params.dayPhase != DayPhase.NIGHT
 
 private fun scaledCloudiness(params: SceneParams, cloudiness: Float) =
 	(cloudiness * params.cloudCountScale.coerceIn(CLOUD_COUNT_SCALE_RANGE.start, CLOUD_COUNT_SCALE_RANGE.endInclusive)).coerceIn(0f, 1f)
@@ -208,7 +222,9 @@ fun sceneParamsFor(
 	treesEnabled: Boolean = false,
 	labelVerticalPosition: Float = DEFAULT_LABEL_VERTICAL_POSITION,
 	wallpaperDimmingStrength: Float = 0f,
-	statusBarShadeStrength: Float = 0f
+	statusBarShadeStrength: Float = 0f,
+	birdFlockSize: BirdFlockSize = BirdFlockSize.SMALL,
+	birdAppearanceInterval: BirdAppearanceInterval = BirdAppearanceInterval.NATURAL
 ): SceneParams {
 	val observation = snapshot.observation
 	val condition = observation.condition
@@ -273,7 +289,9 @@ fun sceneParamsFor(
 		treesEnabled = treesEnabled,
 		labelVerticalPosition = labelVerticalPosition.coerceIn(LABEL_VERTICAL_POSITION_RANGE.start, LABEL_VERTICAL_POSITION_RANGE.endInclusive),
 		wallpaperDimmingStrength = normalizeReadabilityStrength(wallpaperDimmingStrength),
-		statusBarShadeStrength = normalizeReadabilityStrength(statusBarShadeStrength)
+		statusBarShadeStrength = normalizeReadabilityStrength(statusBarShadeStrength),
+		birdFlockSize = birdFlockSize,
+		birdAppearanceInterval = birdAppearanceInterval
 	)
 }
 

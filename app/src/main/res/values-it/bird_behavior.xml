@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="section_bird_flock_size">Uccelli</string>
+	<string name="bird_flock_size_off">Non attivo</string>
+	<string name="bird_flock_size_small">Piccolo stormo</string>
+	<string name="bird_flock_size_medium">Stormo medio</string>
+	<string name="bird_flock_size_large">Grande stormo</string>
+	<string name="section_bird_appearance_interval">Intervallo uccelli</string>
+	<string name="bird_appearance_interval_natural">Naturale</string>
+	<string name="bird_appearance_interval_30_seconds">30 secondi</string>
+	<string name="bird_appearance_interval_1_minute">1 minuto</string>
+	<string name="bird_appearance_interval_2_minutes">2 minuti</string>
+	<string name="bird_appearance_interval_5_minutes">5 minuti</string>
+	<string name="bird_appearance_interval_10_minutes">10 minuti</string>
+	<string name="hint_bird_behavior">Gli uccelli compaiono di giorno con tempo sereno. Gli intervalli seguono il tempo della scena animata e non gli allarmi in background.</string>
+</resources>

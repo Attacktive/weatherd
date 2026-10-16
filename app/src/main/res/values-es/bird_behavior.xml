@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="section_bird_flock_size">Pájaros</string>
+	<string name="bird_flock_size_off">Desactivado</string>
+	<string name="bird_flock_size_small">Bandada pequeña</string>
+	<string name="bird_flock_size_medium">Bandada mediana</string>
+	<string name="bird_flock_size_large">Bandada grande</string>
+	<string name="section_bird_appearance_interval">Intervalo de pájaros</string>
+	<string name="bird_appearance_interval_natural">Natural</string>
+	<string name="bird_appearance_interval_30_seconds">30 segundos</string>
+	<string name="bird_appearance_interval_1_minute">1 minuto</string>
+	<string name="bird_appearance_interval_2_minutes">2 minutos</string>
+	<string name="bird_appearance_interval_5_minutes">5 minutos</string>
+	<string name="bird_appearance_interval_10_minutes">10 minutos</string>
+	<string name="hint_bird_behavior">Los pájaros aparecen durante el día con buen tiempo. Los intervalos siguen el tiempo de la escena animada y no alarmas en segundo plano.</string>
+</resources>

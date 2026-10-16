@@ -24,6 +24,8 @@ import org.junit.Test
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
+import xyz.attacktive.weatherd.domain.model.BirdAppearanceInterval
+import xyz.attacktive.weatherd.domain.model.BirdFlockSize
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.GeoLocation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
@@ -108,6 +110,46 @@ class WeatherSceneProviderTest {
 		assertEquals(DayPhase.DAY, provider.paramsFor(1_000_030L, debugToolsAvailable = false).dayPhase)
 		coVerify(exactly = 0) { locationRepository.currentLocation() }
 		coVerify(exactly = 0) { weatherRepository.current(any(), any()) }
+	}
+
+	@Test
+	fun `bird changes reach live simulation and fallback without replacing captured scenes`() = runTest {
+		persistedSettings.value = AppSettings(
+			useDeviceLocation = true,
+			birdFlockSize = BirdFlockSize.LARGE,
+			birdAppearanceInterval = BirdAppearanceInterval.SECONDS_30
+		)
+
+		val fallback = provider.paramsFor(1_000_000L)
+		assertEquals(BirdFlockSize.LARGE, fallback.birdFlockSize)
+		assertEquals(BirdAppearanceInterval.SECONDS_30, fallback.birdAppearanceInterval)
+		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
+		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 0))
+		provider.refresh(1_000_000L)
+
+		val captured = provider.sceneState.value
+		val live = provider.paramsFor(1_000_030L, captured)
+		assertEquals(BirdFlockSize.LARGE, live.birdFlockSize)
+		assertEquals(BirdAppearanceInterval.SECONDS_30, live.birdAppearanceInterval)
+		assertTrue(showsBirds(live))
+		persistedSettings.value = persistedSettings.value.copy(birdFlockSize = BirdFlockSize.OFF)
+		assertFalse(showsBirds(provider.paramsFor(1_000_030L)))
+		assertTrue(showsBirds(provider.paramsFor(1_000_030L, captured)))
+		assertEquals(backdropSignature(live), backdropSignature(provider.paramsFor(1_000_030L)))
+
+		persistedSettings.value = persistedSettings.value.copy(
+			sceneSimulatorActive = true,
+			sceneSimulatorPresetIndex = 0,
+			sceneSimulatorDayPhase = DayPhase.DAY,
+			birdFlockSize = BirdFlockSize.MEDIUM,
+			birdAppearanceInterval = BirdAppearanceInterval.MINUTE_1
+		)
+
+		val simulated = provider.paramsFor(1_000_030L)
+		assertEquals(BirdFlockSize.MEDIUM, simulated.birdFlockSize)
+		assertEquals(BirdAppearanceInterval.MINUTE_1, simulated.birdAppearanceInterval)
+		assertTrue(showsBirds(simulated))
+		coVerify(exactly = 1) { weatherRepository.current(any(), any()) }
 	}
 
 	private val context = mockk<Context>(relaxed = true) {

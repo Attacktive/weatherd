@@ -4,6 +4,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import xyz.attacktive.weatherd.domain.model.BirdAppearanceInterval
+import xyz.attacktive.weatherd.domain.model.BirdFlockSize
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
@@ -101,6 +103,23 @@ class SceneDebugPresetsTest {
 			assertEquals(enabled.copy(treesEnabled = false), disabled)
 			assertEquals(backdropSignature(enabled), backdropSignature(disabled))
 		}
+	}
+
+	@Test
+	fun `bird preferences preserve simulated weather gates without changing the backdrop`() {
+		val clear = SCENE_PRESETS.first { it.name == "CLEAR" }
+		val enabled = debugSceneParams(clear, DayPhase.DAY, birdFlockSize = BirdFlockSize.LARGE, birdAppearanceInterval = BirdAppearanceInterval.SECONDS_30)
+		val disabled = debugSceneParams(clear, DayPhase.DAY, birdFlockSize = BirdFlockSize.OFF, birdAppearanceInterval = BirdAppearanceInterval.MINUTES_10)
+		val night = debugSceneParams(clear, DayPhase.NIGHT, birdFlockSize = BirdFlockSize.LARGE, birdAppearanceInterval = BirdAppearanceInterval.SECONDS_30)
+		val rain = debugSceneParams(SCENE_PRESETS.first { it.name == "RAIN" }, DayPhase.DAY, birdFlockSize = BirdFlockSize.LARGE, birdAppearanceInterval = BirdAppearanceInterval.SECONDS_30)
+
+		assertEquals(BirdFlockSize.LARGE, enabled.birdFlockSize)
+		assertEquals(BirdAppearanceInterval.SECONDS_30, enabled.birdAppearanceInterval)
+		assertTrue(showsBirds(enabled))
+		assertFalse(showsBirds(disabled))
+		assertFalse(showsBirds(night))
+		assertFalse(showsBirds(rain))
+		assertEquals(backdropSignature(enabled), backdropSignature(disabled))
 	}
 
 	@Test

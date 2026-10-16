@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="section_bird_flock_size">鳥</string>
+	<string name="bird_flock_size_off">オフ</string>
+	<string name="bird_flock_size_small">小さな群れ</string>
+	<string name="bird_flock_size_medium">中くらいの群れ</string>
+	<string name="bird_flock_size_large">大きな群れ</string>
+	<string name="section_bird_appearance_interval">鳥の出現間隔</string>
+	<string name="bird_appearance_interval_natural">自然</string>
+	<string name="bird_appearance_interval_30_seconds">30 秒</string>
+	<string name="bird_appearance_interval_1_minute">1 分</string>
+	<string name="bird_appearance_interval_2_minutes">2 分</string>
+	<string name="bird_appearance_interval_5_minutes">5 分</string>
+	<string name="bird_appearance_interval_10_minutes">10 分</string>
+	<string name="hint_bird_behavior">鳥は晴天の日中のみ現れます。間隔はバックグラウンドアラームではなくアニメーション再生時間に従います。</string>
+</resources>

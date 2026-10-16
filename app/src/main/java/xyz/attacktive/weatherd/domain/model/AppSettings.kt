@@ -35,6 +35,8 @@ data class AppSettings(
 	val lensFlareEnabled: Boolean = true,
 	val lensFlareMotionEnabled: Boolean = false,
 	val distantAircraftEnabled: Boolean = true,
+	val birdFlockSize: BirdFlockSize = BirdFlockSize.SMALL,
+	val birdAppearanceInterval: BirdAppearanceInterval = BirdAppearanceInterval.NATURAL,
 	val sceneSimulatorEnabled: Boolean = false,
 	val sceneSimulatorActive: Boolean = false,
 	val sceneSimulatorPresetIndex: Int = 0,

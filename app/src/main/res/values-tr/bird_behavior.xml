@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="section_bird_flock_size">Kuşlar</string>
+	<string name="bird_flock_size_off">Kapalı</string>
+	<string name="bird_flock_size_small">Küçük sürü</string>
+	<string name="bird_flock_size_medium">Orta sürü</string>
+	<string name="bird_flock_size_large">Büyük sürü</string>
+	<string name="section_bird_appearance_interval">Kuş aralığı</string>
+	<string name="bird_appearance_interval_natural">Doğal</string>
+	<string name="bird_appearance_interval_30_seconds">30 saniye</string>
+	<string name="bird_appearance_interval_1_minute">1 dakika</string>
+	<string name="bird_appearance_interval_2_minutes">2 dakika</string>
+	<string name="bird_appearance_interval_5_minutes">5 dakika</string>
+	<string name="bird_appearance_interval_10_minutes">10 dakika</string>
+	<string name="hint_bird_behavior">Kuşlar sadece açık havalarda gündüz görünür. Aralıklar arka plan alarmları yerine animasyonlu sahne süresini takip eder.</string>
+</resources>

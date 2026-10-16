@@ -1,5 +1,7 @@
 package xyz.attacktive.weatherd.domain.render
 
+import xyz.attacktive.weatherd.domain.model.BirdAppearanceInterval
+import xyz.attacktive.weatherd.domain.model.BirdFlockSize
 import xyz.attacktive.weatherd.domain.model.CLOUD_CONTRAST_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_COUNT_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_SIZE_SCALE_RANGE
@@ -96,7 +98,9 @@ fun debugSceneParams(
 	treesEnabled: Boolean = false,
 	labelVerticalPosition: Float = DEFAULT_LABEL_VERTICAL_POSITION,
 	wallpaperDimmingStrength: Float = 0f,
-	statusBarShadeStrength: Float = 0f
+	statusBarShadeStrength: Float = 0f,
+	birdFlockSize: BirdFlockSize = BirdFlockSize.SMALL,
+	birdAppearanceInterval: BirdAppearanceInterval = BirdAppearanceInterval.NATURAL
 ) = SceneParams(
 	dayPhase = dayPhase,
 	cloudiness = preset.cloudiness,
@@ -125,6 +129,8 @@ fun debugSceneParams(
 	celestialProgress = celestialProgress,
 	lensFlareMotionEnabled = lensFlareMotionEnabled,
 	distantAircraftEnabled = distantAircraftEnabled,
+	birdFlockSize = birdFlockSize,
+	birdAppearanceInterval = birdAppearanceInterval,
 	glassDropletsEnabled = glassDropletsEnabled,
 	treesEnabled = treesEnabled,
 	labelVerticalPosition = labelVerticalPosition.coerceIn(LABEL_VERTICAL_POSITION_RANGE.start, LABEL_VERTICAL_POSITION_RANGE.endInclusive),

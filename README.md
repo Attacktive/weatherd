@@ -17,7 +17,7 @@ Refreshes happen separately, and a slow or failed request does not prevent switc
 
 Enable **Settings → Appearance → Scenery & photos → Trees** to add a fixed composition of detailed foreground evergreens to any backdrop, including None and Photo.
 Trees are off by default and saved with appearance presets; old settings and presets keep them off.
-New preset writes use schema v9; v1–v8 presets remain readable, while older builds reject the new bank instead of silently dropping appearance settings.
+New preset writes use schema v10; v1–v9 presets remain readable, while older builds reject the new bank instead of silently dropping appearance settings.
 The preview, live wallpaper, simulator, and clock-lit fallback share the same tree preference and placement.
 Tree lighting follows day phase and cloudy weather, while fog and precipitation draw in front of the foliage.
 The three first-party source sprites are reproducibly generated with `uv run scripts/generate-tree-textures.py` and decoded once off the frame loop on first use; no artwork is copied from the reference app or third parties.
@@ -29,13 +29,20 @@ Radiant preserves the image’s bright core and short rays, but its cached rende
 Its additional wide optical halos are restrained; **Lens flare** and **Motion-responsive reflections** still control the separate procedural reflections and their motion.
 The [submitted PNG](https://github.com/user-attachments/assets/68a92bcf-016d-4276-bc35-4c1e38ae6b78) is bundled unchanged; the softened immutable rendering texture is generated once off the frame loop on first use.
 
+In **Settings → Appearance → Sky**, choose **Birds**: **Off**, **Small flock** (3–5 birds), **Medium flock** (6–8), or **Large flock** (9–12).
+**Bird interval** offers **Natural**, **30 seconds**, **1 minute**, **2 minutes**, **5 minutes**, and **10 minutes**.
+Small + Natural preserves the existing restrained, randomized bird schedule; explicit intervals schedule one crossing per interval without randomly skipping appearances.
+Birds still appear only in fair daylight: rain, fog, opaque cloud cover, and night suppress them regardless of the selected interval.
+Timing follows the shared scene animation clock, with no background alarm or extra animation lifecycle.
+Turning birds off hides the interval control without clearing its selection. Both controls reset individually, are saved with appearance presets, and apply through the shared preview, live-wallpaper, simulator, and fallback scene path.
+
 ## Settings navigation
 
 Settings opens on **Appearance**, followed by **Weather**, **Wallpaper**, and **Advanced**.
 Appearance is a category hub with short summaries rather than a single long list of controls:
 
 - **Scenery & photos:** backdrop scenery, conditional photo slots, and the independent Trees switch.
-- **Sky:** palette, brightness, night brightness, saturation, and distant aircraft.
+- **Sky:** palette, brightness, night brightness, saturation, distant aircraft, and bird size/interval.
 - **Clouds:** size, count, opacity, and contrast together.
 - **Sun & moon:** visibility, sun style, size, color, lens flare, and motion-responsive reflections.
 - **Weather effects:** precipitation intensity, glass droplets, and wind intensity.

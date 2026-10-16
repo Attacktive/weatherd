@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="section_bird_flock_size">Birds</string>
+	<string name="bird_flock_size_off">Off</string>
+	<string name="bird_flock_size_small">Small flock</string>
+	<string name="bird_flock_size_medium">Medium flock</string>
+	<string name="bird_flock_size_large">Large flock</string>
+	<string name="section_bird_appearance_interval">Bird interval</string>
+	<string name="bird_appearance_interval_natural">Natural</string>
+	<string name="bird_appearance_interval_30_seconds">30 seconds</string>
+	<string name="bird_appearance_interval_1_minute">1 minute</string>
+	<string name="bird_appearance_interval_2_minutes">2 minutes</string>
+	<string name="bird_appearance_interval_5_minutes">5 minutes</string>
+	<string name="bird_appearance_interval_10_minutes">10 minutes</string>
+	<string name="hint_bird_behavior">Birds appear in fair daylight. Intervals follow animated scene time rather than background alarms.</string>
+</resources>
