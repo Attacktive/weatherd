@@ -640,36 +640,41 @@ class SunRenderingTest {
 				continue
 			}
 
-			remaining[index] = false
-			queue.addLast(index)
-			var left = width
-			var right = 0
-			var top = height
-			var bottom = 0
-			while (queue.isNotEmpty()) {
-				val pixel = queue.removeFirst()
-				val x = pixel % width
-				val y = pixel / width
-				left = minOf(left, x)
-				right = maxOf(right, x)
-				top = minOf(top, y)
-				bottom = maxOf(bottom, y)
-				for (offset in neighborOffsets) {
-					val neighbor = pixel + offset
-					if (neighbor in remaining.indices && abs(neighbor % width - x) <= 1 && remaining[neighbor]) {
-						remaining[neighbor] = false
-						queue.addLast(neighbor)
-					}
-				}
-			}
-
+			val bounds = consumeLensGhostBounds(remaining, width, index, queue, neighborOffsets)
 			// Reject the broad solar halo and haze; compact connected circles are the lens reflections.
-			if (right - left in 3..(span * 0.16f).roundToInt() && bottom - top in 3..(span * 0.16f).roundToInt()) {
-				footprints.add(PixelBounds(left, top, right, bottom))
+			if (bounds.right - bounds.left in 3..(span * 0.16f).roundToInt() && bounds.bottom - bounds.top in 3..(span * 0.16f).roundToInt()) {
+				footprints.add(bounds)
 			}
 		}
 
 		return footprints
+	}
+
+	private fun consumeLensGhostBounds(remaining: BooleanArray, width: Int, start: Int, queue: ArrayDeque<Int>, neighborOffsets: IntArray): PixelBounds {
+		remaining[start] = false
+		queue.addLast(start)
+		var left = width
+		var right = 0
+		var top = remaining.size / width
+		var bottom = 0
+		while (queue.isNotEmpty()) {
+			val pixel = queue.removeFirst()
+			val x = pixel % width
+			val y = pixel / width
+			left = minOf(left, x)
+			right = maxOf(right, x)
+			top = minOf(top, y)
+			bottom = maxOf(bottom, y)
+			for (offset in neighborOffsets) {
+				val neighbor = pixel + offset
+				if (neighbor in remaining.indices && abs(neighbor % width - x) <= 1 && remaining[neighbor]) {
+					remaining[neighbor] = false
+					queue.addLast(neighbor)
+				}
+			}
+		}
+
+		return PixelBounds(left, top, right, bottom)
 	}
 
 	private fun lensHaloCenter(width: Int, height: Int): PixelPoint {
