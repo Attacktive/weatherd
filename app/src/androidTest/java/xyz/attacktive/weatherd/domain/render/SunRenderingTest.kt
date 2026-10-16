@@ -174,9 +174,10 @@ class SunRenderingTest {
 		val disabledForeground = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams.copy(lensFlareEnabled = false))
 		val centers = findLensGhostBounds(enabledForeground, disabledForeground).map { PixelPoint(it.centerX, it.centerY) }
 
-		assertTrue(
-			"The photographic flare should build a visible train of multiple discrete ghosts along the optical axis, but found ${centers.size} footprints",
-			centers.size >= 3
+		assertEquals(
+			"The photographic flare must retain all four distinguishable reflections, including the farthest",
+			4,
+			centers.size
 		)
 
 		val enabledScene = renderScene(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams)
@@ -256,29 +257,25 @@ class SunRenderingTest {
 
 	@Test
 	fun lensFlareReflectionTrainEndsBeforeLowerQuarterOfViewport() {
-		val enabledParams = clearParams()
-		val enabled = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams)
-		val disabled = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams.copy(lensFlareEnabled = false))
-		val sun = celestialCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, DayPhase.DAY)
-		val axisX = PORTRAIT_WIDTH / 2f - sun.x
-		val axisY = PORTRAIT_HEIGHT / 2f - sun.y
-		val lowerQuarterTop = (PORTRAIT_HEIGHT * 0.75f).roundToInt()
+		for ((width, height) in listOf(PORTRAIT_WIDTH to PORTRAIT_HEIGHT, LANDSCAPE_WIDTH to LANDSCAPE_HEIGHT)) {
+			for (offsetY in floatArrayOf(0f, 0.5f, 1f)) {
+				assertReflectionTrainAboveLowerQuarter(width, height, offsetY)
+			}
+		}
+	}
 
-		val lowerQuarterPoints = (lowerQuarterTop until PORTRAIT_HEIGHT step 10).map { y ->
-			val distance = (y - sun.y).toFloat() / axisY
-			val x = (sun.x + axisX * distance).roundToInt()
-			PixelPoint(x, y)
-		}.filter { it.x in 0 until PORTRAIT_WIDTH && it.y in 0 until PORTRAIT_HEIGHT }
+	private fun assertReflectionTrainAboveLowerQuarter(width: Int, height: Int, offsetY: Float) {
+		val params = clearParams().copy(lensFlareMotionEnabled = true)
+		val enabled = renderForeground(width, height, params, offsetY = offsetY)
+		val disabled = renderForeground(width, height, params.copy(lensFlareEnabled = false), offsetY = offsetY)
+		val lowerQuarterTop = (height * 0.75f).roundToInt()
+		val footprints = findLensGhostBounds(enabled, disabled)
 
-		val maxLiftInLowerQuarter = lowerQuarterPoints.maxOfOrNull { point ->
-			Color.alpha(enabled.getPixel(point.x, point.y)) - Color.alpha(disabled.getPixel(point.x, point.y))
-		} ?: 0
-
+		assertTrue("The scene must retain visible compact reflections at vertical offset $offsetY", footprints.isNotEmpty())
 		assertTrue(
-			"The compact lens flare reflection train must end before the lower quarter of the viewport (y >= $lowerQuarterTop), but maximum flare alpha lift in the lower quarter was $maxLiftInLowerQuarter",
-			maxLiftInLowerQuarter == 0
+			"The reflection train must stay above the lower quarter in ${width}x$height at vertical offset $offsetY, but footprints were $footprints",
+			footprints.all { it.bottom < lowerQuarterTop }
 		)
-
 		enabled.recycle()
 		disabled.recycle()
 	}
@@ -715,10 +712,10 @@ class SunRenderingTest {
 		return bitmap
 	}
 
-	private fun renderForeground(width: Int, height: Int, params: SceneParams, timeSeconds: Float = 0f): Bitmap {
+	private fun renderForeground(width: Int, height: Int, params: SceneParams, timeSeconds: Float = 0f, offsetY: Float = 0f): Bitmap {
 		val bitmap = createBitmap(width, height)
 
-		SceneRenderer(resources)
+		SceneRenderer(resources).apply { lensFlareOffsetY = offsetY }
 			.renderForeground(Canvas(bitmap), width, height, params, timeSeconds)
 
 		return bitmap

@@ -1418,10 +1418,20 @@ class SceneRenderer(resources: Resources) {
 		val streak = tile("sunStreak", SUN_STREAK_SPRITE_WIDTH, SUN_STREAK_SPRITE_HEIGHT) { buildSunStreakSprite(it, core) }
 		val streakHalfWidth = radius * SUN_STREAK_REACH
 		blitGlowRect(canvas, streak, sun.centerX, sun.centerY, streakHalfWidth, streakHalfWidth * SUN_STREAK_ASPECT, sunAlpha(SUN_STREAK_ALPHA * (0.9f + 0.1f * sun.pulse), sun.visibility))
+		// Keep the complete train above the lower quarter while preserving its optical axis and relative spacing.
+		val lastGhost = LENS_GHOSTS.last()
+		val ghostAxisScale = if (axisY > 0f) {
+			((sun.height * LENS_GHOST_MAX_HEIGHT_FRACTION - sun.centerY - radius * lastGhost.scale) / (axisY * lastGhost.distance)).coerceIn(0f, 1f)
+		} else {
+			1f
+		}
+
+		val ghostAxisX = axisX * ghostAxisScale
+		val ghostAxisY = axisY * ghostAxisScale
 		for (index in LENS_GHOSTS.indices) {
 			val ghost = LENS_GHOSTS[index]
-			val centerX = sun.centerX + axisX * ghost.distance
-			val centerY = sun.centerY + axisY * ghost.distance
+			val centerX = sun.centerX + ghostAxisX * ghost.distance
+			val centerY = sun.centerY + ghostAxisY * ghost.distance
 			val tint = tile("sunGhost-$index", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildLensGhostSprite(it, ghost.tint) }
 			blitGlow(canvas, tint, centerX, centerY, radius * ghost.scale, sunAlpha(ghost.strength * 255f, sun.visibility))
 		}
@@ -4005,6 +4015,8 @@ private data class HelicopterPass(val x: Float, val y: Float, val direction: Flo
  * [distance] walks the axis from the sun toward the frame's center, [scale] multiplies the disc radius, [strength] is peak opacity, and [tint] is the color that element passes.
  */
 private data class LensGhost(val distance: Float, val scale: Float, val strength: Float, val tint: Int)
+
+private const val LENS_GHOST_MAX_HEIGHT_FRACTION = 0.75f
 
 /**
  * The ghosts, ordered along the optical axis away from the sun.

@@ -34,6 +34,7 @@ Choose **Settings → Appearance → Sky → Sky palette → Clear blue** for a 
 Use the existing **Sky brightness** and **Sky saturation** sliders to make the blue darker, lighter, muted, or vivid.
 The palette is saved with appearance presets and shared by the preview, live wallpaper, simulator, and fallback; natural sunrise, sunset, and night colors remain intact, and cloudy/stormy weather still takes precedence.
 The existing **Lens flare** option retains the chromatic halo around the sun, with smaller reflections spaced into a tighter train rather than extending toward the bottom of the scene.
+The four-reflection train stays above the lower quarter during supported device tilt in portrait and landscape; near that boundary, its spacing compresses together without hiding the farthest circle or changing the separate chromatic halo.
 
 In **Settings → Appearance → Sky**, choose **Birds**: **Off**, **Small flock** (3–5 birds), **Medium flock** (6–8), or **Large flock** (9–12).
 **Bird interval** offers **Natural**, **30 seconds**, **1 minute**, **2 minutes**, **5 minutes**, and **10 minutes**.
