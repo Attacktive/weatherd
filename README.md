@@ -29,6 +29,12 @@ Radiant preserves the image’s bright core and short rays, but its cached rende
 Its additional wide optical halos are restrained; **Lens flare** and **Motion-responsive reflections** still control the separate procedural reflections and their motion.
 The [submitted PNG](https://github.com/user-attachments/assets/68a92bcf-016d-4276-bc35-4c1e38ae6b78) is bundled unchanged; the softened immutable rendering texture is generated once off the frame loop on first use.
 
+Choose **Settings → Appearance → Sky → Sky palette → Clear blue** for a richer blue zenith fading into a pale horizon, inspired by the reference in [#252](https://github.com/Attacktive/weatherd/issues/252).
+**Natural** remains the default; existing palettes and saved settings are unchanged.
+Use the existing **Sky brightness** and **Sky saturation** sliders to make the blue darker, lighter, muted, or vivid.
+The palette is saved with appearance presets and shared by the preview, live wallpaper, simulator, and fallback; natural sunrise, sunset, and night colors remain intact, and cloudy/stormy weather still takes precedence.
+The existing **Lens flare** option retains the chromatic halo around the sun, with smaller reflections spaced into a tighter train rather than extending toward the bottom of the scene.
+
 In **Settings → Appearance → Sky**, choose **Birds**: **Off**, **Small flock** (3–5 birds), **Medium flock** (6–8), or **Large flock** (9–12).
 **Bird interval** offers **Natural**, **30 seconds**, **1 minute**, **2 minutes**, **5 minutes**, and **10 minutes**.
 Small + Natural preserves the existing restrained, randomized bird schedule; explicit intervals schedule one crossing per interval without randomly skipping appearances.

@@ -31,13 +31,18 @@ class LensFlareMotionRenderingTest {
 		rendererMoved.lensFlareOffsetY = 0.5f
 		val bitmapMoved = renderForeground(rendererMoved, PORTRAIT_WIDTH, PORTRAIT_HEIGHT, params)
 
-		val zeroGhostCenter = lensGhostCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, LENS_GHOST_TEST_DISTANCE)
-		val movedGhostCenter = lensGhostCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, LENS_GHOST_TEST_DISTANCE, offsetX = 0.5f, offsetY = 0.5f)
+		val zeroGhostCenter = findStrongestGhostPeak(bitmapZero, PORTRAIT_WIDTH, PORTRAIT_HEIGHT)
+		val movedGhostCenter = findStrongestGhostPeak(bitmapMoved, PORTRAIT_WIDTH, PORTRAIT_HEIGHT, offsetX = 0.5f, offsetY = 0.5f)
 
 		val zeroPixelAtZeroCenter = bitmapZero.getPixel(zeroGhostCenter.x, zeroGhostCenter.y)
 		val movedPixelAtZeroCenter = bitmapMoved.getPixel(zeroGhostCenter.x, zeroGhostCenter.y)
 		val zeroPixelAtMovedCenter = bitmapZero.getPixel(movedGhostCenter.x, movedGhostCenter.y)
 		val movedPixelAtMovedCenter = bitmapMoved.getPixel(movedGhostCenter.x, movedGhostCenter.y)
+
+		assertTrue(
+			"The strongest lens ghost peak should visibly shift under positive tilt",
+			movedGhostCenter.x > zeroGhostCenter.x && movedGhostCenter.y > zeroGhostCenter.y
+		)
 
 		assertTrue(
 			"The strongest lens ghost should visibly shift away from its rest position under positive tilt",
@@ -193,6 +198,32 @@ class LensFlareMotionRenderingTest {
 		)
 	}
 
+	private fun findStrongestGhostPeak(
+		bitmap: Bitmap,
+		width: Int,
+		height: Int,
+		offsetX: Float = 0f,
+		offsetY: Float = 0f
+	): PixelPoint {
+		var bestPoint = PixelPoint(0, 0)
+		var maxAlpha = -1
+
+		val steps = 100
+		for (step in 0..steps) {
+			val distance = 0.40f + (step.toFloat() / steps) * 1.60f
+			val point = lensGhostCenter(width, height, distance, offsetX, offsetY)
+			if (point.x in 0 until width && point.y in 0 until height) {
+				val alpha = Color.alpha(bitmap.getPixel(point.x, point.y))
+				if (alpha > maxAlpha) {
+					maxAlpha = alpha
+					bestPoint = point
+				}
+			}
+		}
+
+		return bestPoint
+	}
+
 	private fun celestialCenter(width: Int, height: Int, dayPhase: DayPhase, progress: Float = 0.5f) = PixelPoint(
 		x = (width * CELESTIAL_X_FRACTION).roundToInt(),
 		y = (height * celestialHeightFraction(dayPhase, progress)).roundToInt()
@@ -212,7 +243,6 @@ class LensFlareMotionRenderingTest {
 	private companion object {
 		const val PORTRAIT_WIDTH = 360
 		const val PORTRAIT_HEIGHT = 780
-		const val LENS_GHOST_TEST_DISTANCE = 1.08f
 		const val CELESTIAL_X_FRACTION = 0.72f
 	}
 }

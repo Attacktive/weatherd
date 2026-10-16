@@ -99,6 +99,7 @@
 	<string name="sky_color_warm">ウォーム</string>
 	<string name="sky_color_pastel">パステル</string>
 	<string name="sky_color_cyberpunk">サイバーパンク</string>
+	<string name="sky_color_clear_blue">澄んだ青</string>
 	<string name="section_sky_brightness">空の明るさ · %1$d%%</string>
 	<string name="sky_brightness_darker">暗く</string>
 	<string name="sky_brightness_brighter">明るく</string>

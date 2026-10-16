@@ -99,6 +99,7 @@
 	<string name="sky_color_warm">Calda</string>
 	<string name="sky_color_pastel">Pastello</string>
 	<string name="sky_color_cyberpunk">Cyberpunk</string>
+	<string name="sky_color_clear_blue">Azzurro limpido</string>
 	<string name="section_sky_brightness">Luminosità del cielo · %1$d%%</string>
 	<string name="sky_brightness_darker">Più scuro</string>
 	<string name="sky_brightness_brighter">Più chiaro</string>

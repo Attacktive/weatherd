@@ -99,6 +99,7 @@
 	<string name="sky_color_warm">따뜻함</string>
 	<string name="sky_color_pastel">파스텔</string>
 	<string name="sky_color_cyberpunk">사이버펑크</string>
+	<string name="sky_color_clear_blue">맑은 파랑</string>
 	<string name="section_sky_brightness">하늘 밝기 · %1$d%%</string>
 	<string name="sky_brightness_darker">더 어둡게</string>
 	<string name="sky_brightness_brighter">더 밝게</string>

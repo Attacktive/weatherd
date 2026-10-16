@@ -99,6 +99,7 @@
 	<string name="sky_color_warm">暖色</string>
 	<string name="sky_color_pastel">粉彩</string>
 	<string name="sky_color_cyberpunk">赛博朋克</string>
+	<string name="sky_color_clear_blue">晴空蓝</string>
 	<string name="section_sky_brightness">天空亮度 · %1$d%%</string>
 	<string name="sky_brightness_darker">更暗</string>
 	<string name="sky_brightness_brighter">更亮</string>

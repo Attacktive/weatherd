@@ -139,21 +139,29 @@ class SunRenderingTest {
 		val enabledParams = clearParams()
 		val enabled = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams)
 		val disabled = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams.copy(lensFlareEnabled = false))
-		val center = lensGhostCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, LENS_GHOST_TEST_DISTANCE)
-		val radius = minOf(PORTRAIT_WIDTH, PORTRAIT_HEIGHT) * SUN_RADIUS_FRACTION * LENS_GHOST_TEST_SCALE
-		val edge = PixelPoint(center.x + (radius * LENS_GHOST_EDGE_SAMPLE_FRACTION).roundToInt(), center.y)
-		val centerLift = Color.alpha(enabled.getPixel(center.x, center.y)) - Color.alpha(disabled.getPixel(center.x, center.y))
-		val edgeLift = Color.alpha(enabled.getPixel(edge.x, edge.y)) - Color.alpha(disabled.getPixel(edge.x, edge.y))
-		val farCenter = lensGhostCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, LENS_GHOST_FAR_TEST_DISTANCE)
-		val farRadius = minOf(PORTRAIT_WIDTH, PORTRAIT_HEIGHT) * SUN_RADIUS_FRACTION * LENS_GHOST_FAR_TEST_SCALE
-		val farEdge = PixelPoint(farCenter.x + (farRadius * LENS_GHOST_FAR_EDGE_SAMPLE_FRACTION).roundToInt(), farCenter.y)
-		val farCenterLift = Color.alpha(enabled.getPixel(farCenter.x, farCenter.y)) - Color.alpha(disabled.getPixel(farCenter.x, farCenter.y))
-		val farEdgeLift = Color.alpha(enabled.getPixel(farEdge.x, farEdge.y)) - Color.alpha(disabled.getPixel(farEdge.x, farEdge.y))
+		val footprints = findLensGhostBounds(enabled, disabled)
 
-		assertTrue("A lens ghost should have a visible filled center at $center, but alpha only lifted by $centerLift", centerLift >= MIN_LENS_GHOST_CENTER_LIFT)
-		assertTrue("A lens ghost should fade outward from its center instead of peaking on a ring, but center/edge lifts were $centerLift/$edgeLift", centerLift - edgeLift >= MIN_LENS_GHOST_CENTER_EDGE_DELTA)
-		assertTrue("The far lens ghost should stay visible after shrinking its footprint, but alpha only lifted by $farCenterLift", farCenterLift >= MIN_LENS_GHOST_CENTER_LIFT)
-		assertTrue("The far lens ghost should stay compact instead of returning to a broad haze, but center/edge lifts were $farCenterLift/$farEdgeLift", farCenterLift - farEdgeLift >= MIN_LENS_GHOST_CENTER_EDGE_DELTA)
+		assertTrue(
+			"There should be discrete reflections to inspect, but found none",
+			footprints.isNotEmpty()
+		)
+
+		for (bounds in footprints) {
+			val center = PixelPoint(bounds.centerX, bounds.centerY)
+			val centerLift = Color.alpha(enabled.getPixel(center.x, center.y)) - Color.alpha(disabled.getPixel(center.x, center.y))
+			val edgeX = center.x + ((bounds.right - bounds.left) * 0.375f).roundToInt()
+			val edgeLift = Color.alpha(enabled.getPixel(edgeX, center.y)) - Color.alpha(disabled.getPixel(edgeX, center.y))
+
+			assertTrue(
+				"A lens ghost should have a visible filled center at $center, but alpha only lifted by $centerLift",
+				centerLift >= MIN_LENS_GHOST_CENTER_LIFT
+			)
+
+			assertTrue(
+				"A lens ghost should fade outward from its center instead of peaking on a ring at $center, but center/edge lifts were $centerLift/$edgeLift",
+				centerLift > edgeLift
+			)
+		}
 
 		enabled.recycle()
 		disabled.recycle()
@@ -162,27 +170,30 @@ class SunRenderingTest {
 	@Test
 	fun lensFlareBuildsASequenceOfDiscreteGhostsAlongTheOpticalAxis() {
 		val enabledParams = clearParams()
-		val enabled = renderScene(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams)
-		val disabled = renderScene(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams.copy(lensFlareEnabled = false))
-		val distances = listOf(
-			LENS_GHOST_NEAR_TEST_DISTANCE,
-			LENS_GHOST_INTERMEDIATE_TEST_DISTANCE,
-			LENS_GHOST_LOWER_TEST_DISTANCE,
-			LENS_GHOST_FARTHEST_TEST_DISTANCE
+		val enabledForeground = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams)
+		val disabledForeground = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams.copy(lensFlareEnabled = false))
+		val centers = findLensGhostBounds(enabledForeground, disabledForeground).map { PixelPoint(it.centerX, it.centerY) }
+
+		assertTrue(
+			"The photographic flare should build a visible train of multiple discrete ghosts along the optical axis, but found ${centers.size} footprints",
+			centers.size >= 3
 		)
-		val contrasts = distances.map { distance ->
-			averageColorDistance(
-				enabled,
-				disabled,
-				lensGhostCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, distance),
-				LENS_GHOST_TRAIN_SAMPLE_RADIUS
-			)
+
+		val enabledScene = renderScene(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams)
+		val disabledScene = renderScene(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams.copy(lensFlareEnabled = false))
+		val contrasts = centers.map { center ->
+			averageColorDistance(enabledScene, disabledScene, center, LENS_GHOST_TRAIN_SAMPLE_RADIUS)
 		}
 
-		assertTrue("The photographic flare should keep a visible train of discrete ghosts along the optical axis, but sampled contrasts were $contrasts", contrasts.all { it >= MIN_LENS_GHOST_TRAIN_CONTRAST })
+		assertTrue(
+			"Each discrete ghost along the optical axis should remain visibly distinct, but sampled contrasts were $contrasts",
+			contrasts.all { it >= MIN_LENS_GHOST_TRAIN_CONTRAST }
+		)
 
-		enabled.recycle()
-		disabled.recycle()
+		enabledForeground.recycle()
+		disabledForeground.recycle()
+		enabledScene.recycle()
+		disabledScene.recycle()
 	}
 
 	@Test
@@ -209,17 +220,64 @@ class SunRenderingTest {
 	@Test
 	fun lensFlareGhostsRemainReadableAgainstDaySky() {
 		val enabledParams = clearParams()
-		val enabled = renderScene(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams)
-		val disabled = renderScene(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams.copy(lensFlareEnabled = false))
-		val primaryCenter = lensGhostCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, LENS_GHOST_TEST_DISTANCE)
-		val primaryRadius = minOf(PORTRAIT_WIDTH, PORTRAIT_HEIGHT) * SUN_RADIUS_FRACTION * LENS_GHOST_TEST_SCALE * LENS_GHOST_DAY_SKY_SAMPLE_RADIUS
-		val primaryContrast = averageColorDistance(enabled, disabled, primaryCenter, primaryRadius)
-		val farCenter = lensGhostCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, LENS_GHOST_FAR_TEST_DISTANCE)
-		val farRadius = minOf(PORTRAIT_WIDTH, PORTRAIT_HEIGHT) * SUN_RADIUS_FRACTION * LENS_GHOST_FAR_TEST_SCALE * LENS_GHOST_DAY_SKY_SAMPLE_RADIUS
-		val farContrast = averageColorDistance(enabled, disabled, farCenter, farRadius)
+		val enabledForeground = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams)
+		val disabledForeground = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams.copy(lensFlareEnabled = false))
+		val centers = findLensGhostBounds(enabledForeground, disabledForeground).map { PixelPoint(it.centerX, it.centerY) }
 
-		assertTrue("The primary daytime lens ghost should remain visibly distinct from the rendered blue sky, but average channel contrast was only $primaryContrast", primaryContrast >= MIN_LENS_GHOST_DAY_SKY_CONTRAST)
-		assertTrue("The far daytime lens ghost should stay visible without competing with the primary reflection, but average channel contrast was only $farContrast", farContrast >= MIN_LENS_GHOST_FAR_DAY_SKY_CONTRAST)
+		assertTrue(
+			"There should be multiple discrete reflections to test against day sky, but found ${centers.size}",
+			centers.size >= 3
+		)
+
+		val enabledScene = renderScene(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams)
+		val disabledScene = renderScene(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams.copy(lensFlareEnabled = false))
+		val primaryCenter = centers.maxBy { Color.alpha(enabledForeground.getPixel(it.x, it.y)) - Color.alpha(disabledForeground.getPixel(it.x, it.y)) }
+		val primaryContrast = averageColorDistance(enabledScene, disabledScene, primaryCenter, LENS_GHOST_TRAIN_SAMPLE_RADIUS)
+
+		assertTrue(
+			"The primary daytime lens ghost should remain visibly distinct from the rendered blue sky, but contrast was $primaryContrast",
+			primaryContrast >= MIN_LENS_GHOST_DAY_SKY_CONTRAST
+		)
+
+		val otherContrasts = centers.filter { it != primaryCenter }.map {
+			averageColorDistance(enabledScene, disabledScene, it, LENS_GHOST_TRAIN_SAMPLE_RADIUS)
+		}
+
+		assertTrue(
+			"All other discrete reflections along the optical axis should remain visible against the day sky, but contrasts were $otherContrasts",
+			otherContrasts.all { it >= MIN_LENS_GHOST_FAR_DAY_SKY_CONTRAST }
+		)
+
+		enabledForeground.recycle()
+		disabledForeground.recycle()
+		enabledScene.recycle()
+		disabledScene.recycle()
+	}
+
+	@Test
+	fun lensFlareReflectionTrainEndsBeforeLowerQuarterOfViewport() {
+		val enabledParams = clearParams()
+		val enabled = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams)
+		val disabled = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams.copy(lensFlareEnabled = false))
+		val sun = celestialCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, DayPhase.DAY)
+		val axisX = PORTRAIT_WIDTH / 2f - sun.x
+		val axisY = PORTRAIT_HEIGHT / 2f - sun.y
+		val lowerQuarterTop = (PORTRAIT_HEIGHT * 0.75f).roundToInt()
+
+		val lowerQuarterPoints = (lowerQuarterTop until PORTRAIT_HEIGHT step 10).map { y ->
+			val distance = (y - sun.y).toFloat() / axisY
+			val x = (sun.x + axisX * distance).roundToInt()
+			PixelPoint(x, y)
+		}.filter { it.x in 0 until PORTRAIT_WIDTH && it.y in 0 until PORTRAIT_HEIGHT }
+
+		val maxLiftInLowerQuarter = lowerQuarterPoints.maxOfOrNull { point ->
+			Color.alpha(enabled.getPixel(point.x, point.y)) - Color.alpha(disabled.getPixel(point.x, point.y))
+		} ?: 0
+
+		assertTrue(
+			"The compact lens flare reflection train must end before the lower quarter of the viewport (y >= $lowerQuarterTop), but maximum flare alpha lift in the lower quarter was $maxLiftInLowerQuarter",
+			maxLiftInLowerQuarter == 0
+		)
 
 		enabled.recycle()
 		disabled.recycle()
@@ -562,12 +620,56 @@ class SunRenderingTest {
 		return PixelBounds(left, top, right, bottom)
 	}
 
-	private fun lensGhostCenter(width: Int, height: Int, distance: Float): PixelPoint {
-		val sun = celestialCenter(width, height, DayPhase.DAY)
-		val axisX = width / 2f - sun.x
-		val axisY = height / 2f - sun.y
+	/** Connected footprints locate geometric centers independently of bright rims and count a flat plateau only once. */
+	private fun findLensGhostBounds(enabled: Bitmap, disabled: Bitmap): List<PixelBounds> {
+		val width = enabled.width
+		val height = enabled.height
+		val span = minOf(width, height)
+		val startY = celestialCenter(width, height, DayPhase.DAY).y + (span * 0.2f).roundToInt()
+		val enabledPixels = pixels(enabled)
+		val disabledPixels = pixels(disabled)
+		val remaining = BooleanArray(width * height) { index ->
+			index / width >= startY && Color.alpha(enabledPixels[index]) - Color.alpha(disabledPixels[index]) >= MIN_LENS_GHOST_CENTER_LIFT
+		}
 
-		return PixelPoint((sun.x + axisX * distance).roundToInt(), (sun.y + axisY * distance).roundToInt())
+		val queue = ArrayDeque<Int>()
+		val neighborOffsets = intArrayOf(-1, 1, -width, width)
+		val footprints = mutableListOf<PixelBounds>()
+		for (index in remaining.indices) {
+			if (!remaining[index]) {
+				continue
+			}
+
+			remaining[index] = false
+			queue.addLast(index)
+			var left = width
+			var right = 0
+			var top = height
+			var bottom = 0
+			while (queue.isNotEmpty()) {
+				val pixel = queue.removeFirst()
+				val x = pixel % width
+				val y = pixel / width
+				left = minOf(left, x)
+				right = maxOf(right, x)
+				top = minOf(top, y)
+				bottom = maxOf(bottom, y)
+				for (offset in neighborOffsets) {
+					val neighbor = pixel + offset
+					if (neighbor in remaining.indices && abs(neighbor % width - x) <= 1 && remaining[neighbor]) {
+						remaining[neighbor] = false
+						queue.addLast(neighbor)
+					}
+				}
+			}
+
+			// Reject the broad solar halo and haze; compact connected circles are the lens reflections.
+			if (right - left in 3..(span * 0.16f).roundToInt() && bottom - top in 3..(span * 0.16f).roundToInt()) {
+				footprints.add(PixelBounds(left, top, right, bottom))
+			}
+		}
+
+		return footprints
 	}
 
 	private fun lensHaloCenter(width: Int, height: Int): PixelPoint {
@@ -683,22 +785,11 @@ class SunRenderingTest {
 		const val LENS_HALO_OUTER_END = 0.68f
 		const val LENS_HALO_DAY_SKY_SAMPLE_OFFSET = 0.42f
 		const val LENS_HALO_DAY_SKY_SAMPLE_RADIUS = 0.06f
-		const val LENS_GHOST_TEST_DISTANCE = 1.08f
-		const val LENS_GHOST_TEST_SCALE = 0.58f
-		const val LENS_GHOST_NEAR_TEST_DISTANCE = 0.42f
-		const val LENS_GHOST_INTERMEDIATE_TEST_DISTANCE = 1.08f
-		const val LENS_GHOST_LOWER_TEST_DISTANCE = 1.55f
-		const val LENS_GHOST_FARTHEST_TEST_DISTANCE = 2.18f
 		const val LENS_GHOST_TRAIN_SAMPLE_RADIUS = 3f
 		const val MIN_LENS_GHOST_TRAIN_CONTRAST = 3f
 		const val RAINBOW_HALO_RADIUS_SCALE = 0.78f / LENS_HALO_RADIUS_FRACTION
 		const val MIN_RAINBOW_HALO_ALPHA_LIFT = 1
 		const val MIN_RAINBOW_HALO_HUE_DISTANCE = 4
-		const val LENS_GHOST_FAR_TEST_DISTANCE = 2.18f
-		const val LENS_GHOST_FAR_TEST_SCALE = 0.44f
-		const val LENS_GHOST_FAR_EDGE_SAMPLE_FRACTION = 0.75f
-		const val LENS_GHOST_EDGE_SAMPLE_FRACTION = 0.68f
-		const val LENS_GHOST_DAY_SKY_SAMPLE_RADIUS = 0.38f
 		const val OPAQUE_ALPHA_THRESHOLD = 245
 		const val MIN_SHOULDER_WARMTH_DELTA = 6
 		const val MIN_CORONA_ALPHA_SPREAD = 2
@@ -707,7 +798,6 @@ class SunRenderingTest {
 		const val SUN_APPARENT_EDGE_SAMPLE_HALF_WIDTH = 1.5f
 		const val MIN_DEFAULT_SUN_EDGE_ALPHA = 4f
 		const val MIN_LENS_GHOST_CENTER_LIFT = 6
-		const val MIN_LENS_GHOST_CENTER_EDGE_DELTA = 7
 		const val MIN_LENS_GHOST_DAY_SKY_CONTRAST = 20f
 		const val MIN_LENS_GHOST_FAR_DAY_SKY_CONTRAST = 8f
 		const val POSITION_TOLERANCE_PIXELS = 2

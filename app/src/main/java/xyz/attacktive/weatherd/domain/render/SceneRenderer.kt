@@ -4012,9 +4012,9 @@ private data class LensGhost(val distance: Float, val scale: Float, val strength
  */
 private val LENS_GHOSTS = listOf(
 	LensGhost(0.42f, 0.22f, 0.11f, Color.rgb(222, 234, 255)),
-	LensGhost(1.08f, 0.58f, 0.34f, Color.rgb(218, 238, 255)),
-	LensGhost(1.55f, 0.24f, 0.13f, Color.rgb(188, 236, 226)),
-	LensGhost(2.18f, 0.44f, 0.20f, Color.rgb(202, 226, 244))
+	LensGhost(0.78f, 0.46f, 0.34f, Color.rgb(218, 238, 255)),
+	LensGhost(1.12f, 0.24f, 0.13f, Color.rgb(188, 236, 226)),
+	LensGhost(1.48f, 0.34f, 0.20f, Color.rgb(202, 226, 244))
 )
 
 internal fun darken(color: Int, factor: Float) =

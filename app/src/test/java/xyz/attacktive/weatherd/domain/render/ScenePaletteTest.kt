@@ -174,6 +174,44 @@ class ScenePaletteTest {
 	}
 
 	@Test
+	fun `clear blue keeps a rich blue zenith and pale horizon with adjustable brightness`() {
+		val params = clearParams(DayPhase.DAY).copy(skyColorPreset = SkyColorPreset.fromName("CLEAR_BLUE"))
+		val natural = skyGradientFor(clearParams(DayPhase.DAY))
+		val blue = skyGradientFor(params)
+		val darker = skyGradientFor(params.copy(skyBrightnessScale = 0.7f))
+		val brighter = skyGradientFor(params.copy(skyBrightnessScale = 1.2f))
+
+		assertTrue("the reference palette should deepen the blue rather than wash it toward white", red(blue.topColor) < red(natural.topColor))
+		assertTrue("the zenith should remain blue", blue(blue.topColor) > green(blue.topColor) && green(blue.topColor) > red(blue.topColor))
+		assertTrue("the horizon should be lighter than the zenith", channelSum(blue.bottomColor) > channelSum(blue.topColor))
+		assertTrue("the existing brightness slider should darken clear blue", channelSum(darker.topColor) < channelSum(blue.topColor))
+		assertTrue("the existing brightness slider should lighten clear blue", channelSum(brighter.topColor) > channelSum(blue.topColor))
+	}
+
+	@Test
+	fun `clear blue preserves natural sunrise sunset and night rather than making them daytime blue`() {
+		for (phase in listOf(DayPhase.DAWN, DayPhase.DUSK, DayPhase.NIGHT)) {
+			val natural = clearParams(phase)
+			val blue = natural.copy(skyColorPreset = SkyColorPreset.fromName("CLEAR_BLUE"))
+
+			assertEquals("the blue daylight preference should preserve $phase lighting", skyGradientFor(natural), skyGradientFor(blue))
+		}
+	}
+
+	@Test
+	fun `clear blue meets daylight at phase boundaries and yields to full overcast`() {
+		val params = clearParams(DayPhase.DAY).copy(skyColorPreset = SkyColorPreset.fromName("CLEAR_BLUE"))
+		val daylight = skyGradientFor(params)
+
+		assertEquals(daylight, skyGradientFor(params.copy(dayPhase = DayPhase.DAWN, celestialProgress = 0.85f)))
+		assertEquals(daylight, skyGradientFor(params.copy(dayPhase = DayPhase.DUSK, celestialProgress = 0f)))
+		assertEquals(
+			skyGradientFor(clearParams(DayPhase.DAY).copy(cloudiness = 0.85f)),
+			skyGradientFor(params.copy(cloudiness = 0.85f))
+		)
+	}
+
+	@Test
 	fun `sky presets stay phase aware and weather can still gray them out`() {
 		val natural = skyGradientFor(clearParams(DayPhase.DUSK))
 		val cyberpunk = skyGradientFor(clearParams(DayPhase.DUSK).copy(skyColorPreset = SkyColorPreset.CYBERPUNK))

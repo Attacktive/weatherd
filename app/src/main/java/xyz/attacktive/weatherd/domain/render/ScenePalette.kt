@@ -156,8 +156,13 @@ private fun smoothStep(from: Float, to: Float, value: Float): Float {
 }
 
 private fun phaseGradient(dayPhase: DayPhase, preset: SkyColorPreset) = when (preset) {
-	SkyColorPreset.NATURAL -> when (dayPhase) {
-		DayPhase.DAY -> SkyGradient(rgb(74, 144, 217), rgb(169, 214, 245))
+	SkyColorPreset.NATURAL, SkyColorPreset.CLEAR_BLUE -> when (dayPhase) {
+		DayPhase.DAY -> if (preset == SkyColorPreset.CLEAR_BLUE) {
+			SkyGradient(rgb(4, 98, 221), rgb(209, 239, 253))
+		} else {
+			SkyGradient(rgb(74, 144, 217), rgb(169, 214, 245))
+		}
+
 		DayPhase.DAWN -> SkyGradient(rgb(52, 64, 107), rgb(246, 169, 132))
 		DayPhase.DUSK -> SkyGradient(rgb(38, 49, 79), rgb(232, 130, 91))
 		DayPhase.NIGHT -> SkyGradient(rgb(11, 16, 38), rgb(27, 36, 80))

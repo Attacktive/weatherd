@@ -720,6 +720,7 @@ internal fun formatSkyColor(preset: SkyColorPreset) = when (preset) {
 	SkyColorPreset.WARM -> stringResource(R.string.sky_color_warm)
 	SkyColorPreset.PASTEL -> stringResource(R.string.sky_color_pastel)
 	SkyColorPreset.CYBERPUNK -> stringResource(R.string.sky_color_cyberpunk)
+	SkyColorPreset.CLEAR_BLUE -> stringResource(R.string.sky_color_clear_blue)
 }
 
 @Composable
