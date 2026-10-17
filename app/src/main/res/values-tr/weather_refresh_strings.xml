@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-	<string name="weather_refresh_failed">Hava durumu güncellenemedi. Otomatik denemeler devam edecek; Şimdi yenile seçeneğini de kullanabilirsiniz.</string>
+	<string name="weather_refresh_failed">Hava durumu güncellenemedi. Otomatik yeniden denemeler yalnızca önizleme veya canlı duvar kağıdı görünürken yapılır. Şimdi yenile seçeneğini de kullanabilirsiniz.</string>
 </resources>

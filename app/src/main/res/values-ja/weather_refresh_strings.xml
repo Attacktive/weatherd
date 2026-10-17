@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-	<string name="weather_refresh_failed">天気を更新できませんでした。自動的に再試行します。「今すぐ更新」もお試しください。</string>
+	<string name="weather_refresh_failed">天気を更新できませんでした。自動再試行はプレビューまたはライブ壁紙の表示中に行われます。「今すぐ更新」から手動で再試行することもできます。</string>
 </resources>

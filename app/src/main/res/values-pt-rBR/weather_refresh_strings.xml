@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-	<string name="weather_refresh_failed">Não foi possível atualizar o clima. As tentativas automáticas continuarão; você também pode tocar em Atualizar agora.</string>
+	<string name="weather_refresh_failed">Não foi possível atualizar o clima. As novas tentativas automáticas ocorrem enquanto a prévia ou o papel de parede animado estiver visível. Você também pode tocar em Atualizar agora.</string>
 </resources>

@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-	<string name="weather_refresh_failed">Wetteraktualisierung fehlgeschlagen. Automatische Wiederholungsversuche laufen weiter. Du kannst auch „Jetzt aktualisieren“ wählen.</string>
+	<string name="weather_refresh_failed">Wetteraktualisierung fehlgeschlagen. Automatische Wiederholungsversuche erfolgen, wenn die Vorschau oder das Live-Hintergrundbild sichtbar ist. Du kannst auch „Jetzt aktualisieren“ wählen.</string>
 </resources>

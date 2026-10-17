@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-	<string name="weather_refresh_failed">Aggiornamento meteo non riuscito. I tentativi automatici continueranno; puoi anche scegliere Aggiorna ora.</string>
+	<string name="weather_refresh_failed">Aggiornamento meteo non riuscito. I nuovi tentativi automatici vengono eseguiti quando è visibile l’anteprima o lo sfondo animato. Puoi anche scegliere Aggiorna ora.</string>
 </resources>

@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-	<string name="weather_refresh_failed">Weather update failed. Automatic retries will continue; you can also try Refresh now.</string>
+	<string name="weather_refresh_failed">Weather update failed. Automatic retries run while the preview or live wallpaper is visible. You can also try Refresh now.</string>
 </resources>

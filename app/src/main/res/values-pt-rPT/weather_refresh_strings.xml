@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-	<string name="weather_refresh_failed">Não foi possível atualizar o tempo. As tentativas automáticas continuarão; também pode selecionar Atualizar agora.</string>
+	<string name="weather_refresh_failed">Não foi possível atualizar o tempo. As novas tentativas automáticas ocorrem enquanto a pré-visualização ou o papel de parede animado estiver visível. Também pode selecionar Atualizar agora.</string>
 </resources>

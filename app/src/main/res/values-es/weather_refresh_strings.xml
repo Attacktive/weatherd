@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-	<string name="weather_refresh_failed">No se pudo actualizar el tiempo. Los reintentos automáticos continuarán; también puedes pulsar Actualizar ahora.</string>
+	<string name="weather_refresh_failed">No se pudo actualizar el tiempo. Los reintentos automáticos se realizan mientras la vista previa o el fondo de pantalla animado estén visibles. También puedes pulsar Actualizar ahora.</string>
 </resources>

@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-	<string name="weather_refresh_failed">La mise à jour météo a échoué. Les nouvelles tentatives automatiques continueront ; vous pouvez aussi choisir Actualiser maintenant.</string>
+	<string name="weather_refresh_failed">La mise à jour météo a échoué. Les nouvelles tentatives automatiques ont lieu lorsque l’aperçu ou le fond d’écran animé est visible. Vous pouvez aussi choisir Actualiser maintenant.</string>
 </resources>
