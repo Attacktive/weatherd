@@ -14,7 +14,8 @@ OUTPUT = Path(__file__).resolve().parents[1] / 'app/src/main/res/drawable-nodpi/
 
 
 def starburst_texture():
-	"""Compose a clipped-white core, six soft tapered rays, and a feathered bloom.
+	"""
+	Compose a clipped-white core, six soft tapered rays, and a feathered bloom.
 
 	All pixels are generated analytically; no supplied image or third-party artwork is sampled.
 	The core is centered, with its nearly opaque radius approximately 0.1 of the half-width.
