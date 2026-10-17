@@ -3,6 +3,7 @@
 	<string name="section_animation_idle_timeout">Mettre l’animation en pause après</string>
 	<string name="hint_animation_idle_timeout">Arrête le mouvement continu du fond d’écran après la durée choisie afin d’économiser de l’énergie. Les changements de météo et de phase de la journée continuent de mettre à jour la scène statique.</string>
 	<string name="animation_idle_timeout_never">Jamais</string>
+	<string name="animation_idle_timeout_15_seconds">15 secondes</string>
 	<string name="animation_idle_timeout_30_seconds">30 secondes</string>
 	<string name="animation_idle_timeout_1_minute">1 minute</string>
 	<string name="animation_idle_timeout_2_minutes">2 minutes</string>

@@ -3,6 +3,7 @@
 	<string name="section_animation_idle_timeout">Animasyonu şu süreden sonra duraklat</string>
 	<string name="hint_animation_idle_timeout">Güç tasarrufu için seçilen sürenin ardından duvar kağıdının sürekli hareketini durdurur. Hava durumu ve gün evresi değişiklikleri durağan sahneyi güncellemeye devam eder.</string>
 	<string name="animation_idle_timeout_never">Asla</string>
+	<string name="animation_idle_timeout_15_seconds">15 saniye</string>
 	<string name="animation_idle_timeout_30_seconds">30 saniye</string>
 	<string name="animation_idle_timeout_1_minute">1 dakika</string>
 	<string name="animation_idle_timeout_2_minutes">2 dakika</string>

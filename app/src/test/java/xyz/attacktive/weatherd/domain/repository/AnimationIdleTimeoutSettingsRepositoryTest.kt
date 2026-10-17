@@ -28,11 +28,11 @@ class AnimationIdleTimeoutSettingsRepositoryTest {
 	fun `animation idle timeout persists through settings mutations`() = runTest {
 		val repository = SettingsRepository(dataStore())
 		val previous = repository.settings.first()
-		val updated = previous.copy(animationIdleTimeout = AnimationIdleTimeout.MINUTE_1)
+		val updated = previous.copy(animationIdleTimeout = AnimationIdleTimeout.SECONDS_15)
 
 		repository.update(settingsMutationsBetween(previous, updated))
 
-		assertEquals(AnimationIdleTimeout.MINUTE_1, repository.settings.first().animationIdleTimeout)
+		assertEquals(AnimationIdleTimeout.SECONDS_15, repository.settings.first().animationIdleTimeout)
 	}
 
 	@Test

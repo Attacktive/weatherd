@@ -3,6 +3,7 @@
 	<string name="section_animation_idle_timeout">애니메이션 일시정지 시간</string>
 	<string name="hint_animation_idle_timeout">선택한 시간이 지나면 연속 배경화면 움직임을 멈춰 전력을 절약합니다. 날씨와 시간대가 바뀌면 정지된 장면도 계속 업데이트됩니다.</string>
 	<string name="animation_idle_timeout_never">일시정지 안 함</string>
+	<string name="animation_idle_timeout_15_seconds">15초</string>
 	<string name="animation_idle_timeout_30_seconds">30초</string>
 	<string name="animation_idle_timeout_1_minute">1분</string>
 	<string name="animation_idle_timeout_2_minutes">2분</string>

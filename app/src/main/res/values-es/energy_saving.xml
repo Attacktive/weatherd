@@ -3,6 +3,7 @@
 	<string name="section_animation_idle_timeout">Pausar animación después de</string>
 	<string name="hint_animation_idle_timeout">Detiene el movimiento continuo del fondo tras el tiempo seleccionado para ahorrar energía. Los cambios de tiempo y fase del día siguen actualizando la escena estática.</string>
 	<string name="animation_idle_timeout_never">Nunca</string>
+	<string name="animation_idle_timeout_15_seconds">15 segundos</string>
 	<string name="animation_idle_timeout_30_seconds">30 segundos</string>
 	<string name="animation_idle_timeout_1_minute">1 minuto</string>
 	<string name="animation_idle_timeout_2_minutes">2 minutos</string>

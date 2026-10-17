@@ -3,6 +3,7 @@
 	<string name="section_animation_idle_timeout">暂停动画等待时间</string>
 	<string name="hint_animation_idle_timeout">经过所选时间后停止壁纸的持续动画以节省电量。天气和昼夜阶段变化仍会更新静态场景。</string>
 	<string name="animation_idle_timeout_never">从不</string>
+	<string name="animation_idle_timeout_15_seconds">15 秒</string>
 	<string name="animation_idle_timeout_30_seconds">30 秒</string>
 	<string name="animation_idle_timeout_1_minute">1 分钟</string>
 	<string name="animation_idle_timeout_2_minutes">2 分钟</string>

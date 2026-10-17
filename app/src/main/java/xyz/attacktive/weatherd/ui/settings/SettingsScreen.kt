@@ -471,6 +471,7 @@ private fun AnimationIdleTimeoutSection(settings: AppSettings, defaults: AppSett
 @Composable
 private fun formatAnimationIdleTimeout(timeout: AnimationIdleTimeout) = when (timeout) {
 	AnimationIdleTimeout.NEVER -> stringResource(R.string.animation_idle_timeout_never)
+	AnimationIdleTimeout.SECONDS_15 -> stringResource(R.string.animation_idle_timeout_15_seconds)
 	AnimationIdleTimeout.SECONDS_30 -> stringResource(R.string.animation_idle_timeout_30_seconds)
 	AnimationIdleTimeout.MINUTE_1 -> stringResource(R.string.animation_idle_timeout_1_minute)
 	AnimationIdleTimeout.MINUTES_2 -> stringResource(R.string.animation_idle_timeout_2_minutes)

@@ -3,6 +3,7 @@
 	<string name="section_animation_idle_timeout">Animation pausieren nach</string>
 	<string name="hint_animation_idle_timeout">Stoppt die kontinuierliche Bewegung des Hintergrundbilds nach der gewählten Zeit, um Energie zu sparen. Wetter- und Tagesphasenänderungen aktualisieren die statische Szene weiterhin.</string>
 	<string name="animation_idle_timeout_never">Nie</string>
+	<string name="animation_idle_timeout_15_seconds">15 Sekunden</string>
 	<string name="animation_idle_timeout_30_seconds">30 Sekunden</string>
 	<string name="animation_idle_timeout_1_minute">1 Minute</string>
 	<string name="animation_idle_timeout_2_minutes">2 Minuten</string>
