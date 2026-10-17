@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="weather_refresh_failed">天气更新失败。系统将继续自动重试；您也可以选择立即刷新。</string>
+</resources>

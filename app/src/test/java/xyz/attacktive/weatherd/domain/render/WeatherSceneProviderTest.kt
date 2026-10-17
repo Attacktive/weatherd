@@ -616,7 +616,7 @@ class WeatherSceneProviderTest {
 	}
 
 	@Test
-	fun `a failed provider switch only bypasses the throttle once`() = runTest {
+	fun `a failed provider switch backs off before retrying`() = runTest {
 		val openMeteo = AppSettings(useDeviceLocation = true, weatherProvider = WeatherProviderType.OPEN_METEO)
 		persistedSettings.value = openMeteo
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
@@ -628,7 +628,7 @@ class WeatherSceneProviderTest {
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.failure(IllegalStateException("provider unavailable"))
 
 		provider.refresh(1_000_060L)
-		provider.refresh(1_000_120L)
+		provider.refresh(1_000_090L)
 
 		coVerify(exactly = 2) { weatherRepository.current(52.52, 13.40) }
 	}

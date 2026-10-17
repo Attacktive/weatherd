@@ -15,6 +15,7 @@ import xyz.attacktive.weatherd.domain.render.SCENE_PRESETS
 import xyz.attacktive.weatherd.domain.render.SceneParams
 import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
 import xyz.attacktive.weatherd.domain.render.WeatherSceneState
+import xyz.attacktive.weatherd.domain.render.refreshWhileVisible
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsMutation
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
@@ -31,6 +32,9 @@ class HomeViewModel @Inject constructor(
 
 	/** One immutable selection and weather snapshot shared with the live wallpaper. */
 	val sceneState = sceneProvider.sceneState
+
+	/** Runs only while the preview is resumed; acquisition keeps its shared request and throttle policy. */
+	suspend fun refreshWhileVisible() = sceneProvider.refreshWhileVisible()
 
 	fun setSceneSimulatorActive(active: Boolean) {
 		updateSceneSimulator { SettingsMutation.SceneSimulatorActive(active) }

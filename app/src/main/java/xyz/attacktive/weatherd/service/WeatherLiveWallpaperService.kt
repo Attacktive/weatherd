@@ -4,6 +4,7 @@ import javax.inject.Inject
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.drop
@@ -27,6 +28,7 @@ import xyz.attacktive.weatherd.domain.render.WeatherSceneState
 import xyz.attacktive.weatherd.domain.render.backdropSignature
 import xyz.attacktive.weatherd.domain.render.lensFlareMotionActive
 import xyz.attacktive.weatherd.domain.render.renderImmutableBitmap
+import xyz.attacktive.weatherd.domain.render.refreshWhileVisible
 import xyz.attacktive.weatherd.domain.render.sceneAnimationTimeSeconds
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
@@ -57,6 +59,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 		private val screenEffects = SceneScreenEffects(renderer)
 		private val choreographer = Choreographer.getInstance()
 		private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+		private var weatherRefreshJob: Job? = null
 
 		private var backdrop: Bitmap? = null
 		private var renderedParams: SceneParams? = null
@@ -131,6 +134,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 
 		override fun onVisibilityChanged(visible: Boolean) {
 			this.visible = visible
+			weatherRefreshJob?.cancel()
 			choreographer.removeFrameCallback(this)
 			if (!visible) {
 				frozenAnimationTimeSeconds = null
@@ -140,7 +144,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			}
 
 			wallpaperScrollingSupported = wallpaperScrollingSupportedBy(currentHomeLauncher(this@WeatherLiveWallpaperService)?.packageName)
-			scope.launch { sceneProvider.refresh(nowEpochSeconds()) }
+			weatherRefreshJob = scope.launch { sceneProvider.refreshWhileVisible() }
 			restartAnimationWindow()
 		}
 

@@ -40,7 +40,12 @@ import xyz.attacktive.weatherd.domain.weather.moonPhaseFor
 import xyz.attacktive.weatherd.domain.weather.weatherLabelFor
 import xyz.attacktive.weatherd.util.AppLogger
 
-data class WeatherSceneStatus(val locationLabel: String? = null, val lastRefreshEpochSeconds: Long? = null, val weatherSource: WeatherSource? = null)
+data class WeatherSceneStatus(
+	val locationLabel: String? = null,
+	val lastRefreshEpochSeconds: Long? = null,
+	val weatherSource: WeatherSource? = null,
+	val lastFailureEpochSeconds: Long? = null
+)
 
 /** Immutable scene inputs; changing the selected scene never needs to acquire weather. */
 data class WeatherSceneState(
@@ -77,6 +82,13 @@ private data class WeatherRequestToken(
 	val key: WeatherRequestKey,
 	val generation: Long,
 	val sequence: Long
+)
+
+private data class WeatherRefreshFailure(
+	val request: WeatherRequestToken,
+	val target: WeatherSceneTarget,
+	val epochSeconds: Long,
+	val retryDelaySeconds: Long
 )
 
 internal enum class WeatherRefreshOutcome {
@@ -129,6 +141,7 @@ class WeatherSceneProvider @Inject constructor(
 	private var weatherRequestGeneration = 0L
 	private var weatherRequestSequence = 0L
 	private var lastPublishedWeatherRequestSequence = 0L
+	@Volatile private var refreshFailure: WeatherRefreshFailure? = null
 	private val locationLabel: String?
 		get() = _sceneState.value.locationLabel
 
@@ -294,6 +307,7 @@ class WeatherSceneProvider @Inject constructor(
 		val request = beginWeatherRequest(settings, location)
 		val weatherResult = weatherRepository.current(location.latitude, location.longitude)
 		if (weatherResult.isFailure) {
+			publishWeatherFailure(request, settings, location, nowEpochSeconds)
 			return weatherResult.map { WeatherRefreshOutcome.REFRESHED }
 		}
 
@@ -314,11 +328,39 @@ class WeatherSceneProvider @Inject constructor(
 
 	private fun weatherRefreshIsThrottled(settings: AppSettings, locationKey: String, nowEpochSeconds: Long, force: Boolean): Boolean {
 		val state = sceneState.value
+		val failure = refreshFailure?.takeIf { it.target.matchesWeather(settings, state.deviceLocation) }
+		if (failure != null) {
+			return !force && nowEpochSeconds >= failure.epochSeconds && nowEpochSeconds - failure.epochSeconds < failure.retryDelaySeconds
+		}
+
 		val locationChanged = locationKey != lastLocationKey || state.snapshotTarget?.matchesLocation(settings, state.deviceLocation) == false
 		val weatherProviderChanged = settings.weatherProvider != lastAttemptedWeatherProvider || settings.weatherFallbackProvider != lastAttemptedWeatherFallbackProvider
 		val minRefreshSeconds = settings.updateIntervalMinutes * SECONDS_PER_MINUTE
 
-		return !force && !locationChanged && !weatherProviderChanged && nowEpochSeconds - lastRefreshEpochSeconds < minRefreshSeconds
+		return !force && !locationChanged && !weatherProviderChanged && nowEpochSeconds >= lastRefreshEpochSeconds && nowEpochSeconds - lastRefreshEpochSeconds < minRefreshSeconds
+	}
+
+	/** A failed target retries with bounded backoff; obsolete failures cannot replace newer success or failure state. */
+	private suspend fun publishWeatherFailure(request: WeatherRequestToken, settings: AppSettings, location: GeoLocation, nowEpochSeconds: Long) {
+		if (!weatherRequestIsCurrent(settings)) {
+			return
+		}
+
+		synchronized(weatherRequestLock) {
+			val previous = refreshFailure
+			if (request.generation != weatherRequestGeneration || request.key != activeWeatherRequestKey || request.sequence <= lastPublishedWeatherRequestSequence || request.sequence <= (previous?.request?.sequence ?: 0L)) {
+				return@synchronized
+			}
+
+			val target = WeatherSceneTarget.from(settings, location)
+			val delay = if (previous?.target == target) {
+				(previous.retryDelaySeconds * 2).coerceAtMost(MAX_RETRY_SECONDS)
+			} else {
+				INITIAL_RETRY_SECONDS
+			}
+			refreshFailure = WeatherRefreshFailure(request, target, nowEpochSeconds, delay)
+			publishStatus(settings)
+		}
 	}
 
 	private fun weatherFallbackDescription() = if (snapshot == null) {
@@ -373,6 +415,9 @@ class WeatherSceneProvider @Inject constructor(
 				false
 			} else {
 				lastPublishedWeatherRequestSequence = request.sequence
+				if (request.sequence > (refreshFailure?.request?.sequence ?: 0L)) {
+					refreshFailure = null
+				}
 				val target = WeatherSceneTarget.from(requestSettings, location)
 				_sceneState.update { it.copy(snapshot = weather, snapshotTarget = target) }
 
@@ -547,7 +592,8 @@ class WeatherSceneProvider @Inject constructor(
 		_status.value = WeatherSceneStatus(
 			locationLabel = statusLabel,
 			lastRefreshEpochSeconds = lastUpdated,
-			weatherSource = weatherSource
+			weatherSource = weatherSource,
+			lastFailureEpochSeconds = refreshFailure?.takeIf { it.target.matchesWeather(settings, lastDeviceFix) }?.epochSeconds
 		)
 	}
 
@@ -666,6 +712,8 @@ class WeatherSceneProvider @Inject constructor(
 	companion object {
 		private const val TAG = "WeatherSceneProvider"
 		private const val SECONDS_PER_MINUTE = 60L
+		private const val INITIAL_RETRY_SECONDS = 60L
+		private const val MAX_RETRY_SECONDS = 15L * SECONDS_PER_MINUTE
 		private const val DAWN_HOUR = 5
 		private const val DAY_HOUR = 7
 		private const val DUSK_HOUR = 17

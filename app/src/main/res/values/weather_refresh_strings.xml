@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="weather_refresh_failed">Weather update failed. Automatic retries will continue; you can also try Refresh now.</string>
+</resources>

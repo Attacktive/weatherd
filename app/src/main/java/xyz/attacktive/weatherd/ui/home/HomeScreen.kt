@@ -126,10 +126,15 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 		previewMotionStartedAtNanos = System.nanoTime()
 		previewMotionActive = true
 		previewResumed = true
-		viewModel.refresh()
 		onPauseOrDispose {
 			previewResumed = false
 			previewMotionActive = false
+		}
+	}
+
+	LaunchedEffect(previewResumed) {
+		if (previewResumed) {
+			viewModel.refreshWhileVisible()
 		}
 	}
 

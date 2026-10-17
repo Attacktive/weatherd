@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="weather_refresh_failed">天気を更新できませんでした。自動的に再試行します。「今すぐ更新」もお試しください。</string>
+</resources>

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="weather_refresh_failed">Não foi possível atualizar o clima. As tentativas automáticas continuarão; você também pode tocar em Atualizar agora.</string>
+</resources>

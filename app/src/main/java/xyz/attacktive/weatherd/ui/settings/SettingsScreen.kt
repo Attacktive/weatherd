@@ -299,6 +299,7 @@ internal fun settingsChangeCallback(settings: AppSettings, apply: (AppSettings, 
 private data class CurrentLocationSummaryState(
 	val locationLabel: String?,
 	val lastRefreshEpochSeconds: Long?,
+	val lastFailureEpochSeconds: Long?,
 	val weatherSource: WeatherSource?,
 	val refreshInProgress: Boolean,
 	val onClear: (() -> Unit)?
@@ -604,6 +605,7 @@ private fun LocationSection(
 	val summaryState = CurrentLocationSummaryState(
 		locationLabel = if (manualLocationSelected) settings.manualLocationLabel else state.weatherStatus.locationLabel,
 		lastRefreshEpochSeconds = state.weatherStatus.lastRefreshEpochSeconds,
+		lastFailureEpochSeconds = state.weatherStatus.lastFailureEpochSeconds,
 		weatherSource = state.weatherStatus.weatherSource,
 		refreshInProgress = state.weatherRefreshInProgress,
 		onClear = locationActions.onClearManualLocation.takeIf { manualLocationSelected }
@@ -731,6 +733,14 @@ private fun CurrentLocationSummary(state: CurrentLocationSummaryState, onRefresh
 				style = MaterialTheme.typography.bodySmall,
 				color = MaterialTheme.colorScheme.onSurfaceVariant
 			)
+
+			if (state.lastFailureEpochSeconds != null) {
+				Text(
+					stringResource(R.string.weather_refresh_failed),
+					style = MaterialTheme.typography.bodySmall,
+					color = MaterialTheme.colorScheme.error
+				)
+			}
 
 			if (weatherSource != null) {
 				Text(
