@@ -63,6 +63,7 @@ class SceneRenderer(resources: Resources) {
 	private val lightningBolt by lazy(LazyThreadSafetyMode.NONE) { LightningBoltLayer() }
 	private val foregroundTrees = ForegroundTreeLayer(resources)
 	private val radiantSun = RadiantSunLayer(resources)
+	private val sunGlare by lazy(LazyThreadSafetyMode.NONE) { SunGlareLayer(resources) }
 	private val birdPath = Path()
 	private val birdFrame = BirdFlockFrame()
 	private val sunCloudUpperSamples = FloatArray(SUN_SHAFT_PROFILE_SAMPLES)
@@ -2630,7 +2631,7 @@ class SceneRenderer(resources: Resources) {
 		!params.thunder &&
 		effectiveOpaqueCloudiness(params) < CLOUD_DECK_THRESHOLD
 
-	/** Atmospheric crepuscular and clear-sky sunbeams anchored to the sun. */
+	/** Weather-dependent crepuscular shafts and opt-in camera-style clear-sky glare. */
 	private fun drawSunLightShafts(canvas: Canvas, sun: SunRenderContext, radius: Float, core: Int) {
 		if (!canDrawSunLightShafts(sun.params)) {
 			return
@@ -2673,7 +2674,8 @@ class SceneRenderer(resources: Resources) {
 
 			val clearStrength = cloudCoverFade * obstructionFade * deckFade
 			if (clearStrength > 0.02f) {
-				drawClearSkySunShafts(canvas, sun, radius, baseAngle, baseReach, tint, clearStrength)
+				val alpha = sunAlpha(CLEAR_SUN_GLARE_ALPHA * clearStrength, sun.visibility)
+				sunGlare.draw(canvas, sun.centerX, sun.centerY, radius * CLEAR_SUN_GLARE_REACH, tint, alpha)
 			}
 		}
 
@@ -2685,30 +2687,6 @@ class SceneRenderer(resources: Resources) {
 		glowPaint.alpha = 255
 		glowPaint.shader = null
 		glowPaint.style = Paint.Style.FILL
-	}
-
-	private fun drawClearSkySunShafts(canvas: Canvas, sun: SunRenderContext, radius: Float, baseAngle: Float, baseReach: Float, tint: Int, clearStrength: Float) {
-		for (index in 0 until CLEAR_SUN_SHAFT_COUNT) {
-			val offset = CLEAR_SUN_SHAFT_OFFSETS[index]
-			val baseAlpha = CLEAR_SUN_SHAFT_MAX_ALPHA * clearStrength * CLEAR_SUN_SHAFT_ALPHA_SCALES[index]
-			val alpha = sunAlpha(baseAlpha, sun.visibility).coerceAtMost(CLEAR_SUN_SHAFT_MAX_ALPHA)
-			if (alpha <= 1) {
-				continue
-			}
-
-			val angle = baseAngle - offset * CLEAR_SUN_SHAFT_DIVERGENCE
-			val timePulse = 0.94f + 0.06f * sin(sun.timeSeconds * 0.35f + index * 1.57f)
-			val reachScale = CLEAR_SUN_SHAFT_REACH_SCALES[index]
-			val widthScale = CLEAR_SUN_SHAFT_WIDTH_SCALES[index]
-			sunShaftGeometry.originX = sun.centerX + offset * radius * SUN_SHAFT_ORIGIN_SPAN
-			sunShaftGeometry.originY = sun.centerY + (abs(offset) * 0.18f) * radius * SUN_SHAFT_ORIGIN_VERTICAL_SPAN
-			sunShaftGeometry.rotationDegrees = angle * 180f / PI.toFloat() - 90f
-			sunShaftGeometry.outerReach = baseReach * reachScale * timePulse
-			sunShaftGeometry.innerReach = radius * (0.22f + 0.06f * abs(offset))
-			sunShaftGeometry.outerHalfWidth = radius * 0.8f * widthScale
-			sunShaftGeometry.tint = tint
-			drawSunShaftWedge(canvas, sunShaftGeometry, alpha)
-		}
 	}
 
 	private fun sunShaftBaseAngle(sun: SunRenderContext): Float {
@@ -3572,7 +3550,7 @@ class SceneRenderer(resources: Resources) {
 		private const val SUN_CORONA_DUSK_SCALE = 0.78f
 		private const val SUN_CORONA_DUSK_ALPHA = 0.58f
 
-		/** Cloud-edge-driven and clear-sky atmospheric sunbeams. */
+		/** Cloud-edge-driven atmospheric sunbeams. */
 		private const val SUN_SHAFT_PROFILE_SAMPLES = 33
 		private const val SUN_SHAFT_SAMPLE_SPAN = 1.28f
 		private const val SUN_SHAFT_SAMPLE_VERTICAL_OFFSET = 0.34f
@@ -3589,13 +3567,8 @@ class SceneRenderer(resources: Resources) {
 		private const val SUN_SHAFT_SPRITE_WIDTH = 64
 		private const val SUN_SHAFT_SPRITE_HEIGHT = 256
 
-		private const val CLEAR_SUN_SHAFT_COUNT = 5
-		private const val CLEAR_SUN_SHAFT_DIVERGENCE = 0.28f
-		private const val CLEAR_SUN_SHAFT_MAX_ALPHA = 24
-		private val CLEAR_SUN_SHAFT_OFFSETS = floatArrayOf(-0.68f, -0.28f, 0.06f, 0.38f, 0.72f)
-		private val CLEAR_SUN_SHAFT_REACH_SCALES = floatArrayOf(0.92f, 1.08f, 0.98f, 1.14f, 0.88f)
-		private val CLEAR_SUN_SHAFT_WIDTH_SCALES = floatArrayOf(0.90f, 1.10f, 1.00f, 1.15f, 0.85f)
-		private val CLEAR_SUN_SHAFT_ALPHA_SCALES = floatArrayOf(0.85f, 1.00f, 0.90f, 0.95f, 0.80f)
+		private const val CLEAR_SUN_GLARE_REACH = 5.6f
+		private const val CLEAR_SUN_GLARE_ALPHA = 100f
 
 		/** How far the inner shoulder is lifted toward white before easing into the warmer limb. */
 		private const val SUN_INNER_LIFT = 0.78f
@@ -3691,6 +3664,43 @@ class SceneRenderer(resources: Resources) {
 
 		/** Shifts close-drop indices into their own hash namespace so they never mirror a far or near streak's lane. */
 		private const val CLOSE_DROP_LANE_OFFSET = 100_000
+	}
+}
+
+/** One shared, offline-generated diffraction mask; each renderer keeps only its tint and draw state. */
+private class SunGlareLayer(private val resources: Resources) {
+	private val paint = Paint(Paint.FILTER_BITMAP_FLAG).apply {
+		xfermode = PorterDuffXfermode(PorterDuff.Mode.SCREEN)
+	}
+
+	private val destination = RectF()
+	private var previousTint = 0
+
+	fun draw(canvas: Canvas, centerX: Float, centerY: Float, reach: Float, tint: Int, alpha: Int) {
+		val bitmap = source ?: loadTexture()
+		if (tint != previousTint) {
+			paint.colorFilter = LightingColorFilter(tint, 0)
+			previousTint = tint
+		}
+
+		paint.alpha = alpha.coerceIn(0, 255)
+		destination.set(centerX - reach, centerY - reach, centerX + reach, centerY + reach)
+		canvas.drawBitmap(bitmap, null, destination, paint)
+	}
+
+	private fun loadTexture() = synchronized(SunGlareLayer::class.java) {
+		source ?: checkNotNull(
+			BitmapFactory.decodeResource(
+				resources,
+				R.drawable.sun_aperture_glare,
+				BitmapFactory.Options().apply { inScaled = false }
+			)
+		).also { source = it }
+	}
+
+	companion object {
+		@Volatile
+		private var source: Bitmap? = null
 	}
 }
 

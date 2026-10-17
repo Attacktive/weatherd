@@ -43,17 +43,18 @@ class SunbeamRenderingTest {
 	}
 
 	@Test
-	fun atmosphericRaysSpreadOutwardInsteadOfConvergingBelowTheSun() {
-		val params = clearParams()
-		val off = render(params.copy(sunbeamMode = SunbeamMode.OFF))
-		val active = render(params.copy(sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO))
-		try {
-			val upperWidth = litWidth(active, off, 210)
-			val lowerWidth = litWidth(active, off, 300)
-			assertTrue("Ray fan should widen away from its source, not cross: $upperWidth -> $lowerWidth", upperWidth > 0 && lowerWidth > upperWidth)
-		} finally {
-			off.recycle()
-			active.recycle()
+	fun clearSkyGlareExtendsAboveAndBelowTheSolarSourceInBothStyles() {
+		for (style in SunStyle.entries) {
+			val params = clearParams().copy(sunStyle = style)
+			val off = render(params.copy(sunbeamMode = SunbeamMode.OFF))
+			val active = render(params.copy(sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO))
+			try {
+				assertTrue("Optical glare must extend above the sun, not hang below it: $style", beamEnergy(active, off, 20, 70) > 0L)
+				assertTrue("Optical glare must also extend below the sun: $style", beamEnergy(active, off, 200, 250) > 0L)
+			} finally {
+				off.recycle()
+				active.recycle()
+			}
 		}
 	}
 
@@ -222,9 +223,9 @@ class SunbeamRenderingTest {
 		return minimum..maximum
 	}
 
-	private fun beamEnergy(active: Bitmap, off: Bitmap): Long {
+	private fun beamEnergy(active: Bitmap, off: Bitmap, top: Int = 200, bottom: Int = 600): Long {
 		var energy = 0L
-		for (y in 200 until 600) {
+		for (y in top until bottom) {
 			for (x in 0 until active.width) {
 				val light = active.getPixel(x, y)
 				val control = off.getPixel(x, y)
@@ -233,19 +234,6 @@ class SunbeamRenderingTest {
 		}
 
 		return energy
-	}
-
-	private fun litWidth(active: Bitmap, off: Bitmap, y: Int): Int {
-		var left = active.width
-		var right = -1
-		for (x in 0 until active.width) {
-			if (Color.alpha(active.getPixel(x, y)) - Color.alpha(off.getPixel(x, y)) >= 2) {
-				left = minOf(left, x)
-				right = maxOf(right, x)
-			}
-		}
-
-		return (right - left + 1).coerceAtLeast(0)
 	}
 
 	private fun renderer() = SceneRenderer(resources).apply {

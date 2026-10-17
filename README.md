@@ -30,13 +30,16 @@ Its additional wide optical halos are restrained; **Lens flare** and **Motion-re
 The [submitted PNG](https://github.com/user-attachments/assets/68a92bcf-016d-4276-bc35-4c1e38ae6b78) is bundled unchanged; the softened immutable rendering texture is generated once off the frame loop on first use.
 
 Choose **Settings → Appearance → Sun & moon → Sunbeams** for **Off**, **Through clouds** (default), or **Clear skies too**.
-Through clouds draws soft, spreading shafts from moving near low-cloud openings; Clear skies too also adds restrained rays to an unobstructed sun.
+Through clouds draws soft, spreading atmospheric shafts from moving near low-cloud openings; Clear skies too also adds radial camera-style glare around an unobstructed sun.
 Low and mid cloud cover both attenuate clear-sky rays, while high cirrus alone does not.
 Distant cloud openings do not generate their own shafts.
 Night, a hidden sun, rain/snow, fog, thunderstorms, and opaque cloud decks suppress the effect in either enabled mode.
-Off removes only atmospheric beams, preserving the selected sun style, its compact corona, and the independent lens flare controls.
+Off removes the cloud shafts and extended clear-sky glare, preserving the selected sun style, its compact corona, and the independent lens flare controls.
 The choice resets individually, is saved with appearance presets, and follows the shared preview, live-wallpaper, simulator, and fallback path; older settings and presets use Through clouds.
-Beam softness is cached in a small first-party procedural sprite and transformed each frame, without per-frame texture generation or blur work.
+Cloud-shaft softness is cached in a small first-party procedural sprite and transformed each frame, without per-frame texture generation or blur work.
+Clear-sky glare uses a shared, cached first-party texture generated with `uv run scripts/generate-sun-glare.py`: a hexagonal aperture's squared Fourier amplitude is convolved with a finite solar disc and averaged across three wavelengths.
+Its paired radial structure follows [aperture diffraction](https://www.nature.com/articles/s41598-018-34400-z), rather than pretending that clear air contains cloud-opening shafts; it stays fixed around the solar source instead of independently swaying or pulsing its rays.
+Exposure, tint, and edge falloff are tuned for the scene, so this remains an idealized optical approximation, not a calibrated camera simulation.
 
 Choose **Settings → Appearance → Sky → Sky palette → Clear blue** for a richer blue zenith fading into a pale horizon, inspired by the reference in [#252](https://github.com/Attacktive/weatherd/issues/252).
 **Natural** remains the default; existing palettes and saved settings are unchanged.
