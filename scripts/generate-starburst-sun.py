@@ -14,13 +14,10 @@ OUTPUT = Path(__file__).resolve().parents[1] / 'app/src/main/res/drawable-nodpi/
 
 
 def starburst_texture():
-	"""
-	Compose a clipped-white core, six soft tapered rays, and a feathered bloom.
-
-	All pixels are generated analytically; no supplied image or third-party artwork is sampled.
-	The core is centered, with its nearly opaque radius approximately 0.1 of the half-width.
-	Lens reflections deliberately belong to the renderer, not this texture.
-	"""
+	"""Compose a clipped-white core, six soft tapered rays, and a feathered bloom."""
+	# All pixels are generated analytically; no supplied image or third-party artwork is sampled.
+	# The core is centered, with its nearly opaque radius approximately 0.1 of the half-width.
+	# Lens reflections deliberately belong to the renderer, not this texture.
 	axis = (np.arange(TEXTURE_SIZE, dtype=np.float64) + 0.5 - TEXTURE_SIZE / 2) / (TEXTURE_SIZE / 2)
 	xx, yy = np.meshgrid(axis, axis)
 	radius = np.hypot(xx, yy)
