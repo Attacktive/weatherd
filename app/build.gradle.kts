@@ -28,8 +28,8 @@ android {
 		applicationId = "xyz.attacktive.weatherd"
 		minSdk = 26
 		targetSdk = 37
-		versionCode = 100
-		versionName = "3.8.31"
+		versionCode = 101
+		versionName = "3.8.32"
 		testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 	}
 
