@@ -78,6 +78,39 @@ class SunbeamRenderingTest {
 	}
 
 	@Test
+	fun midOnlyCloudVeilingSuppressesClearRaysWithoutAddingDistantOpeningShafts() {
+		for (style in SunStyle.entries) {
+			val params = clearParams().copy(cloudiness = 0.6f, cloudLayers = SceneCloudLayers(low = 0f, mid = 0.6f, high = 0f), sunStyle = style)
+			val off = render(params.copy(sunbeamMode = SunbeamMode.OFF))
+			val through = render(params.copy(sunbeamMode = SunbeamMode.THROUGH_CLOUDS))
+			val clear = render(params.copy(sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO))
+			try {
+				assertTrue("Distant cloud openings do not generate their own shafts: $style", off.sameAs(through))
+				assertTrue("A mid-only deck veiling the sun must also suppress clear-sky rays: $style", off.sameAs(clear))
+			} finally {
+				off.recycle()
+				through.recycle()
+				clear.recycle()
+			}
+		}
+	}
+
+	@Test
+	fun highOnlyCirrusDoesNotSuppressClearSkyRays() {
+		for (style in SunStyle.entries) {
+			val params = clearParams().copy(cloudiness = 0.6f, cloudLayers = SceneCloudLayers(low = 0f, mid = 0f, high = 0.6f), sunStyle = style)
+			val off = render(params.copy(sunbeamMode = SunbeamMode.OFF))
+			val clear = render(params.copy(sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO))
+			try {
+				assertTrue("Nonopaque high cirrus must not act like a mid-level sun veil: $style", beamEnergy(clear, off) > 0L)
+			} finally {
+				off.recycle()
+				clear.recycle()
+			}
+		}
+	}
+
+	@Test
 	fun modesCannotOverrideSunVisibilityOrObscuringWeather() {
 		val base = clearParams()
 		val suppressed = listOf(

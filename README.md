@@ -30,7 +30,9 @@ Its additional wide optical halos are restrained; **Lens flare** and **Motion-re
 The [submitted PNG](https://github.com/user-attachments/assets/68a92bcf-016d-4276-bc35-4c1e38ae6b78) is bundled unchanged; the softened immutable rendering texture is generated once off the frame loop on first use.
 
 Choose **Settings → Appearance → Sun & moon → Sunbeams** for **Off**, **Through clouds** (default), or **Clear skies too**.
-Through clouds draws soft, spreading shafts from moving partial-cloud openings; Clear skies too also adds restrained rays to an unobstructed sun.
+Through clouds draws soft, spreading shafts from moving near low-cloud openings; Clear skies too also adds restrained rays to an unobstructed sun.
+Low and mid cloud cover both attenuate clear-sky rays, while high cirrus alone does not.
+Distant cloud openings do not generate their own shafts.
 Night, a hidden sun, rain/snow, fog, thunderstorms, and opaque cloud decks suppress the effect in either enabled mode.
 Off removes only atmospheric beams, preserving the selected sun style, its compact corona, and the independent lens flare controls.
 The choice resets individually, is saved with appearance presets, and follows the shared preview, live-wallpaper, simulator, and fallback path; older settings and presets use Through clouds.

@@ -2663,11 +2663,10 @@ class SceneRenderer(resources: Resources) {
 		}
 
 		if (sun.params.sunbeamMode == SunbeamMode.CLEAR_SKIES_TOO) {
-			val lowCover = effectiveLowCloudiness(sun.params)
-			val cloudCoverFade = if (lowCover <= SCATTERED_CLOUD_FLOOR) {
+			val cloudCoverFade = if (opaqueCloudiness <= SCATTERED_CLOUD_FLOOR) {
 				1f
 			} else {
-				(1f - unlerp(SCATTERED_CLOUD_FLOOR, DIRECT_SUN_MAX_CLOUDINESS, lowCover)).coerceIn(0f, 1f)
+				(1f - unlerp(SCATTERED_CLOUD_FLOOR, DIRECT_SUN_MAX_CLOUDINESS, opaqueCloudiness)).coerceIn(0f, 1f)
 			}
 
 			val obstructionFade = (1f - strongestSunCloudOpacity).coerceIn(0f, 1f)
