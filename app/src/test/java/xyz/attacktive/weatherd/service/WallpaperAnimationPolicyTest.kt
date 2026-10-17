@@ -41,20 +41,14 @@ class WallpaperAnimationPolicyTest {
 	fun `15 second timeout settles exactly at its deadline`() {
 		val start = 5_000_000_000L
 
-		assertTrue(
-			wallpaperAnimationActive(
-				AnimationIdleTimeout.SECONDS_15,
-				motionStartedAtNanos = start,
-				nowNanos = start + 14_999_999_999L
-			)
+		fun isActiveAfter(elapsedNanos: Long) = wallpaperAnimationActive(
+			AnimationIdleTimeout.SECONDS_15,
+			motionStartedAtNanos = start,
+			nowNanos = start + elapsedNanos
 		)
-		assertFalse(
-			wallpaperAnimationActive(
-				AnimationIdleTimeout.SECONDS_15,
-				motionStartedAtNanos = start,
-				nowNanos = start + 15_000_000_000L
-			)
-		)
+
+		assertTrue(isActiveAfter(14_999_999_999L))
+		assertFalse(isActiveAfter(15_000_000_000L))
 	}
 
 	@Test
