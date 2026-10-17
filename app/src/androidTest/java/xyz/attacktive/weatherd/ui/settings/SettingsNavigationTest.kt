@@ -126,14 +126,15 @@ class SettingsNavigationTest {
 
 	@Test
 	fun categoryScrollSurvivesReopeningAndRecreation() {
-		openClouds()
-		val savedBounds = scrollAndCapture(R.string.section_cloud_size, R.string.section_cloud_contrast, prefix = true)
+		// The Clouds page may fit without scrolling on taller devices; Sky has enough controls to exercise restoration.
+		openSky()
+		val savedBounds = scrollAndCapture(R.string.section_sky_palette, R.string.section_bird_flock_size)
 		clickDescription(R.string.content_description_back)
 		assertVisible(R.string.settings_title)
-		openClouds()
-		waitUntil("category scroll restored") { visibleBounds(R.string.section_cloud_contrast, prefix = true) == savedBounds }
+		openSky()
+		waitUntil("category scroll restored") { visibleBounds(R.string.section_bird_flock_size) == savedBounds }
 		scenario.recreate()
-		waitUntil("category scroll recreated") { visibleBounds(R.string.section_cloud_contrast, prefix = true) == savedBounds }
+		waitUntil("category scroll recreated") { visibleBounds(R.string.section_bird_flock_size) == savedBounds }
 	}
 
 	@Test
@@ -151,6 +152,11 @@ class SettingsNavigationTest {
 	private fun openClouds() {
 		clickText(R.string.appearance_category_clouds)
 		waitUntil("Clouds detail") { !isVisible(R.string.settings_tab_weather) }
+	}
+
+	private fun openSky() {
+		clickText(R.string.appearance_category_sky)
+		waitUntil("Sky detail") { !isVisible(R.string.settings_tab_weather) }
 	}
 
 	private fun assertTopLevelTabsPresent() {
@@ -235,12 +241,13 @@ class SettingsNavigationTest {
 	}
 
 	private fun scrollAndCapture(@StringRes first: Int, @StringRes anchor: Int, prefix: Boolean = false): Rect {
-		val scroller = verticalScroller()
-		assumeNotNull(scroller)
+		assumeNotNull(verticalScroller())
 		assertVisible(first, prefix)
 		val initialBounds = checkNotNull(visibleBounds(first, prefix))
-		assertTrue(scroller!!.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD))
-		waitUntil("page scroll changed") { visibleBounds(first, prefix) != initialBounds }
+		waitUntil("page scroll changed") {
+			verticalScroller()?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+			visibleBounds(first, prefix) != initialBounds
+		}
 		scrollTo(anchor, prefix)
 		automation.waitForIdle(100L, 5_000L)
 		return checkNotNull(visibleBounds(anchor, prefix))
