@@ -91,6 +91,16 @@ The settings apply to the preview, simulator, fallback, and Home/Lock wherever A
 The shading stays fixed while the wallpaper scrolls, covers animated weather and glass droplets, and leaves Weatherd’s weather/location labels bright.
 Both strengths are saved with appearance presets; older presets without them apply with both off.
 
+## Experimental weather provider comparison
+
+In **Settings → Weather → Compare weather providers**, testers can open a comparison, select the sky they actually see, and tap **Compare now** to query Open-Meteo Best Match, ItaliaMeteo ICON-2I, DWD ICON EU, and MET Norway at the same effective weather location.
+The comparison bypasses normal primary/fallback selection without changing either preference, skips providers outside their declared coverage, and reports each provider's returned forecast-valid time, weather condition, cloud layers, temperature, and precipitation.
+Precipitation totals are labeled with their source-specific accumulation windows: Open-Meteo's returned interval precedes its timestamp, while MET Norway's next-hour precipitation follows it. Missing interval metadata is shown as unknown rather than silently comparing incompatible periods.
+Comparison requests are made only on the explicit tap; dismissing the dialog cancels in-progress sampling.
+Results are not persisted, uploaded automatically, or included in the normal weather cache.
+**Share report** opens Android's share chooser with a plain-text snapshot plus the tester's observed sky; the report contains no coordinates or place names.
+The coordinates necessarily go to each weather provider being queried, as disclosed by the feature. Consult the privacy policy before using this experimental tool.
+
 ## Weather refresh timing
 
 The configured refresh interval is the minimum time between automatic weather fetches, not a background timer. Weatherd checks when the preview resumes, when the wallpaper becomes visible, and after relevant location or provider changes. **Refresh now** and the home-screen refresh widget bypass that interval.

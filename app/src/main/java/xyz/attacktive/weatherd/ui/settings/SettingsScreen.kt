@@ -223,6 +223,10 @@ private fun WeatherSettingsTab(viewModel: SettingsViewModel, scrollState: Scroll
 
 		RefreshIntervalSection(settings = settings, defaults = viewModel.defaults, onSave = onSave)
 
+		Spacer(modifier = Modifier.height(24.dp))
+
+		WeatherComparisonSection(settings)
+
 		if (settings.weatherProvider == WeatherProviderType.MET_NORWAY || settings.weatherFallbackProvider == WeatherProviderType.MET_NORWAY) {
 			Spacer(modifier = Modifier.height(24.dp))
 

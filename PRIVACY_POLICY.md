@@ -32,6 +32,8 @@ The app also communicates with **[MET Norway](https://api.met.no)** when MET Nor
 
 Regional models are used only within their supported geographic coverage. If the primary model does not cover the chosen coordinates or its request fails, Weatherd may make one request to the configured global fallback without changing either saved preference.
 
+The experimental **Compare weather providers** action in Weather settings is opt-in and sends the same selected weather coordinates to Open-Meteo Best Match, ItaliaMeteo ICON-2I, DWD ICON EU, and MET Norway for a one-time comparison, regardless of the configured primary/fallback providers. It makes no requests until the tester taps **Compare now**. Comparison samples remain in memory and are not logged or uploaded to a Weatherd server. The tester may explicitly share a text report through Android's chooser; that report omits coordinates and place names but includes the selected observed sky, forecast fields, and UTC timestamps. Recipient privacy practices then apply.
+
 Latitude and longitude are sent to the weather service actually used for a forecast request. City search queries are sent to Open-Meteo regardless of the selected forecast providers. MET Norway states that direct API access logs may contain the user's IP address and requested geocoordinates; those logs are operated by MET Norway and are subject to its own privacy policy and terms. Open-Meteo's own privacy policy applies to Open-Meteo traffic. Neither weather service requires an API key or user account in Weatherd.
 
 No analytics, advertising, or tracking services are used.
