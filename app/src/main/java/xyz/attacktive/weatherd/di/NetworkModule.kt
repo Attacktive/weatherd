@@ -1,6 +1,7 @@
 package xyz.attacktive.weatherd.di
 
 import java.util.concurrent.TimeUnit
+import javax.inject.Qualifier
 import javax.inject.Singleton
 import android.content.Context
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
@@ -19,6 +20,11 @@ import xyz.attacktive.weatherd.BuildConfig
 import xyz.attacktive.weatherd.data.api.GeocodingApiService
 import xyz.attacktive.weatherd.data.api.MetNoApiService
 import xyz.attacktive.weatherd.data.api.OpenMeteoApiService
+import xyz.attacktive.weatherd.data.provider.MetNoWeatherProvider
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class ComparisonMetNo
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -66,6 +72,15 @@ object NetworkModule {
 		Cache(context.cacheDir.resolve(MET_NO_CACHE_DIRECTORY), MET_NO_CACHE_BYTES)
 	)
 
+	/** A distinct MET transport for user-requested diagnostics, without the production disk cache. */
+	@Provides
+	@ComparisonMetNo
+	fun provideComparisonMetNoApiService(okHttpClient: OkHttpClient, json: Json): MetNoApiService = createMetNoApiService(okHttpClient, json, MET_NO_BASE_URL, memoryCache = true)
+
+	@Provides
+	@ComparisonMetNo
+	fun provideComparisonMetNoWeatherProvider(@ComparisonMetNo api: MetNoApiService) = MetNoWeatherProvider(api)
+
 	// Geocoding is a separate Open-Meteo host, so it gets its own Retrofit while sharing the OkHttp client and Json.
 	@Provides
 	@Singleton
@@ -77,13 +92,15 @@ object NetworkModule {
 		.create(GeocodingApiService::class.java)
 }
 
-internal fun createMetNoApiService(okHttpClient: OkHttpClient, json: Json, baseUrl: String, cache: Cache? = null): MetNoApiService {
-	val clientBuilder = okHttpClient.newBuilder()
-	if (cache != null) {
-		clientBuilder.cache(cache)
-	}
-
-	val metNoClient = clientBuilder
+internal fun createMetNoApiService(okHttpClient: OkHttpClient, json: Json, baseUrl: String, cache: Cache? = null, memoryCache: Boolean = false): MetNoApiService {
+	// Null explicitly removes any cache inherited from the base OkHttp client.
+	val metNoClient = okHttpClient.newBuilder()
+		.cache(cache)
+		.apply {
+			if (memoryCache) {
+				addInterceptor(MetNoMemoryCacheInterceptor())
+			}
+		}
 		.addInterceptor { chain ->
 			val request = chain.request().newBuilder()
 				.header("User-Agent", "weatherd/${BuildConfig.VERSION_NAME} github.com/Attacktive/weatherd")

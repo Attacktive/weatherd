@@ -20,6 +20,8 @@ import xyz.attacktive.weatherd.data.api.dto.MetNoForecastResponseDto
 import xyz.attacktive.weatherd.data.api.dto.toSnapshot
 import xyz.attacktive.weatherd.data.provider.OpenMeteoWeatherProvider
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
+import xyz.attacktive.weatherd.domain.model.PrecipitationWindow
+import xyz.attacktive.weatherd.domain.model.PrecipitationWindowDirection
 import xyz.attacktive.weatherd.domain.render.sceneParamsFor
 
 class HumidityWeatherMappingTest {
@@ -61,6 +63,7 @@ class HumidityWeatherMappingTest {
 
 			assertFalse(snapshot.observation.condition.fog)
 			assertEquals(0.0, snapshot.observation.precipitationMillimeters, 0.0001)
+			assertEquals(PrecipitationWindow(3600, PrecipitationWindowDirection.FOLLOWING), snapshot.precipitationWindow)
 			assertEquals(expectedDensity, params.humidityHazeDensity, 0.0001f)
 		}
 	}

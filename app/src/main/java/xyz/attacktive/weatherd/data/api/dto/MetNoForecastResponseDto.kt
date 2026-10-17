@@ -14,6 +14,8 @@ import xyz.attacktive.weatherd.domain.model.WeatherLabel
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
+import xyz.attacktive.weatherd.domain.model.PrecipitationWindow
+import xyz.attacktive.weatherd.domain.model.PrecipitationWindowDirection
 import xyz.attacktive.weatherd.domain.model.WeatherSource
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_DRIZZLE
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_HEAVY
@@ -97,7 +99,8 @@ fun MetNoForecastResponseDto.toSnapshot(sun: MetNoSunriseResponseDto, source: We
 		observedAtEpochSeconds = observedAtEpochSeconds,
 		sunriseEpochSeconds = sun.sunriseEpochSeconds(),
 		sunsetEpochSeconds = sun.sunsetEpochSeconds(),
-		source = source
+		source = source,
+		precipitationWindow = PrecipitationWindow(3600, PrecipitationWindowDirection.FOLLOWING)
 	)
 }
 

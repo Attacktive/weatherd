@@ -8,6 +8,8 @@ import xyz.attacktive.weatherd.domain.model.CloudLayers
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
+import xyz.attacktive.weatherd.domain.model.PrecipitationWindow
+import xyz.attacktive.weatherd.domain.model.PrecipitationWindowDirection
 import xyz.attacktive.weatherd.domain.model.WeatherSource
 import xyz.attacktive.weatherd.domain.weather.conditionForWmoCode
 
@@ -28,7 +30,8 @@ data class CurrentWeatherDto(
 	@SerialName("cloud_cover_low") val cloudCoverLow: Int? = null,
 	@SerialName("cloud_cover_mid") val cloudCoverMid: Int? = null,
 	@SerialName("cloud_cover_high") val cloudCoverHigh: Int? = null,
-	@SerialName("relative_humidity_2m") val relativeHumidityPercent: Double? = null
+	@SerialName("relative_humidity_2m") val relativeHumidityPercent: Double? = null,
+	val interval: Int? = null
 )
 
 @SuppressLint("UnsafeOptInUsageError")
@@ -67,6 +70,7 @@ fun ForecastResponseDto.toSnapshot(source: WeatherSource = WeatherSource(Weather
 		observedAtEpochSeconds = current.time,
 		sunriseEpochSeconds = daily?.sunrise?.firstOrNull(),
 		sunsetEpochSeconds = daily?.sunset?.firstOrNull(),
-		source = source
+		source = source,
+		precipitationWindow = current.interval?.takeIf { it > 0 }?.let { PrecipitationWindow(it, PrecipitationWindowDirection.PRECEDING) }
 	)
 }

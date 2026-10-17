@@ -95,6 +95,78 @@ class MetNoApiServiceTest {
 	}
 
 	@Test
+	fun diagnosticMetRequestsBypassAndNeverPopulateTheNormalPersistentCache() = runTest {
+		val server = MockWebServer()
+		val directory = Files.createTempDirectory("weatherd-diagnostic-cache")
+		val cache = Cache(directory.toFile(), 1024L * 1024L)
+		server.start()
+
+		try {
+			repeat(3) {
+				server.enqueue(jsonResponse(FORECAST_BODY).addHeader("Cache-Control", "public, max-age=3600"))
+			}
+
+			// The deliberately cache-bearing parent client proves a null diagnostic cache must be explicit.
+			val baseClient = OkHttpClient.Builder().cache(cache).build()
+			val json = Json { ignoreUnknownKeys = true }
+			val baseUrl = server.url("/").toString()
+			val normal = createMetNoApiService(baseClient, json, baseUrl, cache)
+			val diagnostic = createMetNoApiService(baseClient, json, baseUrl, memoryCache = true)
+
+			normal.forecast("37.5000", "127.0000")
+			normal.forecast("37.5000", "127.0000")
+			assertEquals(1, server.requestCount)
+
+			diagnostic.forecast("37.5000", "127.0000")
+			diagnostic.forecast("37.5000", "127.0000")
+			assertEquals(2, server.requestCount)
+
+			normal.forecast("37.5000", "127.0000")
+			assertEquals(2, server.requestCount)
+		} finally {
+			cache.close()
+			directory.toFile().deleteRecursively()
+			server.shutdown()
+		}
+	}
+
+	@Test
+	fun inMemoryMetDiagnosticRevalidatesExpiredForecastWithoutPersistingBytes() = runTest {
+		val server = MockWebServer()
+		server.start()
+
+		try {
+			server.enqueue(
+				jsonResponse(FORECAST_BODY)
+					.addHeader("Cache-Control", "public, max-age=0")
+					.addHeader("Last-Modified", "Fri, 18 Sep 2026 05:30:00 GMT")
+			)
+
+			server.enqueue(
+				MockResponse()
+					.setResponseCode(304)
+					.addHeader("Cache-Control", "public, max-age=3600")
+			)
+
+			val api = createMetNoApiService(OkHttpClient(), Json { ignoreUnknownKeys = true }, server.url("/").toString(), memoryCache = true)
+			val first = api.forecast("37.5000", "127.0000")
+			val second = api.forecast("37.5000", "127.0000")
+			val third = api.forecast("37.5000", "127.0000")
+			val initialRequest = server.takeRequest()
+			val conditionalRequest = server.takeRequest()
+
+			assertNull(initialRequest.getHeader("If-Modified-Since"))
+			assertEquals("Fri, 18 Sep 2026 05:30:00 GMT", conditionalRequest.getHeader("If-Modified-Since"))
+			assertEquals("cloudy", first.properties.timeseries.first().data?.nextOneHour?.summary?.symbolCode)
+			assertEquals(first, second)
+			assertEquals(first, third)
+			assertEquals(2, server.requestCount)
+		} finally {
+			server.shutdown()
+		}
+	}
+
+	@Test
 	fun `MET client revalidates a stale cached response with last modified`() = runTest {
 		val server = MockWebServer()
 		val cacheDirectory = Files.createTempDirectory("weatherd-met-revalidation").toFile()
