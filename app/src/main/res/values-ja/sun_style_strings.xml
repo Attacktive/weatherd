@@ -3,5 +3,6 @@
 	<string name="label_sun_style">太陽のスタイル</string>
 	<string name="sun_style_classic">クラシック</string>
 	<string name="sun_style_radiant">輝き</string>
+	<string name="sun_style_starburst">星形の光</string>
 	<string name="hint_radiant_sun">画像には固定の光と反射が含まれています。レンズフレアで追加のエフェクトを調整できます。</string>
 </resources>

@@ -58,7 +58,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.debugToolsEnabled
 import xyz.attacktive.weatherd.domain.model.DayPhase
-import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.render.DistantAircraftLayer
 import xyz.attacktive.weatherd.domain.render.SCENE_PRESETS
 import xyz.attacktive.weatherd.domain.render.SceneRenderer
@@ -85,9 +84,9 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	val motionOwner = remember { Any() }
 	var timeSeconds by remember { mutableFloatStateOf(0f) }
 	var treeTexturesReady by remember(renderer) { mutableStateOf(renderer.treeTexturesReady) }
-	var sunTextureReady by remember(renderer) { mutableStateOf(renderer.sunTextureReady) }
 	val sceneState by viewModel.sceneState.collectAsStateWithLifecycle()
 	val settings = sceneState.settings
+	var sunTextureReady by remember(renderer, settings.sunStyle) { mutableStateOf(renderer.isSunTextureReady(settings.sunStyle)) }
 	val debugEnabled = sceneState.simulatorActive
 	val debugSceneIndex = settings.sceneSimulatorPresetIndex.coerceIn(0, SCENE_PRESETS.lastIndex)
 	val debugPhaseIndex = settings.sceneSimulatorDayPhase.ordinal
@@ -151,9 +150,9 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	}
 
 	LaunchedEffect(renderer, params.sunStyle) {
-		if (params.sunStyle == SunStyle.RADIANT) {
+		if (!renderer.isSunTextureReady(params.sunStyle)) {
 			withContext(Dispatchers.Default) {
-				renderer.prewarmSunTexture()
+				renderer.prewarmSunTexture(params.sunStyle)
 			}
 
 			sunTextureReady = true

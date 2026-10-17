@@ -3,5 +3,6 @@
 	<string name="label_sun_style">太阳样式</string>
 	<string name="sun_style_classic">经典</string>
 	<string name="sun_style_radiant">光芒</string>
+	<string name="sun_style_starburst">星芒</string>
 	<string name="hint_radiant_sun">图片包含固定的光晕和反射。镜头光晕控制额外效果。</string>
 </resources>

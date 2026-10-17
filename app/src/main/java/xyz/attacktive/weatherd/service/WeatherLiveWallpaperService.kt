@@ -17,7 +17,6 @@ import android.view.SurfaceHolder
 import dagger.hilt.android.AndroidEntryPoint
 import xyz.attacktive.weatherd.domain.model.AnimationIdleTimeout
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
-import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.render.DistantAircraftLayer
 import xyz.attacktive.weatherd.domain.render.SceneAnimationRestartController
 import xyz.attacktive.weatherd.domain.render.SceneParams
@@ -97,9 +96,9 @@ class WeatherLiveWallpaperService: WallpaperService() {
 						requestImmediateFrame()
 					}
 
-					if (it.sunStyle == SunStyle.RADIANT && !renderer.sunTextureReady) {
+					if (!renderer.isSunTextureReady(it.sunStyle)) {
 						withContext(Dispatchers.Default) {
-							renderer.prewarmSunTexture()
+							renderer.prewarmSunTexture(it.sunStyle)
 						}
 
 						requestImmediateFrame()

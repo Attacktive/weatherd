@@ -3,5 +3,6 @@
 	<string name="label_sun_style">Sun style</string>
 	<string name="sun_style_classic">Classic</string>
 	<string name="sun_style_radiant">Radiant</string>
+	<string name="sun_style_starburst">Starburst</string>
 	<string name="hint_radiant_sun">The image includes fixed glow and reflections. Lens flare controls additional effects.</string>
 </resources>

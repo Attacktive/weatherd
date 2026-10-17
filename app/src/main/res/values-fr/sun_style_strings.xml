@@ -3,5 +3,6 @@
 	<string name="label_sun_style">Style du soleil</string>
 	<string name="sun_style_classic">Classique</string>
 	<string name="sun_style_radiant">Rayonnant</string>
+	<string name="sun_style_starburst">Éclat étoilé</string>
 	<string name="hint_radiant_sun">L’image comprend une lueur et des reflets fixes. Le halo d’objectif contrôle les effets supplémentaires.</string>
 </resources>

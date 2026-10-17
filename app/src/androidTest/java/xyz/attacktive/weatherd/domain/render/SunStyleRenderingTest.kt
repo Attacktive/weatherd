@@ -24,6 +24,33 @@ class SunStyleRenderingTest {
 	private val resources = InstrumentationRegistry.getInstrumentation().targetContext.resources
 
 	@Test
+	fun starburstHasItsOwnWhiteCoreAndRaysInBothOrientations() {
+		for ((width, height) in listOf(360 to 780, 780 to 360)) {
+			val params = clearParams().copy(sunColorPreset = SunColorPreset.WHITE)
+			val classic = render(params, width = width, height = height)
+			val radiant = render(params.copy(sunStyle = SunStyle.RADIANT), width = width, height = height)
+			val starburst = render(params.copy(sunStyle = SunStyle.STARBURST), width = width, height = height)
+			try {
+				val core = whiteCoreBounds(starburst)
+				val classicCore = whiteCoreBounds(classic)
+				assertFalse("Starburst must have distinct artwork from Classic", starburst.sameAs(classic))
+				assertFalse("Starburst must have distinct artwork from Radiant", starburst.sameAs(radiant))
+				assertTrue("The white core must stay on the solar x coordinate", abs(core.centerX - width * 0.72f) <= 2f)
+				assertTrue("The white core must stay on the solar y coordinate", abs(core.centerY - height * 0.17f) <= 2f)
+				assertTrue("The bright core must remain compact", core.width.toFloat() / classicCore.width in 0.6f..1.8f)
+				val span = minOf(width, height)
+				val ray = starburst.getPixel((width * 0.72f + span * 0.078f).roundToInt(), (height * 0.17f + span * 0.018f).roundToInt())
+				val gap = starburst.getPixel((width * 0.72f + span * 0.057f).roundToInt(), (height * 0.17f + span * 0.057f).roundToInt())
+				assertTrue("The glow must have distinct rays, not a circular opaque bloom", Color.alpha(ray) > Color.alpha(gap) + 20)
+			} finally {
+				classic.recycle()
+				radiant.recycle()
+				starburst.recycle()
+			}
+		}
+	}
+
+	@Test
 	fun radiantChangesTheVisibleSunWithoutChangingTheBackdrop() {
 		for (phase in listOf(DayPhase.DAY, DayPhase.DAWN, DayPhase.DUSK)) {
 			val classicParams = clearParams().copy(dayPhase = phase, celestialProgress = 0.25f)
@@ -44,7 +71,7 @@ class SunStyleRenderingTest {
 	}
 
 	@Test
-	fun radiantNeverLeaksIntoHiddenNightOrWeatherVeiledScenes() {
+	fun sunStylesNeverLeakIntoHiddenNightOrWeatherVeiledScenes() {
 		val base = clearParams()
 		val suppressed = listOf(
 			base.copy(sunVisible = false),
@@ -59,10 +86,13 @@ class SunStyleRenderingTest {
 
 		for (params in suppressed) {
 			val classic = render(params)
-			val radiant = render(params.copy(sunStyle = SunStyle.RADIANT))
-			assertTrue("Sun style must not alter hidden or weather-veiled light: $params", classic.sameAs(radiant))
+			for (style in listOf(SunStyle.RADIANT, SunStyle.STARBURST)) {
+				val styled = render(params.copy(sunStyle = style))
+				assertTrue("Sun style $style must not alter hidden or weather-veiled light: $params", classic.sameAs(styled))
+				styled.recycle()
+			}
+
 			classic.recycle()
-			radiant.recycle()
 		}
 	}
 
@@ -88,115 +118,122 @@ class SunStyleRenderingTest {
 	}
 
 	@Test
-	fun radiantSizePreferenceResizesTheCoreWithoutMovingIt() {
-		val params = clearParams().copy(sunStyle = SunStyle.RADIANT, sunColorPreset = SunColorPreset.WHITE)
-		val small = render(params.copy(sunSizeScale = 0.5f))
-		val large = render(params.copy(sunSizeScale = 1.5f))
-		val smallCore = whiteCoreBounds(small)
-		val largeCore = whiteCoreBounds(large)
+	fun imageSunStylesRespectSizeWithoutMovingTheCore() {
+		for (style in listOf(SunStyle.RADIANT, SunStyle.STARBURST)) {
+			val params = clearParams().copy(sunStyle = style, sunColorPreset = SunColorPreset.WHITE)
+			val small = render(params.copy(sunSizeScale = 0.5f))
+			val large = render(params.copy(sunSizeScale = 1.5f))
+			val smallCore = whiteCoreBounds(small)
+			val largeCore = whiteCoreBounds(large)
 
-		assertTrue("A larger sun size must enlarge the submitted solar core", largeCore.width > smallCore.width * 2)
-		assertTrue("Resizing must keep the core anchored horizontally", abs(largeCore.centerX - smallCore.centerX) <= 2f)
-		assertTrue("Resizing must keep the core anchored vertically", abs(largeCore.centerY - smallCore.centerY) <= 2f)
+			assertTrue("A larger sun size must enlarge the $style core", largeCore.width > smallCore.width * 2)
+			assertTrue("Resizing must keep the core anchored horizontally", abs(largeCore.centerX - smallCore.centerX) <= 2f)
+			assertTrue("Resizing must keep the core anchored vertically", abs(largeCore.centerY - smallCore.centerY) <= 2f)
 
-		small.recycle()
-		large.recycle()
-	}
-
-	@Test
-	fun radiantColorPreferenceWarmsTheArtworkWithoutChangingItsOpacity() {
-		val params = clearParams().copy(sunStyle = SunStyle.RADIANT)
-		val white = render(params.copy(sunColorPreset = SunColorPreset.WHITE))
-		val orange = render(params.copy(sunColorPreset = SunColorPreset.ORANGE))
-		val x = (WIDTH * 0.72f).roundToInt()
-		val y = (HEIGHT * 0.17f).roundToInt()
-		val whitePixel = white.getPixel(x, y)
-		val orangePixel = orange.getPixel(x, y)
-
-		assertTrue("Orange must warm the actual submitted artwork", Color.red(orangePixel) - Color.blue(orangePixel) > Color.red(whitePixel) - Color.blue(whitePixel) + 30)
-		for (row in 0 until HEIGHT) {
-			for (column in 0 until WIDTH) {
-				assertEquals("Changing color must preserve texture opacity", Color.alpha(white.getPixel(column, row)), Color.alpha(orange.getPixel(column, row)))
-			}
+			small.recycle()
+			large.recycle()
 		}
-
-		white.recycle()
-		orange.recycle()
 	}
 
 	@Test
-	fun radiantFadesContinuouslyAtSunset() {
-		val alphas = listOf(0.15f, 0.65f, 0.93f).map { progress ->
-			val params = clearParams().copy(sunStyle = SunStyle.RADIANT, dayPhase = DayPhase.DUSK, celestialProgress = progress)
-			val bitmap = render(params)
+	fun imageSunStylesRespectColorWithoutChangingOpacity() {
+		for (style in listOf(SunStyle.RADIANT, SunStyle.STARBURST)) {
+			val params = clearParams().copy(sunStyle = style)
+			val white = render(params.copy(sunColorPreset = SunColorPreset.WHITE))
+			val orange = render(params.copy(sunColorPreset = SunColorPreset.ORANGE))
 			val x = (WIDTH * 0.72f).roundToInt()
-			val y = (HEIGHT * (0.26f + (0.58f - 0.26f) * progress)).roundToInt()
-			val alpha = Color.alpha(bitmap.getPixel(x, y))
-			bitmap.recycle()
-			alpha
-		}
+			val y = (HEIGHT * 0.17f).roundToInt()
+			val whitePixel = white.getPixel(x, y)
+			val orangePixel = orange.getPixel(x, y)
 
-		assertTrue("Radiant must be visible before the sunset fade", alphas[0] >= 245)
-		assertTrue("Radiant must fade with the existing solar visibility", alphas[0] > alphas[1] && alphas[1] > alphas[2])
-		assertTrue("Radiant must disappear by late dusk", alphas[2] <= 2)
+			assertTrue("Orange must warm the $style artwork", Color.red(orangePixel) - Color.blue(orangePixel) > Color.red(whitePixel) - Color.blue(whitePixel) + 30)
+			for (row in 0 until HEIGHT) {
+				for (column in 0 until WIDTH) {
+					assertEquals("Changing color must preserve texture opacity", Color.alpha(white.getPixel(column, row)), Color.alpha(orange.getPixel(column, row)))
+				}
+			}
+
+			white.recycle()
+			orange.recycle()
+		}
+	}
+
+	@Test
+	fun imageSunStylesFadeContinuouslyAtSunset() {
+		for (style in listOf(SunStyle.RADIANT, SunStyle.STARBURST)) {
+			val alphas = listOf(0.15f, 0.65f, 0.93f).map { progress ->
+				val params = clearParams().copy(sunStyle = style, dayPhase = DayPhase.DUSK, celestialProgress = progress)
+				val bitmap = render(params)
+				val x = (WIDTH * 0.72f).roundToInt()
+				val y = (HEIGHT * (0.26f + (0.58f - 0.26f) * progress)).roundToInt()
+				val alpha = Color.alpha(bitmap.getPixel(x, y))
+				bitmap.recycle()
+				alpha
+			}
+
+			assertTrue("$style must be visible before the sunset fade", alphas[0] >= 245)
+			assertTrue("$style must fade with the existing solar visibility", alphas[0] > alphas[1] && alphas[1] > alphas[2])
+			assertTrue("$style must disappear by late dusk", alphas[2] <= 2)
+		}
 	}
 
 	@Test
 	fun switchingStylesAndColorsDoesNotLeaveStaleTextureOrPaint() {
 		val switched = renderer()
-		val classicControl = renderer()
-		val radiantControl = renderer()
+		val controls = SunStyle.entries.associateWith { renderer() }
 		val sequence = listOf(
 			clearParams(),
 			clearParams().copy(sunStyle = SunStyle.RADIANT, sunColorPreset = SunColorPreset.ORANGE),
 			clearParams().copy(sunColorPreset = SunColorPreset.WHITE),
 			clearParams().copy(sunStyle = SunStyle.RADIANT, sunColorPreset = SunColorPreset.WHITE),
+			clearParams().copy(sunStyle = SunStyle.STARBURST, sunColorPreset = SunColorPreset.ORANGE),
+			clearParams().copy(sunStyle = SunStyle.STARBURST, sunColorPreset = SunColorPreset.WHITE),
 			clearParams()
 		)
 
 		for (params in sequence) {
 			val actual = render(params, switched)
-			val classic = render(params.copy(sunStyle = SunStyle.CLASSIC), classicControl)
-			val radiant = render(params.copy(sunStyle = SunStyle.RADIANT), radiantControl)
-			val expected = if (params.sunStyle == SunStyle.CLASSIC) {
-				classic
-			} else {
-				radiant
+			for ((style, control) in controls) {
+				val expected = render(params.copy(sunStyle = style), control)
+				if (style == params.sunStyle) {
+					assertTrue("Switching must match an isolated $style renderer with matching color/frame history", actual.sameAs(expected))
+				}
+
+				expected.recycle()
 			}
 
-			assertTrue("Switching must match an isolated renderer with matching color/frame history", actual.sameAs(expected))
 			actual.recycle()
-			classic.recycle()
-			radiant.recycle()
 		}
 	}
 
 	@Test
-	fun radiantKeepsProceduralLensFlarePreferenceAndIndependentMotion() {
-		val params = clearParams().copy(sunStyle = SunStyle.RADIANT, lensFlareMotionEnabled = true)
-		val disabled = render(params)
-		val enabled = render(params.copy(lensFlareEnabled = true))
-		val movedRenderer = renderer().apply {
-			lensFlareOffsetX = 0.7f
-			lensFlareOffsetY = -0.5f
+	fun sunStylesKeepProceduralLensFlarePreferenceAndIndependentMotion() {
+		for (style in SunStyle.entries) {
+			val params = clearParams().copy(sunStyle = style, lensFlareMotionEnabled = true)
+			val disabled = render(params)
+			val enabled = render(params.copy(lensFlareEnabled = true))
+			val movedRenderer = renderer().apply {
+				lensFlareOffsetX = 0.7f
+				lensFlareOffsetY = -0.5f
+			}
+
+			val moved = render(params.copy(lensFlareEnabled = true), movedRenderer)
+			val disabledMoved = render(params, movedRenderer)
+			try {
+				assertFalse("$style must keep the separate procedural lens flare preference", disabled.sameAs(enabled))
+				assertFalse("Sensor offsets must still move the separate procedural reflections", enabled.sameAs(moved))
+				assertTrue("Offsets must not move $style artwork when flare is disabled", disabled.sameAs(disabledMoved))
+				// The left arc is far outside the artwork, so it must remain entirely optional.
+				val ringX = (WIDTH * 0.72f - WIDTH * 0.108f * 5.6f * 0.78f).roundToInt()
+				val ringY = (HEIGHT * 0.17f).roundToInt()
+				assertTrue("The distant rainbow must disappear with lens flare for $style", Color.alpha(enabled.getPixel(ringX, ringY)) > Color.alpha(disabled.getPixel(ringX, ringY)))
+			} finally {
+				disabled.recycle()
+				enabled.recycle()
+				moved.recycle()
+				disabledMoved.recycle()
+			}
 		}
-
-		val moved = render(params.copy(lensFlareEnabled = true), movedRenderer)
-		val disabledMovedRenderer = renderer().apply {
-			lensFlareOffsetX = 0.7f
-			lensFlareOffsetY = -0.5f
-		}
-
-		val disabledMoved = render(params, disabledMovedRenderer)
-
-		assertFalse("Radiant must keep the separate procedural lens flare preference", disabled.sameAs(enabled))
-		assertFalse("Sensor offsets must still move the separate procedural reflections", enabled.sameAs(moved))
-		assertTrue("Offsets must not move the submitted art or its baked ghosts when flare is disabled", disabled.sameAs(disabledMoved))
-
-		disabled.recycle()
-		enabled.recycle()
-		moved.recycle()
-		disabledMoved.recycle()
 	}
 
 	@Test
@@ -260,7 +297,7 @@ class SunStyleRenderingTest {
 
 	private fun renderer() = SceneRenderer(resources).apply {
 		prewarmCloudTextures()
-		prewarmSunTexture()
+		SunStyle.entries.forEach { prewarmSunTexture(it) }
 	}
 
 	private fun render(params: SceneParams, renderer: SceneRenderer = renderer(), width: Int = WIDTH, height: Int = HEIGHT): Bitmap {

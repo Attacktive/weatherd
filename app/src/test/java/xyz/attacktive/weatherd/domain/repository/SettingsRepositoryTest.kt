@@ -381,18 +381,19 @@ class SettingsRepositoryTest {
 	fun `sun style mutations preserve unrelated changes from stale settings`() = runTest {
 		val store = dataStore()
 		val repository = SettingsRepository(store)
-		val stale = repository.settings.first()
-		repository.update(settingsMutationsBetween(stale, stale.copy(sunStyle = SunStyle.RADIANT)))
-		repository.update(settingsMutationsBetween(stale, stale.copy(showLocationLabel = true)))
+		for (style in SunStyle.entries) {
+			repository.save(defaultAppSettings().copy(showLocationLabel = false))
+			val stale = repository.settings.first()
+			repository.update(settingsMutationsBetween(stale, stale.copy(sunStyle = style)))
+			repository.update(settingsMutationsBetween(stale, stale.copy(showLocationLabel = true)))
 
-		val reopened = SettingsRepository(store).settings.first()
-		assertEquals(SunStyle.RADIANT, reopened.sunStyle)
-		assertTrue(reopened.showLocationLabel)
-		assertEquals("RADIANT", store.data.first()[stringPreferencesKey("sun_style")])
+			val reopened = SettingsRepository(store).settings.first()
+			assertEquals(style, reopened.sunStyle)
+			assertTrue(reopened.showLocationLabel)
 
-		repository.update(listOf(SettingsMutation.SunStyle(SunStyle.CLASSIC)))
-		assertEquals(SunStyle.CLASSIC, SettingsRepository(store).settings.first().sunStyle)
-		assertTrue(repository.settings.first().showLocationLabel)
+			repository.applyAppearancePreset(defaultAppSettings().toAppearancePresetSnapshot())
+			assertEquals(SunStyle.CLASSIC, SettingsRepository(store).settings.first().sunStyle)
+		}
 	}
 
 	@Test

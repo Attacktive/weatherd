@@ -3,5 +3,6 @@
 	<string name="label_sun_style">Güneş stili</string>
 	<string name="sun_style_classic">Klasik</string>
 	<string name="sun_style_radiant">Işıltılı</string>
+	<string name="sun_style_starburst">Yıldız ışınları</string>
 	<string name="hint_radiant_sun">Görüntü sabit parıltı ve yansımalar içerir. Lens parlaması ek efektleri kontrol eder.</string>
 </resources>

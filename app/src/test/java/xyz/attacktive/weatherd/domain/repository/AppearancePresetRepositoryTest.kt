@@ -148,7 +148,7 @@ class AppearancePresetRepositoryTest {
 	fun `new preset schema preserves tree and aircraft choices while excluding older writers`() = runTest {
 		val dataStore = dataStore()
 		val repository = AppearancePresetRepository(dataStore)
-		val snapshot = AppSettings(treesEnabled = true, distantAircraftEnabled = false, sunStyle = SunStyle.RADIANT).toAppearancePresetSnapshot()
+		val snapshot = AppSettings(treesEnabled = true, distantAircraftEnabled = false, sunStyle = SunStyle.STARBURST).toAppearancePresetSnapshot()
 
 		assertTrue(repository.create("No aircraft", snapshot).isSuccess)
 
@@ -156,7 +156,7 @@ class AppearancePresetRepositoryTest {
 		val restored = (reopened.state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot
 		assertFalse(restored.distantAircraftEnabled)
 		assertTrue(restored.treesEnabled)
-		assertEquals(SunStyle.RADIANT, restored.sunStyle)
+		assertEquals(SunStyle.STARBURST, restored.sunStyle)
 		assertEquals(0.09f, restored.labelVerticalPosition, 0.0001f)
 
 		val raw = dataStore.data.first()[stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)]!!

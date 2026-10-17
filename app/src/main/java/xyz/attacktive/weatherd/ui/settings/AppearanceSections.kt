@@ -769,6 +769,7 @@ internal fun formatSkyColor(preset: SkyColorPreset) = when (preset) {
 internal fun formatSunStyle(style: SunStyle) = when (style) {
 	SunStyle.CLASSIC -> stringResource(R.string.sun_style_classic)
 	SunStyle.RADIANT -> stringResource(R.string.sun_style_radiant)
+	SunStyle.STARBURST -> stringResource(R.string.sun_style_starburst)
 }
 
 @Composable

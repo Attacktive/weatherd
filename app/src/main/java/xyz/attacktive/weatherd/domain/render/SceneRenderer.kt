@@ -63,6 +63,7 @@ class SceneRenderer(resources: Resources) {
 	private val lightningBolt by lazy(LazyThreadSafetyMode.NONE) { LightningBoltLayer() }
 	private val foregroundTrees = ForegroundTreeLayer(resources)
 	private val radiantSun = RadiantSunLayer(resources)
+	private val starburstSun = StarburstSunLayer(resources)
 	private val sunGlare by lazy(LazyThreadSafetyMode.NONE) { SunGlareLayer(resources) }
 	private val birdPath = Path()
 	private val birdFrame = BirdFlockFrame()
@@ -220,11 +221,20 @@ class SceneRenderer(resources: Resources) {
 		foregroundTrees.prewarm()
 	}
 
-	val sunTextureReady: Boolean
-		get() = radiantSun.textureReady
+	fun isSunTextureReady(style: SunStyle) = when (style) {
+		SunStyle.CLASSIC -> true
+		SunStyle.RADIANT -> radiantSun.textureReady
+		SunStyle.STARBURST -> starburstSun.textureReady
+	}
 
-	/** Decodes the submitted Radiant artwork off the render thread only after the user opts in. */
-	fun prewarmSunTexture() = radiantSun.prewarm()
+	/** Decodes only the selected sun artwork off the render thread after the user opts in. */
+	fun prewarmSunTexture(style: SunStyle) {
+		when (style) {
+			SunStyle.CLASSIC -> Unit
+			SunStyle.RADIANT -> radiantSun.prewarm()
+			SunStyle.STARBURST -> starburstSun.prewarm()
+		}
+	}
 
 	/** The static layers (sky, overcast ceiling, fog base, haze, vignette). Cache these — they don't animate frame-to-frame. */
 	fun renderBackdrop(canvas: Canvas, width: Int, height: Int, params: SceneParams) {
@@ -1268,6 +1278,11 @@ class SceneRenderer(resources: Resources) {
 		if (sun.params.sunStyle == SunStyle.RADIANT && !sun.params.thunder) {
 			// The submitted image already contains its bloom, rays, and fixed lens ghosts; only the independent procedural flare above remains optional.
 			radiantSun.draw(canvas, sun.centerX, sun.centerY, directRadius * SUN_DIRECT_DISC_SCALE, sun.params, sun.visibility)
+			return
+		}
+
+		if (sun.params.sunStyle == SunStyle.STARBURST && !sun.params.thunder) {
+			starburstSun.draw(canvas, sun.centerX, sun.centerY, directRadius * SUN_DIRECT_DISC_SCALE, core, sunAlpha(255f, sun.visibility))
 			return
 		}
 

@@ -238,7 +238,7 @@ class SunbeamRenderingTest {
 
 	private fun renderer() = SceneRenderer(resources).apply {
 		prewarmCloudTextures()
-		prewarmSunTexture()
+		SunStyle.entries.forEach { prewarmSunTexture(it) }
 	}
 
 	private fun render(params: SceneParams, width: Int = 360, height: Int = 780, renderer: SceneRenderer = renderer(), time: Float = 240f): Bitmap {
