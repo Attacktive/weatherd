@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="label_sunbeams">Rayos solares</string>
+	<string name="sunbeams_off">Desactivado</string>
+	<string name="sunbeams_through_clouds">A través de las nubes</string>
+	<string name="sunbeams_clear_skies_too">También en cielo despejado</string>
+</resources>

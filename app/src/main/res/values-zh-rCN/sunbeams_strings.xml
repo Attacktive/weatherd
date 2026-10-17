@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="label_sunbeams">太阳光束</string>
+	<string name="sunbeams_off">关闭</string>
+	<string name="sunbeams_through_clouds">穿透云层</string>
+	<string name="sunbeams_clear_skies_too">晴空也显示</string>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="label_sunbeams">Güneş ışınları</string>
+	<string name="sunbeams_off">Kapalı</string>
+	<string name="sunbeams_through_clouds">Bulutların arasından</string>
+	<string name="sunbeams_clear_skies_too">Açık havada da</string>
+</resources>

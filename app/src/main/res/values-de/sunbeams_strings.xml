@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="label_sunbeams">Sonnenstrahlen</string>
+	<string name="sunbeams_off">Aus</string>
+	<string name="sunbeams_through_clouds">Durch Wolken</string>
+	<string name="sunbeams_clear_skies_too">Auch bei klarem Himmel</string>
+</resources>

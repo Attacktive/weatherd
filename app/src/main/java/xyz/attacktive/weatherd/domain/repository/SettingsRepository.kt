@@ -34,6 +34,7 @@ import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
+import xyz.attacktive.weatherd.domain.model.SunbeamMode
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.defaultAppSettings
@@ -71,6 +72,7 @@ sealed interface SettingsMutation {
 	data class SunSize(val value: Float): SettingsMutation
 	data class SunColor(val value: SunColorPreset): SettingsMutation
 	data class SunStyle(val value: xyz.attacktive.weatherd.domain.model.SunStyle): SettingsMutation
+	data class SunbeamModeMutation(val value: xyz.attacktive.weatherd.domain.model.SunbeamMode): SettingsMutation
 	data class LensFlareEnabled(val enabled: Boolean): SettingsMutation
 	data class LensFlareMotionEnabled(val enabled: Boolean): SettingsMutation
 	data class DistantAircraftEnabled(val enabled: Boolean): SettingsMutation
@@ -118,6 +120,7 @@ internal fun settingsMutationsBetween(previous: AppSettings, updated: AppSetting
 		addIfChanged(previous.sunSizeScale, updated.sunSizeScale, SettingsMutation::SunSize)
 		addIfChanged(previous.sunColorPreset, updated.sunColorPreset, SettingsMutation::SunColor)
 		addIfChanged(previous.sunStyle, updated.sunStyle, SettingsMutation::SunStyle)
+		addIfChanged(previous.sunbeamMode, updated.sunbeamMode, SettingsMutation::SunbeamModeMutation)
 		addIfChanged(previous.lensFlareEnabled, updated.lensFlareEnabled, SettingsMutation::LensFlareEnabled)
 		addIfChanged(previous.lensFlareMotionEnabled, updated.lensFlareMotionEnabled, SettingsMutation::LensFlareMotionEnabled)
 		addIfChanged(previous.distantAircraftEnabled, updated.distantAircraftEnabled, SettingsMutation::DistantAircraftEnabled)
@@ -199,6 +202,7 @@ private fun SettingsMutation.appliedTo(settings: AppSettings) = when (this) {
 	is SettingsMutation.SunSize -> settings.copy(sunSizeScale = value)
 	is SettingsMutation.SunColor -> settings.copy(sunColorPreset = value)
 	is SettingsMutation.SunStyle -> settings.copy(sunStyle = value)
+	is SettingsMutation.SunbeamModeMutation -> settings.copy(sunbeamMode = value)
 	is SettingsMutation.LensFlareEnabled -> settings.copy(lensFlareEnabled = enabled)
 	is SettingsMutation.LensFlareMotionEnabled -> settings.copy(lensFlareMotionEnabled = enabled)
 	is SettingsMutation.DistantAircraftEnabled -> settings.copy(distantAircraftEnabled = enabled)
@@ -251,6 +255,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		val SUN_SIZE_SCALE = floatPreferencesKey("sun_size_scale")
 		val SUN_COLOR_PRESET = stringPreferencesKey("sun_color_preset")
 		val SUN_STYLE = stringPreferencesKey("sun_style")
+		val SUNBEAM_MODE = stringPreferencesKey("sunbeam_mode")
 		val LENS_FLARE_ENABLED = booleanPreferencesKey("lens_flare_enabled")
 		val LENS_FLARE_MOTION_ENABLED = booleanPreferencesKey("lens_flare_motion_enabled")
 		val DISTANT_AIRCRAFT_ENABLED = booleanPreferencesKey("distant_aircraft_enabled")
@@ -299,6 +304,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			sunSizeScale = (preferences[Keys.SUN_SIZE_SCALE] ?: defaults.sunSizeScale).coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive),
 			sunColorPreset = enumOrDefault(preferences[Keys.SUN_COLOR_PRESET], SunColorPreset.entries, defaults.sunColorPreset),
 			sunStyle = enumOrDefault(preferences[Keys.SUN_STYLE], SunStyle.entries, defaults.sunStyle),
+			sunbeamMode = enumOrDefault(preferences[Keys.SUNBEAM_MODE], SunbeamMode.entries, defaults.sunbeamMode),
 			lensFlareEnabled = preferences[Keys.LENS_FLARE_ENABLED] ?: defaults.lensFlareEnabled,
 			lensFlareMotionEnabled = preferences[Keys.LENS_FLARE_MOTION_ENABLED] ?: defaults.lensFlareMotionEnabled,
 			distantAircraftEnabled = preferences[Keys.DISTANT_AIRCRAFT_ENABLED] ?: defaults.distantAircraftEnabled,
@@ -367,6 +373,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			preferences[Keys.SUN_SIZE_SCALE] = settings.sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive)
 			preferences[Keys.SUN_COLOR_PRESET] = settings.sunColorPreset.name
 			preferences[Keys.SUN_STYLE] = settings.sunStyle.name
+			preferences[Keys.SUNBEAM_MODE] = settings.sunbeamMode.name
 			preferences[Keys.LENS_FLARE_ENABLED] = settings.lensFlareEnabled
 			preferences[Keys.LENS_FLARE_MOTION_ENABLED] = settings.lensFlareMotionEnabled
 			preferences[Keys.DISTANT_AIRCRAFT_ENABLED] = settings.distantAircraftEnabled
@@ -424,6 +431,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			is SettingsMutation.SunSize -> this[Keys.SUN_SIZE_SCALE] = mutation.value.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive)
 			is SettingsMutation.SunColor -> this[Keys.SUN_COLOR_PRESET] = mutation.value.name
 			is SettingsMutation.SunStyle -> this[Keys.SUN_STYLE] = mutation.value.name
+			is SettingsMutation.SunbeamModeMutation -> this[Keys.SUNBEAM_MODE] = mutation.value.name
 			is SettingsMutation.LensFlareEnabled -> this[Keys.LENS_FLARE_ENABLED] = mutation.enabled
 			is SettingsMutation.LensFlareMotionEnabled -> this[Keys.LENS_FLARE_MOTION_ENABLED] = mutation.enabled
 			is SettingsMutation.DistantAircraftEnabled -> this[Keys.DISTANT_AIRCRAFT_ENABLED] = mutation.enabled
@@ -466,6 +474,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		this[Keys.SUN_SIZE_SCALE] = snapshot.sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive)
 		this[Keys.SUN_COLOR_PRESET] = snapshot.sunColorPreset.name
 		this[Keys.SUN_STYLE] = snapshot.sunStyle.name
+		this[Keys.SUNBEAM_MODE] = snapshot.sunbeamMode.name
 		this[Keys.LENS_FLARE_ENABLED] = snapshot.lensFlareEnabled
 		this[Keys.LENS_FLARE_MOTION_ENABLED] = snapshot.lensFlareMotionEnabled
 		this[Keys.DISTANT_AIRCRAFT_ENABLED] = snapshot.distantAircraftEnabled

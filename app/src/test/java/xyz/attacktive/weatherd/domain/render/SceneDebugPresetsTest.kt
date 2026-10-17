@@ -10,6 +10,7 @@ import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
+import xyz.attacktive.weatherd.domain.model.SunbeamMode
 
 class SceneDebugPresetsTest {
 	@Test
@@ -37,6 +38,8 @@ class SceneDebugPresetsTest {
 			assertTrue(params.moonVisible)
 			assertEquals(1f, params.sunSizeScale, 0.0001f)
 			assertEquals(SunColorPreset.NATURAL, params.sunColorPreset)
+			assertEquals(SunStyle.CLASSIC, params.sunStyle)
+			assertEquals(SunbeamMode.THROUGH_CLOUDS, params.sunbeamMode)
 			assertTrue(params.lensFlareEnabled)
 			assertEquals(0.5f, params.celestialProgress, 0.0001f)
 		}
@@ -176,13 +179,14 @@ class SceneDebugPresetsTest {
 	@Test
 	fun `celestial appearance preferences reach debug scene params`() {
 		val preset = SCENE_PRESETS.first { it.name == "CLEAR" }
-		val params = debugSceneParams(preset, DayPhase.DAY, sunVisible = false, moonVisible = false, sunSizeScale = 1.7f, sunColorPreset = SunColorPreset.ORANGE, sunStyle = SunStyle.RADIANT)
+		val params = debugSceneParams(preset, DayPhase.DAY, sunVisible = false, moonVisible = false, sunSizeScale = 1.7f, sunColorPreset = SunColorPreset.ORANGE, sunStyle = SunStyle.RADIANT, sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO)
 
 		assertFalse(params.sunVisible)
 		assertFalse(params.moonVisible)
 		assertEquals(1.7f, params.sunSizeScale, 0.0001f)
 		assertEquals(SunColorPreset.ORANGE, params.sunColorPreset)
 		assertEquals(SunStyle.RADIANT, params.sunStyle)
+		assertEquals(SunbeamMode.CLEAR_SKIES_TOO, params.sunbeamMode)
 	}
 
 	@Test

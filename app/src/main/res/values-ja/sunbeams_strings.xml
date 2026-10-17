@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="label_sunbeams">太陽光線</string>
+	<string name="sunbeams_off">オフ</string>
+	<string name="sunbeams_through_clouds">雲の合間</string>
+	<string name="sunbeams_clear_skies_too">快晴時も表示</string>
+</resources>

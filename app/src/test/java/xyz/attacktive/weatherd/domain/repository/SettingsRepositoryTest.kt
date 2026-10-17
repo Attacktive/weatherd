@@ -25,6 +25,7 @@ import xyz.attacktive.weatherd.domain.model.FrameRateCap
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
+import xyz.attacktive.weatherd.domain.model.SunbeamMode
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.appliedTo
@@ -112,6 +113,7 @@ class SettingsRepositoryTest {
 			sunSizeScale = 1.65f,
 			sunColorPreset = SunColorPreset.GOLDEN,
 			sunStyle = SunStyle.RADIANT,
+			sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO,
 			lensFlareEnabled = false,
 			lensFlareMotionEnabled = true,
 			sceneSimulatorEnabled = true,
@@ -305,6 +307,7 @@ class SettingsRepositoryTest {
 			sunSizeScale = 1.6f,
 			sunColorPreset = SunColorPreset.GOLDEN,
 			sunStyle = SunStyle.RADIANT,
+			sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO,
 			lensFlareEnabled = false,
 			lensFlareMotionEnabled = true,
 			labelVerticalPosition = 0.33f,
@@ -341,6 +344,7 @@ class SettingsRepositoryTest {
 			sunSizeScale = 1.2f,
 			sunColorPreset = SunColorPreset.ORANGE,
 			sunStyle = SunStyle.RADIANT,
+			sunbeamMode = SunbeamMode.OFF,
 			lensFlareEnabled = true,
 			lensFlareMotionEnabled = true,
 			labelVerticalPosition = 0.5f
@@ -391,6 +395,38 @@ class SettingsRepositoryTest {
 		assertTrue(repository.settings.first().showLocationLabel)
 	}
 
+	@Test
+	fun `legacy settings keep default through clouds sunbeams and default appearance restores it`() = runTest {
+		val store = dataStore()
+		store.edit { it[stringPreferencesKey("sun_color_preset")] = SunColorPreset.GOLDEN.name }
+		val repository = SettingsRepository(store)
+		assertEquals(SunbeamMode.THROUGH_CLOUDS, repository.settings.first().sunbeamMode)
+
+		repository.update(listOf(SettingsMutation.SunbeamModeMutation(SunbeamMode.CLEAR_SKIES_TOO), SettingsMutation.ShowLocationLabel(true)))
+		assertEquals(SunbeamMode.CLEAR_SKIES_TOO, SettingsRepository(store).settings.first().sunbeamMode)
+		assertEquals("CLEAR_SKIES_TOO", store.data.first()[stringPreferencesKey("sunbeam_mode")])
+
+		repository.applyAppearancePreset(defaultAppSettings().toAppearancePresetSnapshot())
+		assertEquals(SunbeamMode.THROUGH_CLOUDS, SettingsRepository(store).settings.first().sunbeamMode)
+	}
+
+	@Test
+	fun `sunbeam mode mutations preserve unrelated changes from stale settings`() = runTest {
+		val store = dataStore()
+		val repository = SettingsRepository(store)
+		val stale = repository.settings.first()
+		repository.update(settingsMutationsBetween(stale, stale.copy(sunbeamMode = SunbeamMode.OFF)))
+		repository.update(settingsMutationsBetween(stale, stale.copy(showLocationLabel = true)))
+
+		val reopened = SettingsRepository(store).settings.first()
+		assertEquals(SunbeamMode.OFF, reopened.sunbeamMode)
+		assertTrue(reopened.showLocationLabel)
+		assertEquals("OFF", store.data.first()[stringPreferencesKey("sunbeam_mode")])
+
+		repository.update(listOf(SettingsMutation.SunbeamModeMutation(SunbeamMode.THROUGH_CLOUDS)))
+		assertEquals(SunbeamMode.THROUGH_CLOUDS, SettingsRepository(store).settings.first().sunbeamMode)
+		assertTrue(repository.settings.first().showLocationLabel)
+	}
 
 	@Test
 	fun `settings snapshot diff is replayable as field-specific mutations`() {

@@ -1,6 +1,7 @@
 package xyz.attacktive.weatherd.domain.render
 
 import java.util.IdentityHashMap
+import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -40,6 +41,7 @@ import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
+import xyz.attacktive.weatherd.domain.model.SunbeamMode
 import xyz.attacktive.weatherd.domain.model.drawsScenery
 import xyz.attacktive.weatherd.domain.render.SceneRenderer.Companion.DOT_CORE_STOP
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_DRIZZLE
@@ -63,12 +65,12 @@ class SceneRenderer(resources: Resources) {
 	private val radiantSun = RadiantSunLayer(resources)
 	private val birdPath = Path()
 	private val birdFrame = BirdFlockFrame()
-	private val lightShaftPath = Path()
 	private val sunCloudUpperSamples = FloatArray(SUN_SHAFT_PROFILE_SAMPLES)
 	private val sunCloudLowerSamples = FloatArray(SUN_SHAFT_PROFILE_SAMPLES)
 	private val sunCloudEdgeEnergy = FloatArray(SUN_SHAFT_PROFILE_SAMPLES)
 	private val sunRenderContext = SunRenderContext()
 	private val sunShaftGeometry = SunShaftGeometry()
+	private var strongestSunCloudOpacity = 0f
 
 	private class SunRenderContext {
 		var span = 0f
@@ -85,16 +87,11 @@ class SceneRenderer(resources: Resources) {
 	private class SunShaftGeometry {
 		var originX = 0f
 		var originY = 0f
-		var directionX = 0f
-		var directionY = 0f
-		var normalX = 0f
-		var normalY = 0f
+		var rotationDegrees = 0f
 		var innerReach = 0f
 		var outerReach = 0f
-		var innerHalfWidth = 0f
 		var outerHalfWidth = 0f
 		var tint = Color.WHITE
-		var warpPhase = 0f
 	}
 
 	private var sceneryLayerPaths: List<SceneryLayerPath> = emptyList()
@@ -1256,11 +1253,12 @@ class SceneRenderer(resources: Resources) {
 		val core = sunColor(sun.params.dayPhase, sun.params.sunColorPreset)
 		val halo = tile("sunHalo", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildHaloSprite(it, core) }
 		val atmosphere = tile("sunAtmosphere", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildSunAtmosphereSprite(it, core) }
+
+		drawSunLightShafts(canvas, sun, radius, core)
 		if (drawVeiledSun(canvas, sun, radius, core, atmosphere)) {
 			return
 		}
 
-		drawSunLightShafts(canvas, sun, radius, core)
 		if (sun.params.lensFlareEnabled) {
 			drawSunLensFlare(canvas, sun, radius, core)
 		}
@@ -2623,9 +2621,29 @@ class SceneRenderer(resources: Resources) {
 		canvas.drawCircle(centerX, centerY, radius, brush)
 	}
 
-	/** Crepuscular shafts derived from the moving cloud silhouette rather than a canned fan. */
+	private fun canDrawSunLightShafts(params: SceneParams) =
+		params.sunbeamMode != SunbeamMode.OFF &&
+		params.sunVisible &&
+		params.dayPhase != DayPhase.NIGHT &&
+		params.precipitation == null &&
+		params.fogDensity <= 0f &&
+		!params.thunder &&
+		effectiveOpaqueCloudiness(params) < CLOUD_DECK_THRESHOLD
+
+	/** Atmospheric crepuscular and clear-sky sunbeams anchored to the sun. */
 	private fun drawSunLightShafts(canvas: Canvas, sun: SunRenderContext, radius: Float, core: Int) {
-		if (!sampleSunCloudEdgeProfile(sun, radius)) {
+		if (!canDrawSunLightShafts(sun.params)) {
+			return
+		}
+
+		val opaqueCloudiness = effectiveOpaqueCloudiness(sun.params)
+		val deckFade = if (opaqueCloudiness > DIRECT_SUN_MAX_CLOUDINESS) {
+			unlerp(CLOUD_DECK_THRESHOLD, DIRECT_SUN_MAX_CLOUDINESS, opaqueCloudiness).coerceIn(0f, 1f)
+		} else {
+			1f
+		}
+
+		if (deckFade <= 0f) {
 			return
 		}
 
@@ -2635,9 +2653,62 @@ class SceneRenderer(resources: Resources) {
 		glowPaint.shader = null
 		glowPaint.style = Paint.Style.FILL
 		glowPaint.alpha = 255
-		val drawn = drawSunShaftPeaks(canvas, sun, radius, baseAngle, baseReach, tint)
-		if (drawn == 0) {
-			drawFallbackSunShaft(canvas, sun, radius, baseAngle, baseReach, tint)
+
+		val cloudSampled = sampleSunCloudEdgeProfile(sun, radius)
+		if (cloudSampled) {
+			val drawn = drawSunShaftPeaks(canvas, sun, radius, baseAngle, baseReach, tint, deckFade)
+			if (drawn == 0) {
+				drawFallbackSunShaft(canvas, sun, radius, baseAngle, baseReach, tint, deckFade)
+			}
+		}
+
+		if (sun.params.sunbeamMode == SunbeamMode.CLEAR_SKIES_TOO) {
+			val lowCover = effectiveLowCloudiness(sun.params)
+			val cloudCoverFade = if (lowCover <= SCATTERED_CLOUD_FLOOR) {
+				1f
+			} else {
+				(1f - unlerp(SCATTERED_CLOUD_FLOOR, DIRECT_SUN_MAX_CLOUDINESS, lowCover)).coerceIn(0f, 1f)
+			}
+
+			val obstructionFade = (1f - strongestSunCloudOpacity).coerceIn(0f, 1f)
+
+			val clearStrength = cloudCoverFade * obstructionFade * deckFade
+			if (clearStrength > 0.02f) {
+				drawClearSkySunShafts(canvas, sun, radius, baseAngle, baseReach, tint, clearStrength)
+			}
+		}
+
+		resetGlowPaint()
+	}
+
+	private fun resetGlowPaint() {
+		glowPaint.color = Color.WHITE
+		glowPaint.alpha = 255
+		glowPaint.shader = null
+		glowPaint.style = Paint.Style.FILL
+	}
+
+	private fun drawClearSkySunShafts(canvas: Canvas, sun: SunRenderContext, radius: Float, baseAngle: Float, baseReach: Float, tint: Int, clearStrength: Float) {
+		for (index in 0 until CLEAR_SUN_SHAFT_COUNT) {
+			val offset = CLEAR_SUN_SHAFT_OFFSETS[index]
+			val baseAlpha = CLEAR_SUN_SHAFT_MAX_ALPHA * clearStrength * CLEAR_SUN_SHAFT_ALPHA_SCALES[index]
+			val alpha = sunAlpha(baseAlpha, sun.visibility).coerceAtMost(CLEAR_SUN_SHAFT_MAX_ALPHA)
+			if (alpha <= 1) {
+				continue
+			}
+
+			val angle = baseAngle - offset * CLEAR_SUN_SHAFT_DIVERGENCE
+			val timePulse = 0.94f + 0.06f * sin(sun.timeSeconds * 0.35f + index * 1.57f)
+			val reachScale = CLEAR_SUN_SHAFT_REACH_SCALES[index]
+			val widthScale = CLEAR_SUN_SHAFT_WIDTH_SCALES[index]
+			sunShaftGeometry.originX = sun.centerX + offset * radius * SUN_SHAFT_ORIGIN_SPAN
+			sunShaftGeometry.originY = sun.centerY + (abs(offset) * 0.18f) * radius * SUN_SHAFT_ORIGIN_VERTICAL_SPAN
+			sunShaftGeometry.rotationDegrees = angle * 180f / PI.toFloat() - 90f
+			sunShaftGeometry.outerReach = baseReach * reachScale * timePulse
+			sunShaftGeometry.innerReach = radius * (0.22f + 0.06f * abs(offset))
+			sunShaftGeometry.outerHalfWidth = radius * 0.8f * widthScale
+			sunShaftGeometry.tint = tint
+			drawSunShaftWedge(canvas, sunShaftGeometry, alpha)
 		}
 	}
 
@@ -2653,7 +2724,7 @@ class SceneRenderer(resources: Resources) {
 		return towardLowerSky + timeLean
 	}
 
-	private fun drawSunShaftPeaks(canvas: Canvas, sun: SunRenderContext, radius: Float, baseAngle: Float, baseReach: Float, tint: Int): Int {
+	private fun drawSunShaftPeaks(canvas: Canvas, sun: SunRenderContext, radius: Float, baseAngle: Float, baseReach: Float, tint: Int, deckFade: Float): Int {
 		var drawn = 0
 		var lastPeak = -SUN_SHAFT_MIN_PEAK_GAP
 		for (index in 1 until SUN_SHAFT_PROFILE_SAMPLES - 1) {
@@ -2669,7 +2740,7 @@ class SceneRenderer(resources: Resources) {
 			}
 
 			val refinedIndex = refinedSunShaftIndex(index, leftEnergy, energy, rightEnergy)
-			drawSunShaft(canvas, sun, radius, baseAngle, baseReach, tint, refinedIndex, energy)
+			drawSunShaft(canvas, sun, radius, baseAngle, baseReach, tint, refinedIndex, energy, deckFade)
 			drawn++
 			lastPeak = index
 			if (drawn >= SUN_SHAFT_MAX_RAYS) {
@@ -2692,7 +2763,7 @@ class SceneRenderer(resources: Resources) {
 		return ((index - 1) * leftEnergy + index * energy + (index + 1) * rightEnergy) / weight
 	}
 
-	private fun drawFallbackSunShaft(canvas: Canvas, sun: SunRenderContext, radius: Float, baseAngle: Float, baseReach: Float, tint: Int) {
+	private fun drawFallbackSunShaft(canvas: Canvas, sun: SunRenderContext, radius: Float, baseAngle: Float, baseReach: Float, tint: Int, deckFade: Float) {
 		var totalEnergy = 0f
 		var weightedIndex = 0f
 		var strongestEnergy = 0f
@@ -2704,21 +2775,19 @@ class SceneRenderer(resources: Resources) {
 		}
 
 		if (strongestEnergy >= SUN_SHAFT_EDGE_THRESHOLD && totalEnergy > 0.0001f) {
-			drawSunShaft(canvas, sun, radius, baseAngle, baseReach, tint, weightedIndex / totalEnergy, strongestEnergy)
+			drawSunShaft(canvas, sun, radius, baseAngle, baseReach, tint, weightedIndex / totalEnergy, strongestEnergy, deckFade)
 		}
 	}
 
-	private fun drawSunShaft(canvas: Canvas, sun: SunRenderContext, radius: Float, baseAngle: Float, baseReach: Float, tint: Int, refinedIndex: Float, energy: Float) {
+	private fun drawSunShaft(canvas: Canvas, sun: SunRenderContext, radius: Float, baseAngle: Float, baseReach: Float, tint: Int, refinedIndex: Float, energy: Float, deckFade: Float) {
 		val normalizedX = -1f + 2f * refinedIndex / (SUN_SHAFT_PROFILE_SAMPLES - 1f)
-		val strength = ((energy - SUN_SHAFT_EDGE_THRESHOLD) / (1f - SUN_SHAFT_EDGE_THRESHOLD)).coerceIn(0f, 1f).pow(0.72f)
+		val strength = ((energy - SUN_SHAFT_EDGE_THRESHOLD) / (1f - SUN_SHAFT_EDGE_THRESHOLD)).coerceIn(0f, 1f).pow(0.72f) * deckFade
 		val alpha = sunAlpha(SUN_SHAFT_MAX_ALPHA * strength, sun.visibility).coerceAtMost(SUN_SHAFT_MAX_ALPHA)
 		if (alpha <= 1) {
 			return
 		}
 
-		val angle = baseAngle + normalizedX * SUN_SHAFT_DIVERGENCE
-		val directionX = cos(angle)
-		val directionY = sin(angle)
+		val angle = baseAngle - normalizedX * SUN_SHAFT_DIVERGENCE
 		val sampleFloor = refinedIndex.toInt().coerceIn(0, SUN_SHAFT_PROFILE_SAMPLES - 1)
 		val sampleCeiling = (sampleFloor + 1).coerceAtMost(SUN_SHAFT_PROFILE_SAMPLES - 1)
 		val sampleBlend = (refinedIndex - sampleFloor).coerceIn(0f, 1f)
@@ -2728,22 +2797,17 @@ class SceneRenderer(resources: Resources) {
 		val variation = 0.88f + 0.12f * (0.5f + 0.5f * sin(refinedIndex * 1.73f + sun.params.celestialProgress * 2.4f))
 		sunShaftGeometry.originX = sun.centerX + normalizedX * radius * SUN_SHAFT_ORIGIN_SPAN
 		sunShaftGeometry.originY = sun.centerY + verticalBias * radius * SUN_SHAFT_ORIGIN_VERTICAL_SPAN
-		sunShaftGeometry.directionX = directionX
-		sunShaftGeometry.directionY = directionY
-		sunShaftGeometry.normalX = -directionY
-		sunShaftGeometry.normalY = directionX
-		sunShaftGeometry.outerReach = baseReach * (0.52f + 0.34f * strength) * variation
+		sunShaftGeometry.rotationDegrees = angle * 180f / PI.toFloat() - 90f
+		sunShaftGeometry.outerReach = baseReach * (0.68f + 0.32f * strength) * variation
 		sunShaftGeometry.innerReach = radius * (0.24f + 0.06f * abs(normalizedX))
-		sunShaftGeometry.innerHalfWidth = radius * (0.024f + 0.016f * strength)
-		sunShaftGeometry.outerHalfWidth = sunShaftGeometry.innerHalfWidth * (SUN_SHAFT_END_WIDTH_MULTIPLIER + SUN_SHAFT_END_WIDTH_RANGE * (1f - strength))
+		sunShaftGeometry.outerHalfWidth = radius * (0.55f + 0.35f * strength)
 		sunShaftGeometry.tint = tint
-		sunShaftGeometry.warpPhase = refinedIndex * 0.83f + sun.params.celestialProgress * 2.1f
-		drawSunShaftWedge(canvas, sunShaftGeometry, maxOf(1, alpha / SUN_SHAFT_FEATHER_ALPHA_DIVISOR), SUN_SHAFT_FEATHER_WIDTH)
-		drawSunShaftWedge(canvas, sunShaftGeometry, alpha, 1f)
+		drawSunShaftWedge(canvas, sunShaftGeometry, alpha)
 	}
 
 	private fun sampleSunCloudEdgeProfile(sun: SunRenderContext, radius: Float): Boolean {
 		if (!canSampleSunCloudProfile(sun.params)) {
+			strongestSunCloudOpacity = 0f
 			return false
 		}
 
@@ -2751,17 +2815,24 @@ class SceneRenderer(resources: Resources) {
 		val cloudTop = scatteredCloudTop(sun.width, sun.height, sun.params)
 		val offset = cumulusOffset(sun.width, sun.params, sun.timeSeconds, 0.008f + sun.params.windFactor * 0.016f, 1.5f, 0.78f, CLOUD_TEXTURE_VIEWPORTS)
 		val deckHeight = if (sun.width < sun.height) sun.height * 0.46f else sun.height * 0.40f
-		val step = coverage * (cumulusSteps.size - 1)
+		val step = nearCumulusStep(coverage)
 		val lowerIndex = step.toInt().coerceAtMost(cumulusSteps.size - 1)
 		val blend = step - lowerIndex
 		val lowerAlpha = (CUMULUS_NEAR_ALPHA * sun.params.cloudScale).roundToInt().coerceIn(0, 255)
 		val upperIndex = lowerIndex + 1
 		val upperAlpha = sunCloudUpperAlpha(upperIndex, blend, sun.params.cloudScale)
 		val sizeScale = cloudSizeScale(sun.params)
-		val lowerSampler = cumulusSteps[lowerIndex].value.opacitySampler(sun.width, deckHeight, offset, cloudTop, lowerAlpha, sizeScale) ?: return false
+		val lowerSampler = cumulusSteps[lowerIndex].value.opacitySampler(sun.width, deckHeight, offset, cloudTop, lowerAlpha, sizeScale)
+		if (lowerSampler == null) {
+			strongestSunCloudOpacity = 0f
+			return false
+		}
+
 		val upperSampler = if (upperAlpha > 0 && upperIndex < cumulusSteps.size) cumulusSteps[upperIndex].value.opacitySampler(sun.width, deckHeight, offset, cloudTop, upperAlpha, sizeScale) else null
 		val strongestOpacity = sampleSunCloudRows(sun, radius, lowerSampler, upperSampler)
+		strongestSunCloudOpacity = strongestOpacity
 		val strongestEdge = computeSunCloudEdgeEnergy()
+
 		return strongestOpacity > SUN_SHAFT_MIN_OBSTRUCTION && strongestEdge >= SUN_SHAFT_EDGE_THRESHOLD
 	}
 
@@ -2821,50 +2892,40 @@ class SceneRenderer(resources: Resources) {
 		return strongestEdge
 	}
 
-	private fun drawSunShaftWedge(canvas: Canvas, shaft: SunShaftGeometry, alpha: Int, widthScale: Float) {
-		val reachSpan = shaft.outerReach - shaft.innerReach
-		if (reachSpan <= 0f || alpha <= 0) {
+	private fun drawSunShaftWedge(canvas: Canvas, shaft: SunShaftGeometry, alpha: Int) {
+		if (shaft.outerReach <= shaft.innerReach || alpha <= 0) {
 			return
 		}
 
-		for (segment in 0 until SUN_SHAFT_SEGMENTS) {
-			val t0 = segment / SUN_SHAFT_SEGMENTS.toFloat()
-			val t1 = (segment + 1) / SUN_SHAFT_SEGMENTS.toFloat()
-			drawSunShaftSegment(canvas, shaft, alpha, widthScale, reachSpan, t0, t1)
-		}
+		val sprite = tile("sunShaft", SUN_SHAFT_SPRITE_WIDTH, SUN_SHAFT_SPRITE_HEIGHT) { buildSunShaftSprite(it, shaft.tint) }
+		spriteDest.set(-shaft.outerHalfWidth, shaft.innerReach, shaft.outerHalfWidth, shaft.outerReach)
+		glowPaint.color = Color.WHITE
+		glowPaint.alpha = alpha
+		val checkpoint = canvas.save()
+		canvas.translate(shaft.originX, shaft.originY)
+		canvas.rotate(shaft.rotationDegrees)
+		canvas.drawBitmap(sprite, null, spriteDest, glowPaint)
+		canvas.restoreToCount(checkpoint)
 	}
 
-	private fun drawSunShaftSegment(canvas: Canvas, shaft: SunShaftGeometry, alpha: Int, widthScale: Float, reachSpan: Float, t0: Float, t1: Float) {
-		val midpoint = (t0 + t1) * 0.5f
-		val segmentAlpha = (alpha * (1f - midpoint).pow(SUN_SHAFT_FADE_POWER)).roundToInt()
-		if (segmentAlpha <= 0) {
-			return
+	/** Smooth transverse and longitudinal falloff is rasterized once per scene tint, never on steady-state frames. */
+	private fun buildSunShaftSprite(canvas: Canvas, tint: Int) {
+		val pixels = IntArray(SUN_SHAFT_SPRITE_WIDTH * SUN_SHAFT_SPRITE_HEIGHT)
+		for (y in 0 until SUN_SHAFT_SPRITE_HEIGHT) {
+			val progress = y / (SUN_SHAFT_SPRITE_HEIGHT - 1f)
+			val halfWidth = 0.03f + 0.47f * progress.pow(1.15f)
+			val entrance = (progress / 0.08f).coerceIn(0f, 1f)
+			val lengthFade = entrance * entrance * (3f - 2f * entrance) * (1f - progress).pow(1.9f)
+			for (x in 0 until SUN_SHAFT_SPRITE_WIDTH) {
+				val across = (x / (SUN_SHAFT_SPRITE_WIDTH - 1f) - 0.5f) / halfWidth
+				val edgeFade = (1f - across * across).coerceAtLeast(0f)
+				pixels[y * SUN_SHAFT_SPRITE_WIDTH + x] = withAlpha(tint, (255f * lengthFade * edgeFade * edgeFade).roundToInt())
+			}
 		}
 
-		val reach0 = shaft.innerReach + reachSpan * t0
-		val reach1 = shaft.innerReach + reachSpan * t1
-		val width0 = lerp(shaft.innerHalfWidth, shaft.outerHalfWidth, t0.pow(SUN_SHAFT_WIDTH_EASE)) * widthScale
-		val width1 = lerp(shaft.innerHalfWidth, shaft.outerHalfWidth, t1.pow(SUN_SHAFT_WIDTH_EASE)) * widthScale
-		val centerWarp0 = sin(shaft.warpPhase + t0 * SUN_SHAFT_WARP_FREQUENCY) * width0 * SUN_SHAFT_CENTER_WARP
-		val centerWarp1 = sin(shaft.warpPhase + t1 * SUN_SHAFT_WARP_FREQUENCY) * width1 * SUN_SHAFT_CENTER_WARP
-		val leftScale0 = 1f + sin(shaft.warpPhase * 1.37f + t0 * SUN_SHAFT_EDGE_WARP_FREQUENCY) * SUN_SHAFT_EDGE_WARP
-		val leftScale1 = 1f + sin(shaft.warpPhase * 1.37f + t1 * SUN_SHAFT_EDGE_WARP_FREQUENCY) * SUN_SHAFT_EDGE_WARP
-		val rightScale0 = 1f + sin(shaft.warpPhase * 1.91f + 1.2f + t0 * SUN_SHAFT_EDGE_WARP_FREQUENCY) * SUN_SHAFT_EDGE_WARP
-		val rightScale1 = 1f + sin(shaft.warpPhase * 1.91f + 1.2f + t1 * SUN_SHAFT_EDGE_WARP_FREQUENCY) * SUN_SHAFT_EDGE_WARP
-		val center0X = shaft.originX + shaft.directionX * reach0 + shaft.normalX * centerWarp0
-		val center0Y = shaft.originY + shaft.directionY * reach0 + shaft.normalY * centerWarp0
-		val center1X = shaft.originX + shaft.directionX * reach1 + shaft.normalX * centerWarp1
-		val center1Y = shaft.originY + shaft.directionY * reach1 + shaft.normalY * centerWarp1
-
-		lightShaftPath.rewind()
-		lightShaftPath.moveTo(center0X + shaft.normalX * width0 * leftScale0, center0Y + shaft.normalY * width0 * leftScale0)
-		lightShaftPath.lineTo(center1X + shaft.normalX * width1 * leftScale1, center1Y + shaft.normalY * width1 * leftScale1)
-		lightShaftPath.lineTo(center1X - shaft.normalX * width1 * rightScale1, center1Y - shaft.normalY * width1 * rightScale1)
-		lightShaftPath.lineTo(center0X - shaft.normalX * width0 * rightScale0, center0Y - shaft.normalY * width0 * rightScale0)
-		lightShaftPath.close()
-		glowPaint.color = withAlpha(shaft.tint, segmentAlpha)
-
-		canvas.drawPath(lightShaftPath, glowPaint)
+		val bitmap = Bitmap.createBitmap(pixels, SUN_SHAFT_SPRITE_WIDTH, SUN_SHAFT_SPRITE_HEIGHT, Bitmap.Config.ARGB_8888)
+		canvas.drawBitmap(bitmap, 0f, 0f, null)
+		bitmap.recycle()
 	}
 
 	/**
@@ -3512,31 +3573,30 @@ class SceneRenderer(resources: Resources) {
 		private const val SUN_CORONA_DUSK_SCALE = 0.78f
 		private const val SUN_CORONA_DUSK_ALPHA = 0.58f
 
-		/** Cloud-edge-driven volumetric rays. Sampling the moving silhouette makes the fan itself move with the clouds instead of only changing opacity. */
+		/** Cloud-edge-driven and clear-sky atmospheric sunbeams. */
 		private const val SUN_SHAFT_PROFILE_SAMPLES = 33
 		private const val SUN_SHAFT_SAMPLE_SPAN = 1.28f
 		private const val SUN_SHAFT_SAMPLE_VERTICAL_OFFSET = 0.34f
 		private const val SUN_SHAFT_VERTICAL_EDGE_WEIGHT = 0.82f
 		private const val SUN_SHAFT_EDGE_THRESHOLD = 0.075f
 		private const val SUN_SHAFT_MIN_OBSTRUCTION = 0.07f
-		private const val SUN_SHAFT_REACH_FRACTION = 0.27f
-		private const val SUN_SHAFT_DIVERGENCE = 0.035f
+		private const val SUN_SHAFT_REACH_FRACTION = 0.62f
+		private const val SUN_SHAFT_DIVERGENCE = 0.26f
 		private const val SUN_SHAFT_ORIGIN_SPAN = 1.28f
 		private const val SUN_SHAFT_ORIGIN_VERTICAL_SPAN = 0.34f
-		private const val SUN_SHAFT_END_WIDTH_MULTIPLIER = 5.0f
-		private const val SUN_SHAFT_END_WIDTH_RANGE = 1.5f
-		private const val SUN_SHAFT_FEATHER_WIDTH = 1.85f
-		private const val SUN_SHAFT_FEATHER_ALPHA_DIVISOR = 4
-		private const val SUN_SHAFT_SEGMENTS = 6
-		private const val SUN_SHAFT_WIDTH_EASE = 1.15f
-		private const val SUN_SHAFT_FADE_POWER = 2.35f
-		private const val SUN_SHAFT_CENTER_WARP = 0.06f
-		private const val SUN_SHAFT_EDGE_WARP = 0.08f
-		private const val SUN_SHAFT_WARP_FREQUENCY = 4.8f
-		private const val SUN_SHAFT_EDGE_WARP_FREQUENCY = 6.2f
-		private const val SUN_SHAFT_MAX_ALPHA = 14
+		private const val SUN_SHAFT_MAX_ALPHA = 64
 		private const val SUN_SHAFT_MAX_RAYS = 6
 		private const val SUN_SHAFT_MIN_PEAK_GAP = 3
+		private const val SUN_SHAFT_SPRITE_WIDTH = 64
+		private const val SUN_SHAFT_SPRITE_HEIGHT = 256
+
+		private const val CLEAR_SUN_SHAFT_COUNT = 5
+		private const val CLEAR_SUN_SHAFT_DIVERGENCE = 0.28f
+		private const val CLEAR_SUN_SHAFT_MAX_ALPHA = 24
+		private val CLEAR_SUN_SHAFT_OFFSETS = floatArrayOf(-0.68f, -0.28f, 0.06f, 0.38f, 0.72f)
+		private val CLEAR_SUN_SHAFT_REACH_SCALES = floatArrayOf(0.92f, 1.08f, 0.98f, 1.14f, 0.88f)
+		private val CLEAR_SUN_SHAFT_WIDTH_SCALES = floatArrayOf(0.90f, 1.10f, 1.00f, 1.15f, 0.85f)
+		private val CLEAR_SUN_SHAFT_ALPHA_SCALES = floatArrayOf(0.85f, 1.00f, 0.90f, 0.95f, 0.80f)
 
 		/** How far the inner shoulder is lifted toward white before easing into the warmer limb. */
 		private const val SUN_INNER_LIFT = 0.78f

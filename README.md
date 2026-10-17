@@ -17,7 +17,7 @@ Refreshes happen separately, and a slow or failed request does not prevent switc
 
 Enable **Settings → Appearance → Scenery & photos → Trees** to add a fixed composition of detailed foreground evergreens to any backdrop, including None and Photo.
 Trees are off by default and saved with appearance presets; old settings and presets keep them off.
-New preset writes use schema v10; v1–v9 presets remain readable, while older builds reject the new bank instead of silently dropping appearance settings.
+New preset writes use schema v11; v1–v10 presets remain readable, while older builds reject the new bank instead of silently dropping appearance settings.
 The preview, live wallpaper, simulator, and clock-lit fallback share the same tree preference and placement.
 Tree lighting follows day phase and cloudy weather, while fog and precipitation draw in front of the foliage.
 The three first-party source sprites are reproducibly generated with `uv run scripts/generate-tree-textures.py` and decoded once off the frame loop on first use; no artwork is copied from the reference app or third parties.
@@ -28,6 +28,13 @@ Both styles follow the existing sun visibility, size, color, weather veiling, an
 Radiant preserves the image’s bright core and short rays, but its cached rendering texture fades the outer haze and distant baked reflections smoothly to transparent before the image borders, avoiding a pale ring or clipped edge.
 Its additional wide optical halos are restrained; **Lens flare** and **Motion-responsive reflections** still control the separate procedural reflections and their motion.
 The [submitted PNG](https://github.com/user-attachments/assets/68a92bcf-016d-4276-bc35-4c1e38ae6b78) is bundled unchanged; the softened immutable rendering texture is generated once off the frame loop on first use.
+
+Choose **Settings → Appearance → Sun & moon → Sunbeams** for **Off**, **Through clouds** (default), or **Clear skies too**.
+Through clouds draws soft, spreading shafts from moving partial-cloud openings; Clear skies too also adds restrained rays to an unobstructed sun.
+Night, a hidden sun, rain/snow, fog, thunderstorms, and opaque cloud decks suppress the effect in either enabled mode.
+Off removes only atmospheric beams, preserving the selected sun style, its compact corona, and the independent lens flare controls.
+The choice resets individually, is saved with appearance presets, and follows the shared preview, live-wallpaper, simulator, and fallback path; older settings and presets use Through clouds.
+Beam softness is cached in a small first-party procedural sprite and transformed each frame, without per-frame texture generation or blur work.
 
 Choose **Settings → Appearance → Sky → Sky palette → Clear blue** for a richer blue zenith fading into a pale horizon, inspired by the reference in [#252](https://github.com/Attacktive/weatherd/issues/252).
 **Natural** remains the default; existing palettes and saved settings are unchanged.
@@ -51,7 +58,7 @@ Appearance is a category hub with short summaries rather than a single long list
 - **Scenery & photos:** backdrop scenery, conditional photo slots, and the independent Trees switch.
 - **Sky:** palette, brightness, night brightness, saturation, distant aircraft, and bird size/interval.
 - **Clouds:** size, count, opacity, and contrast together.
-- **Sun & moon:** visibility, sun style, size, color, lens flare, and motion-responsive reflections.
+- **Sun & moon:** visibility, sun style, sunbeams, size, color, lens flare, and motion-responsive reflections.
 - **Weather effects:** precipitation intensity, glass droplets, and wind intensity.
 - **On-screen text:** weather/location visibility, shared vertical position, and temperature unit.
 - **Readability:** independent wallpaper dimming and status-bar shade, shared by Home and Lock.

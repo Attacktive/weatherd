@@ -15,6 +15,7 @@ import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
+import xyz.attacktive.weatherd.domain.model.SunbeamMode
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
 import xyz.attacktive.weatherd.domain.render.OverlayLabels
@@ -286,6 +287,18 @@ class SceneParamsTest {
 
 		assertNotEquals(classic, radiant)
 		assertEquals(backdropSignature(classic), backdropSignature(radiant))
+	}
+
+	@Test
+	fun `sunbeam mode changes leave cached backdrop pixels reusable`() {
+		val throughClouds = fullyPopulatedParams().copy(sunbeamMode = SunbeamMode.THROUGH_CLOUDS)
+		val clearSkiesToo = throughClouds.copy(sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO)
+		val off = throughClouds.copy(sunbeamMode = SunbeamMode.OFF)
+
+		assertNotEquals(throughClouds, clearSkiesToo)
+		assertNotEquals(throughClouds, off)
+		assertEquals(backdropSignature(throughClouds), backdropSignature(clearSkiesToo))
+		assertEquals(backdropSignature(throughClouds), backdropSignature(off))
 	}
 
 	@Test

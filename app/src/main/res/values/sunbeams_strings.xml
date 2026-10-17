@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="label_sunbeams">Sunbeams</string>
+	<string name="sunbeams_off">Off</string>
+	<string name="sunbeams_through_clouds">Through clouds</string>
+	<string name="sunbeams_clear_skies_too">Clear skies too</string>
+</resources>

@@ -32,6 +32,7 @@ data class AppSettings(
 	val sunSizeScale: Float = 1f,
 	val sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
 	val sunStyle: SunStyle = SunStyle.CLASSIC,
+	val sunbeamMode: SunbeamMode = SunbeamMode.THROUGH_CLOUDS,
 	val lensFlareEnabled: Boolean = true,
 	val lensFlareMotionEnabled: Boolean = false,
 	val distantAircraftEnabled: Boolean = true,

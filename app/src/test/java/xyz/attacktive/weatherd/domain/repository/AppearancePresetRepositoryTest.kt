@@ -25,6 +25,7 @@ import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.BirdAppearanceInterval
 import xyz.attacktive.weatherd.domain.model.BirdFlockSize
 import xyz.attacktive.weatherd.domain.model.SunStyle
+import xyz.attacktive.weatherd.domain.model.SunbeamMode
 import xyz.attacktive.weatherd.domain.model.toAppearancePresetSnapshot
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -40,11 +41,12 @@ class AppearancePresetRepositoryTest {
 	fun `create rename replace delete and reopen preserve stable identity`() = runTest {
 		val dataStore = dataStore()
 		val repository = AppearancePresetRepository(dataStore)
-		val firstSnapshot = AppSettings(backdropScene = BackdropScene.BEACH).toAppearancePresetSnapshot()
-		val secondSnapshot = AppSettings(backdropScene = BackdropScene.MOUNTAINS, skyColorPreset = SkyColorPreset.PASTEL, glassDropletsEnabled = true, distantAircraftEnabled = false, sunStyle = SunStyle.RADIANT).toAppearancePresetSnapshot()
+		val firstSnapshot = AppSettings(backdropScene = BackdropScene.BEACH, sunbeamMode = SunbeamMode.OFF).toAppearancePresetSnapshot()
+		val secondSnapshot = AppSettings(backdropScene = BackdropScene.MOUNTAINS, skyColorPreset = SkyColorPreset.PASTEL, glassDropletsEnabled = true, distantAircraftEnabled = false, sunStyle = SunStyle.RADIANT, sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO).toAppearancePresetSnapshot()
 
 		assertTrue(repository.create("Coast", firstSnapshot).isSuccess)
 		val created = (repository.state.first() as AppearancePresetStorageState.Ready).presets.single()
+		assertEquals(firstSnapshot, created.snapshot)
 		assertTrue(repository.rename(created.id, "Evening coast").isSuccess)
 		assertTrue(repository.replace(created.id, "Evening coast", secondSnapshot).isSuccess)
 
@@ -207,6 +209,27 @@ class AppearancePresetRepositoryTest {
 		val migrated = (AppearancePresetRepository(store).state.first() as AppearancePresetStorageState.Ready).presets.single()
 		assertEquals(BirdFlockSize.SMALL, migrated.snapshot.birdFlockSize)
 		assertEquals(BirdAppearanceInterval.NATURAL, migrated.snapshot.birdAppearanceInterval)
+	}
+
+	@Test
+	fun `version ten presets missing sunbeam mode default to through clouds`() = runTest {
+		val key = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)
+		val store = dataStore("preset-settings-v10.preferences_pb")
+		val raw = """{"schemaVersion":10,"presets":[{"id":"legacy-10","name":"Legacy 10","snapshot":{"backdropScene":"NONE","showWeatherLabel":true,"showLocationLabel":true,"precipitationIntensityScale":1.0,"glassDropletsEnabled":true,"windIntensityScale":1.0,"cloudIntensityScale":1.0,"cloudSizeScale":1.0,"cloudCountScale":1.0,"cloudContrastScale":1.0,"skyBrightnessScale":1.0,"nightBrightnessScale":1.0,"skySaturationScale":1.0,"skyColorPreset":"NATURAL","sunVisible":true,"moonVisible":true,"sunSizeScale":1.0,"sunColorPreset":"NATURAL","sunStyle":"CLASSIC","lensFlareEnabled":true,"lensFlareMotionEnabled":false,"distantAircraftEnabled":true,"treesEnabled":false,"birdFlockSize":"SMALL","birdAppearanceInterval":"NATURAL","labelVerticalPosition":0.35,"wallpaperDimmingStrength":0.1,"statusBarShadeStrength":0.2}}]}"""
+		store.edit { preferences ->
+			preferences[key] = raw
+		}
+
+		val repository = AppearancePresetRepository(store)
+		val snapshot = (repository.state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot
+		assertEquals(SunbeamMode.THROUGH_CLOUDS, snapshot.sunbeamMode)
+		assertEquals(raw, store.data.first()[key])
+
+		assertTrue(repository.rename("legacy-10", "Migrated 10").isSuccess)
+		val rewritten = store.data.first()[key]!!
+		assertEquals(APPEARANCE_PRESET_SCHEMA_VERSION, Json.parseToJsonElement(rewritten).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+		val migrated = (AppearancePresetRepository(store).state.first() as AppearancePresetStorageState.Ready).presets.single()
+		assertEquals(SunbeamMode.THROUGH_CLOUDS, migrated.snapshot.sunbeamMode)
 	}
 
 	@Test

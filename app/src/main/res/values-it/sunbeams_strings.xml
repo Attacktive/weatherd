@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="label_sunbeams">Raggi solari</string>
+	<string name="sunbeams_off">Non attivo</string>
+	<string name="sunbeams_through_clouds">Attraverso le nuvole</string>
+	<string name="sunbeams_clear_skies_too">Anche a cielo sereno</string>
+</resources>
