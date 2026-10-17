@@ -22,14 +22,15 @@ The preview, live wallpaper, simulator, and clock-lit fallback share the same tr
 Tree lighting follows day phase and cloudy weather, while fog and precipitation draw in front of the foliage.
 The three first-party source sprites are reproducibly generated with `uv run scripts/generate-tree-textures.py` and decoded once off the frame loop on first use; no artwork is copied from the reference app or third parties.
 
-Choose **Settings → Appearance → Sun & moon → Sun style** for **Classic**, the existing procedural sun; **Radiant**, the transparent sun image submitted by [@emanuelelina2014-arch in #255](https://github.com/Attacktive/weatherd/issues/255); or **Starburst**, an original soft, six-rayed sun inspired by the reference in [#291](https://github.com/Attacktive/weatherd/issues/291).
+Choose **Settings → Appearance → Sun & moon → Sun style** for **Classic**, the existing procedural sun; **Radiant**, the transparent sun image submitted by [@emanuelelina2014-arch in #255](https://github.com/Attacktive/weatherd/issues/255); or **Starburst**, an original broad, soft solar bloom inspired by the reference in [#291](https://github.com/Attacktive/weatherd/issues/291).
 Classic remains the default for existing settings and presets; the choice is saved with appearance presets and shared by the preview, live wallpaper, simulator, and clock-lit fallback.
 All three styles follow the existing sun visibility, size, color, weather veiling, and sunset fade controls.
 Radiant preserves the image’s bright core and short rays, but its cached rendering texture fades the outer haze and distant baked reflections smoothly to transparent before the image borders, avoiding a pale ring or clipped edge.
 Its additional wide optical halos are restrained; **Lens flare** and **Motion-responsive reflections** still control the separate procedural reflections and their motion.
 The [submitted PNG](https://github.com/user-attachments/assets/68a92bcf-016d-4276-bc35-4c1e38ae6b78) is bundled unchanged; the softened immutable rendering texture is generated once off the frame loop on first use.
 Starburst is reproducibly generated with `uv run scripts/generate-starburst-sun.py`, without sampling the supplied iOS image or other third-party artwork.
-Its centered core, tapered rays, and bloom fade to transparent before the texture boundary; the bitmap is decoded once off the frame loop only when selected.
+Starburst combines overlapping luminous lobes with faint uneven streaks, without a pointed-star silhouette; its wider bloom fades to transparent before the texture boundary, and the bitmap is decoded once off the frame loop only when selected.
+Natural daylight uses a white light source; dawn, dusk, and explicit sun color choices retain their selected tint.
 No rainbow reflections are baked into Starburst: **Lens flare** controls the existing chromatic halo and optical reflections, and **Motion-responsive reflections** controls their motion independently of the sun artwork.
 
 Choose **Settings → Appearance → Sun & moon → Sunbeams** for **Off**, **Through clouds** (default), or **Clear skies too**.

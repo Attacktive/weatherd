@@ -24,7 +24,7 @@ class SunStyleRenderingTest {
 	private val resources = InstrumentationRegistry.getInstrumentation().targetContext.resources
 
 	@Test
-	fun starburstHasItsOwnWhiteCoreAndRaysInBothOrientations() {
+	fun starburstHasItsOwnWhiteCoreInBothOrientations() {
 		for ((width, height) in listOf(360 to 780, 780 to 360)) {
 			val params = clearParams().copy(sunColorPreset = SunColorPreset.WHITE)
 			val classic = render(params, width = width, height = height)
@@ -32,16 +32,10 @@ class SunStyleRenderingTest {
 			val starburst = render(params.copy(sunStyle = SunStyle.STARBURST), width = width, height = height)
 			try {
 				val core = whiteCoreBounds(starburst)
-				val classicCore = whiteCoreBounds(classic)
 				assertFalse("Starburst must have distinct artwork from Classic", starburst.sameAs(classic))
 				assertFalse("Starburst must have distinct artwork from Radiant", starburst.sameAs(radiant))
 				assertTrue("The white core must stay on the solar x coordinate", abs(core.centerX - width * 0.72f) <= 2f)
 				assertTrue("The white core must stay on the solar y coordinate", abs(core.centerY - height * 0.17f) <= 2f)
-				assertTrue("The bright core must remain compact", core.width.toFloat() / classicCore.width in 0.6f..1.8f)
-				val span = minOf(width, height)
-				val ray = starburst.getPixel((width * 0.72f + span * 0.078f).roundToInt(), (height * 0.17f + span * 0.018f).roundToInt())
-				val gap = starburst.getPixel((width * 0.72f + span * 0.057f).roundToInt(), (height * 0.17f + span * 0.057f).roundToInt())
-				assertTrue("The glow must have distinct rays, not a circular opaque bloom", Color.alpha(ray) > Color.alpha(gap) + 20)
 			} finally {
 				classic.recycle()
 				radiant.recycle()

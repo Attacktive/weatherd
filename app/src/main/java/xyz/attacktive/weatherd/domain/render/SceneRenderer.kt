@@ -1282,7 +1282,13 @@ class SceneRenderer(resources: Resources) {
 		}
 
 		if (sun.params.sunStyle == SunStyle.STARBURST && !sun.params.thunder) {
-			starburstSun.draw(canvas, sun.centerX, sun.centerY, directRadius * SUN_DIRECT_DISC_SCALE, core, sunAlpha(255f, sun.visibility))
+			val tint = if (sun.params.dayPhase == DayPhase.DAY && sun.params.sunColorPreset == SunColorPreset.NATURAL) {
+				Color.WHITE
+			} else {
+				core
+			}
+
+			starburstSun.draw(canvas, sun.centerX, sun.centerY, directRadius * SUN_DIRECT_DISC_SCALE, tint, sunAlpha(255f, sun.visibility))
 			return
 		}
 

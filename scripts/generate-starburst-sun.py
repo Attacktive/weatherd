@@ -14,24 +14,25 @@ OUTPUT = Path(__file__).resolve().parents[1] / 'app/src/main/res/drawable-nodpi/
 
 
 def starburst_texture():
-	"""Compose a clipped-white core, six soft tapered rays, and a feathered bloom."""
+	"""Compose overlapping white light, broad bloom, and faint uneven streaks."""
 	# All pixels are generated analytically; no supplied image or third-party artwork is sampled.
-	# The core is centered, with its nearly opaque radius approximately 0.1 of the half-width.
+	# Reference-space half-width is 400 units; the luminous core spans approximately 40 units.
 	# Lens reflections deliberately belong to the renderer, not this texture.
-	axis = (np.arange(TEXTURE_SIZE, dtype=np.float64) + 0.5 - TEXTURE_SIZE / 2) / (TEXTURE_SIZE / 2)
+	axis = (np.arange(TEXTURE_SIZE, dtype=np.float64) + 0.5 - TEXTURE_SIZE / 2) * 800 / TEXTURE_SIZE
 	xx, yy = np.meshgrid(axis, axis)
 	radius = np.hypot(xx, yy)
-	energy = 8.0 * np.exp(-(radius / 0.105) ** 4)
-	energy += 0.38 * np.exp(-(radius / 0.28) ** 2)
-	energy += 0.10 * np.exp(-(radius / 0.58) ** 2)
-	for angle, reach in ((-92, 0.65), (-31, 0.54), (13, 0.60), (72, 0.68), (141, 0.56), (196, 0.62)):
-		radians = np.deg2rad(angle)
-		along = xx * np.cos(radians) + yy * np.sin(radians)
-		across = -xx * np.sin(radians) + yy * np.cos(radians)
-		width = np.maximum(0.018, 0.15 * (1.0 - np.maximum(along, 0.0) / reach))
-		energy += 0.90 * np.exp(-0.5 * (across / width) ** 2 - (along / reach) ** 2) * np.clip(along / 0.08, 0.0, 1.0)
+	energy = 4.8 * np.exp(-(radius / 48) ** 2)
+	for offset_x, offset_y, spread, strength in ((-20, -14, 38, 0.65), (22, 8, 42, 0.7), (-6, 30, 36, 0.4)):
+		energy += strength * np.exp(-((xx - offset_x) ** 2 + (yy - offset_y) ** 2) / spread ** 2)
 
-	remaining = np.clip((1.0 - radius) / 0.22, 0.0, 1.0)
+	energy += 0.8 * np.exp(-(radius / 94) ** 1.65)
+	energy += 0.22 * np.exp(-(radius / 174) ** 1.6)
+	for direction, reach, breadth, strength in ((-1.7, 167, 13, 0.28), (-0.7, 114, 18, 0.12), (0.16, 156, 14, 0.15), (1.28, 212, 20, 0.20), (2.32, 125, 23, 0.12), (-2.94, 167, 12, 0.16)):
+		along = xx * np.cos(direction) + yy * np.sin(direction)
+		across = -xx * np.sin(direction) + yy * np.cos(direction)
+		energy += strength * np.exp(-(across / breadth) ** 2 - (along / reach) ** 2) * np.clip(along / 8, 0.0, 1.0)
+
+	remaining = np.clip((400 - radius) / 80, 0.0, 1.0)
 	edge = remaining * remaining * (3.0 - 2.0 * remaining)
 	alpha = (1.0 - np.exp(-energy)) * edge
 	image = Image.new('RGBA', (TEXTURE_SIZE, TEXTURE_SIZE), (255, 255, 255, 0))

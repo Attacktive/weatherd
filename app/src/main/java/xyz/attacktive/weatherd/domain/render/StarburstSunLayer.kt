@@ -42,8 +42,8 @@ internal class StarburstSunLayer(private val resources: Resources) {
 			previousTint = tint
 		}
 
-		// The generator's opaque core occupies 0.1 of the half-width; match Classic's compact core, not its full bloom.
-		val reach = discRadius * 0.22f / 0.1f
+		// The approved bloom study has a roughly 40-unit core within a 400-unit half-width, with a wider luminous footprint than Classic.
+		val reach = discRadius * 5f
 		destination.set(centerX - reach, centerY - reach, centerX + reach, centerY + reach)
 		paint.alpha = alpha.coerceIn(0, 255)
 		canvas.drawBitmap(bitmap, null, destination, paint)
