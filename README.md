@@ -40,7 +40,9 @@ Regenerate the north-up near-side disc with `uv run scripts/generate-moon-textur
 Waxing and waning change the illumination without mirroring lunar markings; the new Moon draws neither a disc nor a lunar halo.
 Choose **Settings → Appearance → Sun & moon → Moon size** for an independent **50–200%** scale, default **100%**, with an individual reset.
 Moon size is saved with appearance presets and shared by the preview, live wallpaper, simulator, and fallback; older settings and presets retain 100%.
-The source is decoded in the background, phase sprites are cached, and resizing changes draw geometry without rebuilding the static sky backdrop.
+Source decoding and synthesis of the requested lunar phase both run in the background; drawing only reads an already prepared immutable sprite and never waits for phase generation.
+An unprepared phase draws neither an old disc nor its halo; Home and the wallpaper request a redraw when that phase is ready, including after continuous animation has settled.
+The phase cache is bounded, and resizing changes draw geometry without rebuilding a sprite or the static sky backdrop.
 
 Choose **Settings → Appearance → Sun & moon → Sunbeams** for **Off**, **Through clouds** (default), or **Clear skies too**.
 Through clouds draws soft, spreading atmospheric shafts from moving near low-cloud openings; Clear skies too also adds radial camera-style glare around an unobstructed sun.

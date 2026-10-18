@@ -17,6 +17,7 @@ import android.view.Choreographer
 import android.view.SurfaceHolder
 import dagger.hilt.android.AndroidEntryPoint
 import xyz.attacktive.weatherd.domain.model.AnimationIdleTimeout
+import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
 import xyz.attacktive.weatherd.domain.render.SceneAnimationRestartController
 import xyz.attacktive.weatherd.domain.render.SceneParams
@@ -58,6 +59,8 @@ class WeatherLiveWallpaperService: WallpaperService() {
 		private val choreographer = Choreographer.getInstance()
 		private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 		private var weatherRefreshJob: Job? = null
+		private var moonPreparationJob: Job? = null
+		private var requestedMoonPhase: Float? = null
 
 		private var backdrop: Bitmap? = null
 		private var renderedParams: SceneParams? = null
@@ -80,7 +83,6 @@ class WeatherLiveWallpaperService: WallpaperService() {
 
 		init {
 			scope.launch(Dispatchers.Default) {
-				renderer.prewarmMoonTexture()
 				renderer.prewarmCloudTextures()
 				withContext(Dispatchers.Main.immediate) {
 					requestImmediateFrame()
@@ -220,6 +222,31 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			requestImmediateFrame()
 		}
 
+		/** A missing phase queues background work once; the frame itself only reads prepared sprites. */
+		private fun prepareMoonPhase(params: SceneParams) {
+			if (params.dayPhase != DayPhase.NIGHT || !params.moonVisible) {
+				return
+			}
+
+			val phase = params.moonPhase
+			if (renderer.isMoonPhaseReady(phase)) {
+				return
+			}
+
+			if (requestedMoonPhase == phase && moonPreparationJob?.isActive == true) {
+				return
+			}
+
+			requestedMoonPhase = phase
+			moonPreparationJob?.cancel()
+			moonPreparationJob = scope.launch(Dispatchers.Default) {
+				renderer.prewarmMoonPhase(phase)
+				withContext(Dispatchers.Main.immediate) {
+					requestImmediateFrame()
+				}
+			}
+		}
+
 		/** Asks for the next animation frame at the configured cap, or only a low-frequency clock refresh after motion settles. */
 		private fun scheduleNextFrame(motionActive: Boolean) {
 			if (!motionActive) {
@@ -242,6 +269,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			}
 
 			val params = currentParams()
+			prepareMoonPhase(params)
 			updateAnimatedMotion(params, frameTimeNanos, motionActive)
 
 			val wallpaperScrollingEnabled = wallpaperScrollingPreferenceEnabled && wallpaperScrollingSupported

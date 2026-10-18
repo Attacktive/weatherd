@@ -3,6 +3,10 @@ package xyz.attacktive.weatherd.domain.render
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.runBlocking
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -11,6 +15,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -21,6 +26,101 @@ import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 @RunWith(AndroidJUnit4::class)
 class MoonRenderingTest {
 	private val resources = InstrumentationRegistry.getInstrumentation().targetContext.resources
+
+	@Test
+	fun unpreparedQuarterMustNotBeSynthesizedByForegroundDrawing() {
+		val renderer = SceneRenderer(resources)
+		renderer.prewarmMoonPhase(0.5f)
+		val params = clearNightParams(moonPhase = 0.25f)
+		val pending = createBitmap(PORTRAIT_WIDTH, PORTRAIT_HEIGHT)
+		renderer.renderForeground(Canvas(pending), PORTRAIT_WIDTH, PORTRAIT_HEIGHT, params, 0f)
+		val hidden = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, params.copy(moonVisible = false))
+		try {
+			assertArrayEquals("An unprepared phase must draw neither a lunar disc nor a halo", pixels(hidden), pixels(pending))
+			assertFalse("A draw must not make an unprepared phase ready", renderer.isMoonPhaseReady(0.25f))
+
+			runBlocking(Dispatchers.Default) { renderer.prewarmMoonPhase(0.25f) }
+			assertTrue(renderer.isMoonPhaseReady(0.25f))
+			val prepared = renderCachedForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, params, 0f, renderer)
+			try {
+				val center = celestialCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT)
+				assertTrue("The prepared quarter must appear on the next frame", Color.alpha(prepared.getPixel(center.x + 18, center.y)) >= OPAQUE_ALPHA_THRESHOLD)
+			} finally {
+				prepared.recycle()
+			}
+		} finally {
+			pending.recycle()
+			hidden.recycle()
+		}
+	}
+
+	@Test
+	fun changingToAnUnpreparedPhaseNeverBorrowsThePreviousDiscOrHalo() {
+		val renderer = SceneRenderer(resources)
+		runBlocking(Dispatchers.Default) { renderer.prewarmMoonPhase(0.25f) }
+		val waxing = clearNightParams(moonPhase = 0.25f)
+		val waning = waxing.copy(moonPhase = 0.75f)
+		val before = renderCachedForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, waxing, 0f, renderer)
+		val pending = renderCachedForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, waning, 0f, renderer)
+		val hidden = renderCachedForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, waning.copy(moonVisible = false), 0f, renderer)
+		try {
+			assertArrayEquals("A pending phase must not reuse old lunar pixels", pixels(hidden), pixels(pending))
+			assertFalse(renderer.isMoonPhaseReady(0.75f))
+
+			runBlocking(Dispatchers.Default) { renderer.prewarmMoonPhase(0.75f) }
+			val ready = renderCachedForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, waning, 0f, renderer)
+			val restored = renderCachedForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, waxing, 0f, renderer)
+			try {
+				val center = celestialCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT)
+				assertTrue("The newly prepared waning phase must illuminate the left", Color.alpha(ready.getPixel(center.x - 18, center.y)) >= OPAQUE_ALPHA_THRESHOLD)
+				assertTrue("The old waxing side must no longer contain an opaque disc", Color.alpha(ready.getPixel(center.x + 18, center.y)) < OPAQUE_ALPHA_THRESHOLD)
+				assertArrayEquals("Preparing another phase must not replace a cached phase's pixels", pixels(before), pixels(restored))
+			} finally {
+				ready.recycle()
+				restored.recycle()
+			}
+		} finally {
+			before.recycle()
+			pending.recycle()
+			hidden.recycle()
+		}
+	}
+
+	@Test
+	fun concurrentPreparationPublishesEachPhaseUnderItsOwnKey() {
+		val layer = MoonLayer(resources)
+		runBlocking(Dispatchers.Default) {
+			listOf(
+				async { layer.prewarm(0.25f) },
+				async { layer.prewarm(0.75f) }
+			).awaitAll()
+		}
+
+		val waxing = checkNotNull(layer.spriteFor(layer.phaseIndexFor(0.25f)))
+		val waning = checkNotNull(layer.spriteFor(layer.phaseIndexFor(0.75f)))
+		assertEquals(0, Color.alpha(waxing.getPixel(128, 256)))
+		assertEquals(255, Color.alpha(waxing.getPixel(384, 256)))
+		assertEquals(255, Color.alpha(waning.getPixel(128, 256)))
+		assertEquals(0, Color.alpha(waning.getPixel(384, 256)))
+	}
+
+	@Test
+	fun evictingAPhaseNeverRecyclesAnImageCapturedByAFrame() {
+		val layer = MoonLayer(resources)
+		runBlocking(Dispatchers.Default) { layer.prewarm(0.25f) }
+		val captured = checkNotNull(layer.spriteFor(layer.phaseIndexFor(0.25f)))
+		val original = pixels(captured)
+		runBlocking(Dispatchers.Default) {
+			for (step in 1 until 64) {
+				layer.prewarm(step / 64f)
+			}
+		}
+
+		assertFalse("Old phases must not accumulate without bound", layer.isPhaseReady(0.25f))
+		assertArrayEquals("A frame's captured immutable sprite must survive cache eviction", original, pixels(captured))
+		runBlocking(Dispatchers.Default) { layer.prewarm(0.25f) }
+		assertArrayEquals(original, pixels(checkNotNull(layer.spriteFor(layer.phaseIndexFor(0.25f)))))
+	}
 
 	@Test
 	fun waxingAndWaningTerminateOnOppositeSides() {
@@ -292,8 +392,8 @@ class MoonRenderingTest {
 	private fun renderMoon(phase: Float): Bitmap {
 		val bitmap = createBitmap(512, 512)
 		val layer = MoonLayer(resources)
-		layer.prewarm()
-		layer.draw(Canvas(bitmap), 256f, 256f, 256f, phase)
+		layer.prewarm(phase)
+		layer.spriteFor(layer.phaseIndexFor(phase))?.let { Canvas(bitmap).drawBitmap(it, 0f, 0f, null) }
 
 		return bitmap
 	}
@@ -305,10 +405,14 @@ class MoonRenderingTest {
 		timeSeconds: Float = 0f,
 		renderer: SceneRenderer? = null
 	): Bitmap {
-		val bitmap = createBitmap(width, height)
 		val actualRenderer = renderer ?: SceneRenderer(resources)
-		actualRenderer.prewarmMoonTexture()
-		actualRenderer.renderForeground(Canvas(bitmap), width, height, params, timeSeconds)
+		actualRenderer.prewarmMoonPhase(params.moonPhase)
+		return renderCachedForeground(width, height, params, timeSeconds, actualRenderer)
+	}
+
+	private fun renderCachedForeground(width: Int, height: Int, params: SceneParams, timeSeconds: Float, renderer: SceneRenderer): Bitmap {
+		val bitmap = createBitmap(width, height)
+		renderer.renderForeground(Canvas(bitmap), width, height, params, timeSeconds)
 
 		return bitmap
 	}

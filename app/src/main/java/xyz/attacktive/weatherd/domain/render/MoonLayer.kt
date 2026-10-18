@@ -1,5 +1,6 @@
 package xyz.attacktive.weatherd.domain.render
 
+import java.util.concurrent.atomic.AtomicReferenceArray
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.roundToInt
@@ -8,65 +9,52 @@ import kotlin.math.sqrt
 import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.RectF
 import xyz.attacktive.weatherd.R
 
 /**
- * Realistic lunar surface layer based on NASA SVS orthographic albedo imagery.
- * Clips and shades the spherical near side for synodic phase illumination without mirroring lunar surface features.
+ * Prepares phase-shaded immutable sprites on a background thread without mirroring lunar surface features.
+ * Rendering only reads atomically published sprites and never waits for preparation.
  */
 internal class MoonLayer(private val resources: Resources) {
-	private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
-	private val destination = RectF()
-	private val phaseCache = object : LinkedHashMap<Int, Bitmap>(16, 0.75f, true) {
-		override fun removeEldestEntry(eldest: Map.Entry<Int, Bitmap>?) = size > MAX_CACHED_PHASE_SPRITES
+	private val phaseSprites = AtomicReferenceArray<Bitmap>(MOON_PHASE_STEPS)
+	private val phaseOrder = IntArray(MAX_CACHED_PHASE_SPRITES) { -1 }
+	private val preparationLock = Any()
+	private var nextPhaseSlot = 0
+
+	fun isPhaseReady(moonPhase: Float): Boolean {
+		val phaseIndex = phaseIndexFor(moonPhase)
+		return phaseIndex == 0 || spriteFor(phaseIndex) != null
 	}
 
-	val textureReady: Boolean
-		get() = source != null
-
-	/** Decodes the base NASA lunar texture off the render thread. */
-	fun prewarm() {
-		if (textureReady) {
+	/** Decodes the source and prepares only the requested phase; call from a background dispatcher. */
+	fun prewarm(moonPhase: Float) {
+		val phaseIndex = phaseIndexFor(moonPhase)
+		if (phaseIndex == 0 || spriteFor(phaseIndex) != null) {
 			return
 		}
 
-		loadSource()
+		synchronized(preparationLock) {
+			if (spriteFor(phaseIndex) != null) {
+				return
+			}
+
+			val (sourceBitmap, pixels) = loadSource()
+			val sprite = buildSprite(phaseIndex, sourceBitmap, pixels)
+			val evictedPhase = phaseOrder[nextPhaseSlot]
+			if (evictedPhase >= 0) {
+				phaseSprites.set(evictedPhase, null)
+			}
+
+			phaseOrder[nextPhaseSlot] = phaseIndex
+			nextPhaseSlot = (nextPhaseSlot + 1) % MAX_CACHED_PHASE_SPRITES
+			phaseSprites.set(phaseIndex, sprite)
+		}
 	}
 
 	fun phaseIndexFor(moonPhase: Float) = (normalizedPhase(moonPhase) * MOON_PHASE_STEPS).roundToInt() % MOON_PHASE_STEPS
 
-	fun quantizedPhaseFor(moonPhase: Float) = phaseIndexFor(moonPhase).toFloat() / MOON_PHASE_STEPS
-
-	/** Retrieves or builds a cached phase sprite for the given quantized phase step. */
-	fun getOrCreateSprite(phaseIndex: Int): Bitmap {
-		val clampedIndex = ((phaseIndex % MOON_PHASE_STEPS) + MOON_PHASE_STEPS) % MOON_PHASE_STEPS
-		synchronized(phaseCache) {
-			phaseCache[clampedIndex]?.let { return it }
-		}
-
-		val (sourceBitmap, pixels) = loadSource()
-		val sprite = buildSprite(clampedIndex, sourceBitmap, pixels)
-		synchronized(phaseCache) {
-			phaseCache[clampedIndex] = sprite
-		}
-
-		return sprite
-	}
-
-	/** Draws the phase-illuminated lunar disc into the target canvas. */
-	fun draw(canvas: Canvas, centerX: Float, centerY: Float, radius: Float, moonPhase: Float) {
-		val phaseIndex = phaseIndexFor(moonPhase)
-		if (phaseIndex == 0) {
-			return
-		}
-
-		val sprite = getOrCreateSprite(phaseIndex)
-		destination.set(centerX - radius, centerY - radius, centerX + radius, centerY + radius)
-		canvas.drawBitmap(sprite, null, destination, paint)
-	}
+	/** An evicted sprite is never recycled: a frame may still hold the returned immutable bitmap. */
+	fun spriteFor(phaseIndex: Int): Bitmap? = phaseSprites.get(phaseIndex)
 
 	private fun normalizedPhase(phase: Float) = ((phase % 1f) + 1f) % 1f
 
@@ -93,10 +81,6 @@ internal class MoonLayer(private val resources: Resources) {
 
 	private fun buildSprite(phaseIndex: Int, sourceBitmap: Bitmap, sourcePixels: IntArray): Bitmap {
 		val quantizedPhase = phaseIndex.toFloat() / MOON_PHASE_STEPS
-		if (phaseIndex == 0) {
-			return Bitmap.createBitmap(MOON_SPRITE_SIZE, MOON_SPRITE_SIZE, Bitmap.Config.ARGB_8888)
-		}
-
 		if (phaseIndex == MOON_PHASE_STEPS / 2) {
 			return sourceBitmap
 		}

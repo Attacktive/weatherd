@@ -224,13 +224,10 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		foregroundTrees.prewarm()
 	}
 
-	val moonTextureReady: Boolean
-		get() = moonLayer.textureReady
+	fun isMoonPhaseReady(moonPhase: Float) = moonLayer.isPhaseReady(moonPhase)
 
-	/** Decodes the shared NASA lunar surface texture off the render thread. */
-	fun prewarmMoonTexture() {
-		moonLayer.prewarm()
-	}
+	/** Decodes the shared source and prepares this phase outside the rendering callback. */
+	fun prewarmMoonPhase(moonPhase: Float) = moonLayer.prewarm(moonPhase)
 
 	fun isSunTextureReady(style: SunStyle) = when (style) {
 		SunStyle.CLASSIC -> true
@@ -1248,14 +1245,9 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 	}
 
 	private fun drawMoon(canvas: Canvas, span: Float, centerX: Float, centerY: Float, params: SceneParams, pulse: Float) {
-		if (!moonLayer.textureReady) {
-			return
-		}
-
-		val moonPhase = moonLayer.quantizedPhaseFor(params.moonPhase)
-		if (moonPhase == 0f) {
-			return
-		}
+		val phaseIndex = moonLayer.phaseIndexFor(params.moonPhase)
+		val moonSprite = moonLayer.spriteFor(phaseIndex) ?: return
+		val moonPhase = phaseIndex.toFloat() / MoonLayer.MOON_PHASE_STEPS
 
 		val radius = span * MOON_RADIUS_FRACTION * normalizeMoonSizeScale(params.moonSizeScale)
 		val core = Color.rgb(232, 238, 247)
@@ -1271,7 +1263,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		// Wide, faint outer bloom breathing in counter-phase, so something is always in motion.
 		blitSprite(canvas, halo, centerX, centerY, radius * (3.6f + 0.9f * (1f - pulse)), ((26f + 34f * (1f - pulse)) * litScale).roundToInt())
 
-		moonLayer.draw(canvas, centerX, centerY, radius, params.moonPhase)
+		blitSprite(canvas, moonSprite, centerX, centerY, radius, 255)
 	}
 
 	/** The sun as a structured atmospheric light source rather than a painted object. */

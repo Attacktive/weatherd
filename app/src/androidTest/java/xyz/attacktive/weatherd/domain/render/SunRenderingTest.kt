@@ -346,7 +346,11 @@ class SunRenderingTest {
 
 	@Test
 	fun fullMoonRetainsItsExistingSizeAndPosition() {
-		val bitmap = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams(dayPhase = DayPhase.NIGHT, moonPhase = 0.5f))
+		val params = clearParams(dayPhase = DayPhase.NIGHT, moonPhase = 0.5f)
+		val renderer = SceneRenderer(resources)
+		renderer.prewarmMoonPhase(params.moonPhase)
+		val bitmap = createBitmap(PORTRAIT_WIDTH, PORTRAIT_HEIGHT)
+		renderer.renderForeground(Canvas(bitmap), PORTRAIT_WIDTH, PORTRAIT_HEIGHT, params, 0f)
 		val expectedCenter = celestialCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, DayPhase.NIGHT)
 		val bounds = opaqueBounds(bitmap)
 		val radiusFraction = bounds.height / 2f / minOf(PORTRAIT_WIDTH, PORTRAIT_HEIGHT)

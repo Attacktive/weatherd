@@ -85,7 +85,6 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	val motionOwner = remember { Any() }
 	var timeSeconds by remember { mutableFloatStateOf(0f) }
 	var treeTexturesReady by remember(renderer) { mutableStateOf(renderer.treeTexturesReady) }
-	var moonTextureReady by remember(renderer) { mutableStateOf(renderer.moonTextureReady) }
 	val sceneState by viewModel.sceneState.collectAsStateWithLifecycle()
 	val settings = sceneState.settings
 	var sunTextureReady by remember(renderer, settings.sunStyle) { mutableStateOf(renderer.isSunTextureReady(settings.sunStyle)) }
@@ -118,6 +117,19 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 		}
 	}
 
+	val moonEnabledAtNight = params.dayPhase == DayPhase.NIGHT && params.moonVisible
+	var moonPhaseReady by remember(renderer, params.moonPhase) { mutableStateOf(renderer.isMoonPhaseReady(params.moonPhase)) }
+
+	LaunchedEffect(renderer, params.moonPhase, moonEnabledAtNight) {
+		if (moonEnabledAtNight) {
+			withContext(Dispatchers.Default) {
+				renderer.prewarmMoonPhase(params.moonPhase)
+			}
+
+			moonPhaseReady = true
+		}
+	}
+
 	val motionActive = previewMotionActive && lensFlareMotionActive(params)
 	LifecycleResumeEffect(motionSensor, motionActive) {
 		motionSensor.setActive(motionOwner, motionActive)
@@ -143,11 +155,8 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 
 	LaunchedEffect(renderer) {
 		withContext(Dispatchers.Default) {
-			renderer.prewarmMoonTexture()
 			renderer.prewarmCloudTextures()
 		}
-
-		moonTextureReady = true
 	}
 
 	LaunchedEffect(renderer, params.treesEnabled) {
@@ -242,7 +251,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 			}
 		}
 
-		key(treeTexturesReady, sunTextureReady, moonTextureReady) {
+		key(treeTexturesReady, sunTextureReady, moonPhaseReady) {
 			Canvas(
 				modifier = Modifier
 					.fillMaxSize()

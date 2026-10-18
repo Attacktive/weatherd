@@ -2,7 +2,7 @@
 
 Instructions and architectural invariants for agents working in the Weatherd codebase.
 
-- Version: 1.6.15 (2026-10-15)
+- Version: 1.6.16 (2026-10-18)
 - Persona: Coding assistant pair-programming with the user on Weatherd.
 
 ## Tools and Environment
@@ -146,6 +146,7 @@ fun debugSceneParams(
 - `SceneScreenEffects` draws once after restoring world translation and completing backdrop crossfades: glass droplets, readability overlays, then weather/location labels. Both production surfaces suppress foreground labels and use this shared viewport-sized pass so screen effects do not scroll or double-composite.
 - Readability strengths are opt-in display settings shared by Home/Lock, preview, simulator, live weather, and fallback. `wallpaperDimmingStrength` and `statusBarShadeStrength` normalize to 0–0.6, with non-finite values resolving off. Uniform black dimming covers the completed scene; the additional top gradient fades out over 18% of visible height. Cache its shader by height, preserve label brightness, and exclude both strengths from `backdropSignature`.
 - `LightningBoltLayer` builds deterministic, midpoint-displaced channels with tapered filled cores and branches rooted on parent vertices. It caches geometry and an immutable downscaled software-blurred bloom by strike seed and surface dimensions; per-frame drawing changes only flash opacity. Keep blur generation out of steady-state frames and preserve `SceneRenderer`'s shared strike schedule, echoes, sheet lightning, and rain illumination.
+- `MoonLayer` prepares only the requested quantized lunar phase off the rendering thread, including both source decoding and phase-image synthesis. Render callbacks capture an atomically published immutable sprite for that exact phase and never construct a phase image or wait on its preparation lock; an unprepared phase draws neither a stale disc nor a lunar halo. Keep retained phases bounded without recycling a bitmap a frame may still reference, and invalidate both Home and the wallpaper on preparation completion even when animation is settled.
 - Cloud decks use `CloudLayer`; fair-weather cumulus uses seeded placement populations, while overcast uses the dedicated `cloud_overcast_hero`, `cloud_overcast_support`, and `cloud_overcast_veil` sources.
 - `scripts/generate-cloud-textures.py` reproducibly regenerates the procedural clear-sky cloud textures it owns with `uv run scripts/generate-cloud-textures.py` and samples no third-party artwork. The dedicated overcast sources are first-party authored assets and are not derived from the reference APK.
 	- `cloud_cumulus_sparse` / `_scattered` / `_broken` select the resource-backed near clear-sky placement profiles drawn by `drawScatteredClouds`, while a dedicated in-between partly-cloudy profile reuses the same hero sprites without adding another decoded bitmap family. At high clear-sky coverage, one low-alpha `cloud_overcast_hero` bank is reused behind that profile as a broad transitional mass; it must not enable the overcast ceiling, tint, or bank stack. `cloud_cumulus_far` selects the distant profile. The near profiles share the four `cloud_cumulus_hero_*` source sprites and synthesize additional morphology variants by scaling and composing them; the far profile shares the `cloud_cumulus_far_veil_*` sprites.
