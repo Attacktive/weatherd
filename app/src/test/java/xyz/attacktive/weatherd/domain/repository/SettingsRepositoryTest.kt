@@ -45,7 +45,13 @@ class SettingsRepositoryTest {
 	fun `defaults are returned before anything is saved`() = runTest {
 		val repository = SettingsRepository(dataStore())
 
-		assertEquals(defaultAppSettings(), repository.settings.first())
+		val settings = repository.settings.first()
+		assertEquals(defaultAppSettings(), settings)
+		assertFalse(settings.sceneSimulatorEnabled)
+		assertFalse(settings.sceneSimulatorActive)
+		assertFalse(settings.wallpaperScrollingEnabled)
+		assertFalse(settings.showWeatherLabel)
+		assertFalse(settings.showLocationLabel)
 	}
 
 	@Test
