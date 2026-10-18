@@ -109,7 +109,12 @@ internal class MoonLayer(private val resources: Resources) {
 		}
 
 		val alpha = waxingPhase * (2.0 * PI).toFloat()
-		val sinA = sin(alpha)
+		val sinA = if (waning) {
+			-sin(alpha)
+		} else {
+			sin(alpha)
+		}
+
 		val cosA = cos(alpha)
 
 		val center = MOON_SPRITE_SIZE / 2f
@@ -126,45 +131,43 @@ internal class MoonLayer(private val resources: Resources) {
 			val rowOffset = py * MOON_SPRITE_SIZE
 			for (px in 0 until MOON_SPRITE_SIZE) {
 				val x = (px + 0.5f - center) / radius
-				val r2 = x * x + y2
-				if (r2 >= 1f) {
-					continue
-				}
-
-				val z = sqrt(1f - r2)
-				val xGeom = if (waning) {
-					-x
-				} else {
-					x
-				}
-
-				val dot = xGeom * sinA - z * cosA
-				if (dot <= 0f) {
-					continue
-				}
-
-				val t = dot / TERMINATOR_FALLOFF_ZONE
-				val smooth = if (t < 1f) {
-					t * t * (3f - 2f * t)
-				} else {
-					1f
-				}
-
 				val pixelIndex = rowOffset + px
-				val sourcePixel = sourcePixels[pixelIndex]
-				val sourceAlpha = (sourcePixel ushr 24) and 0xFF
-				val finalAlpha = ((sourceAlpha * smooth).roundToInt()).coerceIn(0, 255)
-				if (finalAlpha > 0) {
-					val shade = 0.35f + 0.65f * smooth
-					val red = (((sourcePixel ushr 16) and 0xFF) * shade).roundToInt().coerceIn(0, 255)
-					val green = (((sourcePixel ushr 8) and 0xFF) * shade).roundToInt().coerceIn(0, 255)
-					val blue = ((sourcePixel and 0xFF) * shade).roundToInt().coerceIn(0, 255)
-					destPixels[pixelIndex] = (finalAlpha shl 24) or (red shl 16) or (green shl 8) or blue
-				}
+				destPixels[pixelIndex] = illuminatedPixel(sourcePixels[pixelIndex], x, y2, sinA, cosA)
 			}
 		}
 
 		return Bitmap.createBitmap(destPixels, MOON_SPRITE_SIZE, MOON_SPRITE_SIZE, Bitmap.Config.ARGB_8888)
+	}
+
+	private fun illuminatedPixel(sourcePixel: Int, x: Float, ySquared: Float, lightX: Float, lightZ: Float): Int {
+		val radiusSquared = x * x + ySquared
+		if (radiusSquared >= 1f) {
+			return 0
+		}
+
+		val incidence = x * lightX - sqrt(1f - radiusSquared) * lightZ
+		if (incidence <= 0f) {
+			return 0
+		}
+
+		val t = incidence / TERMINATOR_FALLOFF_ZONE
+		val smooth = if (t < 1f) {
+			t * t * (3f - 2f * t)
+		} else {
+			1f
+		}
+
+		val sourceAlpha = (sourcePixel ushr 24) and 0xFF
+		val alpha = (sourceAlpha * smooth).roundToInt().coerceIn(0, 255)
+		if (alpha == 0) {
+			return 0
+		}
+
+		val shade = 0.35f + 0.65f * smooth
+		val red = (((sourcePixel ushr 16) and 0xFF) * shade).roundToInt().coerceIn(0, 255)
+		val green = (((sourcePixel ushr 8) and 0xFF) * shade).roundToInt().coerceIn(0, 255)
+		val blue = ((sourcePixel and 0xFF) * shade).roundToInt().coerceIn(0, 255)
+		return (alpha shl 24) or (red shl 16) or (green shl 8) or blue
 	}
 
 	companion object {
