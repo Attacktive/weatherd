@@ -31,8 +31,8 @@ internal const val CLOUD_TEXTURE_VIEWPORTS = 4f
  * Other cloud layers, including dedicated overcast banks, are decoded once and sampled through a repeating bitmap shader.
  * Fog renders through its own path in SceneRenderer.
  */
-internal class CloudLayer private constructor(resources: Resources, @DrawableRes texture: Int, private val cumulusKind: CumulusKind?) {
-	constructor(resources: Resources, @DrawableRes texture: Int) : this(resources, texture, cumulusKindFor(texture))
+internal class CloudLayer private constructor(resources: Resources, @DrawableRes texture: Int, private val cumulusKind: CumulusKind?, private val epochDay: Long? = null) {
+	constructor(resources: Resources, @DrawableRes texture: Int, epochDay: Long? = null) : this(resources, texture, cumulusKindFor(texture), epochDay)
 
 	private val bitmap = if (cumulusKind == null) decode(resources, texture) else null
 
@@ -373,7 +373,7 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 	}
 
 	private fun nearPlacementsFor(kind: CumulusKind): List<CumulusPlacement> {
-		val epochDay = System.currentTimeMillis() / MILLIS_PER_DAY
+		val epochDay = this.epochDay ?: (System.currentTimeMillis() / MILLIS_PER_DAY)
 		if (cachedNearEpochDay == epochDay && cachedNearPlacements.isNotEmpty()) {
 			return cachedNearPlacements
 		}
@@ -405,7 +405,7 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 
 
 	private fun farPlacementsFor(): List<CumulusPlacement> {
-		val epochDay = System.currentTimeMillis() / MILLIS_PER_DAY
+		val epochDay = this.epochDay ?: (System.currentTimeMillis() / MILLIS_PER_DAY)
 		if (cachedFarEpochDay == epochDay && cachedFarPlacements.isNotEmpty()) {
 			return cachedFarPlacements
 		}
@@ -485,7 +485,7 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 	}
 
 	companion object {
-		fun partlyCumulus(resources: Resources) = CloudLayer(resources, R.drawable.cloud_cumulus_scattered, CumulusKind.PARTLY)
+		fun partlyCumulus(resources: Resources, epochDay: Long? = null) = CloudLayer(resources, R.drawable.cloud_cumulus_scattered, CumulusKind.PARTLY, epochDay)
 
 		private fun cumulusKindFor(@DrawableRes texture: Int) = when (texture) {
 			R.drawable.cloud_cumulus_far -> CumulusKind.FAR

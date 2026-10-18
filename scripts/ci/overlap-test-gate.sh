@@ -8,7 +8,7 @@ static_status_file="$static_temp/weatherd-static-gate.status"
 
 run_static_gate() {
 	local status
-	if ./gradlew test :app:lint :app:detekt; then
+	if ./gradlew test :app:lint :app:detekt :app:assembleDebug :app:assembleDebugAndroidTest; then
 		status=0
 	else
 		status=$?

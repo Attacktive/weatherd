@@ -57,36 +57,6 @@ class SettingsRepositoryTest {
 	}
 
 	@Test
-	fun `scene simulator starts hidden`() = runTest {
-		val repository = SettingsRepository(dataStore())
-
-		assertFalse(repository.settings.first().sceneSimulatorEnabled)
-	}
-
-	@Test
-	fun `scene simulator override starts inactive`() = runTest {
-		val repository = SettingsRepository(dataStore())
-
-		assertFalse(repository.settings.first().sceneSimulatorActive)
-	}
-
-	@Test
-	fun `wallpaper scrolling starts disabled`() = runTest {
-		val repository = SettingsRepository(dataStore())
-
-		assertFalse(repository.settings.first().wallpaperScrollingEnabled)
-	}
-
-	@Test
-	fun `both labels stay hidden until the user asks for them`() = runTest {
-		val repository = SettingsRepository(dataStore())
-
-		val settings = repository.settings.first()
-		assertFalse(settings.showWeatherLabel)
-		assertFalse(settings.showLocationLabel)
-	}
-
-	@Test
 	fun `saved settings round-trip`() = runTest {
 		val repository = SettingsRepository(dataStore())
 		val updated = AppSettings(

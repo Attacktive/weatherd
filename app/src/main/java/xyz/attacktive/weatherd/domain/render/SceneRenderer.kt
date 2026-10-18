@@ -53,7 +53,7 @@ import xyz.attacktive.weatherd.domain.weather.SEVERITY_STORM
  * Split into a static [renderBackdrop] (sky, overcast ceiling, fog base, haze, vignette — cache it) and an animated [renderForeground] (twinkling stars, a glowing sun/moon, the horizon scenery, drifting clouds/overcast/mist, precipitation, lightning) advanced by `timeSeconds`.
  * Cloud sheets are decoded once and sampled through repeating bitmap shaders; fog uses cached scrolling veil tiles, so neither regenerates textures per frame.
  */
-class SceneRenderer(resources: Resources) {
+class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 	var lensFlareOffsetX: Float = 0f
 	var lensFlareOffsetY: Float = 0f
 
@@ -118,7 +118,7 @@ class SceneRenderer(resources: Resources) {
 	private val farOvercastBank by farOvercastBankDelegate
 	private val supportOvercastBank by supportOvercastBankDelegate
 	private val heroOvercastBank by heroOvercastBankDelegate
-	private val farCumulusDeck by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_far) }
+	private val farCumulusDeck by lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_far, epochDay) }
 	private val cirrusLayerDelegates = listOf(
 		lazy { CloudLayer(resources, R.drawable.cloud_cirrus_sparse) },
 		lazy { CloudLayer(resources, R.drawable.cloud_cirrus_scattered) },
@@ -135,10 +135,10 @@ class SceneRenderer(resources: Resources) {
 	 * Each lazy layer owns a seeded daily layout while CloudLayer shares the decoded source sprites across all four profiles.
 	 */
 	private val cumulusSteps = listOf(
-		lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_sparse) },
-		lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_scattered) },
-		lazy(LazyThreadSafetyMode.NONE) { CloudLayer.partlyCumulus(resources) },
-		lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_broken) }
+		lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_sparse, epochDay) },
+		lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_scattered, epochDay) },
+		lazy(LazyThreadSafetyMode.NONE) { CloudLayer.partlyCumulus(resources, epochDay) },
+		lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_broken, epochDay) }
 	)
 
 	private val rainbow by lazy(LazyThreadSafetyMode.NONE) { RainbowLayer(resources, R.drawable.rainbow) }

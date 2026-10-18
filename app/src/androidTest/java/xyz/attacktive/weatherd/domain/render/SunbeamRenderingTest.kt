@@ -22,6 +22,14 @@ import xyz.attacktive.weatherd.domain.model.SunbeamMode
 class SunbeamRenderingTest {
 	private val resources = InstrumentationRegistry.getInstrumentation().targetContext.resources
 
+	companion object {
+		// 2026-10-17 UTC (epoch day 20743), matching original CI attempt 1 baseline.
+		private const val BASELINE_FIXTURE_EPOCH_DAY = 20743L
+
+		// 2026-10-18 UTC (epoch day 20744), corresponding to CI attempt 2 date rollover.
+		private const val DRIFTED_FIXTURE_EPOCH_DAY = 20744L
+	}
+
 	@Test
 	fun clearSkyRequiresExplicitOptInAndRetainsTheSunInBothStyles() {
 		for (style in SunStyle.entries) {
@@ -68,8 +76,8 @@ class SunbeamRenderingTest {
 		try {
 			val firstEnergy = beamEnergy(active, off)
 			val movedEnergy = beamEnergy(moved, movedOff)
-			assertTrue("Partial cloud openings must transmit sunlight", firstEnergy > 0L)
-			assertTrue("Moving cloud openings must change the transmitted light", firstEnergy != movedEnergy)
+			assertTrue("Partial cloud openings must transmit sunlight (firstEnergy=$firstEnergy, movedEnergy=$movedEnergy, cloudiness=${params.cloudiness})", firstEnergy > 0L)
+			assertTrue("Moving cloud openings must change the transmitted light (firstEnergy=$firstEnergy, movedEnergy=$movedEnergy)", firstEnergy != movedEnergy)
 		} finally {
 			active.recycle()
 			off.recycle()
@@ -168,20 +176,31 @@ class SunbeamRenderingTest {
 
 	@Test
 	fun clearModeFadesContinuouslyAtTheFirstCloudPopulationBoundary() {
-		val energies = listOf(0.099f, 0.1f, 0.101f).map { cloudiness ->
-			val params = clearParams().copy(cloudiness = cloudiness)
-			val off = render(params.copy(sunbeamMode = SunbeamMode.OFF))
-			val active = render(params.copy(sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO))
+		// Evaluated across both the baseline fixture date (2026-10-17, epoch day 20743) and the drifted CI date (2026-10-18, epoch day 20744).
+		for (epochDay in listOf(BASELINE_FIXTURE_EPOCH_DAY, DRIFTED_FIXTURE_EPOCH_DAY)) {
+			val shared = renderer(epochDay)
+			val testCases = listOf(0.099f, 0.1f, 0.101f).map { cloudiness ->
+				val params = clearParams().copy(cloudiness = cloudiness)
+				val off = render(params.copy(sunbeamMode = SunbeamMode.OFF), renderer = shared)
+				val active = render(params.copy(sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO), renderer = shared)
+				Pair(active, off)
+			}
 			try {
-				beamEnergy(active, off)
+				// Measure energy on pixels unobscured by the newly spawned cumulus deck to isolate ray-field continuity from foreground cloud occlusion.
+				val boundaryOff = testCases.last().second
+				val energies = testCases.map { (active, off) ->
+					beamEnergy(active, off, unoccludedOnly = boundaryOff)
+				}
+
+				assertTrue("Clear rays must exist before cloud cover begins on day $epochDay", energies.first() > 0L)
+				assertTrue("The cloud boundary must not pop the beam field on day $epochDay: $energies", abs(energies.last() - energies.first()) < energies.first() / 10)
 			} finally {
-				off.recycle()
-				active.recycle()
+				testCases.forEach { (active, off) ->
+					active.recycle()
+					off.recycle()
+				}
 			}
 		}
-
-		assertTrue("Clear rays must exist before cloud cover begins", energies.first() > 0L)
-		assertTrue("The cloud boundary must not pop the beam field: $energies", abs(energies.last() - energies.first()) < energies.first() / 10)
 	}
 
 	@Test
@@ -223,20 +242,32 @@ class SunbeamRenderingTest {
 		return minimum..maximum
 	}
 
-	private fun beamEnergy(active: Bitmap, off: Bitmap, top: Int = 200, bottom: Int = 600): Long {
+	private fun beamEnergy(active: Bitmap, off: Bitmap, top: Int = 200, bottom: Int = 600, unoccludedOnly: Bitmap? = null): Long {
+		val width = active.width
+		val height = bottom - top
+		val count = width * height
+		val activePixels = IntArray(count)
+		val controlPixels = IntArray(count)
+		active.getPixels(activePixels, 0, width, 0, top, width, height)
+		off.getPixels(controlPixels, 0, width, 0, top, width, height)
+
+		val maskPixels = unoccludedOnly?.let {
+			val pixels = IntArray(count)
+			it.getPixels(pixels, 0, width, 0, top, width, height)
+			pixels
+		}
+
 		var energy = 0L
-		for (y in top until bottom) {
-			for (x in 0 until active.width) {
-				val light = active.getPixel(x, y)
-				val control = off.getPixel(x, y)
-				energy += abs(Color.alpha(light) - Color.alpha(control))
+		for (index in 0 until count) {
+			if (maskPixels == null || Color.alpha(maskPixels[index]) == 0) {
+				energy += abs(Color.alpha(activePixels[index]) - Color.alpha(controlPixels[index]))
 			}
 		}
 
 		return energy
 	}
 
-	private fun renderer() = SceneRenderer(resources).apply {
+	private fun renderer(epochDay: Long? = BASELINE_FIXTURE_EPOCH_DAY) = SceneRenderer(resources, epochDay).apply {
 		prewarmCloudTextures()
 		SunStyle.entries.forEach { prewarmSunTexture(it) }
 	}

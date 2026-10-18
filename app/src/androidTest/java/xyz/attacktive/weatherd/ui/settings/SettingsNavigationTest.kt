@@ -6,15 +6,18 @@ import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.os.SystemClock
 import android.view.KeyEvent
+import android.view.WindowManager
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.annotation.StringRes
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.runner.lifecycle.ActivityLifecycleCallback
+import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
+import androidx.test.runner.lifecycle.Stage
 import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
-import org.junit.Assume.assumeNotNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -26,16 +29,29 @@ class SettingsNavigationTest {
 	private val instrumentation = InstrumentationRegistry.getInstrumentation()
 	private val automation = instrumentation.uiAutomation
 	private lateinit var scenario: ActivityScenario<MainActivity>
+	private val viewport = ActivityLifecycleCallback { activity, stage ->
+		if (activity is MainActivity && stage == Stage.CREATED) {
+			activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+			// Apply before first measurement, including recreation, so scroll coverage runs on tablets too.
+			val metrics = activity.resources.displayMetrics
+			activity.window.setLayout(minOf(metrics.widthPixels, (320 * metrics.density).toInt()), minOf(metrics.heightPixels, (640 * metrics.density).toInt()))
+		}
+	}
 
 	@Before
 	fun launchActivity() {
+		// ActivityScenario cannot resume Home while the emulator is asleep or behind its nonsecure keyguard.
+		shell("input keyevent KEYCODE_WAKEUP")
+		shell("wm dismiss-keyguard")
 		val packageName = instrumentation.targetContext.packageName
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
 			automation.grantRuntimePermission(packageName, Manifest.permission.ACCESS_COARSE_LOCATION)
 		} else {
-			ParcelFileDescriptor.AutoCloseInputStream(
-				automation.executeShellCommand("pm grant $packageName ${Manifest.permission.ACCESS_COARSE_LOCATION}")
-			).use { it.readBytes() }
+			shell("pm grant $packageName ${Manifest.permission.ACCESS_COARSE_LOCATION}")
+		}
+
+		instrumentation.runOnMainSync {
+			ActivityLifecycleMonitorRegistry.getInstance().addLifecycleCallback(viewport)
 		}
 
 		scenario = ActivityScenario.launch(MainActivity::class.java)
@@ -45,21 +61,24 @@ class SettingsNavigationTest {
 
 	@After
 	fun closeActivity() {
-		if (::scenario.isInitialized) {
-			scenario.close()
+		try {
+			if (::scenario.isInitialized) {
+				scenario.close()
+			}
+		} finally {
+			instrumentation.runOnMainSync {
+				ActivityLifecycleMonitorRegistry.getInstance().removeLifecycleCallback(viewport)
+			}
 		}
 	}
 
 	@Test
-	fun appearanceIsTheInitialSettingsArea() {
+	fun everyAppearanceCategoryIsReachableFromTheHub() {
 		assertVisible(R.string.appearance_category_scenery)
 		assertVisible(R.string.appearance_category_clouds)
 		assertTopLevelTabsPresent()
 		assertAbsent(R.string.section_location)
-	}
 
-	@Test
-	fun everyAppearanceCategoryIsReachableFromTheHub() {
 		val categories = listOf(
 			R.string.appearance_category_scenery,
 			R.string.appearance_category_sky,
@@ -97,7 +116,8 @@ class SettingsNavigationTest {
 		clickDescription(R.string.content_description_back)
 		assertVisible(R.string.settings_title)
 		assertVisible(R.string.appearance_category_clouds)
-		assertTopLevelTabsPresent()
+		assertVisible(R.string.settings_tab_appearance)
+		assertVisible(R.string.settings_tab_weather)
 		clickDescription(R.string.content_description_back)
 		waitForNode("Home Settings button") { it.contentDescription == text(R.string.content_description_settings) }
 	}
@@ -108,16 +128,24 @@ class SettingsNavigationTest {
 		pressSystemBack()
 		assertVisible(R.string.settings_title)
 		assertVisible(R.string.appearance_category_clouds)
-		assertTopLevelTabsPresent()
+		assertVisible(R.string.settings_tab_appearance)
+		assertVisible(R.string.settings_tab_weather)
 		pressSystemBack()
 		waitForNode("Home Settings button") { it.contentDescription == text(R.string.content_description_settings) }
 	}
 
 	@Test
-	fun recreationRetainsTheOpenCategoryAndBackTarget() {
-		openClouds()
+	fun categoryScrollSurvivesReopeningAndRecreation() {
+		// The Clouds page may fit without scrolling on taller devices; Sky has enough controls to exercise restoration.
+		openSky()
+		scrollAwayFromTop(R.string.section_sky_palette, R.string.section_bird_flock_size)
+		clickDescription(R.string.content_description_back)
+		assertVisible(R.string.settings_title)
+		openSky()
+		assertScrolledTo(R.string.section_sky_palette, R.string.section_bird_flock_size)
 		scenario.recreate()
-		assertVisible(R.string.appearance_category_clouds)
+		assertScrolledTo(R.string.section_sky_palette, R.string.section_bird_flock_size)
+		assertVisible(R.string.appearance_category_sky)
 		assertTopLevelTabsAbsent()
 		clickDescription(R.string.content_description_back)
 		assertVisible(R.string.settings_title)
@@ -125,28 +153,15 @@ class SettingsNavigationTest {
 	}
 
 	@Test
-	fun categoryScrollSurvivesReopeningAndRecreation() {
-		// The Clouds page may fit without scrolling on taller devices; Sky has enough controls to exercise restoration.
-		openSky()
-		val savedBounds = scrollAndCapture(R.string.section_sky_palette, R.string.section_bird_flock_size)
-		clickDescription(R.string.content_description_back)
-		assertVisible(R.string.settings_title)
-		openSky()
-		waitUntil("category scroll restored") { visibleBounds(R.string.section_bird_flock_size) == savedBounds }
-		scenario.recreate()
-		waitUntil("category scroll recreated") { visibleBounds(R.string.section_bird_flock_size) == savedBounds }
-	}
-
-	@Test
 	fun hubScrollSurvivesCategoryVisitsAndRecreation() {
-		val savedBounds = scrollAndCapture(R.string.appearance_category_scenery, R.string.appearance_category_presets)
+		scrollAwayFromTop(R.string.appearance_category_scenery, R.string.appearance_category_presets)
 		clickText(R.string.appearance_category_presets)
 		waitUntil("preset category open") { !isVisible(R.string.settings_tab_weather) }
 		clickDescription(R.string.content_description_back)
 		assertVisible(R.string.settings_title)
-		waitUntil("hub scroll restored") { visibleBounds(R.string.appearance_category_presets) == savedBounds }
+		assertScrolledTo(R.string.appearance_category_scenery, R.string.appearance_category_presets)
 		scenario.recreate()
-		waitUntil("hub scroll recreated") { visibleBounds(R.string.appearance_category_presets) == savedBounds }
+		assertScrolledTo(R.string.appearance_category_scenery, R.string.appearance_category_presets)
 	}
 
 	private fun openClouds() {
@@ -240,26 +255,23 @@ class SettingsNavigationTest {
 		).use { it.readBytes() }
 	}
 
-	private fun scrollAndCapture(@StringRes first: Int, @StringRes anchor: Int, prefix: Boolean = false): Rect {
-		assumeNotNull(verticalScroller())
-		assertVisible(first, prefix)
-		val initialBounds = checkNotNull(visibleBounds(first, prefix))
-		waitUntil("page scroll changed") {
-			verticalScroller()?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
-			visibleBounds(first, prefix) != initialBounds
+	private fun scrollAwayFromTop(@StringRes first: Int, @StringRes anchor: Int) {
+		assertVisible(first)
+		waitUntil("page scrolled past ${text(first)}") {
+			if (isVisible(first)) {
+				verticalScroller()?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+				false
+			} else {
+				true
+			}
 		}
-		scrollTo(anchor, prefix)
-		automation.waitForIdle(100L, 5_000L)
-		return checkNotNull(visibleBounds(anchor, prefix))
+
+		scrollTo(anchor)
+		assertScrolledTo(first, anchor)
 	}
 
-	private fun visibleBounds(@StringRes label: Int, prefix: Boolean = false): Rect? {
-		val expected = text(label, prefix)
-		val node = findNode(automation.rootInActiveWindow) {
-			it.isVisibleToUser && matchesText(it, expected, prefix)
-		} ?: return null
-
-		return Rect().also { node.getBoundsInScreen(it) }
+	private fun assertScrolledTo(@StringRes first: Int, @StringRes anchor: Int) = waitUntil("restored ${text(anchor)} without resetting to ${text(first)}") {
+		isVisible(anchor) && !isVisible(first)
 	}
 
 	private fun assertVisible(@StringRes label: Int, prefix: Boolean = false) {
@@ -293,7 +305,10 @@ class SettingsNavigationTest {
 	private fun waitForNode(description: String, predicate: (AccessibilityNodeInfo) -> Boolean): AccessibilityNodeInfo {
 		var result: AccessibilityNodeInfo? = null
 		waitUntil(description) {
-			result = findNode(automation.rootInActiveWindow, predicate)
+			result = findNode(automation.rootInActiveWindow) {
+				it.packageName == instrumentation.targetContext.packageName && it.isVisibleToUser && predicate(it)
+			}
+
 			result != null
 		}
 
@@ -312,10 +327,35 @@ class SettingsNavigationTest {
 			}
 
 			if (SystemClock.uptimeMillis() >= deadline) {
-				throw AssertionError("Timed out waiting for $description")
+				throw AssertionError("Timed out waiting for $description\n${windowDiagnostics()}")
 			}
 
 			SystemClock.sleep(100L)
+		}
+	}
+
+	private fun shell(command: String) = ParcelFileDescriptor.AutoCloseInputStream(automation.executeShellCommand(command)).use {
+		it.bufferedReader().readText()
+	}
+
+	private fun windowDiagnostics() = buildString {
+		appendLine("Activity state: ${scenario.state}")
+		appendLine("Active accessibility tree:")
+		appendTree(automation.rootInActiveWindow, 0)
+		appendLine("Window manager:")
+		appendLine(shell("dumpsys window displays"))
+	}
+
+	private fun StringBuilder.appendTree(node: AccessibilityNodeInfo?, depth: Int) {
+		if (node == null) {
+			appendLine("  ".repeat(depth) + "<no root>")
+			return
+		}
+
+		val bounds = Rect().also { node.getBoundsInScreen(it) }
+		appendLine("${"  ".repeat(depth)}${node.packageName}/${node.className} text=${node.text} description=${node.contentDescription} visible=${node.isVisibleToUser} bounds=$bounds")
+		for (index in 0 until node.childCount) {
+			appendTree(node.getChild(index), depth + 1)
 		}
 	}
 

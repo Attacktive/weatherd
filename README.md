@@ -154,6 +154,12 @@ adb -s emulator-5554 shell am instrument -w xyz.attacktive.weatherd.test/android
 
 Replace `emulator-5554` with the intended device serial; back up app data separately from the APK before a workflow that uninstalls packages.
 
+The existing CI Test gate builds the debug app and instrumentation APKs alongside unit tests, lint, and Detekt while the emulator starts; instrumentation remains required after that gate succeeds.
+Settings navigation tests wake the device, dismiss a nonsecure keyguard, and keep a bounded 320×640 dp activity window through recreation so scroll restoration is exercised on large displays instead of skipped.
+Navigation timeouts include the activity state, active accessibility tree, and window-manager diagnostics; scroll checks require the saved anchor to remain visible with the first section off-screen rather than exact pixel coordinates.
+Sunbeam fixtures pin the UTC day used for cloud placement instead of depending on the machine's date.
+The cloud-boundary check compares rays over the same unobscured pixels in every frame, so foreground cloud occlusion is not mistaken for a discontinuity in the ray field.
+
 ## Daytime rendering performance
 
 The corona and optical halos cache disjoint alpha-coverage strips and clip drawing to them, skipping transparent overdraw while retaining the original bitmap sampling, SCREEN compositing, colors, opacity, and time-based animation.
