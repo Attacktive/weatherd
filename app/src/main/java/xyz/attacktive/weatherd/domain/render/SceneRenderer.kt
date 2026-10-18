@@ -43,6 +43,7 @@ import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.SunbeamMode
 import xyz.attacktive.weatherd.domain.model.drawsScenery
+import xyz.attacktive.weatherd.domain.model.normalizeMoonSizeScale
 import xyz.attacktive.weatherd.domain.render.SceneRenderer.Companion.DOT_CORE_STOP
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_DRIZZLE
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_STEADY
@@ -66,6 +67,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 	private val radiantSun = RadiantSunLayer(resources)
 	private val starburstSun = StarburstSunLayer(resources)
 	private val sunGlare by lazy(LazyThreadSafetyMode.NONE) { SunGlareLayer(resources) }
+	private val moonLayer = MoonLayer(resources)
 	private val birdPath = Path()
 	private val birdFrame = BirdFlockFrame()
 	private val sunCloudUpperSamples = FloatArray(SUN_SHAFT_PROFILE_SAMPLES)
@@ -220,6 +222,14 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 	/** Decodes the shared evergreen sources off the render thread only after the user opts in. */
 	fun prewarmTreeTextures() {
 		foregroundTrees.prewarm()
+	}
+
+	val moonTextureReady: Boolean
+		get() = moonLayer.textureReady
+
+	/** Decodes the shared NASA lunar surface texture off the render thread. */
+	fun prewarmMoonTexture() {
+		moonLayer.prewarm()
 	}
 
 	fun isSunTextureReady(style: SunStyle) = when (style) {
@@ -1238,11 +1248,20 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 	}
 
 	private fun drawMoon(canvas: Canvas, span: Float, centerX: Float, centerY: Float, params: SceneParams, pulse: Float) {
-		val radius = span * MOON_RADIUS_FRACTION
+		if (!moonLayer.textureReady) {
+			return
+		}
+
+		val moonPhase = moonLayer.quantizedPhaseFor(params.moonPhase)
+		if (moonPhase == 0f) {
+			return
+		}
+
+		val radius = span * MOON_RADIUS_FRACTION * normalizeMoonSizeScale(params.moonSizeScale)
 		val core = Color.rgb(232, 238, 247)
 
 		// A crescent sheds far less light than a full disc, so the whole glow scales with the lit fraction.
-		val litFraction = (1f - cos(params.moonPhase * TAU)) / 2f
+		val litFraction = (1f - cos(moonPhase * TAU)) / 2f
 		val litScale = 0.35f + 0.65f * litFraction
 
 		// Two blits of one pre-rendered radial sprite deepen the bloom — building RadialGradients here churned two shader allocations every frame.
@@ -1252,10 +1271,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		// Wide, faint outer bloom breathing in counter-phase, so something is always in motion.
 		blitSprite(canvas, halo, centerX, centerY, radius * (3.6f + 0.9f * (1f - pulse)), ((26f + 34f * (1f - pulse)) * litScale).roundToInt())
 
-		// The disc is a sprite shaped by the real synodic phase — tonight's sky and the wallpaper agree on the moon.
-		val phaseIndex = (params.moonPhase * MOON_PHASE_STEPS).roundToInt()
-		val moonSprite = tile("moon-$phaseIndex", MOON_SPRITE_SIZE, MOON_SPRITE_SIZE) { buildMoonSprite(it, core, params.moonPhase) }
-		blitSprite(canvas, moonSprite, centerX, centerY, radius / MOON_DISC_MARGIN, 255)
+		moonLayer.draw(canvas, centerX, centerY, radius, params.moonPhase)
 	}
 
 	/** The sun as a structured atmospheric light source rather than a painted object. */
@@ -1458,56 +1474,6 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 			val centerY = sun.centerY + ghostAxisY * ghost.distance
 			val tint = tile("sunGhost-$index", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildLensGhostSprite(it, ghost.tint) }
 			blitGlow(canvas, tint, centerX, centerY, radius * ghost.scale, sunAlpha(ghost.strength * 255f, sun.visibility))
-		}
-	}
-
-	/**
-	 * The moon rasterized once per phase step: the lit shape bounded by the circular limb and the elliptical terminator, and the craters clipped to the lit side.
-	 * The dark side deliberately draws nothing — the sky shows straight through, keeping the moon stylized rather than realistic.
-	 * Waning phases mirror the waxing construction horizontally instead of duplicating the arc plumbing.
-	 */
-	private fun buildMoonSprite(canvas: Canvas, core: Int, moonPhase: Float) {
-		val center = MOON_SPRITE_SIZE / 2f
-		val radius = center * MOON_DISC_MARGIN
-		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
-		brush.style = Paint.Style.FILL
-
-		val waning = moonPhase > 0.5f
-		if (waning) {
-			canvas.scale(-1f, 1f, center, center)
-		}
-
-		val waxingPhase = if (waning) {
-			1f - moonPhase
-		} else {
-			moonPhase
-		}
-
-		// cos runs 1 → -1 across new → full: the terminator ellipse collapses to a line at the quarter and re-widens.
-		val terminatorScale = cos(waxingPhase * TAU)
-		val litPath = Path()
-		val limb = RectF(center - radius, center - radius, center + radius, center + radius)
-		litPath.arcTo(limb, -90f, 180f)
-
-		val terminatorHalfWidth = radius * abs(terminatorScale)
-		val terminatorOval = RectF(center - terminatorHalfWidth, center - radius, center + terminatorHalfWidth, center + radius)
-		if (terminatorScale > 0f) {
-			// Crescent: the terminator bulges toward the lit limb, leaving a sliver.
-			litPath.arcTo(terminatorOval, 90f, -180f)
-		} else {
-			// Gibbous: the terminator bulges into the dark side.
-			litPath.arcTo(terminatorOval, 90f, 180f)
-		}
-
-		litPath.close()
-		brush.color = core
-		canvas.drawPath(litPath, brush)
-
-		canvas.withClip(litPath) {
-			brush.color = withAlpha(darken(core, 0.82f), 90)
-			drawCircle(center - radius * 0.32f, center - radius * 0.18f, radius * 0.2f, brush)
-			drawCircle(center + radius * 0.18f, center + radius * 0.3f, radius * 0.14f, brush)
-			drawCircle(center + radius * 0.32f, center - radius * 0.32f, radius * 0.1f, brush)
 		}
 	}
 
@@ -3468,19 +3434,10 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		/** Edge length of the celestial halo sprite; the falloff is smooth enough that upscaling to the on-screen glow stays clean. */
 		private const val HALO_SPRITE_SIZE = 256
 
-		/** Edge length of the pre-rendered moon sprite. */
-		private const val MOON_SPRITE_SIZE = 256
-
 		private const val CELESTIAL_X_FRACTION = 0.72f
 
 		/** The moon's radius as a fraction of the screen's shorter side; it stays the generous disc it always was, because a moon genuinely does read large. */
 		private const val MOON_RADIUS_FRACTION = 0.1f
-
-		/** The moon disc fills this fraction of its sprite, leaving margin so the anti-aliased limb never clips at the bitmap edge. */
-		private const val MOON_DISC_MARGIN = 0.96f
-
-		/** Distinct phase sprites across the synodic month — the sprite cache key quantizes to these steps. */
-		private const val MOON_PHASE_STEPS = 64
 
 		/**
 		 * The sun's optical radius as a fraction of the shorter side.

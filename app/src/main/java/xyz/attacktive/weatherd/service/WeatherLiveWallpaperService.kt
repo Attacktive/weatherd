@@ -80,7 +80,11 @@ class WeatherLiveWallpaperService: WallpaperService() {
 
 		init {
 			scope.launch(Dispatchers.Default) {
+				renderer.prewarmMoonTexture()
 				renderer.prewarmCloudTextures()
+				withContext(Dispatchers.Main.immediate) {
+					requestImmediateFrame()
+				}
 			}
 
 			scope.launch(Dispatchers.Main.immediate) {

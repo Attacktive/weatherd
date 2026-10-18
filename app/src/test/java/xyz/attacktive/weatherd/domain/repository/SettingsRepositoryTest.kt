@@ -87,6 +87,7 @@ class SettingsRepositoryTest {
 			sunVisible = false,
 			moonVisible = false,
 			sunSizeScale = 1.65f,
+			moonSizeScale = 1.35f,
 			sunColorPreset = SunColorPreset.GOLDEN,
 			sunStyle = SunStyle.RADIANT,
 			sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO,
@@ -281,6 +282,7 @@ class SettingsRepositoryTest {
 			sunVisible = false,
 			moonVisible = false,
 			sunSizeScale = 1.6f,
+			moonSizeScale = 1.4f,
 			sunColorPreset = SunColorPreset.GOLDEN,
 			sunStyle = SunStyle.RADIANT,
 			sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO,
@@ -318,6 +320,7 @@ class SettingsRepositoryTest {
 			sunVisible = false,
 			moonVisible = true,
 			sunSizeScale = 1.2f,
+			moonSizeScale = 0.85f,
 			sunColorPreset = SunColorPreset.ORANGE,
 			sunStyle = SunStyle.RADIANT,
 			sunbeamMode = SunbeamMode.OFF,
@@ -413,11 +416,12 @@ class SettingsRepositoryTest {
 			sceneSimulatorEnabled = true,
 			sceneSimulatorActive = true
 		)
-		val after = before.copy(frameRateCap = FrameRateCap.FPS_10, sceneSimulatorEnabled = false, sceneSimulatorActive = false)
+		val after = before.copy(frameRateCap = FrameRateCap.FPS_10, sceneSimulatorEnabled = false, sceneSimulatorActive = false, moonSizeScale = 1.7f)
 
 		assertEquals(
 			listOf(
 				SettingsMutation.FrameRate(FrameRateCap.FPS_10),
+				SettingsMutation.MoonSize(1.7f),
 				SettingsMutation.SceneSimulatorEnabled(false),
 				SettingsMutation.SceneSimulatorActive(false)
 			),

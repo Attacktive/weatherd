@@ -70,6 +70,7 @@
 	<string name="label_show_moon">显示月亮</string>
 	<string name="subtitle_show_moon">夜间显示月亮</string>
 	<string name="label_sun_size">太阳大小 · %1$d%%</string>
+	<string name="label_moon_size">月亮大小 · %1$d%%</string>
 	<string name="sun_size_small">更小</string>
 	<string name="sun_size_large">更大</string>
 	<string name="label_sun_color">太阳颜色</string>

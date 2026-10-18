@@ -255,6 +255,23 @@ class SceneParamsTest {
 		assertEquals(0f, params.statusBarShadeStrength, 0.0001f)
 	}
 
+	@Test
+	fun `moon size scale is clamped and non-finite values resolve to one in scene params`() {
+		val snapshot = snapshot(weatherCode = 2, precipitationMillimeters = 0.0, windSpeedKilometersPerHour = 10.0, cloudCoverPercent = 40)
+
+		val clampedLow = sceneParamsFor(snapshot, NOW, moonSizeScale = 0.1f)
+		assertEquals(0.5f, clampedLow.moonSizeScale, 0.0001f)
+
+		val clampedHigh = sceneParamsFor(snapshot, NOW, moonSizeScale = 3.0f)
+		assertEquals(2.0f, clampedHigh.moonSizeScale, 0.0001f)
+
+		val nanParams = sceneParamsFor(snapshot, NOW, moonSizeScale = Float.NaN)
+		assertEquals(1.0f, nanParams.moonSizeScale, 0.0001f)
+
+		val infParams = sceneParamsFor(snapshot, NOW, moonSizeScale = Float.POSITIVE_INFINITY)
+		assertEquals(1.0f, infParams.moonSizeScale, 0.0001f)
+	}
+
 
 	@Test
 	fun `the scales leave a dry calm snapshot alone`() {
@@ -299,6 +316,15 @@ class SceneParamsTest {
 		assertNotEquals(throughClouds, off)
 		assertEquals(backdropSignature(throughClouds), backdropSignature(clearSkiesToo))
 		assertEquals(backdropSignature(throughClouds), backdropSignature(off))
+	}
+
+	@Test
+	fun `moon size scale changes leave cached backdrop pixels reusable`() {
+		val small = fullyPopulatedParams().copy(moonSizeScale = 0.5f)
+		val large = fullyPopulatedParams().copy(moonSizeScale = 1.8f)
+
+		assertNotEquals(small, large)
+		assertEquals(backdropSignature(small), backdropSignature(large))
 	}
 
 	@Test

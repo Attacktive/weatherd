@@ -37,6 +37,7 @@ class SceneDebugPresetsTest {
 			assertTrue(params.sunVisible)
 			assertTrue(params.moonVisible)
 			assertEquals(1f, params.sunSizeScale, 0.0001f)
+			assertEquals(1f, params.moonSizeScale, 0.0001f)
 			assertEquals(SunColorPreset.NATURAL, params.sunColorPreset)
 			assertEquals(SunStyle.CLASSIC, params.sunStyle)
 			assertEquals(SunbeamMode.THROUGH_CLOUDS, params.sunbeamMode)
@@ -179,11 +180,12 @@ class SceneDebugPresetsTest {
 	@Test
 	fun `celestial appearance preferences reach debug scene params`() {
 		val preset = SCENE_PRESETS.first { it.name == "CLEAR" }
-		val params = debugSceneParams(preset, DayPhase.DAY, sunVisible = false, moonVisible = false, sunSizeScale = 1.7f, sunColorPreset = SunColorPreset.ORANGE, sunStyle = SunStyle.RADIANT, sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO)
+		val params = debugSceneParams(preset, DayPhase.DAY, sunVisible = false, moonVisible = false, sunSizeScale = 1.7f, moonSizeScale = 1.35f, sunColorPreset = SunColorPreset.ORANGE, sunStyle = SunStyle.RADIANT, sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO)
 
 		assertFalse(params.sunVisible)
 		assertFalse(params.moonVisible)
 		assertEquals(1.7f, params.sunSizeScale, 0.0001f)
+		assertEquals(1.35f, params.moonSizeScale, 0.0001f)
 		assertEquals(SunColorPreset.ORANGE, params.sunColorPreset)
 		assertEquals(SunStyle.RADIANT, params.sunStyle)
 		assertEquals(SunbeamMode.CLEAR_SKIES_TOO, params.sunbeamMode)
@@ -195,6 +197,15 @@ class SceneDebugPresetsTest {
 		val params = debugSceneParams(preset, DayPhase.NIGHT, moonPhase = 0.81f)
 
 		assertEquals(0.81f, params.moonPhase, 0.0001f)
+	}
+
+	@Test
+	fun `moon size scale clamps and non-finite values resolve to one in debug scene params`() {
+		val preset = SCENE_PRESETS.first { it.name == "CLEAR" }
+		assertEquals(0.5f, debugSceneParams(preset, DayPhase.NIGHT, moonSizeScale = 0.2f).moonSizeScale, 0.0001f)
+		assertEquals(2.0f, debugSceneParams(preset, DayPhase.NIGHT, moonSizeScale = 3.5f).moonSizeScale, 0.0001f)
+		assertEquals(1.0f, debugSceneParams(preset, DayPhase.NIGHT, moonSizeScale = Float.NaN).moonSizeScale, 0.0001f)
+		assertEquals(1.0f, debugSceneParams(preset, DayPhase.NIGHT, moonSizeScale = Float.POSITIVE_INFINITY).moonSizeScale, 0.0001f)
 	}
 
 	@Test

@@ -70,6 +70,7 @@
 	<string name="label_show_moon">月を表示</string>
 	<string name="subtitle_show_moon">夜に月を表示します</string>
 	<string name="label_sun_size">太陽の大きさ · %1$d%%</string>
+	<string name="label_moon_size">月の大きさ · %1$d%%</string>
 	<string name="sun_size_small">小さく</string>
 	<string name="sun_size_large">大きく</string>
 	<string name="label_sun_color">太陽の色</string>

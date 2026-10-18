@@ -204,6 +204,7 @@ class WeatherSceneProviderTest {
 			sunVisible = false,
 			moonVisible = false,
 			sunSizeScale = 1.6f,
+			moonSizeScale = 1.35f,
 			sunColorPreset = SunColorPreset.GOLDEN,
 			sunStyle = SunStyle.RADIANT,
 			sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO,
@@ -237,6 +238,7 @@ class WeatherSceneProviderTest {
 		assertFalse(params.sunVisible)
 		assertFalse(params.moonVisible)
 		assertEquals(1.6f, params.sunSizeScale, 0.0001f)
+		assertEquals(1.35f, params.moonSizeScale, 0.0001f)
 		assertEquals(SunColorPreset.GOLDEN, params.sunColorPreset)
 		assertEquals(SunStyle.RADIANT, params.sunStyle)
 		assertEquals(SunbeamMode.CLEAR_SKIES_TOO, params.sunbeamMode)
@@ -392,13 +394,14 @@ class WeatherSceneProviderTest {
 			runCurrent()
 			assertEquals(PrecipitationKind.SNOW, provider.paramsFor(1_000_030L).precipitation?.kind)
 
-			settings.value = settings.value.copy(sceneSimulatorActive = false, windIntensityScale = 1.5f, sunStyle = SunStyle.RADIANT, sunbeamMode = SunbeamMode.OFF)
+			settings.value = settings.value.copy(sceneSimulatorActive = false, windIntensityScale = 1.5f, sunStyle = SunStyle.RADIANT, sunbeamMode = SunbeamMode.OFF, moonSizeScale = 1.75f)
 			runCurrent()
 			val fallback = provider.paramsFor(1_000_030L)
 			assertNull(fallback.precipitation)
 			assertEquals(1.5f, fallback.windScale, 0.0001f)
 			assertEquals(SunStyle.RADIANT, fallback.sunStyle)
 			assertEquals(SunbeamMode.OFF, fallback.sunbeamMode)
+			assertEquals(1.75f, fallback.moonSizeScale, 0.0001f)
 			assertFalse(refresh.isCompleted)
 
 			coEvery { weatherRepository.current(any(), any()) } returns Result.success(snapshotWith(weatherCode = 63))
@@ -655,13 +658,14 @@ class WeatherSceneProviderTest {
 
 		provider.refresh(1_000_000L)
 
-		persistedSettings.value = device.copy(sunVisible = false, moonVisible = false, sunSizeScale = 1.8f, sunColorPreset = SunColorPreset.ORANGE, sunStyle = SunStyle.RADIANT, sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO)
+		persistedSettings.value = device.copy(sunVisible = false, moonVisible = false, sunSizeScale = 1.8f, moonSizeScale = 1.45f, sunColorPreset = SunColorPreset.ORANGE, sunStyle = SunStyle.RADIANT, sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO)
 		provider.refresh(1_000_060L)
 
 		val params = provider.paramsFor(1_000_090L)
 		assertFalse(params.sunVisible)
 		assertFalse(params.moonVisible)
 		assertEquals(1.8f, params.sunSizeScale, 0.0001f)
+		assertEquals(1.45f, params.moonSizeScale, 0.0001f)
 		assertEquals(SunColorPreset.ORANGE, params.sunColorPreset)
 		assertEquals(SunStyle.RADIANT, params.sunStyle)
 		assertEquals(SunbeamMode.CLEAR_SKIES_TOO, params.sunbeamMode)

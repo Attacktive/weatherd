@@ -30,6 +30,7 @@ data class AppSettings(
 	val sunVisible: Boolean = true,
 	val moonVisible: Boolean = true,
 	val sunSizeScale: Float = 1f,
+	val moonSizeScale: Float = 1f,
 	val sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
 	val sunStyle: SunStyle = SunStyle.CLASSIC,
 	val sunbeamMode: SunbeamMode = SunbeamMode.THROUGH_CLOUDS,
@@ -82,4 +83,14 @@ fun normalizeReadabilityStrength(value: Float) = if (value.isFinite()) {
 	value.coerceIn(READABILITY_STRENGTH_RANGE.start, READABILITY_STRENGTH_RANGE.endInclusive)
 } else {
 	0f
+}
+
+/** Bounds for Moon size multiplier offered in Settings. */
+val MOON_SIZE_SCALE_RANGE = 0.5f..2f
+
+/** Normalizes a Moon size scale into [MOON_SIZE_SCALE_RANGE], safely resolving non-finite values to 1f. */
+fun normalizeMoonSizeScale(value: Float) = if (value.isFinite()) {
+	value.coerceIn(MOON_SIZE_SCALE_RANGE.start, MOON_SIZE_SCALE_RANGE.endInclusive)
+} else {
+	1f
 }

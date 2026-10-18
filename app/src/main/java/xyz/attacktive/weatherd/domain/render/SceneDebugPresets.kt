@@ -14,6 +14,7 @@ import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 import xyz.attacktive.weatherd.domain.model.SKY_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SKY_SATURATION_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.normalizeMoonSizeScale
 import xyz.attacktive.weatherd.domain.model.normalizeReadabilityStrength
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
@@ -89,6 +90,7 @@ fun debugSceneParams(
 	sunVisible: Boolean = true,
 	moonVisible: Boolean = true,
 	sunSizeScale: Float = 1f,
+	moonSizeScale: Float = 1f,
 	sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
 	sunStyle: SunStyle = SunStyle.CLASSIC,
 	sunbeamMode: SunbeamMode = SunbeamMode.THROUGH_CLOUDS,
@@ -125,6 +127,7 @@ fun debugSceneParams(
 	sunVisible = sunVisible,
 	moonVisible = moonVisible,
 	sunSizeScale = sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive),
+	moonSizeScale = normalizeMoonSizeScale(moonSizeScale),
 	sunColorPreset = sunColorPreset,
 	sunStyle = sunStyle,
 	sunbeamMode = sunbeamMode,

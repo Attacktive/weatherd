@@ -29,6 +29,7 @@ import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.SunbeamMode
 import xyz.attacktive.weatherd.domain.model.normalizeReadabilityStrength
+import xyz.attacktive.weatherd.domain.model.normalizeMoonSizeScale
 
 sealed interface AppearancePresetStorageState {
 	data class Ready(val presets: List<SavedAppearancePreset>): AppearancePresetStorageState
@@ -195,6 +196,7 @@ private data class StoredSnapshot(
 	val sunVisible: Boolean,
 	val moonVisible: Boolean,
 	val sunSizeScale: Float,
+	val moonSizeScale: Float = 1f,
 	val sunColorPreset: String,
 	val sunStyle: String = SunStyle.CLASSIC.name,
 	val sunbeamMode: String = SunbeamMode.THROUGH_CLOUDS.name,
@@ -226,6 +228,7 @@ private data class StoredSnapshot(
 		sunVisible = sunVisible,
 		moonVisible = moonVisible,
 		sunSizeScale = sunSizeScale,
+		moonSizeScale = normalizeMoonSizeScale(moonSizeScale),
 		sunColorPreset = enumValue(sunColorPreset, SunColorPreset.entries),
 		sunStyle = enumValue(sunStyle, SunStyle.entries),
 		sunbeamMode = enumValue(sunbeamMode, SunbeamMode.entries),
@@ -265,6 +268,7 @@ private fun AppearancePresetSnapshot.toStored() = StoredSnapshot(
 	sunVisible = sunVisible,
 	moonVisible = moonVisible,
 	sunSizeScale = sunSizeScale,
+	moonSizeScale = normalizeMoonSizeScale(moonSizeScale),
 	sunColorPreset = sunColorPreset.name,
 	sunStyle = sunStyle.name,
 	sunbeamMode = sunbeamMode.name,
@@ -284,8 +288,8 @@ private fun <T : Enum<T>> enumValue(name: String, values: Iterable<T>) = values.
 internal fun appearancePresetNameKey(name: String) = Normalizer.normalize(name.trim().lowercase(Locale.ROOT), Normalizer.Form.NFC)
 
 /** Bump whenever persisted preset snapshot fields are added, removed, renamed, or change meaning. */
-internal const val APPEARANCE_PRESET_SCHEMA_VERSION = 11
+internal const val APPEARANCE_PRESET_SCHEMA_VERSION = 12
 internal const val APPEARANCE_PRESET_NAME_MAX_LENGTH = 40
 internal const val APPEARANCE_PRESETS_KEY_NAME = "appearance_presets_json"
-private val SUPPORTED_APPEARANCE_PRESET_SCHEMA_VERSIONS = setOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, APPEARANCE_PRESET_SCHEMA_VERSION)
+private val SUPPORTED_APPEARANCE_PRESET_SCHEMA_VERSIONS = setOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, APPEARANCE_PRESET_SCHEMA_VERSION)
 private val PRESETS_KEY = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)

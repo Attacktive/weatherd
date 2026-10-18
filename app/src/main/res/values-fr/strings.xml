@@ -70,6 +70,7 @@
 	<string name="label_show_moon">Afficher la lune</string>
 	<string name="subtitle_show_moon">Affiche la lune la nuit</string>
 	<string name="label_sun_size">Taille du soleil · %1$d%%</string>
+	<string name="label_moon_size">Taille de la lune · %1$d%%</string>
 	<string name="sun_size_small">Plus petit</string>
 	<string name="sun_size_large">Plus grand</string>
 	<string name="label_sun_color">Couleur du soleil</string>

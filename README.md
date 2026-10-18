@@ -34,6 +34,14 @@ Natural daylight uses a white light source; dawn, dusk, and explicit sun color c
 No rainbow reflections are baked into Starburst: **Lens flare** controls the existing chromatic halo and optical reflections, and **Motion-responsive reflections** controls their motion independently of the sun artwork.
 Distant aircraft and their contrails cross in front of the solar disc in all three styles, while cloud layers can still obscure them in both the preview and live wallpaper.
 
+The Moon uses a realistic lunar surface derived from the [NASA SVS CGI Moon Kit](https://svs.gsfc.nasa.gov/4720/), credited to NASA's Scientific Visualization Studio.
+NASA SVS makes this imagery [public domain unless otherwise noted](https://svs.gsfc.nasa.gov/help/); the submitted image in [#283](https://github.com/Attacktive/weatherd/issues/283) is a visual reference, not a bundled asset.
+Regenerate the north-up near-side disc with `uv run scripts/generate-moon-texture.py`; its unchanged source map lives in `scripts/assets/moon/lroc_color_2k.jpg`, and the generator checks its SHA-256 before projecting it.
+Waxing and waning change the illumination without mirroring lunar markings; the new Moon draws neither a disc nor a lunar halo.
+Choose **Settings → Appearance → Sun & moon → Moon size** for an independent **50–200%** scale, default **100%**, with an individual reset.
+Moon size is saved with appearance presets and shared by the preview, live wallpaper, simulator, and fallback; older settings and presets retain 100%.
+The source is decoded in the background, phase sprites are cached, and resizing changes draw geometry without rebuilding the static sky backdrop.
+
 Choose **Settings → Appearance → Sun & moon → Sunbeams** for **Off**, **Through clouds** (default), or **Clear skies too**.
 Through clouds draws soft, spreading atmospheric shafts from moving near low-cloud openings; Clear skies too also adds radial camera-style glare around an unobstructed sun.
 Low and mid cloud cover both attenuate clear-sky rays, while high cirrus alone does not.
@@ -68,7 +76,7 @@ Appearance is a category hub with short summaries rather than a single long list
 - **Scenery & photos:** backdrop scenery, conditional photo slots, and the independent Trees switch.
 - **Sky:** palette, brightness, night brightness, saturation, distant aircraft, and bird size/interval.
 - **Clouds:** size, count, opacity, and contrast together.
-- **Sun & moon:** visibility, sun style, sunbeams, size, color, lens flare, and motion-responsive reflections.
+- **Sun & moon:** visibility, sun style, sunbeams, independent sun/Moon size, sun color, lens flare, and motion-responsive reflections.
 - **Weather effects:** precipitation intensity, glass droplets, and wind intensity.
 - **On-screen text:** weather/location visibility, shared vertical position, and temperature unit.
 - **Readability:** independent wallpaper dimming and status-bar shade, shared by Home and Lock.

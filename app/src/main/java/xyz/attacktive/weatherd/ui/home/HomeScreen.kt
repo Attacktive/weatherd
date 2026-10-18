@@ -85,6 +85,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	val motionOwner = remember { Any() }
 	var timeSeconds by remember { mutableFloatStateOf(0f) }
 	var treeTexturesReady by remember(renderer) { mutableStateOf(renderer.treeTexturesReady) }
+	var moonTextureReady by remember(renderer) { mutableStateOf(renderer.moonTextureReady) }
 	val sceneState by viewModel.sceneState.collectAsStateWithLifecycle()
 	val settings = sceneState.settings
 	var sunTextureReady by remember(renderer, settings.sunStyle) { mutableStateOf(renderer.isSunTextureReady(settings.sunStyle)) }
@@ -142,8 +143,11 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 
 	LaunchedEffect(renderer) {
 		withContext(Dispatchers.Default) {
+			renderer.prewarmMoonTexture()
 			renderer.prewarmCloudTextures()
 		}
+
+		moonTextureReady = true
 	}
 
 	LaunchedEffect(renderer, params.treesEnabled) {
@@ -238,7 +242,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 			}
 		}
 
-		key(treeTexturesReady, sunTextureReady) {
+		key(treeTexturesReady, sunTextureReady, moonTextureReady) {
 			Canvas(
 				modifier = Modifier
 					.fillMaxSize()
