@@ -34,82 +34,92 @@ class RomeCloudLayerIsolationTest {
 
 	@Test
 	fun romeForecastDisagreementSeparatesHighCirrusFromLowCloudEffects() {
-		val dwd = romeScene(total = 0.65f, low = 0.58f, mid = 0.10f, high = 0.15f)
-		val highOnly = dwd.copy(cloudLayers = dwd.cloudLayers!!.copy(high = 0.65f))
-		val lowOnly = dwd.copy(cloudLayers = dwd.cloudLayers!!.copy(low = 0.62f))
-		val both = dwd.copy(cloudLayers = dwd.cloudLayers!!.copy(low = 0.62f, high = 0.65f))
-		val italia = romeScene(total = 0.90f, low = 0.62f, mid = 0.01f, high = 0.65f)
-
-		val cases = linkedMapOf(
-			"dwd" to dwd,
-			"highOnly" to highOnly,
-			"lowOnly" to lowOnly,
-			"both" to both,
-			"italia" to italia
-		)
+		val cases = romeCases()
 		val renderer = SceneRenderer(resources)
 		renderer.prewarmCloudTextures()
 		val backdrops = cases.mapValues { (_, params) -> render(renderer, params, foreground = false) }
 		val frames = cases.mapValues { (_, params) -> render(renderer, params, foreground = true) }
 
 		try {
-			val base = frames.getValue("dwd")
-			val high = frames.getValue("highOnly")
-			val low = frames.getValue("lowOnly")
-			val combined = frames.getValue("both")
-			val actual = frames.getValue("italia")
-
-			assertEquals(0.58f, effectiveOpaqueCloudiness(dwd), EPSILON)
-			assertEquals(0.62f, effectiveOpaqueCloudiness(italia), EPSILON)
-			assertFalse(SceneRenderer.shouldDrawOvercastBanks(0.58f, 0f, false))
-			assertFalse(SceneRenderer.shouldDrawOvercastBanks(0.62f, 0f, false))
-
-			assertTrue(
-				"Raising only high cloud from 15% to 65% must not alter the cached sky gradient",
-				backdrops.getValue("dwd").sameAs(backdrops.getValue("highOnly"))
-			)
-			assertFalse(
-				"Raising only low cloud from 58% to 62% changes the gradual gray-sky blend",
-				backdrops.getValue("dwd").sameAs(backdrops.getValue("lowOnly"))
-			)
-			assertFalse("High-cloud-only change must visibly change cirrus", base.sameAs(high))
-			assertFalse("Low-cloud-only change must visibly affect the scene", base.sameAs(low))
-
-			val upperBoundary = (HEIGHT * UPPER_SKY_LIMIT).roundToInt()
-			val highUpperDelta = meanRgbDelta(base, high, 0, upperBoundary)
-			val highLowerDelta = meanRgbDelta(base, high, upperBoundary, HEIGHT)
-			val lowUpperDelta = meanRgbDelta(base, low, 0, upperBoundary)
-			val lowLowerDelta = meanRgbDelta(base, low, upperBoundary, HEIGHT)
-			val combinedUpperDelta = meanRgbDelta(base, combined, 0, upperBoundary)
-			val combinedLowerDelta = meanRgbDelta(base, combined, upperBoundary, HEIGHT)
-
-			// The source cirrus sprites are confined to the upper 34% of this portrait.
-			// A high-cloud change cannot alter any low/mid geometry or the backdrop.
-			assertTrue("Changing high cover must visibly affect the upper sky", highUpperDelta > 0.0)
-			assertEquals("High-only cloud changes must not spill below upper sky", 0.0, highLowerDelta, 0.0)
-
-			// DWD's 10% mid cover and ItaliaMeteo's 1% mid cover are both below
-			// the scattered-deck floor; total cover is not a separate rendering input
-			// when a vertical layer breakdown is available.
-			assertTrue(
-				"Original ItaliaMeteo values should match the combined low/high control exactly",
-				combined.sameAs(actual)
-			)
-			assertTrue(
-				"Source total and sub-threshold middle cover must not alter the backdrop",
-				backdrops.getValue("both").sameAs(backdrops.getValue("italia"))
-			)
-
-			val result = "Rome cloud isolation (mean RGB channel delta, 0-255): " +
-				"high-only upper=$highUpperDelta lower=$highLowerDelta, " +
-				"low-only upper=$lowUpperDelta lower=$lowLowerDelta, " +
-				"combined upper=$combinedUpperDelta lower=$combinedLowerDelta"
-			Log.i(LOG_TAG, result)
-			println(result)
+			assertCloudGateAndBackdropEffects(cases, backdrops, frames)
+			assertCirrusBandAndLogPixelDeltas(frames)
+			assertActualItaliaMeteoMatchesCombinedControl(backdrops, frames)
 		} finally {
 			frames.values.forEach(Bitmap::recycle)
 			backdrops.values.forEach(Bitmap::recycle)
 		}
+	}
+
+	private fun romeCases(): Map<String, SceneParams> {
+		val dwd = romeScene(total = 0.65f, low = 0.58f, mid = 0.10f, high = 0.15f)
+		val layers = checkNotNull(dwd.cloudLayers)
+		return linkedMapOf(
+			"dwd" to dwd,
+			"highOnly" to dwd.copy(cloudLayers = layers.copy(high = 0.65f)),
+			"lowOnly" to dwd.copy(cloudLayers = layers.copy(low = 0.62f)),
+			"both" to dwd.copy(cloudLayers = layers.copy(low = 0.62f, high = 0.65f)),
+			"italia" to romeScene(total = 0.90f, low = 0.62f, mid = 0.01f, high = 0.65f)
+		)
+	}
+
+	private fun assertCloudGateAndBackdropEffects(
+		cases: Map<String, SceneParams>,
+		backdrops: Map<String, Bitmap>,
+		frames: Map<String, Bitmap>
+	) {
+		assertEquals(0.58f, effectiveOpaqueCloudiness(cases.getValue("dwd")), EPSILON)
+		assertEquals(0.62f, effectiveOpaqueCloudiness(cases.getValue("italia")), EPSILON)
+		assertFalse(SceneRenderer.shouldDrawOvercastBanks(0.58f, 0f, false))
+		assertFalse(SceneRenderer.shouldDrawOvercastBanks(0.62f, 0f, false))
+
+		assertTrue(
+			"Raising only high clouds must not alter the cached sky gradient",
+			backdrops.getValue("dwd").sameAs(backdrops.getValue("highOnly"))
+		)
+		assertFalse(
+			"Raising only low clouds must change the gradual gray-sky blend",
+			backdrops.getValue("dwd").sameAs(backdrops.getValue("lowOnly"))
+		)
+		assertFalse("High-cloud-only change must visibly change cirrus", frames.getValue("dwd").sameAs(frames.getValue("highOnly")))
+		assertFalse("Low-cloud-only change must visibly affect the scene", frames.getValue("dwd").sameAs(frames.getValue("lowOnly")))
+	}
+
+	private fun assertCirrusBandAndLogPixelDeltas(frames: Map<String, Bitmap>) {
+		val base = frames.getValue("dwd")
+		val upperBoundary = (HEIGHT * UPPER_SKY_LIMIT).roundToInt()
+		val highUpperDelta = meanRgbDelta(base, frames.getValue("highOnly"), 0, upperBoundary)
+		val highLowerDelta = meanRgbDelta(base, frames.getValue("highOnly"), upperBoundary, HEIGHT)
+		val lowUpperDelta = meanRgbDelta(base, frames.getValue("lowOnly"), 0, upperBoundary)
+		val lowLowerDelta = meanRgbDelta(base, frames.getValue("lowOnly"), upperBoundary, HEIGHT)
+		val combinedUpperDelta = meanRgbDelta(base, frames.getValue("both"), 0, upperBoundary)
+		val combinedLowerDelta = meanRgbDelta(base, frames.getValue("both"), upperBoundary, HEIGHT)
+
+		// High cirrus must not move opaque clouds or modify the cached backdrop.
+		assertTrue("Changing high cover must visibly affect the upper sky", highUpperDelta > 0.0)
+		assertEquals("High-only clouds must not spill below upper sky", 0.0, highLowerDelta, 0.0)
+
+		val result = "Rome cloud isolation (mean RGB channel delta, 0-255): " +
+			"high-only upper=$highUpperDelta lower=$highLowerDelta, " +
+			"low-only upper=$lowUpperDelta lower=$lowLowerDelta, " +
+			"combined upper=$combinedUpperDelta lower=$combinedLowerDelta"
+		Log.i(LOG_TAG, result)
+		println(result)
+	}
+
+	private fun assertActualItaliaMeteoMatchesCombinedControl(
+		backdrops: Map<String, Bitmap>,
+		frames: Map<String, Bitmap>
+	) {
+		// The 10% versus 1% middle cover is below the scattered-deck floor.
+		// Total cover cannot change the renderer when all three layers exist.
+		assertTrue(
+			"Actual ItaliaMeteo values should match combined low/high control",
+			frames.getValue("both").sameAs(frames.getValue("italia"))
+		)
+		assertTrue(
+			"Source total and sub-threshold mid cover must not change the backdrop",
+			backdrops.getValue("both").sameAs(backdrops.getValue("italia"))
+		)
 	}
 
 	private fun romeScene(total: Float, low: Float, mid: Float, high: Float) = SceneParams(
