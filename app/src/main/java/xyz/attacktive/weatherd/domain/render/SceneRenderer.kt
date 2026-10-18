@@ -62,6 +62,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 	private val blitDest = RectF()
 	private val lightningBolt by lazy(LazyThreadSafetyMode.NONE) { LightningBoltLayer() }
 	private val foregroundTrees = ForegroundTreeLayer(resources)
+	private val distantAircraft = DistantAircraftLayer()
 	private val radiantSun = RadiantSunLayer(resources)
 	private val starburstSun = StarburstSunLayer(resources)
 	private val sunGlare by lazy(LazyThreadSafetyMode.NONE) { SunGlareLayer(resources) }
@@ -299,6 +300,9 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		if (showsCelestialBody(params)) {
 			drawCelestialBody(canvas, w, h, celestialCenterX, celestialCenterY, params, timeSeconds)
 		}
+
+		// Aircraft cross in front of the sun, while the cloud layers below can still obscure them.
+		distantAircraft.draw(canvas, w, h, params, timeSeconds)
 
 		drawCirrus(canvas, w, h, params, timeSeconds)
 

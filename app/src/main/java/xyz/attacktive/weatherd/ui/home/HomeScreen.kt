@@ -61,7 +61,6 @@ import androidx.lifecycle.repeatOnLifecycle
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.debugToolsEnabled
 import xyz.attacktive.weatherd.domain.model.DayPhase
-import xyz.attacktive.weatherd.domain.render.DistantAircraftLayer
 import xyz.attacktive.weatherd.domain.render.SCENE_PRESETS
 import xyz.attacktive.weatherd.domain.render.SceneRenderer
 import xyz.attacktive.weatherd.domain.render.SceneScreenEffects
@@ -81,7 +80,6 @@ import xyz.attacktive.weatherd.service.wallpaperAnimationActive
 fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hiltViewModel()) {
 	val context = LocalContext.current
 	val renderer = remember { SceneRenderer(context.resources) }
-	val distantAircraftLayer = remember { DistantAircraftLayer() }
 	val screenEffects = remember(renderer) { SceneScreenEffects(renderer) }
 	val motionSensor = viewModel.lensFlareMotionSensor
 	val motionOwner = remember { Any() }
@@ -254,7 +252,6 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 					canvas.nativeCanvas.drawBitmap(backdrop, 0f, 0f, null)
 					renderer.lensFlareOffsetX = motionSensor.offsetX
 					renderer.lensFlareOffsetY = motionSensor.offsetY
-					distantAircraftLayer.draw(canvas.nativeCanvas, widthPx.toFloat(), heightPx.toFloat(), params, timeSeconds)
 					renderer.renderForeground(canvas.nativeCanvas, widthPx, heightPx, params, timeSeconds, includeOverlayLabels = false)
 					screenEffects.render(canvas.nativeCanvas, widthPx, heightPx, params, timeSeconds)
 				}

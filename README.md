@@ -32,6 +32,7 @@ Starburst is reproducibly generated with `uv run scripts/generate-starburst-sun.
 Starburst combines overlapping luminous lobes with faint uneven streaks, without a pointed-star silhouette; its wider bloom fades to transparent before the texture boundary, and the bitmap is decoded once off the frame loop only when selected.
 Natural daylight uses a white light source; dawn, dusk, and explicit sun color choices retain their selected tint.
 No rainbow reflections are baked into Starburst: **Lens flare** controls the existing chromatic halo and optical reflections, and **Motion-responsive reflections** controls their motion independently of the sun artwork.
+Distant aircraft and their contrails cross in front of the solar disc in all three styles, while cloud layers can still obscure them in both the preview and live wallpaper.
 
 Choose **Settings → Appearance → Sun & moon → Sunbeams** for **Off**, **Through clouds** (default), or **Clear skies too**.
 Through clouds draws soft, spreading atmospheric shafts from moving near low-cloud openings; Clear skies too also adds radial camera-style glare around an unobstructed sun.

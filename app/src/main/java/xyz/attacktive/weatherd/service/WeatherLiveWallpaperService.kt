@@ -18,7 +18,6 @@ import android.view.SurfaceHolder
 import dagger.hilt.android.AndroidEntryPoint
 import xyz.attacktive.weatherd.domain.model.AnimationIdleTimeout
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
-import xyz.attacktive.weatherd.domain.render.DistantAircraftLayer
 import xyz.attacktive.weatherd.domain.render.SceneAnimationRestartController
 import xyz.attacktive.weatherd.domain.render.SceneParams
 import xyz.attacktive.weatherd.domain.render.SceneRenderer
@@ -55,7 +54,6 @@ class WeatherLiveWallpaperService: WallpaperService() {
 
 	private inner class SceneEngine: Engine(), Choreographer.FrameCallback {
 		private val renderer = SceneRenderer(resources)
-		private val distantAircraftLayer = DistantAircraftLayer()
 		private val screenEffects = SceneScreenEffects(renderer)
 		private val choreographer = Choreographer.getInstance()
 		private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -332,7 +330,6 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			canvas.translate(-viewportLeft, 0f)
 			renderer.lensFlareOffsetX = lensFlareMotionSensor.offsetX
 			renderer.lensFlareOffsetY = lensFlareMotionSensor.offsetY
-			distantAircraftLayer.draw(canvas, backdrop.width.toFloat(), height.toFloat(), params, timeSeconds)
 			renderer.renderForeground(canvas, backdrop.width, height, params, timeSeconds, includeOverlayLabels = false)
 			canvas.restoreToCount(saved)
 		}
