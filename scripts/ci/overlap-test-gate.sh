@@ -72,7 +72,7 @@ run_instrumentation() {
 			if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
 				{
 					printf '\n### Rome cloud-layer isolation\n\n'
-					printf '```\n%s\n```\n' "$measurements"
+					printf '~~~text\n%s\n~~~\n' "$measurements"
 				} >> "$GITHUB_STEP_SUMMARY"
 			fi
 		fi
