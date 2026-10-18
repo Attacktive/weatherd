@@ -59,6 +59,23 @@ wait_for_static_gate() {
 
 run_instrumentation() {
 	if ./gradlew :app:connectedDebugAndroidTest; then
+		# The emulator is discarded after this step, so successful test logs are
+		# otherwise lost. Publish only the Rome diagnostic metrics, not raw logcat.
+		if [[ -f app/src/androidTest/java/xyz/attacktive/weatherd/domain/render/RomeCloudLayerIsolationTest.kt ]]; then
+			local measurements
+			measurements="$(adb logcat -d -v brief -s RomeCloudIsolation:I | grep -F 'Rome cloud isolation' || true)"
+			if [[ -z "$measurements" ]]; then
+				echo "Rome cloud isolation measurements missing from emulator logcat." >&2
+				return 1
+			fi
+			printf '%s\n' "$measurements"
+			if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+				{
+					printf '\n### Rome cloud-layer isolation\n\n'
+					printf '```\n%s\n```\n' "$measurements"
+				} >> "$GITHUB_STEP_SUMMARY"
+			fi
+		fi
 		return
 	fi
 

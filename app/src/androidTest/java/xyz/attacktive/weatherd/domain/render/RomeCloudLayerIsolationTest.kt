@@ -35,7 +35,8 @@ class RomeCloudLayerIsolationTest {
 	@Test
 	fun romeForecastDisagreementSeparatesHighCirrusFromLowCloudEffects() {
 		val cases = romeCases()
-		val renderer = SceneRenderer(resources)
+		// CloudLayer's daily placements must not change with the CI run date or at midnight.
+		val renderer = SceneRenderer(resources, epochDay = FIXTURE_EPOCH_DAY)
 		renderer.prewarmCloudTextures()
 		val backdrops = cases.mapValues { (_, params) -> render(renderer, params, foreground = false) }
 		val frames = cases.mapValues { (_, params) -> render(renderer, params, foreground = true) }
@@ -172,6 +173,7 @@ class RomeCloudLayerIsolationTest {
 		private const val WIDTH = 360
 		private const val HEIGHT = 780
 		private const val TIME_SECONDS = 17f
+		private const val FIXTURE_EPOCH_DAY = 20744L // 2026-10-18 UTC
 		private const val UPPER_SKY_LIMIT = 0.42f
 		private const val EPSILON = 0.0001f
 		private const val LOG_TAG = "RomeCloudIsolation"
