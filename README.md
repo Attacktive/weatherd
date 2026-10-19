@@ -142,7 +142,7 @@ Motion can use extra battery and reduce performance while active, and the reflec
 
 ## Building from source
 
-Requires JDK 17 and the Android SDK ([Android Studio](https://developer.android.com/studio) bundles both).
+Requires JDK 21 and the Android SDK ([Android Studio](https://developer.android.com/studio) bundles both).
 
 ```sh
 git clone https://github.com/Attacktive/weatherd.git
