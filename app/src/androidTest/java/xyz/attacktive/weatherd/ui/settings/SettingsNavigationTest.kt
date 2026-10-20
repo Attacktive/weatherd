@@ -8,6 +8,7 @@ import android.graphics.Color
 import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.os.SystemClock
+import android.provider.Settings
 import android.view.KeyEvent
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityNodeInfo
@@ -232,7 +233,9 @@ class SettingsNavigationTest {
 	fun homeControlsAvoidSystemBarsAndDisplayCutouts() {
 		clickDescription(R.string.content_description_back)
 		waitForNode("Home Settings button") { it.contentDescription == text(R.string.content_description_settings) }
-		val originalRotation = shell("wm user-rotation").trim()
+		val resolver = instrumentation.targetContext.contentResolver
+		val originalAutoRotation = Settings.System.getInt(resolver, Settings.System.ACCELEROMETER_ROTATION, 0)
+		val originalUserRotation = Settings.System.getInt(resolver, Settings.System.USER_ROTATION, 0)
 		var originalDisplayRotation = 0
 		scenario.onActivity { originalDisplayRotation = it.window.decorView.display.rotation }
 
@@ -247,8 +250,12 @@ class SettingsNavigationTest {
 			instrumentation.waitForIdleSync()
 			assertHomeControlsWithinSafeBounds()
 		} finally {
-			automation.setRotation(UiAutomation.ROTATION_UNFREEZE)
-			shell("wm user-rotation $originalRotation")
+			assertTrue(automation.setRotation(originalUserRotation))
+			waitForDisplayRotation(originalUserRotation)
+			if (originalAutoRotation != 0) {
+				assertTrue(automation.setRotation(UiAutomation.ROTATION_UNFREEZE))
+			}
+
 			waitForDisplayRotation(originalDisplayRotation)
 		}
 	}
