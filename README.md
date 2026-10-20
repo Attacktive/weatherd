@@ -221,3 +221,23 @@ Regional models are selected only for coordinates inside their published grids. 
 Open-Meteo data is provided under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Explicit ICON choices request their corresponding Open-Meteo model identifier instead of automatic model selection.
 
 MET Norway data is provided by The Norwegian Meteorological Institute ("MET Norway") under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Weatherd modifies provider data by normalizing provider-specific fields into its own weather-condition model and rendering the result as procedural scenes.
+
+## Google Play vitals monitoring
+
+Weatherd runs a daily monitoring workflow (`.github/workflows/google-play-vitals.yaml`) scheduled at 00:37 UTC, with support for manual triggers via `workflow_dispatch`.
+
+The workflow retrieves crash and ANR clusters from the Google Play Developer Reporting API using [Attacktive/google-play-vitals-action](https://github.com/Attacktive/google-play-vitals-action) and compares them against the previous successful run's snapshot artifact (`play-vitals-snapshot`).
+Missing or expired artifacts fall back safely to a baseline without false positive alerts.
+
+### Prerequisites
+
+1. The **Google Play Developer Reporting API** must be enabled in Google Cloud.
+2. A Google Cloud service account with **View app information (read-only)** permissions in Google Play Console.
+3. The service account JSON key stored in GitHub repository secrets as `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` (reusing the existing deployment secret).
+4. Enable the IAM API and IAM Service Account Credentials API in the service account's Google Cloud project.
+5. Grant the service account `roles/iam.serviceAccountTokenCreator` on itself, as required by the [authentication action's access-token setup](https://github.com/google-github-actions/auth/tree/7c6bc770dae815cd3e89ee6cdf493a5fab2cc093#inputs-service-account-key-json).
+
+### Reporting and alerts
+
+Every run produces a job summary in GitHub Actions and uploads the JSON report as a 90-day retained artifact.
+The workflow does not automatically file GitHub issues or dispatch notifications.
