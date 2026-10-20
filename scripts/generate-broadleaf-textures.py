@@ -1131,12 +1131,7 @@ def build_branch_meshes(branches: list[dict], bark_mat: bpy.types.Material) -> N
 	twig_faces: list[tuple[int, ...]] = []
 
 	heavy_ring = RingFrame.create(14)
-	twig_ring = RingFrame(
-		k_rings=10,
-		angles=heavy_ring.angles[:10],
-		cos_a=heavy_ring.cos_a[:10],
-		sin_a=heavy_ring.sin_a[:10],
-	)
+	twig_ring = RingFrame.create(10)
 
 	for branch in branches:
 		points = resample_single_branch(branch)
