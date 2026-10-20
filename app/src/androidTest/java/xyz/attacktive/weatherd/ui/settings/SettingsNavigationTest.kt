@@ -2,6 +2,7 @@ package xyz.attacktive.weatherd.ui.settings
 
 import android.Manifest
 import android.graphics.Rect
+import android.graphics.Color
 import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.os.SystemClock
@@ -9,6 +10,9 @@ import android.view.KeyEvent
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.annotation.StringRes
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -162,6 +166,84 @@ class SettingsNavigationTest {
 		assertScrolledTo(R.string.appearance_category_scenery, R.string.appearance_category_presets)
 		scenario.recreate()
 		assertScrolledTo(R.string.appearance_category_scenery, R.string.appearance_category_presets)
+	}
+
+	@Test
+	fun systemAppearanceChangesKeepTheCategoryOpenAndSystemBarsReadable() {
+		val originalMode = shell("cmd uimode night").substringAfter("Night mode: ").trim()
+		check(originalMode in setOf("no", "yes", "auto", "custom_schedule", "custom_bedtime"))
+		openClouds()
+
+		try {
+			listOf("no", "yes", "no").forEach { mode ->
+				shell("cmd uimode night $mode")
+				val light = mode == "no"
+				waitUntil("Settings surface follows system night mode $mode") {
+					val point = IntArray(2)
+					scenario.onActivity { activity ->
+						val view = activity.window.decorView
+						view.getLocationOnScreen(point)
+						point[0] += (4 * activity.resources.displayMetrics.density).toInt()
+						point[1] += view.height / 2
+					}
+
+					val screenshot = automation.takeScreenshot() ?: return@waitUntil false
+					try {
+						// Sample the empty outer gutter, not a control whose color depends on its state.
+						val luminance = Color.luminance(screenshot.getPixel(point[0], point[1]))
+						if (light) {
+							luminance > 0.8f
+						} else {
+							luminance < 0.2f
+						}
+					} finally {
+						screenshot.recycle()
+					}
+				}
+
+				assertVisible(R.string.appearance_category_clouds)
+				assertTopLevelTabsAbsent()
+				assertSystemBars(light)
+				clickDescription(R.string.content_description_back)
+				assertVisible(R.string.settings_title)
+				clickDescription(R.string.content_description_back)
+				waitForNode("Home Settings button") { it.contentDescription == text(R.string.content_description_settings) }
+				assertSystemBars(light, scenePreview = true)
+				clickDescription(R.string.content_description_settings)
+				openClouds()
+			}
+		} finally {
+			shell("cmd uimode night $originalMode")
+		}
+	}
+
+	@Test
+	fun homeSettingsButtonAvoidsOpaqueSystemBars() {
+		clickDescription(R.string.content_description_back)
+		val button = waitForNode("Home Settings button") { it.contentDescription == text(R.string.content_description_settings) }
+		val buttonBounds = Rect().also { button.getBoundsInScreen(it) }
+		scenario.onActivity { activity ->
+			val view = activity.window.decorView
+			val insets = checkNotNull(ViewCompat.getRootWindowInsets(view)).getInsets(WindowInsetsCompat.Type.tappableElement())
+			val location = IntArray(2)
+			view.getLocationOnScreen(location)
+			val safeBounds = Rect(location[0] + insets.left, location[1] + insets.top, location[0] + view.width - insets.right, location[1] + view.height - insets.bottom)
+			assertTrue("Settings must be visible and tappable outside opaque system bars: $buttonBounds within $safeBounds", safeBounds.contains(buttonBounds))
+		}
+	}
+
+	private fun assertSystemBars(light: Boolean, scenePreview: Boolean = false) {
+		scenario.onActivity { activity ->
+			val view = activity.window.decorView
+			val controller = WindowCompat.getInsetsController(activity.window, view)
+			val tappable = checkNotNull(ViewCompat.getRootWindowInsets(view)).getInsets(WindowInsetsCompat.Type.tappableElement())
+			val opaqueNavigation = tappable.left > 0 || tappable.right > 0 || tappable.bottom > 0
+			val edgeToEdge = Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM
+			val lightStatusBar = light && (!scenePreview || !edgeToEdge)
+			val lightNavigationBar = light && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1 && (!scenePreview || !edgeToEdge || opaqueNavigation)
+			assertTrue("Status-bar icon contrast", controller.isAppearanceLightStatusBars == lightStatusBar)
+			assertTrue("Navigation-bar icon contrast", controller.isAppearanceLightNavigationBars == lightNavigationBar)
+		}
 	}
 
 	private fun openClouds() {

@@ -19,9 +19,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.tappableElement
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
@@ -275,6 +280,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 			onClick = onNavigateToSettings,
 			modifier = Modifier
 				.align(Alignment.TopEnd)
+				.windowInsetsPadding(WindowInsets.tappableElement.only(WindowInsetsSides.Horizontal))
 				.padding(top = 40.dp, end = 4.dp)
 		) {
 			Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.content_description_settings), tint = Color.White)
@@ -284,6 +290,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 			Column(
 				modifier = Modifier
 					.align(Alignment.BottomCenter)
+					.windowInsetsPadding(WindowInsets.tappableElement.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
 					.padding(horizontal = 16.dp, vertical = 24.dp),
 				horizontalAlignment = Alignment.CenterHorizontally,
 				verticalArrangement = Arrangement.spacedBy(8.dp)

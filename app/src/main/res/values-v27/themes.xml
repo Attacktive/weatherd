@@ -1,0 +1,6 @@
+<resources>
+	<style name="Theme.Weatherd" parent="Base.Theme.Weatherd">
+		<item name="android:windowLightNavigationBar">true</item>
+		<item name="android:navigationBarColor">?android:attr/colorBackground</item>
+	</style>
+</resources>

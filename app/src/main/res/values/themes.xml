@@ -1,3 +1,8 @@
 <resources>
-	<style name="Theme.Weatherd" parent="android:Theme.Material.NoActionBar" />
+	<style name="Theme.Weatherd" parent="Base.Theme.Weatherd" />
+
+	<style name="Base.Theme.Weatherd" parent="android:Theme.Material.Light.NoActionBar">
+		<item name="android:windowLightStatusBar">true</item>
+		<item name="android:statusBarColor">?android:attr/colorBackground</item>
+	</style>
 </resources>

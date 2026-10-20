@@ -2,13 +2,23 @@ package xyz.attacktive.weatherd
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.tappableElement
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import dagger.hilt.android.AndroidEntryPoint
 import xyz.attacktive.weatherd.ui.home.HomeScreen
@@ -29,6 +39,24 @@ class MainActivity: ComponentActivity() {
 		setContent {
 			WeatherdTheme {
 				val navController = rememberNavController()
+
+				// Keep light icons over Home's scene, but match opaque three-button bars to the native theme.
+				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+					val backStackEntry by navController.currentBackStackEntryAsState()
+					val darkTheme = isSystemInDarkTheme()
+					val settingsVisible = backStackEntry?.destination?.route == "settings"
+					val density = LocalDensity.current
+					val layoutDirection = LocalLayoutDirection.current
+					val tappable = WindowInsets.tappableElement
+					val opaqueNavigation = tappable.getLeft(density, layoutDirection) > 0 || tappable.getRight(density, layoutDirection) > 0 || tappable.getBottom(density) > 0
+					val lightStatusBar = !darkTheme && settingsVisible
+					val lightNavigationBar = !darkTheme && (settingsVisible || opaqueNavigation)
+					SideEffect {
+						val controller = WindowCompat.getInsetsController(window, window.decorView)
+						controller.isAppearanceLightStatusBars = lightStatusBar
+						controller.isAppearanceLightNavigationBars = lightNavigationBar
+					}
+				}
 
 				NavHost(navController = navController, startDestination = "home") {
 					composable("home") {
