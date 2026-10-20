@@ -82,7 +82,10 @@
 	<string name="section_frame_rate">Animation frame rate</string>
 	<string name="section_backdrop">Backdrop scenery</string>
 	<string name="label_trees">Trees</string>
-	<string name="subtitle_trees">Show evergreen trees in the foreground</string>
+	<string name="subtitle_trees">Show trees in the foreground</string>
+	<string name="section_tree_style">Tree shape</string>
+	<string name="tree_style_evergreen">Evergreen</string>
+	<string name="tree_style_broadleaf">Broadleaf</string>
 	<string name="section_wallpaper_motion">Wallpaper motion</string>
 	<string name="label_wallpaper_scrolling">Home screen scrolling</string>
 	<string name="subtitle_wallpaper_scrolling">Pan the scene horizontally as you swipe between home screen pages</string>

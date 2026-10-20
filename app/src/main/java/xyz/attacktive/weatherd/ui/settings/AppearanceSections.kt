@@ -74,6 +74,7 @@ import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.SunbeamMode
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
+import xyz.attacktive.weatherd.domain.model.TreeStyle
 import xyz.attacktive.weatherd.domain.model.drawsScenery
 import xyz.attacktive.weatherd.platform.lensFlareMotionSupported
 
@@ -673,12 +674,64 @@ private fun PhotoBucketPreview(thumbnail: Bitmap?) = if (thumbnail != null) {
 }
 
 @Composable
-internal fun TreesSection(settings: AppSettings, onSave: (AppSettings) -> Unit) = ToggleSetting(
-	label = stringResource(R.string.label_trees),
-	subtitle = stringResource(R.string.subtitle_trees),
-	checked = settings.treesEnabled,
-	onToggle = { onSave(settings.copy(treesEnabled = it)) }
-)
+internal fun TreesSection(
+	settings: AppSettings,
+	defaults: AppSettings,
+	onSave: (AppSettings) -> Unit
+) {
+	ToggleSetting(
+		label = stringResource(R.string.label_trees),
+		subtitle = stringResource(R.string.subtitle_trees),
+		checked = settings.treesEnabled,
+		onToggle = { onSave(settings.copy(treesEnabled = it)) }
+	)
+
+	AnimatedVisibility(visible = settings.treesEnabled) {
+		Column {
+			Spacer(modifier = Modifier.height(16.dp))
+			TreeStylePicker(settings = settings, defaults = defaults, onSave = onSave)
+		}
+	}
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TreeStylePicker(settings: AppSettings, defaults: AppSettings, onSave: (AppSettings) -> Unit) {
+	var expanded by remember { mutableStateOf(false) }
+
+	ResettableSectionLabel(
+		text = stringResource(R.string.section_tree_style),
+		isDefault = settings.treeStyle == defaults.treeStyle,
+		onReset = { onSave(settings.copy(treeStyle = defaults.treeStyle)) }
+	)
+
+	ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+		OutlinedTextField(
+			value = formatTreeStyle(settings.treeStyle),
+			onValueChange = {},
+			readOnly = true,
+			trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+			modifier = Modifier
+				.fillMaxWidth()
+				.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+		)
+
+		ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+			TreeStyle.entries.forEach { style ->
+				DropdownMenuItem(
+					text = { Text(formatTreeStyle(style)) },
+					onClick = {
+						if (style != settings.treeStyle) {
+							onSave(settings.copy(treeStyle = style))
+						}
+
+						expanded = false
+					}
+				)
+			}
+		}
+	}
+}
 
 @Composable
 internal fun ReadabilitySection(settings: AppSettings, defaults: AppSettings, onSave: (AppSettings) -> Unit) {
@@ -789,6 +842,12 @@ internal fun formatSunStyle(style: SunStyle) = when (style) {
 	SunStyle.CLASSIC -> stringResource(R.string.sun_style_classic)
 	SunStyle.RADIANT -> stringResource(R.string.sun_style_radiant)
 	SunStyle.STARBURST -> stringResource(R.string.sun_style_starburst)
+}
+
+@Composable
+internal fun formatTreeStyle(style: TreeStyle) = when (style) {
+	TreeStyle.EVERGREEN -> stringResource(R.string.tree_style_evergreen)
+	TreeStyle.BROADLEAF -> stringResource(R.string.tree_style_broadleaf)
 }
 
 @Composable

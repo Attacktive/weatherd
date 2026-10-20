@@ -209,6 +209,7 @@ class WeatherSceneProvider @Inject constructor(
 			birdAppearanceInterval = birdAppearanceInterval,
 			glassDropletsEnabled = glassDropletsEnabled,
 			treesEnabled = treesEnabled,
+			treeStyle = treeStyle,
 			labelVerticalPosition = labelVerticalPosition,
 			wallpaperDimmingStrength = wallpaperDimmingStrength,
 			statusBarShadeStrength = statusBarShadeStrength
@@ -465,6 +466,7 @@ class WeatherSceneProvider @Inject constructor(
 			birdAppearanceInterval = birdAppearanceInterval,
 			glassDropletsEnabled = glassDropletsEnabled,
 			treesEnabled = treesEnabled,
+			treeStyle = treeStyle,
 			labelVerticalPosition = labelVerticalPosition,
 			wallpaperDimmingStrength = wallpaperDimmingStrength,
 			statusBarShadeStrength = statusBarShadeStrength
@@ -705,6 +707,7 @@ class WeatherSceneProvider @Inject constructor(
 			birdAppearanceInterval = birdAppearanceInterval,
 			glassDropletsEnabled = glassDropletsEnabled,
 			treesEnabled = treesEnabled,
+			treeStyle = treeStyle,
 			labelVerticalPosition = labelVerticalPosition,
 			wallpaperDimmingStrength = wallpaperDimmingStrength,
 			statusBarShadeStrength = statusBarShadeStrength,

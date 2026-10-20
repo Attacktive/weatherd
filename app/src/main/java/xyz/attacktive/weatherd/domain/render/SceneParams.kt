@@ -21,6 +21,7 @@ import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.SunbeamMode
+import xyz.attacktive.weatherd.domain.model.TreeStyle
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
 import xyz.attacktive.weatherd.domain.weather.dayPhaseFor
 import xyz.attacktive.weatherd.domain.weather.dayPhaseProgressFor
@@ -32,7 +33,7 @@ import xyz.attacktive.weatherd.domain.model.normalizeReadabilityStrength
  * Everything the renderer needs, as orthogonal features rather than a scene taxonomy: lighting phase, continuous cloud cover, fog, what precipitates (if anything), lightning, wind, and the day-quantized synodic moon phase (0 = new, 0.5 = full — the default keeps previews and fallbacks on a full moon).
  * [celestialProgress] eases the sun/moon along its arc through the current phase; the midpoint default reproduces the old fixed heights.
  * [backdropScene] is the user's horizon scenery choice — a setting, not weather, so it defaults to the bare sky.
- * [treesEnabled] adds optional foreground evergreens independently of the selected backdrop.
+ * [treesEnabled] adds optional foreground trees independently of the selected backdrop; [treeStyle] chooses their morphology.
  * [photoRevision] counts changes to the user's stored photos, which are otherwise invisible to these params: picking a new photo for a bucket that already had one leaves every other field identical, and the wallpaper's backdrop cache would go on drawing the old one until the next phase flip.
  * It is an opaque number and never a file name or a bitmap — the params stay JVM-pure, and the renderer resolves the photo itself.
  * [overlayLabels] is the optional text overlay, already formatted for drawing; null keeps the wallpaper text-free.
@@ -94,6 +95,7 @@ data class SceneParams(
 	val distantAircraftEnabled: Boolean = true,
 	val glassDropletsEnabled: Boolean = false,
 	val treesEnabled: Boolean = false,
+	val treeStyle: TreeStyle = TreeStyle.EVERGREEN,
 	val labelVerticalPosition: Float = DEFAULT_LABEL_VERTICAL_POSITION,
 	val wallpaperDimmingStrength: Float = 0f,
 	val statusBarShadeStrength: Float = 0f,
@@ -138,6 +140,7 @@ fun backdropSignature(params: SceneParams, backgroundPhotoAvailable: Boolean = f
 		distantAircraftEnabled = true,
 		glassDropletsEnabled = false,
 		treesEnabled = false,
+		treeStyle = TreeStyle.EVERGREEN,
 		wallpaperDimmingStrength = 0f,
 		statusBarShadeStrength = 0f,
 		birdFlockSize = BirdFlockSize.SMALL,
@@ -229,6 +232,7 @@ fun sceneParamsFor(
 	distantAircraftEnabled: Boolean = true,
 	glassDropletsEnabled: Boolean = false,
 	treesEnabled: Boolean = false,
+	treeStyle: TreeStyle = TreeStyle.EVERGREEN,
 	labelVerticalPosition: Float = DEFAULT_LABEL_VERTICAL_POSITION,
 	wallpaperDimmingStrength: Float = 0f,
 	statusBarShadeStrength: Float = 0f,
@@ -298,6 +302,7 @@ fun sceneParamsFor(
 		distantAircraftEnabled = distantAircraftEnabled,
 		glassDropletsEnabled = glassDropletsEnabled,
 		treesEnabled = treesEnabled,
+		treeStyle = treeStyle,
 		labelVerticalPosition = labelVerticalPosition.coerceIn(LABEL_VERTICAL_POSITION_RANGE.start, LABEL_VERTICAL_POSITION_RANGE.endInclusive),
 		wallpaperDimmingStrength = normalizeReadabilityStrength(wallpaperDimmingStrength),
 		statusBarShadeStrength = normalizeReadabilityStrength(statusBarShadeStrength),

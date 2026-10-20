@@ -162,7 +162,7 @@ private fun ScenerySettings(viewModel: SettingsViewModel, settings: AppSettings,
 	}
 
 	Spacer(modifier = Modifier.height(24.dp))
-	TreesSection(settings = settings, onSave = onSave)
+	TreesSection(settings = settings, defaults = viewModel.defaults, onSave = onSave)
 }
 
 @Composable

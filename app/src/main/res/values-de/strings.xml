@@ -59,7 +59,10 @@
 	<string name="section_frame_rate">Bildwiederholrate der Animation</string>
 	<string name="section_backdrop">Kulisse im Hintergrund</string>
 	<string name="label_trees">Bäume</string>
-	<string name="subtitle_trees">Immergrüne Bäume im Vordergrund anzeigen</string>
+	<string name="subtitle_trees">Bäume im Vordergrund anzeigen</string>
+	<string name="section_tree_style">Baumform</string>
+	<string name="tree_style_evergreen">Immergrün</string>
+	<string name="tree_style_broadleaf">Laubbaum</string>
 	<string name="section_wallpaper_motion">Hintergrundbewegung</string>
 	<string name="label_wallpaper_scrolling">Startbildschirm-Scrollen</string>
 	<string name="subtitle_wallpaper_scrolling">Szene beim Wischen zwischen Startbildschirm-Seiten horizontal verschieben</string>

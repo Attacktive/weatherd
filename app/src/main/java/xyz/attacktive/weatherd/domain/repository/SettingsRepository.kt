@@ -37,6 +37,7 @@ import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.SunbeamMode
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
+import xyz.attacktive.weatherd.domain.model.TreeStyle
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.defaultAppSettings
 import xyz.attacktive.weatherd.domain.model.definition
@@ -59,6 +60,7 @@ sealed interface SettingsMutation {
 	data class PrecipitationIntensity(val value: Float): SettingsMutation
 	data class GlassDropletsEnabled(val enabled: Boolean): SettingsMutation
 	data class TreesEnabled(val enabled: Boolean): SettingsMutation
+	data class TreeStyle(val value: xyz.attacktive.weatherd.domain.model.TreeStyle): SettingsMutation
 	data class WindIntensity(val value: Float): SettingsMutation
 	data class CloudIntensity(val value: Float): SettingsMutation
 	data class CloudSize(val value: Float): SettingsMutation
@@ -108,6 +110,7 @@ internal fun settingsMutationsBetween(previous: AppSettings, updated: AppSetting
 		addIfChanged(previous.precipitationIntensityScale, updated.precipitationIntensityScale, SettingsMutation::PrecipitationIntensity)
 		addIfChanged(previous.glassDropletsEnabled, updated.glassDropletsEnabled, SettingsMutation::GlassDropletsEnabled)
 		addIfChanged(previous.treesEnabled, updated.treesEnabled, SettingsMutation::TreesEnabled)
+		addIfChanged(previous.treeStyle, updated.treeStyle, SettingsMutation::TreeStyle)
 		addIfChanged(previous.windIntensityScale, updated.windIntensityScale, SettingsMutation::WindIntensity)
 		addIfChanged(previous.cloudIntensityScale, updated.cloudIntensityScale, SettingsMutation::CloudIntensity)
 		addIfChanged(previous.cloudSizeScale, updated.cloudSizeScale, SettingsMutation::CloudSize)
@@ -191,6 +194,7 @@ private fun SettingsMutation.appliedTo(settings: AppSettings) = when (this) {
 	is SettingsMutation.PrecipitationIntensity -> settings.copy(precipitationIntensityScale = value)
 	is SettingsMutation.GlassDropletsEnabled -> settings.copy(glassDropletsEnabled = enabled)
 	is SettingsMutation.TreesEnabled -> settings.copy(treesEnabled = enabled)
+	is SettingsMutation.TreeStyle -> settings.copy(treeStyle = value)
 	is SettingsMutation.WindIntensity -> settings.copy(windIntensityScale = value)
 	is SettingsMutation.CloudIntensity -> settings.copy(cloudIntensityScale = value)
 	is SettingsMutation.CloudSize -> settings.copy(cloudSizeScale = value)
@@ -245,6 +249,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		val PRECIPITATION_INTENSITY_SCALE = floatPreferencesKey("precipitation_intensity_scale")
 		val GLASS_DROPLETS_ENABLED = booleanPreferencesKey("glass_droplets_enabled")
 		val TREES_ENABLED = booleanPreferencesKey("trees_enabled")
+		val TREE_STYLE = stringPreferencesKey("tree_style")
 		val WIND_INTENSITY_SCALE = floatPreferencesKey("wind_intensity_scale")
 		val CLOUD_INTENSITY_SCALE = floatPreferencesKey("cloud_intensity_scale")
 		val CLOUD_SIZE_SCALE = floatPreferencesKey("cloud_size_scale")
@@ -295,6 +300,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			precipitationIntensityScale = preferences[Keys.PRECIPITATION_INTENSITY_SCALE] ?: defaults.precipitationIntensityScale,
 			glassDropletsEnabled = preferences[Keys.GLASS_DROPLETS_ENABLED] ?: defaults.glassDropletsEnabled,
 			treesEnabled = preferences[Keys.TREES_ENABLED] ?: defaults.treesEnabled,
+			treeStyle = enumOrDefault(preferences[Keys.TREE_STYLE], TreeStyle.entries, defaults.treeStyle),
 			windIntensityScale = preferences[Keys.WIND_INTENSITY_SCALE] ?: defaults.windIntensityScale,
 			cloudIntensityScale = preferences[Keys.CLOUD_INTENSITY_SCALE] ?: defaults.cloudIntensityScale,
 			cloudSizeScale = (preferences[Keys.CLOUD_SIZE_SCALE] ?: defaults.cloudSizeScale).coerceIn(CLOUD_SIZE_SCALE_RANGE.start, CLOUD_SIZE_SCALE_RANGE.endInclusive),
@@ -365,6 +371,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			preferences[Keys.PRECIPITATION_INTENSITY_SCALE] = settings.precipitationIntensityScale
 			preferences[Keys.GLASS_DROPLETS_ENABLED] = settings.glassDropletsEnabled
 			preferences[Keys.TREES_ENABLED] = settings.treesEnabled
+			preferences[Keys.TREE_STYLE] = settings.treeStyle.name
 			preferences[Keys.WIND_INTENSITY_SCALE] = settings.windIntensityScale
 			preferences[Keys.CLOUD_INTENSITY_SCALE] = settings.cloudIntensityScale
 			preferences[Keys.CLOUD_SIZE_SCALE] = settings.cloudSizeScale.coerceIn(CLOUD_SIZE_SCALE_RANGE.start, CLOUD_SIZE_SCALE_RANGE.endInclusive)
@@ -424,6 +431,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			is SettingsMutation.PrecipitationIntensity -> this[Keys.PRECIPITATION_INTENSITY_SCALE] = mutation.value
 			is SettingsMutation.GlassDropletsEnabled -> this[Keys.GLASS_DROPLETS_ENABLED] = mutation.enabled
 			is SettingsMutation.TreesEnabled -> this[Keys.TREES_ENABLED] = mutation.enabled
+			is SettingsMutation.TreeStyle -> this[Keys.TREE_STYLE] = mutation.value.name
 			is SettingsMutation.WindIntensity -> this[Keys.WIND_INTENSITY_SCALE] = mutation.value
 			is SettingsMutation.CloudIntensity -> this[Keys.CLOUD_INTENSITY_SCALE] = mutation.value
 			is SettingsMutation.CloudSize -> this[Keys.CLOUD_SIZE_SCALE] = mutation.value.coerceIn(CLOUD_SIZE_SCALE_RANGE.start, CLOUD_SIZE_SCALE_RANGE.endInclusive)
@@ -468,6 +476,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		this[Keys.PRECIPITATION_INTENSITY_SCALE] = snapshot.precipitationIntensityScale
 		this[Keys.GLASS_DROPLETS_ENABLED] = snapshot.glassDropletsEnabled
 		this[Keys.TREES_ENABLED] = snapshot.treesEnabled
+		this[Keys.TREE_STYLE] = snapshot.treeStyle.name
 		this[Keys.WIND_INTENSITY_SCALE] = snapshot.windIntensityScale
 		this[Keys.CLOUD_INTENSITY_SCALE] = snapshot.cloudIntensityScale
 		this[Keys.CLOUD_SIZE_SCALE] = snapshot.cloudSizeScale.coerceIn(CLOUD_SIZE_SCALE_RANGE.start, CLOUD_SIZE_SCALE_RANGE.endInclusive)

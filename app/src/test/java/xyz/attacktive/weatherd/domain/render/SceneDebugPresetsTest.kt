@@ -11,6 +11,7 @@ import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.SunbeamMode
+import xyz.attacktive.weatherd.domain.model.TreeStyle
 
 class SceneDebugPresetsTest {
 	@Test
@@ -97,15 +98,17 @@ class SceneDebugPresetsTest {
 	}
 
 	@Test
-	fun `simulated weather preserves the opt-in foreground trees preference across every preset`() {
+	fun `tree morphology and visibility leave simulated weather and backdrop caching unchanged`() {
 		for (preset in SCENE_PRESETS) {
-			val enabled = debugSceneParams(preset, DayPhase.DAY, treesEnabled = true)
-			val disabled = debugSceneParams(preset, DayPhase.DAY, treesEnabled = false)
+			val evergreen = debugSceneParams(preset, DayPhase.DAY, treesEnabled = true)
+			val broadleaf = debugSceneParams(preset, DayPhase.DAY, treesEnabled = true, treeStyle = TreeStyle.BROADLEAF)
+			val disabled = debugSceneParams(preset, DayPhase.DAY, treesEnabled = false, treeStyle = TreeStyle.BROADLEAF)
 
-			assertTrue(enabled.treesEnabled)
-			assertFalse(disabled.treesEnabled)
-			assertEquals(enabled.copy(treesEnabled = false), disabled)
-			assertEquals(backdropSignature(enabled), backdropSignature(disabled))
+			assertEquals(TreeStyle.BROADLEAF, broadleaf.treeStyle)
+			assertEquals(evergreen.copy(treeStyle = TreeStyle.BROADLEAF), broadleaf)
+			assertEquals(broadleaf.copy(treesEnabled = false), disabled)
+			assertEquals(backdropSignature(evergreen), backdropSignature(broadleaf))
+			assertEquals(backdropSignature(broadleaf), backdropSignature(disabled))
 		}
 	}
 

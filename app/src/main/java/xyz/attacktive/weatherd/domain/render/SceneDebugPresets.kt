@@ -20,6 +20,7 @@ import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.SunbeamMode
+import xyz.attacktive.weatherd.domain.model.TreeStyle
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_DRIZZLE
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_HEAVY
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_STEADY
@@ -100,6 +101,7 @@ fun debugSceneParams(
 	distantAircraftEnabled: Boolean = true,
 	glassDropletsEnabled: Boolean = false,
 	treesEnabled: Boolean = false,
+	treeStyle: TreeStyle = TreeStyle.EVERGREEN,
 	labelVerticalPosition: Float = DEFAULT_LABEL_VERTICAL_POSITION,
 	wallpaperDimmingStrength: Float = 0f,
 	statusBarShadeStrength: Float = 0f,
@@ -139,6 +141,7 @@ fun debugSceneParams(
 	birdAppearanceInterval = birdAppearanceInterval,
 	glassDropletsEnabled = glassDropletsEnabled,
 	treesEnabled = treesEnabled,
+	treeStyle = treeStyle,
 	labelVerticalPosition = labelVerticalPosition.coerceIn(LABEL_VERTICAL_POSITION_RANGE.start, LABEL_VERTICAL_POSITION_RANGE.endInclusive),
 	wallpaperDimmingStrength = normalizeReadabilityStrength(wallpaperDimmingStrength),
 	statusBarShadeStrength = normalizeReadabilityStrength(statusBarShadeStrength),

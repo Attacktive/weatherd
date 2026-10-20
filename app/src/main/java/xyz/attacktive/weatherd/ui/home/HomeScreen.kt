@@ -84,9 +84,9 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	val motionSensor = viewModel.lensFlareMotionSensor
 	val motionOwner = remember { Any() }
 	var timeSeconds by remember { mutableFloatStateOf(0f) }
-	var treeTexturesReady by remember(renderer) { mutableStateOf(renderer.treeTexturesReady) }
 	val sceneState by viewModel.sceneState.collectAsStateWithLifecycle()
 	val settings = sceneState.settings
+	var treeTexturesReady by remember(renderer, settings.treeStyle) { mutableStateOf(renderer.isTreeTextureReady(settings.treeStyle)) }
 	var sunTextureReady by remember(renderer, settings.sunStyle) { mutableStateOf(renderer.isSunTextureReady(settings.sunStyle)) }
 	val debugEnabled = sceneState.simulatorActive
 	val debugSceneIndex = settings.sceneSimulatorPresetIndex.coerceIn(0, SCENE_PRESETS.lastIndex)
@@ -159,10 +159,10 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 		}
 	}
 
-	LaunchedEffect(renderer, params.treesEnabled) {
+	LaunchedEffect(renderer, params.treesEnabled, params.treeStyle) {
 		if (params.treesEnabled) {
 			withContext(Dispatchers.Default) {
-				renderer.prewarmTreeTextures()
+				renderer.prewarmTreeTextures(params.treeStyle)
 			}
 
 			treeTexturesReady = true

@@ -28,6 +28,7 @@ import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.SunbeamMode
+import xyz.attacktive.weatherd.domain.model.TreeStyle
 import xyz.attacktive.weatherd.domain.model.normalizeReadabilityStrength
 import xyz.attacktive.weatherd.domain.model.normalizeMoonSizeScale
 
@@ -206,6 +207,7 @@ private data class StoredSnapshot(
 	val birdFlockSize: String = BirdFlockSize.SMALL.name,
 	val birdAppearanceInterval: String = BirdAppearanceInterval.NATURAL.name,
 	val treesEnabled: Boolean = false,
+	val treeStyle: String = TreeStyle.EVERGREEN.name,
 	val labelVerticalPosition: Float = DEFAULT_LABEL_VERTICAL_POSITION,
 	val wallpaperDimmingStrength: Float = 0f,
 	val statusBarShadeStrength: Float = 0f
@@ -238,6 +240,7 @@ private data class StoredSnapshot(
 		birdFlockSize = enumValue(birdFlockSize, BirdFlockSize.entries),
 		birdAppearanceInterval = enumValue(birdAppearanceInterval, BirdAppearanceInterval.entries),
 		treesEnabled = treesEnabled,
+		treeStyle = enumValue(treeStyle, TreeStyle.entries),
 		labelVerticalPosition = labelVerticalPosition,
 		wallpaperDimmingStrength = normalizeReadabilityStrength(wallpaperDimmingStrength),
 		statusBarShadeStrength = normalizeReadabilityStrength(statusBarShadeStrength)
@@ -278,6 +281,7 @@ private fun AppearancePresetSnapshot.toStored() = StoredSnapshot(
 	birdFlockSize = birdFlockSize.name,
 	birdAppearanceInterval = birdAppearanceInterval.name,
 	treesEnabled = treesEnabled,
+	treeStyle = treeStyle.name,
 	labelVerticalPosition = labelVerticalPosition,
 	wallpaperDimmingStrength = normalizeReadabilityStrength(wallpaperDimmingStrength),
 	statusBarShadeStrength = normalizeReadabilityStrength(statusBarShadeStrength)
@@ -288,8 +292,8 @@ private fun <T : Enum<T>> enumValue(name: String, values: Iterable<T>) = values.
 internal fun appearancePresetNameKey(name: String) = Normalizer.normalize(name.trim().lowercase(Locale.ROOT), Normalizer.Form.NFC)
 
 /** Bump whenever persisted preset snapshot fields are added, removed, renamed, or change meaning. */
-internal const val APPEARANCE_PRESET_SCHEMA_VERSION = 12
+internal const val APPEARANCE_PRESET_SCHEMA_VERSION = 13
 internal const val APPEARANCE_PRESET_NAME_MAX_LENGTH = 40
 internal const val APPEARANCE_PRESETS_KEY_NAME = "appearance_presets_json"
-private val SUPPORTED_APPEARANCE_PRESET_SCHEMA_VERSIONS = setOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, APPEARANCE_PRESET_SCHEMA_VERSION)
+private val SUPPORTED_APPEARANCE_PRESET_SCHEMA_VERSIONS = setOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, APPEARANCE_PRESET_SCHEMA_VERSION)
 private val PRESETS_KEY = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)

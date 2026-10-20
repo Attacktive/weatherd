@@ -34,6 +34,7 @@ import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.SunbeamMode
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
+import xyz.attacktive.weatherd.domain.model.TreeStyle
 import xyz.attacktive.weatherd.domain.model.CloudCover
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
@@ -150,6 +151,38 @@ class WeatherSceneProviderTest {
 		assertEquals(BirdFlockSize.MEDIUM, simulated.birdFlockSize)
 		assertEquals(BirdAppearanceInterval.MINUTE_1, simulated.birdAppearanceInterval)
 		assertTrue(showsBirds(simulated))
+		coVerify(exactly = 1) { weatherRepository.current(any(), any()) }
+	}
+
+	@Test
+	fun `tree shape changes preserve captured scenes and cached weather across live simulation and fallback`() = runTest {
+		persistedSettings.value = AppSettings(useDeviceLocation = true, treesEnabled = true, treeStyle = TreeStyle.BROADLEAF)
+		assertEquals(TreeStyle.BROADLEAF, provider.paramsFor(1_000_000L).treeStyle)
+		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
+		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 63))
+		provider.refresh(1_000_000L)
+
+		val captured = provider.sceneState.value
+		val broadleaf = provider.paramsFor(1_000_030L, captured)
+		assertEquals(TreeStyle.BROADLEAF, broadleaf.treeStyle)
+		persistedSettings.value = persistedSettings.value.copy(treeStyle = TreeStyle.EVERGREEN)
+		val evergreen = provider.paramsFor(1_000_030L)
+		assertEquals(broadleaf.copy(treeStyle = TreeStyle.EVERGREEN), evergreen)
+		assertEquals(broadleaf, provider.paramsFor(1_000_030L, captured))
+		assertEquals(backdropSignature(broadleaf), backdropSignature(evergreen))
+
+		persistedSettings.value = persistedSettings.value.copy(
+			sceneSimulatorActive = true,
+			sceneSimulatorDayPhase = DayPhase.DAY,
+			treeStyle = TreeStyle.BROADLEAF
+		)
+
+		val simulated = provider.paramsFor(1_000_030L)
+		assertEquals(TreeStyle.BROADLEAF, simulated.treeStyle)
+		assertTrue(simulated.treesEnabled)
+		persistedSettings.value = persistedSettings.value.copy(treesEnabled = false)
+		val disabled = provider.paramsFor(1_000_030L)
+		assertEquals(simulated.copy(treesEnabled = false), disabled)
 		coVerify(exactly = 1) { weatherRepository.current(any(), any()) }
 	}
 

@@ -59,7 +59,10 @@
 	<string name="section_frame_rate">アニメーションのフレームレート</string>
 	<string name="section_backdrop">背景の風景</string>
 	<string name="label_trees">樹木</string>
-	<string name="subtitle_trees">前景に常緑樹を表示します</string>
+	<string name="subtitle_trees">前景に樹木を表示します</string>
+	<string name="section_tree_style">樹木の形状</string>
+	<string name="tree_style_evergreen">常緑樹</string>
+	<string name="tree_style_broadleaf">広葉樹</string>
 	<string name="section_wallpaper_motion">壁紙の動き</string>
 	<string name="label_wallpaper_scrolling">ホーム画面のスクロール連動</string>
 	<string name="subtitle_wallpaper_scrolling">ホーム画面のページを切り替えると背景を横方向に移動します</string>

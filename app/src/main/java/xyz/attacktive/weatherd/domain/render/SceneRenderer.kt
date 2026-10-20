@@ -42,6 +42,7 @@ import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.SunbeamMode
+import xyz.attacktive.weatherd.domain.model.TreeStyle
 import xyz.attacktive.weatherd.domain.model.drawsScenery
 import xyz.attacktive.weatherd.domain.model.normalizeMoonSizeScale
 import xyz.attacktive.weatherd.domain.render.SceneRenderer.Companion.DOT_CORE_STOP
@@ -216,13 +217,10 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		cirrusLayerDelegates.forEach { it.value }
 	}
 
-	val treeTexturesReady: Boolean
-		get() = foregroundTrees.texturesReady
+	fun isTreeTextureReady(style: TreeStyle) = foregroundTrees.isTextureReady(style)
 
-	/** Decodes the shared evergreen sources off the render thread only after the user opts in. */
-	fun prewarmTreeTextures() {
-		foregroundTrees.prewarm()
-	}
+	/** Decodes only the selected tree style off the render thread after the user opts in. */
+	fun prewarmTreeTextures(style: TreeStyle) = foregroundTrees.prewarm(style)
 
 	fun isMoonPhaseReady(moonPhase: Float) = moonLayer.isPhaseReady(moonPhase)
 

@@ -46,6 +46,7 @@ data class AppSettings(
 	val sceneSimulatorCelestialProgress: Float = 0.5f,
 	val glassDropletsEnabled: Boolean = false,
 	val treesEnabled: Boolean = false,
+	val treeStyle: TreeStyle = TreeStyle.EVERGREEN,
 	val labelVerticalPosition: Float = DEFAULT_LABEL_VERTICAL_POSITION,
 	val wallpaperDimmingStrength: Float = 0f,
 	val statusBarShadeStrength: Float = 0f

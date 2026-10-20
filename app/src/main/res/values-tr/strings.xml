@@ -59,7 +59,10 @@
 	<string name="section_frame_rate">Animasyon kare hızı</string>
 	<string name="section_backdrop">Arka plan manzarası</string>
 	<string name="label_trees">Ağaçlar</string>
-	<string name="subtitle_trees">Ön planda yaprak dökmeyen ağaçları göster</string>
+	<string name="subtitle_trees">Ön planda ağaçları göster</string>
+	<string name="section_tree_style">Ağaç şekli</string>
+	<string name="tree_style_evergreen">Yaprak dökmeyen</string>
+	<string name="tree_style_broadleaf">Geniş yapraklı</string>
 	<string name="section_wallpaper_motion">Duvar kâğıdı hareketi</string>
 	<string name="label_wallpaper_scrolling">Ana ekran kaydırma</string>
 	<string name="subtitle_wallpaper_scrolling">Ana ekran sayfaları arasında kaydırırken sahneyi yatay olarak hareket ettirin</string>

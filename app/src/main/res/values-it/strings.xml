@@ -59,7 +59,10 @@
 	<string name="section_frame_rate">Frequenza fotogrammi animazione</string>
 	<string name="section_backdrop">Panorama di sfondo</string>
 	<string name="label_trees">Alberi</string>
-	<string name="subtitle_trees">Mostra alberi sempreverdi in primo piano</string>
+	<string name="subtitle_trees">Mostra alberi in primo piano</string>
+	<string name="section_tree_style">Forma degli alberi</string>
+	<string name="tree_style_evergreen">Sempreverde</string>
+	<string name="tree_style_broadleaf">Latifoglia</string>
 	<string name="section_wallpaper_motion">Movimento dello sfondo</string>
 	<string name="label_wallpaper_scrolling">Scorrimento della schermata Home</string>
 	<string name="subtitle_wallpaper_scrolling">Sposta la scena orizzontalmente quando scorri tra le pagine della schermata Home</string>

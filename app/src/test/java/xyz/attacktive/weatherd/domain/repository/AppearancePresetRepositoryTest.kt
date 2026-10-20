@@ -26,6 +26,7 @@ import xyz.attacktive.weatherd.domain.model.BirdAppearanceInterval
 import xyz.attacktive.weatherd.domain.model.BirdFlockSize
 import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.SunbeamMode
+import xyz.attacktive.weatherd.domain.model.TreeStyle
 import xyz.attacktive.weatherd.domain.model.toAppearancePresetSnapshot
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -316,5 +317,64 @@ class AppearancePresetRepositoryTest {
 			AppearancePresetStorageState.Unreadable(AppearancePresetUnreadableReason.Malformed),
 			repository.state.first()
 		)
+	}
+
+	@Test
+	fun `version twelve presets missing tree style default to evergreen and retain trees enabled`() = runTest {
+		val store = dataStore("preset-settings-v12.preferences_pb")
+		val key = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)
+		val raw = """{"schemaVersion":12,"presets":[{"id":"legacy-12","name":"Legacy 12","snapshot":{"backdropScene":"NONE","showWeatherLabel":true,"showLocationLabel":true,"precipitationIntensityScale":1.0,"glassDropletsEnabled":true,"windIntensityScale":1.0,"cloudIntensityScale":1.0,"cloudSizeScale":1.0,"cloudCountScale":1.0,"cloudContrastScale":1.0,"skyBrightnessScale":1.0,"nightBrightnessScale":1.0,"skySaturationScale":1.0,"skyColorPreset":"NATURAL","sunVisible":true,"moonVisible":true,"sunSizeScale":1.0,"moonSizeScale":1.0,"sunColorPreset":"NATURAL","sunStyle":"CLASSIC","sunbeamMode":"THROUGH_CLOUDS","lensFlareEnabled":true,"lensFlareMotionEnabled":false,"distantAircraftEnabled":true,"birdFlockSize":"SMALL","birdAppearanceInterval":"NATURAL","treesEnabled":true,"labelVerticalPosition":0.09,"wallpaperDimmingStrength":0.0,"statusBarShadeStrength":0.0}}]}"""
+		store.edit { preferences ->
+			preferences[key] = raw
+		}
+
+		val repository = AppearancePresetRepository(store)
+		val snapshot = (repository.state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot
+		assertEquals(TreeStyle.EVERGREEN, snapshot.treeStyle)
+		assertTrue(snapshot.treesEnabled)
+
+		val rewritten = store.data.first()[key]!!
+		assertEquals(raw, rewritten)
+
+		assertTrue(repository.rename("legacy-12", "Migrated 12").isSuccess)
+		val updatedRaw = store.data.first()[key]!!
+		assertEquals(APPEARANCE_PRESET_SCHEMA_VERSION, Json.parseToJsonElement(updatedRaw).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+		val migrated = (AppearancePresetRepository(store).state.first() as AppearancePresetStorageState.Ready).presets.single()
+		assertEquals(TreeStyle.EVERGREEN, migrated.snapshot.treeStyle)
+		assertTrue(migrated.snapshot.treesEnabled)
+	}
+
+	@Test
+	fun `broadleaf tree style presets roundtrip through save and reload without losing style when trees disabled`() = runTest {
+		val store = dataStore("preset-settings-broadleaf-disabled.preferences_pb")
+		val repository = AppearancePresetRepository(store)
+		val snapshot = AppSettings(treesEnabled = false, treeStyle = TreeStyle.BROADLEAF).toAppearancePresetSnapshot()
+		assertTrue(repository.create("Disabled broadleaf", snapshot).isSuccess)
+
+		val reopened = AppearancePresetRepository(store)
+		val restored = (reopened.state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot
+		assertFalse(restored.treesEnabled)
+		assertEquals(TreeStyle.BROADLEAF, restored.treeStyle)
+
+		val raw = store.data.first()[stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)]!!
+		assertEquals(APPEARANCE_PRESET_SCHEMA_VERSION, Json.parseToJsonElement(raw).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+	}
+
+	@Test
+	fun `presets containing invalid tree style enum values make storage unreadable and mutations leave bytes untouched`() = runTest {
+		val dataStore = dataStore()
+		val key = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)
+		val raw = """{"schemaVersion":$APPEARANCE_PRESET_SCHEMA_VERSION,"presets":[{"id":"bad-tree-enum","name":"Bad Tree Enum","snapshot":{"backdropScene":"NONE","showWeatherLabel":true,"showLocationLabel":true,"precipitationIntensityScale":1.0,"glassDropletsEnabled":true,"windIntensityScale":1.0,"cloudIntensityScale":1.0,"cloudSizeScale":1.0,"cloudCountScale":1.0,"cloudContrastScale":1.0,"skyBrightnessScale":1.0,"nightBrightnessScale":1.0,"skySaturationScale":1.0,"skyColorPreset":"NATURAL","sunVisible":true,"moonVisible":true,"sunSizeScale":1.0,"moonSizeScale":1.0,"sunColorPreset":"NATURAL","sunStyle":"CLASSIC","sunbeamMode":"THROUGH_CLOUDS","lensFlareEnabled":true,"lensFlareMotionEnabled":false,"distantAircraftEnabled":true,"birdFlockSize":"SMALL","birdAppearanceInterval":"NATURAL","treesEnabled":false,"treeStyle":"BONSAI","labelVerticalPosition":0.09,"wallpaperDimmingStrength":0.0,"statusBarShadeStrength":0.0}}]}"""
+		dataStore.edit { preferences ->
+			preferences[key] = raw
+		}
+		val repository = AppearancePresetRepository(dataStore)
+
+		assertEquals(
+			AppearancePresetStorageState.Unreadable(AppearancePresetUnreadableReason.Malformed),
+			repository.state.first()
+		)
+		assertTrue(repository.create("Ignored", AppSettings().toAppearancePresetSnapshot()).isFailure)
+		assertEquals(raw, dataStore.data.first()[key])
 	}
 }

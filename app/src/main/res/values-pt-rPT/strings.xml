@@ -59,7 +59,10 @@
 	<string name="section_frame_rate">Taxa de fotogramas da animação</string>
 	<string name="section_backdrop">Cenário de fundo</string>
 	<string name="label_trees">Árvores</string>
-	<string name="subtitle_trees">Mostrar árvores perenes em primeiro plano</string>
+	<string name="subtitle_trees">Mostrar árvores em primeiro plano</string>
+	<string name="section_tree_style">Formato das árvores</string>
+	<string name="tree_style_evergreen">Perene</string>
+	<string name="tree_style_broadleaf">Folhosa</string>
 	<string name="section_wallpaper_motion">Movimento do papel de parede</string>
 	<string name="label_wallpaper_scrolling">Deslocamento do ecrã principal</string>
 	<string name="subtitle_wallpaper_scrolling">Desloque a cena horizontalmente ao alternar entre páginas do ecrã principal</string>
