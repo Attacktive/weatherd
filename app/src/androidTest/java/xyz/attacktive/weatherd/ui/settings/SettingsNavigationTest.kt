@@ -238,9 +238,9 @@ class SettingsNavigationTest {
 			val controller = WindowCompat.getInsetsController(activity.window, view)
 			val tappable = checkNotNull(ViewCompat.getRootWindowInsets(view)).getInsets(WindowInsetsCompat.Type.tappableElement())
 			val opaqueNavigation = tappable.left > 0 || tappable.right > 0 || tappable.bottom > 0
-			val edgeToEdge = Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM
-			val lightStatusBar = light && (!scenePreview || !edgeToEdge)
-			val lightNavigationBar = light && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1 && (!scenePreview || !edgeToEdge || opaqueNavigation)
+			val themedBars = !scenePreview || Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM
+			val lightStatusBar = light && themedBars
+			val lightNavigationBar = light && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1 && (themedBars || opaqueNavigation)
 			assertTrue("Status-bar icon contrast", controller.isAppearanceLightStatusBars == lightStatusBar)
 			assertTrue("Navigation-bar icon contrast", controller.isAppearanceLightNavigationBars == lightNavigationBar)
 		}
