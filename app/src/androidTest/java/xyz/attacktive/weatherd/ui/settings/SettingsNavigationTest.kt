@@ -1,6 +1,8 @@
 package xyz.attacktive.weatherd.ui.settings
 
 import android.Manifest
+import android.app.UiAutomation
+import android.content.res.Configuration
 import android.graphics.Rect
 import android.graphics.Color
 import android.os.Build
@@ -172,6 +174,7 @@ class SettingsNavigationTest {
 	fun systemAppearanceChangesKeepTheCategoryOpenAndSystemBarsReadable() {
 		val originalMode = shell("cmd uimode night").substringAfter("Night mode: ").trim()
 		check(originalMode in setOf("no", "yes", "auto", "custom_schedule", "custom_bedtime"))
+		val originalNightConfiguration = instrumentation.targetContext.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
 		openClouds()
 
 		try {
@@ -214,21 +217,69 @@ class SettingsNavigationTest {
 			}
 		} finally {
 			shell("cmd uimode night $originalMode")
+			waitUntil("restored system night configuration") {
+				var restored = false
+				scenario.onActivity {
+					restored = (it.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == originalNightConfiguration
+				}
+
+				restored
+			}
 		}
 	}
 
 	@Test
-	fun homeSettingsButtonAvoidsOpaqueSystemBars() {
+	fun homeControlsAvoidSystemBarsAndDisplayCutouts() {
 		clickDescription(R.string.content_description_back)
-		val button = waitForNode("Home Settings button") { it.contentDescription == text(R.string.content_description_settings) }
-		val buttonBounds = Rect().also { button.getBoundsInScreen(it) }
+		waitForNode("Home Settings button") { it.contentDescription == text(R.string.content_description_settings) }
+		val originalRotation = shell("wm user-rotation").trim()
+		var originalDisplayRotation = 0
+		scenario.onActivity { originalDisplayRotation = it.window.decorView.display.rotation }
+
+		try {
+			assertTrue(automation.setRotation(UiAutomation.ROTATION_FREEZE_270))
+			waitForDisplayRotation(UiAutomation.ROTATION_FREEZE_270)
+
+			scenario.onActivity {
+				it.window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
+			}
+
+			instrumentation.waitForIdleSync()
+			assertHomeControlsWithinSafeBounds()
+		} finally {
+			automation.setRotation(UiAutomation.ROTATION_UNFREEZE)
+			shell("wm user-rotation $originalRotation")
+			waitForDisplayRotation(originalDisplayRotation)
+		}
+	}
+
+	private fun waitForDisplayRotation(rotation: Int) = waitUntil("display rotation $rotation") {
+		var currentRotation = -1
+		scenario.onActivity { currentRotation = it.window.decorView.display.rotation }
+		currentRotation == rotation
+	}
+
+	private fun assertHomeControlsWithinSafeBounds() {
+		val settingsButton = waitForNode("Home Settings button") { it.contentDescription == text(R.string.content_description_settings) }
+		val wallpaperButton = waitForNode("Set as live wallpaper button") { matchesText(it, text(R.string.set_as_live_wallpaper)) }
+		val controlBounds = listOf(settingsButton, wallpaperButton).map { node ->
+			var target = node
+			while (!target.isClickable && target.parent != null) {
+				target = target.parent
+			}
+
+			Rect().also { target.getBoundsInScreen(it) }
+		}
+
 		scenario.onActivity { activity ->
 			val view = activity.window.decorView
-			val insets = checkNotNull(ViewCompat.getRootWindowInsets(view)).getInsets(WindowInsetsCompat.Type.tappableElement())
+			val insets = checkNotNull(ViewCompat.getRootWindowInsets(view)).getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
 			val location = IntArray(2)
 			view.getLocationOnScreen(location)
 			val safeBounds = Rect(location[0] + insets.left, location[1] + insets.top, location[0] + view.width - insets.right, location[1] + view.height - insets.bottom)
-			assertTrue("Settings must be visible and tappable outside opaque system bars: $buttonBounds within $safeBounds", safeBounds.contains(buttonBounds))
+			controlBounds.forEach { bounds ->
+				assertTrue("Home controls must stay outside system bars and cutouts: $bounds within $safeBounds", safeBounds.contains(bounds))
+			}
 		}
 	}
 

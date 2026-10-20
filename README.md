@@ -8,6 +8,7 @@ Uses device location or a manually searched city and mirrors the live scene in a
 
 The app interface follows Android's system light/dark appearance automatically, including Settings, menus, and dialogs; there is no separate app-theme preference.
 System-bar icons contrast with their backgrounds: icons over the edge-to-edge scene preview stay light, while opaque navigation bars follow system appearance.
+Preview controls avoid system bars and display cutouts, including landscape side cutouts and tall top insets, while the weather scene remains edge-to-edge.
 System appearance does not change the wallpaper's weather-driven lighting, simulator day phase, or saved appearance settings.
 
 High relative humidity can add a restrained atmospheric haze without changing the reported weather condition. The effect begins above 85% relative humidity and ramps smoothly to a capped strength at 100%, while provider-reported fog remains the full semantic fog state and takes precedence.
