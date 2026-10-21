@@ -13,6 +13,9 @@ jobs:
     steps:
       - name: 'Checkout'
         uses: 'actions/checkout@v7'
+      - name: 'Test provider evaluation tools'
+        run: |
+          PYTHONPATH=scripts python3 -m unittest discover -s scripts/provider_evaluation -p 'test_*.py'
       - name: 'Set up JDK'
         uses: 'actions/setup-java@v6'
         with:

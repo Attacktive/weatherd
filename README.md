@@ -125,10 +125,83 @@ Both strengths are saved with appearance presets; older presets without them app
 In **Settings → Weather → Compare weather providers**, testers can open a comparison, select the sky they actually see, and tap **Compare now** to query Open-Meteo Best Match, ItaliaMeteo ICON-2I, DWD ICON EU, and MET Norway at the same effective weather location.
 The comparison bypasses normal primary/fallback selection without changing either preference, skips providers outside their declared coverage, and reports each provider's returned forecast-valid time, weather condition, cloud layers, temperature, and precipitation.
 Precipitation totals are labeled with their source-specific accumulation windows: Open-Meteo's returned interval precedes its timestamp, while MET Norway's next-hour precipitation follows it. Missing interval metadata is shown as unknown rather than silently comparing incompatible periods.
-Comparison requests are made only on the explicit tap; dismissing the dialog cancels in-progress sampling.
-Results are not persisted, uploaded automatically, or included in the normal weather cache.
+In the normal app, comparison requests are made only on the explicit tap; dismissing the dialog cancels in-progress sampling.
+Normal app results are not persisted, uploaded automatically, or included in the normal weather cache.
 **Share report** opens Android's share chooser with a plain-text snapshot plus the tester's observed sky; the report contains no coordinates or place names.
 The coordinates necessarily go to each weather provider being queried, as disclosed by the feature. Consult the privacy policy before using this experimental tool.
+
+### Automated station evaluation
+
+The local developer harness uses the real Android comparison service and report formatter on a dedicated emulator, without changing release behavior or provider defaults.
+It sets a verified Italian station's exact published coordinates through Weatherd's existing manual-location settings (`MANUAL_STATION`), not a nearby city-center search result.
+Station IDs must contain four ICAO letters, such as `LIRF`; lowercase input is normalized before the fixed-host HTTPS observation requests.
+GPS, device-location permissions, and an onsite tester are not required; this experiment evaluates provider results, not Android location acquisition.
+The simulator is disabled and **Tester observed: UNSURE** is retained.
+
+Requires Python 3.10+, the Android SDK, and the debug app/test APKs.
+The configured SDK directory is trusted local developer configuration; the harness executes its allowlisted `adb` and emulator binaries without a host shell.
+
+```sh
+./gradlew :app:assembleDebug :app:assembleDebugAndroidTest
+python3 scripts/evaluate-providers.py clone --source Pixel
+python3 scripts/evaluate-providers.py boot --port 5556
+python3 scripts/evaluate-providers.py install --serial emulator-5556
+python3 scripts/evaluate-providers.py capture --serial emulator-5556 --station LIRF
+```
+
+The clone is named `Pixel_Weatherd_Provider_Evaluation` and boots headlessly.
+It preserves the source AVD's hardware/system-image configuration with fresh app data; it never copies live userdata, snapshots, accounts, or photos.
+Creation saves a pristine source config, generated config/registry, and a creation ledger under `captures/provider-evaluation/emulator/`.
+Existing AVD targets are refused rather than replaced, and every mutating device command requires an explicit emulator serial whose AVD name matches the evaluation clone; the original `Pixel` and physical devices are refused.
+Choose a free even port if `5556` is already occupied, and use its corresponding serial in subsequent commands.
+
+For scheduled collection at fixed UTC boundaries, defaulting to every 30 minutes:
+
+```sh
+python3 scripts/evaluate-providers.py collect --serial emulator-5556 --station LIRF --count 0
+```
+
+Keep the host and clone running; this foreground process stops with Ctrl+C and does not install a login service.
+`--count 1` runs one scheduled capture; `--interval-seconds` changes the cadence.
+Scheduled captures default to `ROUTINE`; one-off `capture` defaults to `DIAGNOSTIC`, which summaries exclude.
+Do not run multiple collectors against the same clone concurrently.
+
+Each unique run directory under `captures/provider-evaluation/runs/` preserves the unchanged `report.txt`, all provider statuses, `capture.json`, station metadata/source/retrieval time, instrumentation output, and observation/match revisions.
+Public station coordinates are stored separately from the privacy-preserving original report; nothing is uploaded automatically.
+Failed collection attempts retain their diagnostics rather than disappearing.
+Unresolved captures remain `PENDING` after observation fetch failures or missing time matches.
+The next scheduled tick retries them without replacing any original report.
+Automatic matching is bounded to 48 hours after capture or 96 total matching attempts, including the initial attempt.
+Exhausted unresolved runs receive an append-only `EXPIRED` revision.
+It retains the last pending reason and attempt count.
+Unresolved captures outside the observation API's 30-day recent-retention window expire immediately.
+Expired matches are not fetched or rewritten by later matching calls; the original evidence remains available.
+Explicit rematching of a previously matched capture remains available within the same bounds to pick up corrected observations.
+Optional rematches never discard a usable `MATCHED` revision or its accuracy scores when a bound is reached.
+The same applies when an observation fetch fails or no suitable observation is found.
+Attempts that retain a prior match are recorded separately in `rematch-*.json`.
+A bound produces `SKIPPED`; otherwise the attempted match status is retained.
+These attempts do not put the capture back in the automatic pending queue.
+Successful rematches can replace the scored revision.
+This includes corrected observations that change which measurements are eligible for scoring.
+Manual rematching and paired summaries are also available:
+
+```sh
+python3 scripts/evaluate-providers.py match captures/provider-evaluation/runs/<run-directory>
+python3 scripts/evaluate-providers.py summarize
+PYTHONPATH=scripts python3 -m unittest discover -s scripts/provider_evaluation -p 'test_*.py'
+```
+
+Observations come from the [NOAA Aviation Weather Center API](https://aviationweather.gov/data/api/); the harness retains raw METAR/SPECI records and applies a fixed inclusive ±15-minute tolerance with signed offsets.
+An exact distance tie prefers the earlier observation for both capture-time and forecast-valid-time matching, independently of API response order.
+Capture-time comparisons and provider forecast-valid-time diagnostics are separate.
+Accuracy summaries deduplicate routine station/observation pairs and use shared eligible paired denominators against ItaliaMeteo.
+Provider availability is conditional on obtained provider samples: successful provider samples divided by all samples for that provider in eligible routine captures, without observation deduplication.
+The separate routine collection success rate counts completed collections over all routine run attempts, including failures before any provider samples were obtained; incomplete collections are reported separately and do not count as successes.
+The emitted `scoring_rules` freeze the pilot cloud-category mapping; automated or ambiguous sky reports remain unscorable rather than becoming clear, and forecast trends are not treated as observations.
+Corrected reports require resolvable revision ordering; their cloud categories remain unscorable because `COR` can replace the automation flag, while eligible temperature observations remain usable.
+Temperature is evaluated separately; cloud heights are not low/mid/high coverage measurements, precipitation amounts are not scored, and these descriptive results do not establish a provider ranking.
+The instrumentation collector skips ordinary test suites unless explicitly opted in by the harness.
 
 ## Weather refresh timing
 
