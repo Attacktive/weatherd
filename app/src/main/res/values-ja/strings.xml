@@ -162,7 +162,7 @@
 	<string name="backdrop_countryside">田園</string>
 	<string name="backdrop_not_recommended">%1$s（非推奨）</string>
 	<string name="backdrop_photo">自分の写真</string>
-	<string name="backdrop_cloud_mountains">undefined</string>
+	<string name="backdrop_cloud_mountains">雲の山々</string>
 
 	<!-- Photo backgrounds -->
 	<string name="section_photo_backgrounds">背景写真</string>

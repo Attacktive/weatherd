@@ -162,7 +162,7 @@
 	<string name="backdrop_countryside">Landschaft</string>
 	<string name="backdrop_not_recommended">%1$s (Nicht empfohlen)</string>
 	<string name="backdrop_photo">Eigene Fotos</string>
-	<string name="backdrop_cloud_mountains">undefined</string>
+	<string name="backdrop_cloud_mountains">Wolkenberge</string>
 
 	<!-- Photo backgrounds -->
 	<string name="section_photo_backgrounds">Fotohintergründe</string>

@@ -162,7 +162,7 @@
 	<string name="backdrop_countryside">Kırsal</string>
 	<string name="backdrop_not_recommended">%1$s (Önerilmez)</string>
 	<string name="backdrop_photo">Fotoğraflarınız</string>
-	<string name="backdrop_cloud_mountains">undefined</string>
+	<string name="backdrop_cloud_mountains">Bulutlu dağlar</string>
 
 	<!-- Photo backgrounds -->
 	<string name="section_photo_backgrounds">Arka plan fotoğrafları</string>
