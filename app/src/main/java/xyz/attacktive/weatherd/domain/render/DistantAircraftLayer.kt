@@ -20,12 +20,12 @@ internal class DistantAircraftLayer {
 			return
 		}
 
-		if (frame.hasTrail) {
+		if (frame.hasTrail && params.dayPhase != DayPhase.NIGHT) {
 			drawTrail(canvas, minOf(width, height), params.dayPhase)
 		}
 
 		if (frame.planeOpacity > 0f) {
-			drawAircraft(canvas, params.dayPhase)
+			drawAircraft(canvas, params.dayPhase, timeSeconds - frame.passStartSeconds)
 		}
 	}
 
@@ -74,9 +74,14 @@ internal class DistantAircraftLayer {
 		canvas.drawPath(path, paint)
 	}
 
-	private fun drawAircraft(canvas: Canvas, dayPhase: DayPhase) {
+	private fun drawAircraft(canvas: Canvas, dayPhase: DayPhase, elapsedSeconds: Float) {
 		val length = frame.bodyLength * PLANE_VISUAL_SCALE
-		val alpha = PLANE_PEAK_ALPHA * frame.planeOpacity
+		val alpha = PLANE_PEAK_ALPHA * frame.planeOpacity * if (dayPhase == DayPhase.NIGHT) {
+			NIGHT_BODY_ALPHA_SCALE
+		} else {
+			1f
+		}
+
 		val horizontalScale = if (frame.directionX >= 0f) {
 			1f
 		} else {
@@ -95,17 +100,78 @@ internal class DistantAircraftLayer {
 		paint.color = withAlpha(aircraftBaseColor(dayPhase), alpha)
 		canvas.drawPath(path, paint)
 
-		buildAircraftShadow(length)
-		paint.color = withAlpha(aircraftShadowColor(dayPhase), alpha * AIRCRAFT_SHADOW_ALPHA_SCALE)
-		canvas.drawPath(path, paint)
+		if (dayPhase != DayPhase.NIGHT) {
+			buildAircraftShadow(length)
+			paint.color = withAlpha(aircraftShadowColor(dayPhase), alpha * AIRCRAFT_SHADOW_ALPHA_SCALE)
+			canvas.drawPath(path, paint)
 
-		buildAircraftHighlight(length)
-		paint.color = withAlpha(aircraftHighlightColor(dayPhase), alpha * AIRCRAFT_HIGHLIGHT_ALPHA_SCALE)
-		canvas.drawPath(path, paint)
+			buildAircraftHighlight(length)
+			paint.color = withAlpha(aircraftHighlightColor(dayPhase), alpha * AIRCRAFT_HIGHLIGHT_ALPHA_SCALE)
+			canvas.drawPath(path, paint)
 
-		drawAircraftDetails(canvas, length, dayPhase, alpha)
+			drawAircraftDetails(canvas, length, dayPhase, alpha)
+		}
+
+		drawAircraftLights(canvas, length, dayPhase, elapsedSeconds)
 		canvas.restoreToCount(saveCount)
 	}
+
+	private fun drawAircraftLights(canvas: Canvas, length: Float, dayPhase: DayPhase, elapsedSeconds: Float) {
+		val strength = when (dayPhase) {
+			DayPhase.DAY -> 0f
+			DayPhase.DAWN, DayPhase.DUSK -> 0.5f
+			DayPhase.NIGHT -> 1f
+		} * frame.planeOpacity
+
+		if (strength <= 0f) {
+			return
+		}
+
+		val radius = maxOf(0.75f, length * 0.035f)
+		val haloRadiusScale = if (dayPhase == DayPhase.NIGHT) {
+			2f
+		} else {
+			2.8f
+		}
+
+		// Mirroring X reverses the physical wing sides without swapping their screen heights.
+		val lowerWingColor = if (frame.directionX >= 0f) {
+			STARBOARD_LIGHT_COLOR
+		} else {
+			PORT_LIGHT_COLOR
+		}
+
+		val upperWingColor = if (frame.directionX >= 0f) {
+			PORT_LIGHT_COLOR
+		} else {
+			STARBOARD_LIGHT_COLOR
+		}
+
+		drawLight(canvas, -length * 0.22f, length * 0.15f, radius, lowerWingColor, strength, haloRadiusScale)
+		drawLight(canvas, -length * 0.18f, -length * 0.10f, radius, upperWingColor, strength * 0.7f, haloRadiusScale)
+		drawLight(canvas, -length * 0.5f, 0f, radius * 0.85f, Color.WHITE, strength, haloRadiusScale)
+
+		val beacon = flashStrength(elapsedSeconds, BEACON_PERIOD_SECONDS, BEACON_DURATION_SECONDS)
+		drawLight(canvas, 0f, -length * 0.025f, radius * 0.8f, PORT_LIGHT_COLOR, strength * beacon, haloRadiusScale)
+
+		val strobe = flashStrength(elapsedSeconds, STROBE_PERIOD_SECONDS, STROBE_DURATION_SECONDS)
+		drawLight(canvas, -length * 0.22f, length * 0.15f, radius * 1.2f, Color.WHITE, strength * strobe, haloRadiusScale)
+	}
+
+	private fun drawLight(canvas: Canvas, x: Float, y: Float, radius: Float, color: Int, strength: Float, haloRadiusScale: Float) {
+		if (strength <= 0f) {
+			return
+		}
+
+		paint.style = Paint.Style.FILL
+		paint.color = withAlpha(color, 24f * strength)
+		canvas.drawCircle(x, y, radius * haloRadiusScale, paint)
+		paint.color = withAlpha(color, 255f * strength)
+		canvas.drawCircle(x, y, radius, paint)
+	}
+
+	private fun flashStrength(elapsedSeconds: Float, periodSeconds: Float, durationSeconds: Float) =
+		((durationSeconds - elapsedSeconds % periodSeconds) / FLASH_FADE_SECONDS).coerceIn(0f, 1f)
 
 	private fun buildAircraftSilhouette(length: Float) {
 		path.reset()
@@ -191,10 +257,10 @@ internal class DistantAircraftLayer {
 		LOW_SUN_TRAIL_COLOR
 	}
 
-	private fun aircraftBaseColor(dayPhase: DayPhase) = if (dayPhase == DayPhase.DAY) {
-		DAY_AIRCRAFT_BASE_COLOR
-	} else {
-		LOW_SUN_AIRCRAFT_BASE_COLOR
+	private fun aircraftBaseColor(dayPhase: DayPhase) = when (dayPhase) {
+		DayPhase.DAY -> DAY_AIRCRAFT_BASE_COLOR
+		DayPhase.NIGHT -> NIGHT_AIRCRAFT_BASE_COLOR
+		DayPhase.DAWN, DayPhase.DUSK -> LOW_SUN_AIRCRAFT_BASE_COLOR
 	}
 
 	private fun aircraftShadowColor(dayPhase: DayPhase) = if (dayPhase == DayPhase.DAY) {
@@ -256,6 +322,15 @@ private const val AIRCRAFT_SHADOW_ALPHA_SCALE = 0.72f
 private const val AIRCRAFT_HIGHLIGHT_ALPHA_SCALE = 0.78f
 private const val AIRCRAFT_ACCENT_ALPHA_SCALE = 0.82f
 private const val AIRCRAFT_COCKPIT_ALPHA_SCALE = 0.90f
+private const val NIGHT_BODY_ALPHA_SCALE = 0.55f
+private const val BEACON_PERIOD_SECONDS = 1.4f
+private const val BEACON_DURATION_SECONDS = 0.4f
+private const val STROBE_PERIOD_SECONDS = 1.8f
+private const val STROBE_DURATION_SECONDS = 0.35f
+private const val FLASH_FADE_SECONDS = 0.1f
+private val NIGHT_AIRCRAFT_BASE_COLOR = Color.rgb(42, 51, 69)
+private val PORT_LIGHT_COLOR = Color.rgb(255, 55, 45)
+private val STARBOARD_LIGHT_COLOR = Color.rgb(45, 245, 105)
 private val DAY_TRAIL_COLOR = Color.rgb(232, 240, 250)
 private val LOW_SUN_TRAIL_COLOR = Color.rgb(245, 220, 193)
 private val DAY_AIRCRAFT_BASE_COLOR = Color.rgb(214, 224, 233)

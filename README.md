@@ -42,6 +42,11 @@ Starburst combines overlapping luminous lobes with faint uneven streaks, without
 Natural daylight uses a white light source; dawn, dusk, and explicit sun color choices retain their selected tint.
 No rainbow reflections are baked into Starburst: **Lens flare** controls the existing chromatic halo and optical reflections, and **Motion-responsive reflections** controls their motion independently of the sun artwork.
 Distant aircraft and their contrails cross in front of the solar disc in all three styles, while cloud layers can still obscure them in both the preview and live wallpaper.
+The existing **Settings → Appearance → Sky → Distant aircraft** toggle also enables fair-weather night flights.
+At night, a faint silhouette carries small red/green navigation lights, a white tail light, a red beacon, and a brief white strobe with compact halos around their bright cores; no contrail is drawn.
+Red stays on the aircraft's port side and green on starboard as its heading reverses; navigation sides follow the flight direction rather than fixed screen heights.
+Lights are subdued at dawn and dusk and absent in daylight, preserving the daytime aircraft appearance.
+Flight paths, timing, and weather restrictions are unchanged; clouds can obscure the body and its lights together.
 
 The Moon uses a realistic lunar surface derived from the [NASA SVS CGI Moon Kit](https://svs.gsfc.nasa.gov/4720/), credited to NASA's Scientific Visualization Studio.
 NASA SVS makes this imagery [public domain unless otherwise noted](https://svs.gsfc.nasa.gov/help/); the submitted image in [#283](https://github.com/Attacktive/weatherd/issues/283) is a visual reference, not a bundled asset.

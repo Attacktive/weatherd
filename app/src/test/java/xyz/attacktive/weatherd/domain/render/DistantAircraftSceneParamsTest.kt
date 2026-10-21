@@ -16,7 +16,7 @@ class DistantAircraftSceneParamsTest {
 		assertTrue(showsDistantAircraft(clear.copy(dayPhase = DayPhase.DAY)))
 		assertTrue(showsDistantAircraft(clear.copy(dayPhase = DayPhase.DAWN)))
 		assertTrue(showsDistantAircraft(clear.copy(dayPhase = DayPhase.DUSK)))
-		assertFalse(showsDistantAircraft(clear.copy(dayPhase = DayPhase.NIGHT)))
+		assertTrue(showsDistantAircraft(clear.copy(dayPhase = DayPhase.NIGHT)))
 		assertFalse(showsDistantAircraft(clear.copy(distantAircraftEnabled = false)))
 		assertFalse(showsDistantAircraft(clear.copy(fogDensity = 1f)))
 		assertFalse(showsDistantAircraft(clear.copy(thunder = true)))

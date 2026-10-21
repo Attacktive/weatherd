@@ -43,6 +43,103 @@ class DistantAircraftRenderingTest {
 	}
 
 	@Test
+	fun nightAircraftHasNavigationLightsWithoutALingeringContrail() {
+		val params = fairWeatherParams().copy(dayPhase = DayPhase.NIGHT)
+		val layer = DistantAircraftLayer()
+		val passStart = findPassStart()
+		val aircraft = renderAircraft(layer, params, passStart + 30f)
+		val trailOnly = renderAircraft(layer, params, passStart + 65f)
+		val disabled = renderAircraft(layer, params.copy(distantAircraftEnabled = false), passStart + 30f)
+
+		try {
+			val pixels = IntArray(WIDTH * HEIGHT)
+			aircraft.getPixels(pixels, 0, WIDTH, 0, 0, WIDTH, HEIGHT)
+
+			assertTrue("A night aircraft must carry a red navigation light", pixels.any { Color.alpha(it) > 100 && Color.red(it) > Color.green(it) * 2 })
+			assertTrue("A night aircraft must carry a green navigation light", pixels.any { Color.alpha(it) > 100 && Color.green(it) > Color.red(it) * 2 })
+			assertTrue("A night aircraft must carry a white tail light", pixels.any { Color.alpha(it) > 100 && Color.red(it) > 200 && Color.green(it) > 200 && Color.blue(it) > 200 })
+			assertEquals("Night flights must not leave a bright contrail", 0, nonTransparentPixelCount(trailOnly))
+			assertEquals("Disabling aircraft must also remove their lights", 0, nonTransparentPixelCount(disabled))
+		} finally {
+			aircraft.recycle()
+			trailOnly.recycle()
+			disabled.recycle()
+		}
+	}
+
+	@Test
+	fun navigationLightsFollowBothFlightDirectionsAndStrobesRemainVisibleAtFiveFps() {
+		val params = fairWeatherParams().copy(dayPhase = DayPhase.NIGHT)
+		val frame = DistantAircraftFrame()
+		val layer = DistantAircraftLayer()
+		val directions = mutableSetOf<Boolean>()
+
+		for (slot in 0 until 120) {
+			frame.sample(WIDTH.toFloat(), HEIGHT.toFloat(), slot * 180f + 90f)
+
+			val time = frame.passStartSeconds + 30f
+			frame.sample(WIDTH.toFloat(), HEIGHT.toFloat(), time)
+
+			if (!directions.add(frame.directionX > 0f)) {
+				continue
+			}
+
+			val aircraft = renderAircraft(layer, params, time)
+			try {
+				val pixels = IntArray(WIDTH * HEIGHT)
+				aircraft.getPixels(pixels, 0, WIDTH, 0, 0, WIDTH, HEIGHT)
+
+				val red = pixels.indices.filter { Color.alpha(pixels[it]) > 100 && Color.red(pixels[it]) > Color.green(pixels[it]) * 2 }
+				val green = pixels.indices.filter { Color.alpha(pixels[it]) > 100 && Color.green(pixels[it]) > Color.red(pixels[it]) * 2 }
+
+				val portOffsets = red.map { pixel ->
+					(pixel % WIDTH + 0.5f - frame.planeX) * frame.directionY - (pixel / WIDTH + 0.5f - frame.planeY) * frame.directionX
+				}
+
+				val starboardOffsets = green.map { pixel ->
+					(pixel % WIDTH + 0.5f - frame.planeX) * frame.directionY - (pixel / WIDTH + 0.5f - frame.planeY) * frame.directionX
+				}
+
+				assertTrue("Red navigation light must stay to port of the travel direction", portOffsets.isNotEmpty() && portOffsets.all { it > 0f })
+				assertTrue("Green navigation light must stay to starboard of the travel direction", starboardOffsets.isNotEmpty() && starboardOffsets.all { it < 0f })
+
+				for (pixel in red + green) {
+					assertTrue("Navigation lights must travel with the aircraft", abs(pixel % WIDTH - frame.planeX) < WIDTH * 0.05f && abs(pixel / WIDTH - frame.planeY) < HEIGHT * 0.02f)
+					assertTrue("Wing lights must mirror with the aircraft's heading", (pixel % WIDTH - frame.planeX) * frame.directionX < 0f)
+				}
+			} finally {
+				aircraft.recycle()
+			}
+
+			val whiteStrengths = (0..9).map { step ->
+				val bitmap = renderAircraft(layer, params, time + step * 0.2f)
+				try {
+					val pixels = IntArray(WIDTH * HEIGHT)
+
+					bitmap.getPixels(pixels, 0, WIDTH, 0, 0, WIDTH, HEIGHT)
+
+					pixels.sumOf { pixel ->
+						if (Color.red(pixel) > 200 && Color.green(pixel) > 200 && Color.blue(pixel) > 200) {
+							Color.alpha(pixel)
+						} else {
+							0
+						}
+					}
+				} finally {
+					bitmap.recycle()
+				}
+			}
+
+			assertTrue("A strobe must visibly brighten the steady tail light at five frames per second: $whiteStrengths", whiteStrengths.max() > whiteStrengths.min() * 1.5f)
+			if (directions.size == 2) {
+				return
+			}
+		}
+
+		error("Both aircraft headings must be exercised")
+	}
+
+	@Test
 	fun aircraftCrossesInFrontOfEverySunStyleInBothOrientations() {
 		val params = fairWeatherParams().copy(
 			celestialProgress = 0.15f,
@@ -56,8 +153,10 @@ class DistantAircraftRenderingTest {
 			val time = findSolarTransit(width, height)
 			val frame = DistantAircraftFrame()
 			frame.sample(width.toFloat(), height.toFloat(), time)
+
 			val x = frame.planeX.roundToInt()
 			val y = frame.planeY.roundToInt()
+
 			for (style in SunStyle.entries) {
 				renderer.prewarmSunTexture(style)
 				val styled = params.copy(sunStyle = style)
@@ -67,6 +166,7 @@ class DistantAircraftRenderingTest {
 				try {
 					val solarPixel = withoutAircraft.getPixel(x, y)
 					val transitPixel = withAircraft.getPixel(x, y)
+
 					assertTrue("The transit fixture must cross the bright $style solar disc", Color.red(solarPixel) > 230)
 					assertTrue("The aircraft must remain visible in front of the $style sun at ${width}x$height", Color.red(solarPixel) - Color.red(transitPixel) > 15)
 				} finally {
@@ -111,6 +211,7 @@ class DistantAircraftRenderingTest {
 					val cloudPixel = clouds.getPixel(x, y)
 					val occludedPixel = scene.getPixel(x, y)
 					DistantAircraftLayer().draw(Canvas(clouds), WIDTH.toFloat(), HEIGHT.toFloat(), params, time.toFloat())
+
 					val exposedPixel = clouds.getPixel(x, y)
 					val exposedContrast = colorDistance(cloudPixel, exposedPixel)
 					if (exposedContrast <= 20) {
@@ -146,10 +247,11 @@ class DistantAircraftRenderingTest {
 		val frame = DistantAircraftFrame()
 		for (step in 0 until 86_400) {
 			val time = step * 0.25f
-			if (frame.sample(width.toFloat(), height.toFloat(), time) &&
-				abs(frame.planeX - width * 0.72f) < 1f &&
-				abs(frame.planeY - height * 0.2141f) < 1f
-			) {
+
+			val hasAircraft = frame.sample(width.toFloat(), height.toFloat(), time)
+			val nearSunX = abs(frame.planeX - width * 0.72f) < 1f
+			val nearSunY = abs(frame.planeY - height * 0.2141f) < 1f
+			if (hasAircraft && nearSunX && nearSunY) {
 				return time
 			}
 		}

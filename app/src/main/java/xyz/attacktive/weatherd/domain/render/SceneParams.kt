@@ -166,9 +166,8 @@ internal fun effectiveOpaqueCloudiness(params: SceneParams) = params.cloudLayers
 	maxOf(scaledCloudiness(params, it.low), scaledCloudiness(params, it.mid))
 } ?: effectiveCloudiness(params)
 
-/** Distant aircraft are a fair-weather daylight detail; high cirrus and humidity haze do not classify the scene as grounded. */
+/** Distant aircraft are a fair-weather detail; high cirrus and humidity haze do not classify the scene as grounded. */
 internal fun showsDistantAircraft(params: SceneParams) = params.distantAircraftEnabled &&
-	params.dayPhase != DayPhase.NIGHT &&
 	params.precipitation == null &&
 	params.fogDensity <= 0f &&
 	!params.thunder &&
