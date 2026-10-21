@@ -95,6 +95,14 @@ class WeatherLiveWallpaperService: WallpaperService() {
 					frameRateCap = it.frameRateCap
 					animationIdleTimeout = it.animationIdleTimeout
 					wallpaperScrollingPreferenceEnabled = it.wallpaperScrollingEnabled
+					if (!renderer.isSceneryTextureReady(it.backdropScene)) {
+						withContext(Dispatchers.Default) {
+							renderer.prewarmSceneryTexture(it.backdropScene)
+						}
+
+						requestImmediateFrame()
+					}
+
 					if (it.treesEnabled && !renderer.isTreeTextureReady(it.treeStyle)) {
 						withContext(Dispatchers.Default) {
 							renderer.prewarmTreeTextures(it.treeStyle)

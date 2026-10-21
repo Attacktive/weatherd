@@ -75,17 +75,9 @@ import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.SunbeamMode
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.TreeStyle
+import xyz.attacktive.weatherd.domain.model.availableBackdropScenes
 import xyz.attacktive.weatherd.domain.model.drawsScenery
 import xyz.attacktive.weatherd.platform.lensFlareMotionSupported
-
-private val BACKDROP_SCENE_DISPLAY_ORDER = listOf(
-	BackdropScene.NONE,
-	BackdropScene.PHOTO,
-	BackdropScene.METROPOLIS,
-	BackdropScene.BEACH,
-	BackdropScene.MOUNTAINS,
-	BackdropScene.COUNTRYSIDE
-)
 
 @Composable
 internal fun WeatherEffectsSection(settings: AppSettings, defaults: AppSettings, onSave: (AppSettings) -> Unit) {
@@ -547,7 +539,7 @@ internal fun BackdropSection(settings: AppSettings, defaults: AppSettings, onSav
 		)
 
 		ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-			BACKDROP_SCENE_DISPLAY_ORDER.forEach { scene ->
+			availableBackdropScenes(settings.backdropScene).forEach { scene ->
 				DropdownMenuItem(
 					text = { Text(formatBackdrop(scene)) },
 					onClick = {
@@ -874,6 +866,7 @@ internal fun formatBackdrop(scene: BackdropScene, includeRecommendation: Boolean
 		BackdropScene.MOUNTAINS -> stringResource(R.string.backdrop_mountains)
 		BackdropScene.COUNTRYSIDE -> stringResource(R.string.backdrop_countryside)
 		BackdropScene.PHOTO -> stringResource(R.string.backdrop_photo)
+		BackdropScene.CLOUD_MOUNTAINS -> stringResource(R.string.backdrop_cloud_mountains)
 	}
 
 	return if (scene.drawsScenery && includeRecommendation) {

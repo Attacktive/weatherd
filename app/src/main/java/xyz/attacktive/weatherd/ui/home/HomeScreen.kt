@@ -91,6 +91,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	var timeSeconds by remember { mutableFloatStateOf(0f) }
 	val sceneState by viewModel.sceneState.collectAsStateWithLifecycle()
 	val settings = sceneState.settings
+	var sceneryTextureReady by remember(renderer, settings.backdropScene) { mutableStateOf(renderer.isSceneryTextureReady(settings.backdropScene)) }
 	var treeTexturesReady by remember(renderer, settings.treeStyle) { mutableStateOf(renderer.isTreeTextureReady(settings.treeStyle)) }
 	var sunTextureReady by remember(renderer, settings.sunStyle) { mutableStateOf(renderer.isSunTextureReady(settings.sunStyle)) }
 	val debugEnabled = sceneState.simulatorActive
@@ -161,6 +162,16 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	LaunchedEffect(renderer) {
 		withContext(Dispatchers.Default) {
 			renderer.prewarmCloudTextures()
+		}
+	}
+
+	LaunchedEffect(renderer, params.backdropScene) {
+		if (!renderer.isSceneryTextureReady(params.backdropScene)) {
+			withContext(Dispatchers.Default) {
+				renderer.prewarmSceneryTexture(params.backdropScene)
+			}
+
+			sceneryTextureReady = true
 		}
 	}
 
@@ -256,7 +267,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 			}
 		}
 
-		key(treeTexturesReady, sunTextureReady, moonPhaseReady) {
+		key(sceneryTextureReady, treeTexturesReady, sunTextureReady, moonPhaseReady) {
 			Canvas(
 				modifier = Modifier
 					.fillMaxSize()
