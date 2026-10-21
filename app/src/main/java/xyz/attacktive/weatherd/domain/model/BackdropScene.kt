@@ -7,7 +7,8 @@ enum class BackdropScene {
 	BEACH,
 	MOUNTAINS,
 	COUNTRYSIDE,
-	PHOTO;
+	PHOTO,
+	CLOUD_MOUNTAINS;
 
 	companion object {
 		/** The scene stored under [name], or [NONE] when the value is absent or unrecognized (e.g. read by an older build after a downgrade). */
@@ -16,11 +17,21 @@ enum class BackdropScene {
 }
 
 /**
- * Whether this scene has a silhouette to raise on the horizon.
- * False for the two scenes that leave the frame behind the weather to something else: [BackdropScene.NONE] to the bare sky, [BackdropScene.PHOTO] to the user's photo.
+ * Whether this scene uses one of the legacy procedural silhouette renderers.
+ * [BackdropScene.CLOUD_MOUNTAINS] has a separate bitmap layer, and [BackdropScene.NONE] and [BackdropScene.PHOTO] have no generated silhouette.
  */
 val BackdropScene.drawsScenery
 	get() = when (this) {
-		BackdropScene.NONE, BackdropScene.PHOTO -> false
+		BackdropScene.NONE, BackdropScene.PHOTO, BackdropScene.CLOUD_MOUNTAINS -> false
 		BackdropScene.METROPOLIS, BackdropScene.BEACH, BackdropScene.MOUNTAINS, BackdropScene.COUNTRYSIDE -> true
 	}
+
+/** Existing scenes remain selectable only while currently active, so older saved settings and appearance presets still work. */
+fun availableBackdropScenes(current: BackdropScene) = buildList {
+	add(BackdropScene.NONE)
+	add(BackdropScene.PHOTO)
+	add(BackdropScene.CLOUD_MOUNTAINS)
+	if (current.drawsScenery) {
+		add(current)
+	}
+}

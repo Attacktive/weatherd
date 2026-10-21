@@ -101,7 +101,7 @@ fun sceneryOutlinesFor(scene: BackdropScene, aspectRatio: Float): SceneryOutline
 	BackdropScene.BEACH -> beach(aspectRatio)
 	BackdropScene.MOUNTAINS -> mountains(aspectRatio)
 	BackdropScene.COUNTRYSIDE -> countryside(aspectRatio)
-	BackdropScene.PHOTO -> null
+	BackdropScene.PHOTO, BackdropScene.CLOUD_MOUNTAINS -> null
 }
 
 /** Hazy steel towers behind warm masonry blocks with real street gaps, fronted by a city park with a few tree crowns. */

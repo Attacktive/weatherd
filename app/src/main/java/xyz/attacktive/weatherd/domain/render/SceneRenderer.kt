@@ -63,6 +63,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 	private val blitPaint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
 	private val blitDest = RectF()
 	private val lightningBolt by lazy(LazyThreadSafetyMode.NONE) { LightningBoltLayer() }
+	private val cloudMountains = CloudMountainLayer(resources)
 	private val foregroundTrees = ForegroundTreeLayer(resources)
 	private val distantAircraft = DistantAircraftLayer()
 	private val radiantSun = RadiantSunLayer(resources)
@@ -217,6 +218,15 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		cirrusLayerDelegates.forEach { it.value }
 	}
 
+	fun isSceneryTextureReady(scene: BackdropScene) = scene != BackdropScene.CLOUD_MOUNTAINS || cloudMountains.textureReady
+
+	/** Decodes the mountain artwork only when selected, outside the rendering callback. */
+	fun prewarmSceneryTexture(scene: BackdropScene) {
+		if (scene == BackdropScene.CLOUD_MOUNTAINS) {
+			cloudMountains.prewarm()
+		}
+	}
+
 	fun isTreeTextureReady(style: TreeStyle) = foregroundTrees.isTextureReady(style)
 
 	/** Decodes only the selected tree style off the render thread after the user opts in. */
@@ -332,6 +342,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 			drawScenery(canvas, w, h, params, timeSeconds)
 		}
 
+		cloudMountains.draw(canvas, w, h, params)
 		foregroundTrees.draw(canvas, w, h, params)
 
 		if (fogDensity > 0f) {
@@ -573,8 +584,8 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		sceneryFarCrestY = minOf(planeCrest(outlines, SceneryPlane.FAR), glyphCrest) * height
 		sceneryNearCrestY = planeCrest(outlines, SceneryPlane.NEAR) * height
 		sceneryReflectionY = outlines.reflectionY?.times(height) ?: -1f
-		sceneryHasWindows = outlines.windows.isNotEmpty()
 		sceneryWindowXy = packPoints(outlines.windows, width, height)
+		sceneryHasWindows = outlines.windows.isNotEmpty()
 		sceneryGulls = outlines.gulls
 		sceneryMarine = outlines.marine
 		sceneryBeaconXy = packPoints(outlines.beacons, width, height)
