@@ -186,6 +186,7 @@
 	<string name="backdrop_countryside">Countryside</string>
 	<string name="backdrop_not_recommended">%1$s (Not recommended)</string>
 	<string name="backdrop_photo">Your photos</string>
+	<string name="backdrop_cloud_mountains">undefined</string>
 
 	<!-- Photo backgrounds -->
 	<string name="section_photo_backgrounds">Photo backgrounds</string>

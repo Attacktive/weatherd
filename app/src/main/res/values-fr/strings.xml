@@ -162,6 +162,7 @@
 	<string name="backdrop_countryside">Campagne</string>
 	<string name="backdrop_not_recommended">%1$s (À éviter)</string>
 	<string name="backdrop_photo">Vos photos</string>
+	<string name="backdrop_cloud_mountains">undefined</string>
 
 	<!-- Photo backgrounds -->
 	<string name="section_photo_backgrounds">Photos en arrière-plan</string>

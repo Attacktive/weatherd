@@ -162,6 +162,7 @@
 	<string name="backdrop_countryside">시골</string>
 	<string name="backdrop_not_recommended">%1$s (권장하지 않음)</string>
 	<string name="backdrop_photo">내 사진</string>
+	<string name="backdrop_cloud_mountains">undefined</string>
 
 	<!-- Photo backgrounds -->
 	<string name="section_photo_backgrounds">배경 사진</string>

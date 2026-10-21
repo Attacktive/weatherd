@@ -162,6 +162,7 @@
 	<string name="backdrop_countryside">乡村</string>
 	<string name="backdrop_not_recommended">%1$s（不推荐）</string>
 	<string name="backdrop_photo">我的照片</string>
+	<string name="backdrop_cloud_mountains">undefined</string>
 
 	<!-- Photo backgrounds -->
 	<string name="section_photo_backgrounds">照片背景</string>
