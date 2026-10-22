@@ -1,12 +1,9 @@
 package xyz.attacktive.weatherd.domain.render
 
-import kotlin.math.roundToInt
 import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.LightingColorFilter
 import android.graphics.Paint
 import android.graphics.RectF
 import xyz.attacktive.weatherd.R
@@ -19,8 +16,7 @@ internal class ForegroundTreeLayer(private val resources: Resources) {
 	private var cachedWidth = 0f
 	private var cachedHeight = 0f
 	private var cachedStyle: TreeStyle? = null
-	private var previousParams: SceneParams? = null
-	private var previousTint = 0
+	private val lighting = SceneryLighting(SceneryPlane.NEAR)
 
 	fun isTextureReady(style: TreeStyle) = spritesFor(style) != null
 
@@ -75,15 +71,7 @@ internal class ForegroundTreeLayer(private val resources: Resources) {
 			cachedStyle = params.treeStyle
 		}
 
-		if (params !== previousParams) {
-			val tint = treeMultiplyTint(params)
-			if (tint != previousTint) {
-				paint.colorFilter = LightingColorFilter(tint, 0)
-				previousTint = tint
-			}
-
-			previousParams = params
-		}
+		lighting.applyTo(paint, params)
 
 		for (index in placements.indices) {
 			val placement = placements[index]
@@ -142,22 +130,3 @@ private val BROADLEAF_PLACEMENTS = arrayOf(
 	TreePlacement(sprite = 0, center = 0.25f, height = 0.43f, bottom = 1.02f, maxWidth = 0.58f, minLeft = 0.12f),
 	TreePlacement(sprite = 1, center = 0.86f, height = 0.30f, bottom = 1.02f, maxWidth = 0.22f)
 )
-
-/** Reuses the continuous phase tint; cloudy/storm light dims foliage without making the source alpha translucent. */
-private fun treeMultiplyTint(params: SceneParams): Int {
-	val phaseTint = cumulusTint(params.dayPhase, params.celestialProgress)
-	val warmth = twilightWarmthStrength(params.dayPhase, params.celestialProgress) * 0.28f
-	val storm = if (params.thunder) {
-		0.20f
-	} else {
-		(params.precipitation?.severity ?: 0f) * 0.12f
-	}
-
-	val brightness = 1f - effectiveOpaqueCloudiness(params) * 0.24f - storm
-
-	return Color.rgb(
-		(Color.red(phaseTint) * brightness).roundToInt(),
-		(Color.green(phaseTint) * brightness * (1f - warmth * 0.12f)).roundToInt(),
-		(Color.blue(phaseTint) * brightness * (1f - warmth * 0.32f)).roundToInt()
-	)
-}

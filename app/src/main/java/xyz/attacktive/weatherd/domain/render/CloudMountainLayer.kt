@@ -1,28 +1,24 @@
 package xyz.attacktive.weatherd.domain.render
 
-import kotlin.math.roundToInt
 import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.LightingColorFilter
 import android.graphics.Paint
 import android.graphics.RectF
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.BackdropScene
-import xyz.attacktive.weatherd.domain.model.DayPhase
 
 /**
  * The submitted cloud-mountain artwork anchors the horizon under the live sky and weather.
- * It is decoded once off the frame loop, keeps its original proportions, and takes phase/weather tint without re-rasterizing.
+ * It is decoded once off the frame loop, keeps its original proportions, and takes shared environmental lighting without re-rasterizing.
  */
 internal class CloudMountainLayer(private val resources: Resources) {
 	private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
 	private val destination = RectF()
 	private var cachedWidth = 0f
 	private var cachedHeight = 0f
-	private var cachedTint = 0
+	private val lighting = SceneryLighting(SceneryPlane.FAR)
 
 	val textureReady: Boolean
 		get() = source != null
@@ -60,11 +56,7 @@ internal class CloudMountainLayer(private val resources: Resources) {
 			cachedHeight = height
 		}
 
-		val tint = cloudMountainTint(params)
-		if (tint != cachedTint) {
-			paint.colorFilter = LightingColorFilter(tint, 0)
-			cachedTint = tint
-		}
+		lighting.applyTo(paint, params)
 
 		canvas.drawBitmap(artwork, null, destination, paint)
 	}
@@ -86,27 +78,3 @@ internal fun cloudMountainArtworkHeight(viewWidth: Float, sourceWidth: Int, sour
 
 /** Pin the skyline to the top when a wide viewport is shorter than the scaled artwork, cropping the fading lower area instead. */
 internal fun cloudMountainArtworkTop(viewHeight: Float, artworkHeight: Float) = (viewHeight - artworkHeight).coerceAtLeast(0f)
-
-/** Multiply tint follows the existing cloud palette, with additional storm gloom and respect for night brightness. */
-internal fun cloudMountainTint(params: SceneParams): Int {
-	val phase = cumulusTint(params.dayPhase, params.celestialProgress)
-	val storm = if (params.thunder) {
-		0.35f
-	} else {
-		(params.precipitation?.severity ?: 0f) * 0.15f
-	}
-
-	val nightScale = if (params.dayPhase == DayPhase.NIGHT) {
-		params.nightBrightnessScale.coerceIn(0f, 1f)
-	} else {
-		1f
-	}
-
-	val brightness = (1f - effectiveOpaqueCloudiness(params) * 0.22f - storm).coerceIn(0.25f, 1f) * nightScale
-
-	return Color.rgb(
-		(Color.red(phase) * brightness).roundToInt().coerceIn(0, 255),
-		(Color.green(phase) * brightness).roundToInt().coerceIn(0, 255),
-		(Color.blue(phase) * brightness).roundToInt().coerceIn(0, 255)
-	)
-}

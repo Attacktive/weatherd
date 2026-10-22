@@ -44,7 +44,7 @@ import xyz.attacktive.weatherd.domain.model.normalizeReadabilityStrength
  * [cloudScale] is the user's preference rather than an observation, so it rides alongside [cloudiness] instead of being folded into it: the renderer applies it past its own floors, where it scales cloud opacity.
  * [cloudSizeScale] changes individual fair-weather cloud body geometry, [cloudCountScale] scales rendered cloud coverage, and [cloudContrastScale] changes RGB separation inside cloud artwork without touching its alpha mask.
  * [skyBrightnessScale], [skySaturationScale] and [skyColorPreset] customize the painted phase gradient before weather grayness and storm darkening are applied.
- * [nightBrightnessScale] dims the completed static night backdrop after weather transforms, so 0 makes the background black without dimming dawn, day, dusk, stars, celestial bodies or animated weather.
+ * [nightBrightnessScale] dims the completed static night backdrop after weather transforms, so 0 makes the background black without dimming dawn, day, dusk, stars, celestial bodies or animated weather; bitmap mountains and trees also follow this scale, with continuous twilight transitions.
  * [sunVisible], [moonVisible], [sunSizeScale], [moonSizeScale], [sunColorPreset] and [sunStyle] customize the celestial bodies without changing the time-of-day lighting.
  * [sunbeamMode] controls atmospheric shafts independently of sun artwork and lens flare; partial-cloud openings are the default and clear-sky rays are opt-in.
  * [lensFlareEnabled] is a display preference for camera-style streaks and optical ghosts around the sun; it does not disable the physical corona or atmospheric light shafts.

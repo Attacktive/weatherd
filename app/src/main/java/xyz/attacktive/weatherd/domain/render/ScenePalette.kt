@@ -236,7 +236,7 @@ private fun snowGray(dayPhase: DayPhase) = when (dayPhase) {
  * A dry sky holds its full blue until the overcast ceiling starts drawing, because scattered cumulus darken a sky by covering it, not by draining the color out of the gaps between them.
  * Graying earlier than that leaves white clouds sitting on a washed-out sky with nothing to read against, which is the opposite of what cloud cover looks like.
  */
-private fun overcastAmount(params: SceneParams): Float = when {
+internal fun overcastAmount(params: SceneParams): Float = when {
 	params.fogDensity > 0f -> 0.85f
 	params.precipitation != null -> precipitationGray(params.precipitation)
 	else -> overcastCeilingStrength(effectiveOpaqueCloudiness(params))
@@ -268,7 +268,7 @@ private fun precipitationGray(precipitation: Precipitation) = when (precipitatio
 }
 
 /** Storm gloom: thunder darkens hardest, rain by how hard it falls, and a dry overcast sky slightly. */
-private fun darkenAmount(params: SceneParams): Float = when {
+internal fun darkenAmount(params: SceneParams): Float = when {
 	params.thunder -> 0.35f
 	params.precipitation != null && params.precipitation.kind != PrecipitationKind.SNOW -> {
 		val severity = params.precipitation.severity

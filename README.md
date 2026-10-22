@@ -28,7 +28,11 @@ Trees remain off on fresh installs, and existing settings retain their on/off ch
 Turning trees off hides the shape picker without clearing its selection; shape resets independently and is saved with appearance presets.
 New preset writes use schema v13; v1–v12 presets remain readable, while older builds reject the new bank instead of silently dropping appearance settings.
 The preview, live wallpaper, simulator, and clock-lit fallback share the same tree preference, shape, and placement.
-Tree lighting follows day phase and cloudy weather, while fog and precipitation draw in front of the foliage.
+Cloud mountains and both tree shapes share weather- and day-phase-aware lighting: overcast and precipitation reduce saturation, snowfall stays lighter than rain, and fog softens distant mountain contrast more than nearby foliage.
+Clear daylight preserves the artwork's colors; dawn and dusk warm it continuously, while night reduces mountain-blue saturation and keeps a small amount of ambient foliage detail.
+Night brightness dims mountains and trees together, easing its influence through dawn and dusk; their original transparency and placement remain unchanged.
+Custom photos retain their original colors rather than receiving this per-pixel grade; existing weather overlays and nighttime backdrop dimming still apply, and trees over photos receive the shared lighting.
+Fog and precipitation continue drawing in front of the scenery and foliage.
 First-party source sprites are reproducibly generated with `uv run scripts/generate-tree-textures.py` for Evergreen and `uv run scripts/generate-broadleaf-textures.py` for Broadleaf.
 The Broadleaf generator authors separate trunk, branch, and canopy structures for the two sprites; use `--variant hero` or `--variant companion` to regenerate only one.
 Only the selected style is decoded on first use, off the frame loop; no artwork is copied from the reference app or third parties.
