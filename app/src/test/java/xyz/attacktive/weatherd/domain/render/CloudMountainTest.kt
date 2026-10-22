@@ -68,6 +68,30 @@ class CloudMountainTest {
 	}
 
 	@Test
+	fun portraitMountainsStayBottomAligned() {
+		val height = 780f
+		val artworkHeight = cloudMountainArtworkHeight(360f, 697, 430)
+		val top = cloudMountainArtworkTop(height, artworkHeight)
+
+		assertEquals(height, top + artworkHeight, 0.001f)
+	}
+
+	@Test
+	fun wideLandscapeKeepsTheMountainSkylineVisible() {
+		for ((width, height) in listOf(780f to 360f, 1200f to 540f, 1920f to 540f)) {
+			val artworkHeight = cloudMountainArtworkHeight(width, 697, 430)
+			val top = cloudMountainArtworkTop(height, artworkHeight)
+			val scale = width / 697f
+
+			// The submitted image has mountain peaks at approximately source rows 38 through 106.
+			assertEquals(0f, top, 0.001f)
+			assertTrue(top + 38f * scale >= 0f)
+			assertTrue(top + 106f * scale < height)
+			assertEquals(scale, artworkHeight / 430f, 0.001f)
+		}
+	}
+
+	@Test
 	fun invalidArtworkDimensionsHaveZeroDrawingHeight() {
 		assertEquals(0f, cloudMountainArtworkHeight(0f, 697, 440), 0f)
 		assertEquals(0f, cloudMountainArtworkHeight(360f, 0, 440), 0f)

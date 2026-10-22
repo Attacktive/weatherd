@@ -54,7 +54,8 @@ internal class CloudMountainLayer(private val resources: Resources) {
 		val artwork = source ?: return
 		if (width != cachedWidth || height != cachedHeight) {
 			val artworkHeight = cloudMountainArtworkHeight(width, artwork.width, artwork.height)
-			destination.set(0f, height - artworkHeight, width, height)
+			val top = cloudMountainArtworkTop(height, artworkHeight)
+			destination.set(0f, top, width, top + artworkHeight)
 			cachedWidth = width
 			cachedHeight = height
 		}
@@ -74,7 +75,7 @@ internal class CloudMountainLayer(private val resources: Resources) {
 	}
 }
 
-/** Scaling by width preserves the submitted composition in portrait; landscape crops the skyward excess rather than squashing the mountains. */
+/** Width-based scaling preserves the submitted proportions in both orientations. */
 internal fun cloudMountainArtworkHeight(viewWidth: Float, sourceWidth: Int, sourceHeight: Int): Float {
 	if (viewWidth <= 0f || sourceWidth <= 0 || sourceHeight <= 0) {
 		return 0f
@@ -82,6 +83,9 @@ internal fun cloudMountainArtworkHeight(viewWidth: Float, sourceWidth: Int, sour
 
 	return viewWidth * sourceHeight / sourceWidth
 }
+
+/** Pin the skyline to the top when a wide viewport is shorter than the scaled artwork, cropping the fading lower area instead. */
+internal fun cloudMountainArtworkTop(viewHeight: Float, artworkHeight: Float) = (viewHeight - artworkHeight).coerceAtLeast(0f)
 
 /** Multiply tint follows the existing cloud palette, with additional storm gloom and respect for night brightness. */
 internal fun cloudMountainTint(params: SceneParams): Int {
