@@ -2,8 +2,9 @@
 # requires-python = "==3.13.*"
 # dependencies = ["bpy==5.2.2", "numpy==2.5.3", "pillow==12.3.0"]
 # ///
-"""Generate the reproducible first-party broadleaf hero tree sprite for Weatherd."""
+"""Generate reproducible first-party broadleaf sprites with independently grown silhouettes."""
 
+import argparse
 import math
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -21,6 +22,8 @@ TRANSPARENT_PADDING = 6
 SEED = 271
 
 OUTPUT_PATH = Path(__file__).resolve().parents[1] / 'app/src/main/res/drawable-nodpi/tree_broadleaf.png'
+COMPANION_OUTPUT_PATH = OUTPUT_PATH.with_name('tree_broadleaf_companion.png')
+COMPANION_SEED = 297
 
 
 def normalize(vec: np.ndarray) -> np.ndarray:
@@ -172,6 +175,23 @@ def define_canopy_lobes() -> list[CanopyLobe]:
 		CanopyLobe((3.08, 0.04, 2.44), (0.66, 0.56, 0.21), 0.78, 'skirt_tip'),
 		CanopyLobe((3.48, -0.04, 2.32), (0.40, 0.36, 0.15), 0.46, 'skirt_tip'),
 		CanopyLobe((2.32, 0.16, 2.40), (0.58, 0.50, 0.19), 0.54, 'skirt_tip'),
+	]
+
+
+def define_companion_canopy_lobes() -> list[CanopyLobe]:
+	"""A narrower, uneven crown with a high left leader and a low right shoulder."""
+	return [
+		CanopyLobe((-0.38, 0.04, 4.22), (0.68, 0.66, 0.52), 1.25, 'dome'),
+		CanopyLobe((0.30, -0.08, 3.96), (0.74, 0.68, 0.48), 1.15, 'dome'),
+		CanopyLobe((-0.88, 0.02, 3.70), (0.66, 0.64, 0.42), 1.05, 'mid'),
+		CanopyLobe((0.86, 0.06, 3.40), (0.72, 0.64, 0.46), 1.10, 'mid'),
+		CanopyLobe((-0.22, -0.42, 3.42), (0.80, 0.62, 0.44), 1.10, 'mid'),
+		CanopyLobe((0.14, 0.42, 3.50), (0.70, 0.64, 0.42), 1.00, 'mid'),
+		CanopyLobe((-1.12, 0.04, 2.98), (0.58, 0.54, 0.36), 0.90, 'mid'),
+		CanopyLobe((0.82, -0.16, 2.74), (0.72, 0.58, 0.34), 0.95, 'lower_pad'),
+		CanopyLobe((-0.26, 0.10, 2.82), (0.74, 0.62, 0.32), 1.00, 'lower_pad'),
+		CanopyLobe((-1.26, -0.06, 2.52), (0.44, 0.42, 0.24), 0.60, 'skirt_tip'),
+		CanopyLobe((1.22, 0.04, 2.34), (0.48, 0.44, 0.24), 0.65, 'skirt_tip'),
 	]
 
 
@@ -462,6 +482,43 @@ def build_deliquescent_scaffold(
 		p_style = ChainStyle(crookedness=crook, max_seg_len=0.14, lobe_tier=tier)
 		chain = append_polychain(nodes, anchor_idx, waypoints, rng, p_style)
 		attach_secondary_branches(nodes, chain, crook, sub_specs, rng)
+
+	return trunk_indices
+
+
+def build_companion_scaffold(nodes: list[TreeNode], rng: np.random.Generator) -> list[int]:
+	"""Grow a separate leaning trunk and staggered boughs, not a transformed hero mesh."""
+	nodes.append(TreeNode(idx=0, pos=np.array([0.12, 0.0, 0.0]), is_trunk=True))
+	trunk_waypoints = [
+		(0.04, 0.00, 0.30),
+		(-0.14, -0.03, 0.62),
+		(-0.10, -0.04, 0.96),
+		(0.10, 0.02, 1.28),
+		(0.26, 0.04, 1.62),
+		(0.18, 0.02, 1.96),
+		(-0.04, 0.00, 2.30),
+		(-0.18, 0.02, 2.68),
+		(-0.12, 0.04, 3.12),
+		(-0.34, 0.02, 3.64),
+		(-0.38, 0.00, 4.14),
+	]
+	trunk_style = ChainStyle(crookedness=0.010, max_seg_len=0.13, is_trunk=True)
+	trunk_indices = [0] + append_polychain(nodes, 0, trunk_waypoints, rng, trunk_style)
+	boughs = [
+		(1.62, [(-0.30, 0.06, 1.92), (-0.80, 0.02, 2.22), (-1.28, -0.02, 2.48)], 'skirt_tip'),
+		(1.96, [(0.56, -0.04, 2.08), (1.02, -0.02, 2.22), (1.36, 0.02, 2.36)], 'skirt_tip'),
+		(2.30, [(-0.62, -0.10, 2.58), (-1.06, -0.06, 2.90), (-1.22, 0.04, 3.16)], 'mid'),
+		(2.30, [(0.38, 0.10, 2.56), (0.82, 0.14, 2.96), (0.92, 0.06, 3.40)], 'mid'),
+		(2.68, [(-0.62, 0.04, 3.00), (-0.90, 0.06, 3.44), (-0.82, 0.00, 3.82)], 'dome'),
+		(3.12, [(0.24, -0.08, 3.40), (0.50, -0.04, 3.80), (0.42, 0.02, 4.08)], 'dome'),
+		(2.68, [(-0.12, -0.40, 2.98), (0.12, -0.52, 3.36), (0.18, -0.46, 3.62)], 'mid'),
+		(3.12, [(-0.32, 0.38, 3.36), (-0.48, 0.44, 3.74), (-0.56, 0.34, 4.06)], 'dome'),
+	]
+
+	for height, waypoints, tier in boughs:
+		anchor = min(trunk_indices, key=lambda idx: abs(nodes[idx].pos[2] - height))
+		style = ChainStyle(crookedness=0.022, max_seg_len=0.12, lobe_tier=tier)
+		append_polychain(nodes, anchor, waypoints, rng, style)
 
 	return trunk_indices
 
@@ -909,12 +966,17 @@ def compute_bounds(branches: list[dict], leaves: list[dict]) -> dict:
 		'max': [round(float(v), 4) for v in max_pt],
 	}
 
-def generate_hero_tree_model(seed: int = SEED) -> dict:
+def generate_hero_tree_model(seed: int = SEED, companion: bool = False) -> dict:
 	rng = np.random.default_rng(seed)
 	nodes: list[TreeNode] = []
 
-	lobes = define_canopy_lobes()
-	trunk_indices = build_deliquescent_scaffold(nodes, rng)
+	if companion:
+		lobes = define_companion_canopy_lobes()
+		trunk_indices = build_companion_scaffold(nodes, rng)
+	else:
+		lobes = define_canopy_lobes()
+		trunk_indices = build_deliquescent_scaffold(nodes, rng)
+
 	attractors, attractor_tiers = sample_canopy_attractors(rng, lobes)
 	grow_space_colonization(nodes, attractors, attractor_tiers, rng)
 	calculate_radii_murray(nodes, trunk_indices)
@@ -1375,16 +1437,21 @@ def verify_transparent_borders(img: Image.Image) -> tuple[int, int, int, int]:
 	return bounds
 
 
-def main() -> None:
-	OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-	model = generate_hero_tree_model(seed=SEED)
+def render_tree(output_path: Path, companion: bool) -> None:
+	output_path.parent.mkdir(parents=True, exist_ok=True)
+	if companion:
+		seed = COMPANION_SEED
+	else:
+		seed = SEED
+
+	model = generate_hero_tree_model(seed=seed, companion=companion)
 
 	bpy.ops.wm.read_factory_settings(use_empty=True)
 	scene = bpy.context.scene
 	scene.render.engine = 'CYCLES'
 	scene.cycles.device = 'CPU'
 	scene.cycles.samples = RENDER_SAMPLES
-	scene.cycles.seed = SEED
+	scene.cycles.seed = seed
 	scene.cycles.use_animated_seed = False
 	scene.cycles.use_adaptive_sampling = True
 	scene.render.threads_mode = 'AUTO'
@@ -1427,11 +1494,22 @@ def main() -> None:
 		target_height = round(cropped.height * (SPRITE_WIDTH / cropped.width))
 		sprite = cropped.resize((SPRITE_WIDTH, target_height), Image.Resampling.LANCZOS)
 		verify_transparent_borders(sprite)
-		sprite.save(OUTPUT_PATH, optimize=True)
+		sprite.save(output_path, optimize=True)
 
 	alpha = np.asarray(sprite, dtype=np.float32)[:, :, 3] / 255.0
 	cov = 100.0 * float((alpha > 0.5).mean())
-	print(f'Saved {OUTPUT_PATH.name}: {sprite.width}x{sprite.height}, {OUTPUT_PATH.stat().st_size} bytes, coverage={cov:.2f}%')
+	print(f'Saved {output_path.name}: {sprite.width}x{sprite.height}, {output_path.stat().st_size} bytes, coverage={cov:.2f}%')
+
+
+def main() -> None:
+	parser = argparse.ArgumentParser(description=__doc__)
+	parser.add_argument('--variant', choices=('all', 'hero', 'companion'), default='all')
+	args = parser.parse_args()
+	if args.variant in ('all', 'hero'):
+		render_tree(OUTPUT_PATH, companion=False)
+
+	if args.variant in ('all', 'companion'):
+		render_tree(COMPANION_OUTPUT_PATH, companion=True)
 
 
 if __name__ == '__main__':

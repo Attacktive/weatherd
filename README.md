@@ -21,7 +21,7 @@ Only an unavailable or invalid location uses a coarse device-local clock approxi
 Refreshes happen separately, and a slow or failed request does not prevent switching modes.
 
 Enable **Settings → Appearance → Scenery & photos → Trees** to add a fixed foreground tree composition to any backdrop, including None and Photo.
-When enabled, **Tree shape** offers **Evergreen**, the existing multi-tree conifer composition, or **Broadleaf**, a single spreading hero tree with a sinuous trunk and deliquescent branching inspired by [#271's reference](https://github.com/Attacktive/weatherd/issues/271).
+When enabled, **Tree shape** offers **Evergreen**, the existing multi-tree conifer composition, or **Broadleaf**, a spreading tree at the left edge and a smaller, independently grown companion at the right, leaving the middle open across backdrops.
 This is a morphology choice, not a backdrop or seasonal landscape.
 Trees remain off on fresh installs, and existing settings retain their on/off choice; settings and presets without a shape keep Evergreen.
 Turning trees off hides the shape picker without clearing its selection; shape resets independently and is saved with appearance presets.
@@ -29,6 +29,7 @@ New preset writes use schema v13; v1–v12 presets remain readable, while older 
 The preview, live wallpaper, simulator, and clock-lit fallback share the same tree preference, shape, and placement.
 Tree lighting follows day phase and cloudy weather, while fog and precipitation draw in front of the foliage.
 First-party source sprites are reproducibly generated with `uv run scripts/generate-tree-textures.py` for Evergreen and `uv run scripts/generate-broadleaf-textures.py` for Broadleaf.
+The Broadleaf generator authors separate trunk, branch, and canopy structures for the two sprites; use `--variant hero` or `--variant companion` to regenerate only one.
 Only the selected style is decoded on first use, off the frame loop; no artwork is copied from the reference app or third parties.
 
 Choose **Settings → Appearance → Sun & moon → Sun style** for **Classic**, the existing procedural sun; **Radiant**, the transparent sun image submitted by [@emanuelelina2014-arch in #255](https://github.com/Attacktive/weatherd/issues/255); or **Starburst**, an original broad, soft solar bloom inspired by the reference in [#291](https://github.com/Attacktive/weatherd/issues/291).

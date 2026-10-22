@@ -40,7 +40,8 @@ internal class ForegroundTreeLayer(private val resources: Resources) {
 						checkNotNull(BitmapFactory.decodeResource(resources, R.drawable.tree_evergreen_3, options))
 					)
 					TreeStyle.BROADLEAF -> broadleafSprites = arrayOf(
-						checkNotNull(BitmapFactory.decodeResource(resources, R.drawable.tree_broadleaf, options))
+						checkNotNull(BitmapFactory.decodeResource(resources, R.drawable.tree_broadleaf, options)),
+						checkNotNull(BitmapFactory.decodeResource(resources, R.drawable.tree_broadleaf_companion, options))
 					)
 				}
 			}
@@ -134,7 +135,8 @@ private val EVERGREEN_PLACEMENTS = arrayOf(
 )
 
 private val BROADLEAF_PLACEMENTS = arrayOf(
-	TreePlacement(sprite = 0, center = 0.50f, height = 0.56f, bottom = 1.02f, maxWidth = 1.00f)
+	TreePlacement(sprite = 0, center = 0.07f, height = 0.43f, bottom = 1.02f, maxWidth = 0.58f),
+	TreePlacement(sprite = 1, center = 0.86f, height = 0.30f, bottom = 1.02f, maxWidth = 0.22f)
 )
 
 /** Reuses the continuous phase tint; cloudy/storm light dims foliage without making the source alpha translucent. */

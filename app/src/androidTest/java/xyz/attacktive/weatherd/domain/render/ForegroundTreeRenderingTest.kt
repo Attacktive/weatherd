@@ -15,13 +15,15 @@ import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 import xyz.attacktive.weatherd.domain.model.TreeStyle
+import xyz.attacktive.weatherd.service.wallpaperSceneWidth
+import xyz.attacktive.weatherd.service.wallpaperViewportLeft
 
 @RunWith(AndroidJUnit4::class)
 class ForegroundTreeRenderingTest {
 	private val resources = InstrumentationRegistry.getInstrumentation().targetContext.resources
 
 	@Test
-	fun treesRemainProminentWithEveryBackdropAndLeaveTheUpperSkyUntouched() {
+	fun treesLeaveTheUpperSkyUntouchedAndDisableCleanlyWithEveryBackdrop() {
 		for (style in TreeStyle.entries) {
 			for (backdrop in BackdropScene.entries) {
 				val params = clearParams(style).copy(backdropScene = backdrop)
@@ -46,7 +48,10 @@ class ForegroundTreeRenderingTest {
 					}
 				}
 
-				assertTrue("Trees must be foreground scenery, not a small glyph for $style / $backdrop: $changedPixels pixels", changedPixels > WIDTH * HEIGHT / 10)
+				if (style == TreeStyle.EVERGREEN) {
+					assertTrue("Evergreen must retain its existing foreground presence for $backdrop: $changedPixels pixels", changedPixels > WIDTH * HEIGHT / 10)
+				}
+
 				val disabledAgain = renderForeground(renderer, params.copy(treesEnabled = false))
 				val expectedDisabled = renderForeground(control, params.copy(treesEnabled = false))
 				assertTrue("Turning $style trees off must restore the existing $backdrop foreground exactly", expectedDisabled.sameAs(disabledAgain))
@@ -54,6 +59,39 @@ class ForegroundTreeRenderingTest {
 				withTrees.recycle()
 				disabledAgain.recycle()
 				expectedDisabled.recycle()
+			}
+		}
+	}
+
+	@Test
+	fun broadleafFramesBothEdgesWithoutBlockingTheCenterAcrossViewportsAndScrolling() {
+		val layer = ForegroundTreeLayer(resources)
+		layer.prewarm(TreeStyle.BROADLEAF)
+		val viewports = listOf(360 to 780, 780 to 360, 1200 to 540, 1920 to 540)
+		for ((width, height) in viewports) {
+			for (scrolling in listOf(false, true)) {
+				val sceneWidth = wallpaperSceneWidth(width, scrolling)
+				val offsets = if (scrolling) {
+					listOf(0f, 0.5f, 1f)
+				} else {
+					listOf(0.5f)
+				}
+
+				for (offset in offsets) {
+					val bitmap = createBitmap(width, height)
+					val canvas = Canvas(bitmap)
+					val viewportLeft = wallpaperViewportLeft(width, sceneWidth, offset, scrolling)
+					canvas.translate(-viewportLeft, 0f)
+					layer.draw(canvas, sceneWidth.toFloat(), height.toFloat(), clearParams(TreeStyle.BROADLEAF))
+					val left = alphaCoverage(bitmap, 0, width / 4)
+					val center = alphaCoverage(bitmap, width * 2 / 5, width * 3 / 5)
+					val right = alphaCoverage(bitmap, width * 3 / 4, width)
+					val context = "${width}x$height scrolling=$scrolling offset=$offset"
+					assertTrue("Left Broadleaf tree must frame the edge: $context ($left)", left > 0.015)
+					assertTrue("Right Broadleaf tree must frame the edge: $context ($right)", right > 0.015)
+					assertTrue("Broadleaf must leave the middle open: $context ($center)", center < 0.005)
+					bitmap.recycle()
+				}
 			}
 		}
 	}
@@ -184,6 +222,17 @@ class ForegroundTreeRenderingTest {
 		layer.draw(Canvas(bitmap), width.toFloat(), height.toFloat(), params)
 
 		return bitmap
+	}
+
+	private fun alphaCoverage(bitmap: Bitmap, startX: Int, endX: Int): Double {
+		var alpha = 0L
+		for (y in 0 until bitmap.height) {
+			for (x in startX until endX) {
+				alpha += Color.alpha(bitmap.getPixel(x, y))
+			}
+		}
+
+		return alpha.toDouble() / ((endX - startX) * bitmap.height * 255L)
 	}
 
 	private fun brightness(pixel: Int) = (Color.red(pixel) + Color.green(pixel) + Color.blue(pixel)) * Color.alpha(pixel).toLong()
