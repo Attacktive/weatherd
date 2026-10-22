@@ -64,10 +64,10 @@ class ForegroundTreeRenderingTest {
 	}
 
 	@Test
-	fun broadleafFramesBothEdgesWithoutBlockingTheCenterAcrossViewportsAndScrolling() {
+	fun broadleafKeepsTheLargerCrownVisibleAndTheUpperCenterOpenAcrossViewportsAndScrolling() {
 		val layer = ForegroundTreeLayer(resources)
 		layer.prewarm(TreeStyle.BROADLEAF)
-		val viewports = listOf(360 to 780, 780 to 360, 1200 to 540, 1920 to 540)
+		val viewports = listOf(360 to 780, 780 to 360, 800 to 1280, 1280 to 800, 1200 to 540, 1920 to 540)
 		for ((width, height) in viewports) {
 			for (scrolling in listOf(false, true)) {
 				val sceneWidth = wallpaperSceneWidth(width, scrolling)
@@ -83,13 +83,17 @@ class ForegroundTreeRenderingTest {
 					val viewportLeft = wallpaperViewportLeft(width, sceneWidth, offset, scrolling)
 					canvas.translate(-viewportLeft, 0f)
 					layer.draw(canvas, sceneWidth.toFloat(), height.toFloat(), clearParams(TreeStyle.BROADLEAF))
-					val left = alphaCoverage(bitmap, 0, width / 4)
-					val center = alphaCoverage(bitmap, width * 2 / 5, width * 3 / 5)
+
+					val left = alphaCoverage(bitmap, 0, width / 3)
+					val upperCenter = alphaCoverage(bitmap, width * 2 / 5, width * 3 / 5, endY = height / 2)
 					val right = alphaCoverage(bitmap, width * 3 / 4, width)
 					val context = "${width}x$height scrolling=$scrolling offset=$offset"
-					assertTrue("Left Broadleaf tree must frame the edge: $context ($left)", left > 0.015)
+
+					assertTrue("The larger Broadleaf tree must retain its left-side presence: $context ($left)", left > 0.015)
 					assertTrue("Right Broadleaf tree must frame the edge: $context ($right)", right > 0.015)
-					assertTrue("Broadleaf must leave the middle open: $context ($center)", center < 0.005)
+					assertEquals("The larger Broadleaf crown must not clip the left boundary: $context", 0.0, alphaCoverage(bitmap, 0, 1), 0.0)
+					assertEquals("Broadleaf must leave the upper middle sky open: $context", 0.0, upperCenter, 0.0)
+
 					bitmap.recycle()
 				}
 			}
@@ -224,15 +228,15 @@ class ForegroundTreeRenderingTest {
 		return bitmap
 	}
 
-	private fun alphaCoverage(bitmap: Bitmap, startX: Int, endX: Int): Double {
+	private fun alphaCoverage(bitmap: Bitmap, startX: Int, endX: Int, endY: Int = bitmap.height): Double {
 		var alpha = 0L
-		for (y in 0 until bitmap.height) {
+		for (y in 0 until endY) {
 			for (x in startX until endX) {
 				alpha += Color.alpha(bitmap.getPixel(x, y))
 			}
 		}
 
-		return alpha.toDouble() / ((endX - startX) * bitmap.height * 255L)
+		return alpha.toDouble() / ((endX - startX) * endY * 255L)
 	}
 
 	private fun brightness(pixel: Int) = (Color.red(pixel) + Color.green(pixel) + Color.blue(pixel)) * Color.alpha(pixel).toLong()

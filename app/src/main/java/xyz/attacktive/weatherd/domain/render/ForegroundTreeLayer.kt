@@ -64,8 +64,10 @@ internal class ForegroundTreeLayer(private val resources: Resources) {
 				val treeWidth = unclampedWidth.coerceAtMost(width * placement.maxWidth)
 				val treeHeight = treeWidth * source.height / source.width
 				val center = width * placement.center
+				val left = center - treeWidth / 2f
+				val horizontalOffset = (width * placement.minLeft - left).coerceAtLeast(0f)
 				val bottom = height * placement.bottom
-				destinations[index].set(center - treeWidth / 2f, bottom - treeHeight, center + treeWidth / 2f, bottom)
+				destinations[index].set(left + horizontalOffset, bottom - treeHeight, center + treeWidth / 2f + horizontalOffset, bottom)
 			}
 
 			cachedWidth = width
@@ -122,7 +124,8 @@ private data class TreePlacement(
 	val height: Float,
 	val bottom: Float,
 	val mirror: Boolean = false,
-	val maxWidth: Float = Float.POSITIVE_INFINITY
+	val maxWidth: Float = Float.POSITIVE_INFINITY,
+	val minLeft: Float = Float.NEGATIVE_INFINITY
 )
 
 // Smaller trees draw first; the dominant tree and asymmetric right tree anchor the near foreground.
@@ -134,8 +137,9 @@ private val EVERGREEN_PLACEMENTS = arrayOf(
 	TreePlacement(sprite = 1, center = 0.97f, height = 0.53f, bottom = 1.09f, mirror = true)
 )
 
+// Keep the full primary crown inset through launcher scrolling without reducing its scale.
 private val BROADLEAF_PLACEMENTS = arrayOf(
-	TreePlacement(sprite = 0, center = 0.07f, height = 0.43f, bottom = 1.02f, maxWidth = 0.58f),
+	TreePlacement(sprite = 0, center = 0.25f, height = 0.43f, bottom = 1.02f, maxWidth = 0.58f, minLeft = 0.12f),
 	TreePlacement(sprite = 1, center = 0.86f, height = 0.30f, bottom = 1.02f, maxWidth = 0.22f)
 )
 

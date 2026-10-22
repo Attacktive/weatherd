@@ -502,8 +502,10 @@ def build_companion_scaffold(nodes: list[TreeNode], rng: np.random.Generator) ->
 		(-0.34, 0.02, 3.64),
 		(-0.38, 0.00, 4.14),
 	]
+
 	trunk_style = ChainStyle(crookedness=0.010, max_seg_len=0.13, is_trunk=True)
 	trunk_indices = [0] + append_polychain(nodes, 0, trunk_waypoints, rng, trunk_style)
+
 	boughs = [
 		(1.62, [(-0.30, 0.06, 1.92), (-0.80, 0.02, 2.22), (-1.28, -0.02, 2.48)], 'skirt_tip'),
 		(1.96, [(0.56, -0.04, 2.08), (1.02, -0.02, 2.22), (1.36, 0.02, 2.36)], 'skirt_tip'),

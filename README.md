@@ -21,7 +21,8 @@ Only an unavailable or invalid location uses a coarse device-local clock approxi
 Refreshes happen separately, and a slow or failed request does not prevent switching modes.
 
 Enable **Settings → Appearance → Scenery & photos → Trees** to add a fixed foreground tree composition to any backdrop, including None and Photo.
-When enabled, **Tree shape** offers **Evergreen**, the existing multi-tree conifer composition, or **Broadleaf**, a spreading tree at the left edge and a smaller, independently grown companion at the right, leaving the middle open across backdrops.
+When enabled, **Tree shape** offers **Evergreen**, the existing multi-tree conifer composition, or **Broadleaf**, a spreading tree inset from the left edge and a smaller, independently grown companion at the right, leaving the upper middle sky open across backdrops.
+The larger Broadleaf crown stays fully visible through portrait, landscape, and launcher scrolling without reducing its scale; both trunks remain grounded at the bottom.
 This is a morphology choice, not a backdrop or seasonal landscape.
 Trees remain off on fresh installs, and existing settings retain their on/off choice; settings and presets without a shape keep Evergreen.
 Turning trees off hides the shape picker without clearing its selection; shape resets independently and is saved with appearance presets.
