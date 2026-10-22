@@ -29,18 +29,8 @@ internal class SceneryLighting(private val plane: SceneryPlane) {
 
 /** Shared environmental light for bitmap scenery, with stronger atmospheric softening at distance and an untouched alpha row. */
 internal fun writeSceneryColorMatrix(destination: FloatArray, params: SceneParams, plane: SceneryPlane) {
-	val night = when (params.dayPhase) {
-		DayPhase.DAY -> 0f
-		DayPhase.DAWN -> 1f - dawnSunriseStrength(params.celestialProgress)
-		DayPhase.DUSK -> duskNightStrength(params.celestialProgress)
-		DayPhase.NIGHT -> 1f
-	}
-
-	val warmth = when (params.dayPhase) {
-		DayPhase.DAWN -> dawnSunriseStrength(params.celestialProgress) * (1f - dawnDaylightStrength(params.celestialProgress))
-		DayPhase.DUSK -> duskWarmStrength(params.celestialProgress) * (1f - night)
-		DayPhase.DAY, DayPhase.NIGHT -> 0f
-	}
+	val night = sceneryNightStrength(params)
+	val warmth = sceneryWarmthStrength(params, night)
 
 	val weather = if (params.thunder) {
 		1f
@@ -48,14 +38,19 @@ internal fun writeSceneryColorMatrix(destination: FloatArray, params: SceneParam
 		overcastAmount(params)
 	}
 
-	val distant = plane == SceneryPlane.FAR
+	val depth = if (plane == SceneryPlane.FAR) {
+		FAR_LIGHTING
+	} else {
+		NEAR_LIGHTING
+	}
+
 	val fog = params.fogDensity.coerceIn(0f, 1f)
-	val saturation = (1f - weather * if (distant) { 0.85f } else { 0.65f }) * (1f - night * 0.9f)
-	val contrast = 1f - fog * if (distant) { 0.45f } else { 0.2f }
+	val saturation = (1f - weather * depth.weatherDesaturation) * (1f - night * 0.9f)
+	val contrast = 1f - fog * depth.fogContrastReduction
 	val nightScale = 1f - night * (1f - params.nightBrightnessScale.coerceIn(0f, 1f))
-	val brightness = (1f - weather * 0.22f) * (1f - darkenAmount(params)) * (1f - night * if (distant) { 0.78f } else { 0.74f }) * nightScale
-	val ambient = night * if (distant) { 3f } else { 4f }
-	val fogLight = fog * if (distant) { 30f } else { 10f }
+	val brightness = (1f - weather * 0.22f) * (1f - darkenAmount(params)) * (1f - night * depth.nightDimming) * nightScale
+	val ambient = night * depth.nightAmbient
+	val fogLight = fog * depth.fogLight
 	val lowSun = warmth * (1f - weather)
 
 	destination.fill(0f)
@@ -77,3 +72,40 @@ internal fun writeSceneryColorMatrix(destination: FloatArray, params: SceneParam
 
 	destination[18] = 1f
 }
+
+private fun sceneryNightStrength(params: SceneParams) = when (params.dayPhase) {
+	DayPhase.DAY -> 0f
+	DayPhase.DAWN -> 1f - dawnSunriseStrength(params.celestialProgress)
+	DayPhase.DUSK -> duskNightStrength(params.celestialProgress)
+	DayPhase.NIGHT -> 1f
+}
+
+private fun sceneryWarmthStrength(params: SceneParams, night: Float) = when (params.dayPhase) {
+	DayPhase.DAWN -> dawnSunriseStrength(params.celestialProgress) * (1f - dawnDaylightStrength(params.celestialProgress))
+	DayPhase.DUSK -> duskWarmStrength(params.celestialProgress) * (1f - night)
+	DayPhase.DAY, DayPhase.NIGHT -> 0f
+}
+
+private class SceneryDepthLighting(
+	val weatherDesaturation: Float,
+	val fogContrastReduction: Float,
+	val nightDimming: Float,
+	val nightAmbient: Float,
+	val fogLight: Float
+)
+
+private val FAR_LIGHTING = SceneryDepthLighting(
+	weatherDesaturation = 0.85f,
+	fogContrastReduction = 0.45f,
+	nightDimming = 0.78f,
+	nightAmbient = 3f,
+	fogLight = 30f
+)
+
+private val NEAR_LIGHTING = SceneryDepthLighting(
+	weatherDesaturation = 0.65f,
+	fogContrastReduction = 0.2f,
+	nightDimming = 0.74f,
+	nightAmbient = 4f,
+	fogLight = 10f
+)
