@@ -94,17 +94,41 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 		canvas.drawRect(0f, geometry.top, geometry.width, geometry.top + geometry.height, paint)
 	}
 
+	/** Samples a predecoded shader cloud's exact scrolling texture at a screen coordinate, preserving its drawn alpha. */
+	fun textureOpacityAt(x: Float, y: Float, geometry: CloudDrawGeometry, alpha: Int): Float {
+		val source = bitmap ?: return 0f
+		if (alpha <= 0 || !containsTextureCoordinate(x, y, geometry)) {
+			return 0f
+		}
+
+		val period = geometry.width * geometry.viewports
+		if (period <= 0f || geometry.height <= 0f) {
+			return 0f
+		}
+
+		val offset = positiveModulo(geometry.offset, period)
+		val u = positiveModulo(x - offset, period) / period
+		val v = (y - geometry.top) / geometry.height
+		val pixelX = (u * source.width).toInt().coerceIn(0, source.width - 1)
+		val pixelY = (v * source.height).toInt().coerceIn(0, source.height - 1)
+
+		return Color.alpha(source.getPixel(pixelX, pixelY)) / 255f * (alpha.coerceIn(0, 255) / 255f)
+	}
+
+	private fun containsTextureCoordinate(x: Float, y: Float, geometry: CloudDrawGeometry) =
+		x >= 0f && x < geometry.width && y >= geometry.top && y < geometry.top + geometry.height
+
 	/**
 	 * Prepares a reusable opacity sampler using the same sprite placement math as [drawCumulus].
 	 * The expensive style and placement lookup happens once per profile; each subsequent point probe only samples primitive geometry and bitmap alpha.
 	 */
-	fun opacitySampler(width: Float, height: Float, offset: Float, top: Float, alpha: Int, sizeScale: Float = 1f): OpacitySampler? {
+	fun opacitySampler(width: Float, height: Float, offset: Float, top: Float, alpha: Int, sizeScale: Float = 1f, viewports: Float = CLOUD_TEXTURE_VIEWPORTS): OpacitySampler? {
 		val kind = cumulusKind ?: return null
 		if (!canSampleOpacity(width, height, alpha)) {
 			return null
 		}
 
-		val period = width * CLOUD_TEXTURE_VIEWPORTS
+		val period = width * viewports
 		if (period <= 0f) {
 			return null
 		}

@@ -16,7 +16,7 @@ import xyz.attacktive.weatherd.R
  * Rendering only reads atomically published sprites and never waits for preparation.
  */
 internal class MoonLayer(private val resources: Resources) {
-	private val phaseSprites = AtomicReferenceArray<Bitmap>(MOON_PHASE_STEPS)
+	private val phaseSprites = AtomicReferenceArray<PreparedPhase>(MOON_PHASE_STEPS)
 	private val phaseOrder = IntArray(MAX_CACHED_PHASE_SPRITES) { -1 }
 	private val preparationLock = Any()
 	private var nextPhaseSlot = 0
@@ -54,7 +54,13 @@ internal class MoonLayer(private val resources: Resources) {
 	fun phaseIndexFor(moonPhase: Float) = (normalizedPhase(moonPhase) * MOON_PHASE_STEPS).roundToInt() % MOON_PHASE_STEPS
 
 	/** An evicted sprite is never recycled: a frame may still hold the returned immutable bitmap. */
-	fun spriteFor(phaseIndex: Int): Bitmap? = phaseSprites.get(phaseIndex)
+	fun spriteFor(phaseIndex: Int): Bitmap? = preparedFor(phaseIndex)?.sprite
+
+	/** Publish the phase art and its illumination probes atomically so a frame cannot mix phases. */
+	fun preparedFor(phaseIndex: Int): PreparedPhase? = phaseSprites.get(phaseIndex)
+
+	/** Prepared only off the rendering thread; probe coordinates and weights are immutable once published. */
+	class PreparedPhase(val sprite: Bitmap, val cloudSamples: FloatArray)
 
 	private fun normalizedPhase(phase: Float) = ((phase % 1f) + 1f) % 1f
 
@@ -79,10 +85,10 @@ internal class MoonLayer(private val resources: Resources) {
 		bitmap to pixels
 	}
 
-	private fun buildSprite(phaseIndex: Int, sourceBitmap: Bitmap, sourcePixels: IntArray): Bitmap {
+	private fun buildSprite(phaseIndex: Int, sourceBitmap: Bitmap, sourcePixels: IntArray): PreparedPhase {
 		val quantizedPhase = phaseIndex.toFloat() / MOON_PHASE_STEPS
 		if (phaseIndex == MOON_PHASE_STEPS / 2) {
-			return sourceBitmap
+			return PreparedPhase(sourceBitmap, buildCloudSamples(sourcePixels))
 		}
 
 		val waning = quantizedPhase > 0.5f
@@ -120,7 +126,86 @@ internal class MoonLayer(private val resources: Resources) {
 			}
 		}
 
-		return Bitmap.createBitmap(destPixels, MOON_SPRITE_SIZE, MOON_SPRITE_SIZE, Bitmap.Config.ARGB_8888)
+		val sprite = Bitmap.createBitmap(destPixels, MOON_SPRITE_SIZE, MOON_SPRITE_SIZE, Bitmap.Config.ARGB_8888)
+
+		return PreparedPhase(sprite, buildCloudSamples(destPixels))
+	}
+
+	/**
+	 * Stratifies the prepared phase into nine regions and chooses an actually illuminated pixel nearest each
+	 * region's alpha-weighted center. Clouds over the invisible side cannot darken the lit crescent.
+	 * This full bitmap scan happens during phase preparation, never from a render callback.
+	 */
+	private fun buildCloudSamples(pixels: IntArray): FloatArray {
+		val cells = CLOUD_SAMPLE_GRID * CLOUD_SAMPLE_GRID
+		val alphaTotals = LongArray(cells)
+		val weightedX = LongArray(cells)
+		val weightedY = LongArray(cells)
+		accumulateCloudSampleCenters(pixels, alphaTotals, weightedX, weightedY)
+
+		val sampleX = IntArray(cells) { -1 }
+		val sampleY = IntArray(cells) { -1 }
+		locateIlluminatedSamples(pixels, alphaTotals, weightedX, weightedY, sampleX, sampleY)
+
+		val totalAlpha = alphaTotals.sum()
+		if (totalAlpha == 0L) {
+			return FloatArray(0)
+		}
+
+		val samples = FloatArray(sampleX.count { it >= 0 } * 3)
+		val radius = MOON_SPRITE_SIZE / 2f
+		var index = 0
+		for (cell in 0 until cells) {
+			if (sampleX[cell] < 0) {
+				continue
+			}
+
+			samples[index++] = (sampleX[cell] + 0.5f - radius) / radius
+			samples[index++] = (sampleY[cell] + 0.5f - radius) / radius
+			samples[index++] = alphaTotals[cell].toFloat() / totalAlpha
+		}
+
+		return samples
+	}
+
+	private fun accumulateCloudSampleCenters(pixels: IntArray, alphaTotals: LongArray, weightedX: LongArray, weightedY: LongArray) {
+		for (y in 0 until MOON_SPRITE_SIZE) {
+			for (x in 0 until MOON_SPRITE_SIZE) {
+				val alpha = pixels[y * MOON_SPRITE_SIZE + x] ushr 24
+				if (alpha < CLOUD_SAMPLE_MIN_ALPHA) {
+					continue
+				}
+
+				val cell = y * CLOUD_SAMPLE_GRID / MOON_SPRITE_SIZE * CLOUD_SAMPLE_GRID + x * CLOUD_SAMPLE_GRID / MOON_SPRITE_SIZE
+				alphaTotals[cell] += alpha.toLong()
+				weightedX[cell] += x.toLong() * alpha
+				weightedY[cell] += y.toLong() * alpha
+			}
+		}
+	}
+
+	private fun locateIlluminatedSamples(pixels: IntArray, alphaTotals: LongArray, weightedX: LongArray, weightedY: LongArray, sampleX: IntArray, sampleY: IntArray) {
+		val closestDistance = FloatArray(alphaTotals.size) { Float.POSITIVE_INFINITY }
+		for (y in 0 until MOON_SPRITE_SIZE) {
+			for (x in 0 until MOON_SPRITE_SIZE) {
+				val alpha = pixels[y * MOON_SPRITE_SIZE + x] ushr 24
+				if (alpha < CLOUD_SAMPLE_MIN_ALPHA) {
+					continue
+				}
+
+				val cell = y * CLOUD_SAMPLE_GRID / MOON_SPRITE_SIZE * CLOUD_SAMPLE_GRID + x * CLOUD_SAMPLE_GRID / MOON_SPRITE_SIZE
+				val centerX = weightedX[cell].toFloat() / alphaTotals[cell]
+				val centerY = weightedY[cell].toFloat() / alphaTotals[cell]
+				val dx = x - centerX
+				val dy = y - centerY
+				val distance = dx * dx + dy * dy
+				if (distance < closestDistance[cell]) {
+					closestDistance[cell] = distance
+					sampleX[cell] = x
+					sampleY[cell] = y
+				}
+			}
+		}
 	}
 
 	private fun illuminatedPixel(sourcePixel: Int, x: Float, ySquared: Float, lightX: Float, lightZ: Float): Int {
@@ -159,6 +244,8 @@ internal class MoonLayer(private val resources: Resources) {
 		const val MOON_SPRITE_SIZE = 512
 		const val MOON_PHASE_STEPS = 64
 		private const val MAX_CACHED_PHASE_SPRITES = 16
+		private const val CLOUD_SAMPLE_GRID = 3
+		private const val CLOUD_SAMPLE_MIN_ALPHA = 64
 		private const val TERMINATOR_FALLOFF_ZONE = 0.15f
 
 		@Volatile

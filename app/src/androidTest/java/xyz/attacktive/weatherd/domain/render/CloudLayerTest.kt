@@ -120,6 +120,62 @@ class CloudLayerTest {
 	}
 
 	@Test
+	fun farCumulusOpacitySamplingHonorsItsCustomRepeatSpan() {
+		val layer = CloudLayer(resources, R.drawable.cloud_cumulus_far)
+		val bitmap = render(layer, offset = -17.25f, viewports = 2f)
+		val sampler = checkNotNull(layer.opacitySampler(540f, 320f, -17.25f, 0f, 255, viewports = 2f))
+		var totalDifference = 0f
+		var samples = 0
+		var visibleSamples = 0
+
+		for (y in 16 until bitmap.height step 32) {
+			for (x in 16 until bitmap.width step 32) {
+				val renderedAlpha = Color.alpha(bitmap.getPixel(x, y)) / 255f
+				val sampledAlpha = sampler.opacityAt(x.toFloat(), y.toFloat())
+				totalDifference += abs(renderedAlpha - sampledAlpha)
+				samples++
+				if (renderedAlpha > 0.1f) {
+					visibleSamples++
+				}
+			}
+		}
+
+		assertTrue("The rendered far-cloud deck must have visible samples", visibleSamples > 0)
+		assertTrue("Far-cloud opacity samples must follow the actual two-viewport repeat span, mean alpha difference was ${totalDifference / samples}", totalDifference / samples < 0.08f)
+
+		bitmap.recycle()
+	}
+
+	@Test
+	fun supportBankTextureOpacityMatchesRenderedCloudAlpha() {
+		val layer = CloudLayer(resources, R.drawable.cloud_overcast_hero)
+		val bitmap = createBitmap(540, 320)
+		val geometry = CloudDrawGeometry().configure(540f, 320f, -17.25f, viewports = 1.72f)
+		val alpha = 180
+		layer.draw(Canvas(bitmap), geometry, Color.WHITE, alpha, CloudColorGrade.IDENTITY)
+		var totalDifference = 0f
+		var samples = 0
+		var visibleSamples = 0
+
+		for (y in 16 until bitmap.height step 32) {
+			for (x in 16 until bitmap.width step 32) {
+				val renderedAlpha = Color.alpha(bitmap.getPixel(x, y)) / 255f
+				val sampledAlpha = layer.textureOpacityAt(x.toFloat(), y.toFloat(), geometry, alpha)
+				totalDifference += abs(renderedAlpha - sampledAlpha)
+				samples++
+				if (renderedAlpha > 0.1f) {
+					visibleSamples++
+				}
+			}
+		}
+
+		assertTrue("The rendered support bank must have visible samples", visibleSamples > 0)
+		assertTrue("Bank opacity samples must match the actual texture, mean alpha difference was ${totalDifference / samples}", totalDifference / samples < 0.08f)
+
+		bitmap.recycle()
+	}
+
+	@Test
 	fun aShorterRepeatSpanSamplesFinerDetail() {
 		val layer = CloudLayer(resources, R.drawable.cloud_cumulus_far)
 		val wide = render(layer, viewports = 4f)

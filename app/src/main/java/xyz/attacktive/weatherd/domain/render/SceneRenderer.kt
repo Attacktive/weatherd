@@ -151,6 +151,12 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 	private var rainPoints = FloatArray(0)
 	private val spritePaint = Paint(Paint.FILTER_BITMAP_FLAG)
 	private val spriteDest = RectF()
+	private val moonDiscPaint = Paint(Paint.FILTER_BITMAP_FLAG)
+	private val moonDimFilters = Array(MOON_DIM_FILTER_LEVELS) { index ->
+		val value = (255f * index / (MOON_DIM_FILTER_LEVELS - 1)).roundToInt()
+
+		LightingColorFilter(Color.rgb(value, value, value), 0)
+	}
 
 	/**
 	 * The photo backdrop is blitted through its own paint rather than the shared [paint] or [blitPaint].
@@ -1237,7 +1243,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 
 		if (params.dayPhase == DayPhase.NIGHT) {
 			if (params.moonVisible) {
-				drawMoon(canvas, span, centerX, centerY, params, pulse)
+				drawMoon(canvas, width, height, span, centerX, centerY, params, pulse, timeSeconds)
 			}
 		} else if (params.sunVisible) {
 			sunRenderContext.span = span
@@ -1253,12 +1259,14 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		}
 	}
 
-	private fun drawMoon(canvas: Canvas, span: Float, centerX: Float, centerY: Float, params: SceneParams, pulse: Float) {
+	private fun drawMoon(canvas: Canvas, width: Float, height: Float, span: Float, centerX: Float, centerY: Float, params: SceneParams, pulse: Float, timeSeconds: Float) {
 		val phaseIndex = moonLayer.phaseIndexFor(params.moonPhase)
-		val moonSprite = moonLayer.spriteFor(phaseIndex) ?: return
+		val preparedMoon = moonLayer.preparedFor(phaseIndex) ?: return
+		val moonSprite = preparedMoon.sprite
 		val moonPhase = phaseIndex.toFloat() / MoonLayer.MOON_PHASE_STEPS
 
 		val radius = span * MOON_RADIUS_FRACTION * normalizeMoonSizeScale(params.moonSizeScale)
+		val transmittance = moonCloudTransmittance(moonCloudOpacity(width, height, centerX, centerY, radius, params, timeSeconds, preparedMoon.cloudSamples))
 		val core = Color.rgb(232, 238, 247)
 
 		// A crescent sheds far less light than a full disc, so the whole glow scales with the lit fraction.
@@ -1267,12 +1275,100 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 
 		// Two blits of one pre-rendered radial sprite deepen the bloom — building RadialGradients here churned two shader allocations every frame.
 		val halo = tile("moonHalo", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildHaloSprite(it, core) }
-		blitSprite(canvas, halo, centerX, centerY, radius * (2.2f + 1.1f * pulse), ((80f + 130f * pulse) * litScale).roundToInt())
+		blitSprite(canvas, halo, centerX, centerY, radius * (2.2f + 1.1f * pulse), ((80f + 130f * pulse) * litScale * transmittance).roundToInt())
 
 		// Wide, faint outer bloom breathing in counter-phase, so something is always in motion.
-		blitSprite(canvas, halo, centerX, centerY, radius * (3.6f + 0.9f * (1f - pulse)), ((26f + 34f * (1f - pulse)) * litScale).roundToInt())
+		blitSprite(canvas, halo, centerX, centerY, radius * (3.6f + 0.9f * (1f - pulse)), ((26f + 34f * (1f - pulse)) * litScale * transmittance).roundToInt())
 
-		blitSprite(canvas, moonSprite, centerX, centerY, radius, 255)
+		drawMoonDisc(canvas, moonSprite, centerX, centerY, radius, transmittance)
+	}
+
+	/**
+	 * Darkens the lunar surface without reducing its phase alpha: stars behind the illuminated disc
+	 * must stay hidden even when a foreground cloud attenuates its light.
+	 * Filter levels are cached, so cloud drift never allocates a new color filter per frame.
+	 */
+	internal fun drawMoonDisc(canvas: Canvas, sprite: Bitmap, centerX: Float, centerY: Float, radius: Float, transmittance: Float) {
+		val level = (transmittance.coerceIn(0f, 1f) * (MOON_DIM_FILTER_LEVELS - 1)).roundToInt()
+		moonDiscPaint.colorFilter = if (level == MOON_DIM_FILTER_LEVELS - 1) null else moonDimFilters[level]
+		spriteDest.set(centerX - radius, centerY - radius, centerX + radius, centerY + radius)
+		canvas.drawBitmap(sprite, null, spriteDest, moonDiscPaint)
+	}
+
+	/**
+	 * Samples drifting cloud material only where the prepared lunar phase is illuminated.
+	 * Precomputed alpha-weighted probes avoid darkening an unobstructed crescent when a cloud crosses its unlit side.
+	 */
+	internal fun moonCloudOpacity(width: Float, height: Float, centerX: Float, centerY: Float, radius: Float, params: SceneParams, timeSeconds: Float, cloudSamples: FloatArray): Float {
+		val lowCloudiness = effectiveLowCloudiness(params)
+		val midCloudiness = effectiveMidCloudiness(params)
+		if (cloudSamples.isEmpty() || params.cloudScale <= 0f || params.precipitation != null || (lowCloudiness <= SCATTERED_CLOUD_FLOOR && midCloudiness <= SCATTERED_CLOUD_FLOOR)) {
+			return 0f
+		}
+
+		val cloudTop = scatteredCloudTop(width, height, params)
+		val sizeScale = cloudSizeScale(params)
+		val lowCoverage = scatteredCloudCoverage(lowCloudiness)
+		val nearState = if (lowCloudiness > SCATTERED_CLOUD_FLOOR) {
+			nearCumulusState(width, height, params, timeSeconds, lowCoverage)
+		} else {
+			null
+		}
+
+		val lowerSampler = nearState?.let {
+			cumulusSteps[it.lower].value.opacitySampler(width, it.deckHeight, it.offset, cloudTop, it.alpha, sizeScale)
+		}
+		val upperSampler = nearState?.let {
+			if (it.upper < cumulusSteps.size && it.growth > 0) {
+				cumulusSteps[it.upper].value.opacitySampler(width, it.deckHeight, it.offset, cloudTop, it.growth, sizeScale)
+			} else {
+				null
+			}
+		}
+
+		val farSampler = if (midCloudiness > SCATTERED_CLOUD_FLOOR) {
+			val midCoverage = scatteredCloudCoverage(midCloudiness)
+			val deckHeight = if (width < height) height * 0.34f else height * 0.30f
+			val drop = if (width < height) height * 0.22f else height * 0.18f
+			val offset = cumulusOffset(width, params, timeSeconds, 0.004f + params.windFactor * 0.008f, 1f, 0.34f, CUMULUS_FAR_VIEWPORTS)
+			val alpha = ((CUMULUS_FAR_MIN_ALPHA + CUMULUS_FAR_ALPHA_RANGE * midCoverage * midCoverage) * params.cloudScale).roundToInt().coerceIn(0, 255)
+
+			farCumulusDeck.opacitySampler(width, deckHeight, offset, cloudTop + drop, alpha, sizeScale, viewports = CUMULUS_FAR_VIEWPORTS)
+		} else {
+			null
+		}
+
+		val bankWeight = unlerp(PARTLY_BANK_START_COVERAGE, PARTLY_BANK_FULL_COVERAGE, lowCoverage)
+		val bankAlpha = (255f * PARTLY_BANK_ALPHA * bankWeight * params.cloudScale).roundToInt().coerceIn(0, 255)
+		val bankGeometry = if (bankAlpha > 0 && heroOvercastBankDelegate.isInitialized()) {
+			val period = width * PARTLY_BANK_VIEWPORTS
+			val surge = width * 0.004f * params.windFactor * params.windScale
+			val drift = surge * (0.6f * sin(timeSeconds * 0.19f) + 0.4f * sin(timeSeconds * 0.47f))
+			val offset = wrapOffset(timeSeconds * width * (0.0045f + params.windFactor * 0.009f) * params.windScale + drift * 0.60f - width * PARTLY_BANK_PHASE, period)
+			val bankHeight = overcastBankHeight(width, height, PARTLY_BANK_VIEWPORTS, PARTLY_BANK_HEIGHT_SCALE)
+
+			cloudDrawGeometry.configure(width, bankHeight, offset, height * PARTLY_BANK_TOP, PARTLY_BANK_VIEWPORTS)
+		} else {
+			null
+		}
+
+		if (lowerSampler == null && upperSampler == null && farSampler == null && bankGeometry == null) {
+			return 0f
+		}
+
+		var opacitySum = 0f
+		for (index in cloudSamples.indices step 3) {
+			val sampleX = centerX + cloudSamples[index] * radius
+			val sampleY = centerY + cloudSamples[index + 1] * radius
+			val weight = cloudSamples[index + 2]
+			val nearOpacity = 1f - (1f - (lowerSampler?.opacityAt(sampleX, sampleY) ?: 0f)) * (1f - (upperSampler?.opacityAt(sampleX, sampleY) ?: 0f))
+			val farOpacity = farSampler?.opacityAt(sampleX, sampleY) ?: 0f
+			val bankOpacity = if (bankGeometry != null) heroOvercastBank.textureOpacityAt(sampleX, sampleY, bankGeometry, bankAlpha) else 0f
+			val combinedOpacity = 1f - (1f - nearOpacity) * (1f - farOpacity) * (1f - bankOpacity)
+			opacitySum += combinedOpacity * weight
+		}
+
+		return opacitySum.coerceIn(0f, 1f)
 	}
 
 	/** The sun as a structured atmospheric light source rather than a painted object. */
@@ -3315,6 +3411,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		internal fun overcastBankHeight(width: Float, height: Float, viewports: Float, heightScale: Float) =
 			minOf(width * viewports / OVERCAST_SOURCE_ASPECT * heightScale, height * OVERCAST_MAX_BANK_HEIGHT_FRACTION)
 
+		private const val MOON_DIM_FILTER_LEVELS = 65
 		private const val STAR_SEED = 1L
 		private const val PRECIP_SEED = 3L
 		private const val BOLT_SEED = 5L
@@ -3832,7 +3929,17 @@ private inline fun wrapX(width: Float, cx: Float, reach: Float, draw: (Float) ->
 	}
 }
 
+/** Only locally overlapping cloud material dims the moon; a clear opening restores full brightness even in a cloudy forecast. */
+internal fun moonCloudTransmittance(localOpacity: Float): Float {
+	if (!localOpacity.isFinite()) {
+		return 1f
+	}
+
+	return (1f - localOpacity.coerceIn(0f, 1f)).pow(0.75f)
+}
+
 /** Dry daylight keeps either a full or veiled sun, while the moon remains limited to a clear, fog-free sky. */
+
 private fun showsCelestialBody(params: SceneParams) = when {
 	params.precipitation != null -> false
 	params.dayPhase != DayPhase.NIGHT -> true

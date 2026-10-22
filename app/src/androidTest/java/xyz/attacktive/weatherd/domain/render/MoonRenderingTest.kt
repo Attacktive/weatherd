@@ -10,6 +10,8 @@ import kotlinx.coroutines.runBlocking
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.LightingColorFilter
+import android.graphics.Paint
 import androidx.core.graphics.createBitmap
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -305,6 +307,144 @@ class MoonRenderingTest {
 	}
 
 	@Test
+	fun preparedOpacityProbesStayOnIlluminatedLunarPixels() {
+		val layer = MoonLayer(resources)
+		for (phase in listOf(0.0625f, 0.25f, 0.5f, 0.75f, 0.9375f, 0.984375f)) {
+			layer.prewarm(phase)
+			val prepared = checkNotNull(layer.preparedFor(layer.phaseIndexFor(phase)))
+			val samples = prepared.cloudSamples
+			assertTrue("Phase $phase must produce at least one illuminated cloud probe", samples.isNotEmpty() && samples.size % 3 == 0)
+			var totalWeight = 0f
+
+			for (index in samples.indices step 3) {
+				val x = (((samples[index] + 1f) * 0.5f) * prepared.sprite.width).toInt().coerceIn(0, prepared.sprite.width - 1)
+				val y = (((samples[index + 1] + 1f) * 0.5f) * prepared.sprite.height).toInt().coerceIn(0, prepared.sprite.height - 1)
+				val alpha = Color.alpha(prepared.sprite.getPixel(x, y))
+				assertTrue("Phase $phase probe ($x, $y) must sample the lit mask, found alpha $alpha", alpha >= 64)
+				assertTrue("Every mask probe must have positive area weight", samples[index + 2] > 0f)
+				totalWeight += samples[index + 2]
+			}
+
+			assertEquals("Probe weights must sum to one for phase $phase", 1f, totalWeight, 0.0001f)
+		}
+	}
+
+	@Test
+	fun cloudOverTheUnlitCrescentHemisphereDoesNotDimTheIlluminatedEdge() {
+		val params = clearNightParams(moonPhase = 0.9375f, cloudiness = 0.7f)
+		val renderer = SceneRenderer(resources, epochDay = 20_000L)
+		val layer = MoonLayer(resources)
+		val width = 540f
+		val height = 960f
+		val radius = minOf(width, height) * MOON_RADIUS_FRACTION
+
+		renderer.prewarmCloudTextures()
+		layer.prewarm(params.moonPhase)
+		val prepared = checkNotNull(layer.preparedFor(layer.phaseIndexFor(params.moonPhase)))
+		val opacity = renderer.moonCloudOpacity(
+			width,
+			height,
+			width * CELESTIAL_X_FRACTION,
+			height * celestialHeightFraction(params.dayPhase, params.celestialProgress),
+			radius,
+			params,
+			592f,
+			prepared.cloudSamples
+		)
+
+		assertTrue("Clouds covering only the dark hemisphere must not attenuate the lit crescent; measured opacity $opacity", opacity < 0.25f)
+		assertTrue("Lit crescent should retain most of its own brightness", moonCloudTransmittance(opacity) > 0.8f)
+	}
+
+	@Test
+	fun waningCrescentKeepsRenderedBrightnessWhenCloudsCoverOnlyItsDarkSide() {
+		val params = clearNightParams(moonPhase = 0.9375f, cloudiness = 0.7f)
+		val renderer = SceneRenderer(resources, epochDay = 20_000L)
+		val layer = MoonLayer(resources)
+		val width = 540
+		val height = 960
+		val timeSeconds = 592f
+		renderer.prewarmCloudTextures()
+		renderer.prewarmMoonPhase(params.moonPhase)
+		layer.prewarm(params.moonPhase)
+		val prepared = checkNotNull(layer.preparedFor(layer.phaseIndexFor(params.moonPhase)))
+		val cloudyMoon = renderForegroundOnNightSky(width, height, params, timeSeconds, renderer)
+		val cloudyWithoutMoon = renderForegroundOnNightSky(width, height, params.copy(moonVisible = false), timeSeconds, renderer)
+		val clear = params.copy(cloudiness = 0f)
+		val clearMoon = renderForegroundOnNightSky(width, height, clear, timeSeconds, renderer)
+		val clearWithoutMoon = renderForegroundOnNightSky(width, height, clear.copy(moonVisible = false), timeSeconds, renderer)
+
+		try {
+			val centerX = width * CELESTIAL_X_FRACTION
+			val centerY = height * celestialHeightFraction(params.dayPhase, params.celestialProgress)
+			val radius = minOf(width, height) * MOON_RADIUS_FRACTION
+			val cloudyBrightness = lunarContribution(cloudyMoon, cloudyWithoutMoon, prepared.cloudSamples, centerX, centerY, radius)
+			val clearBrightness = lunarContribution(clearMoon, clearWithoutMoon, prepared.cloudSamples, centerX, centerY, radius)
+
+			// The unchanged crescent contributes about 67 units on the API 37.2 reference render; 40 leaves room for rasterization differences.
+			assertTrue("The clear crescent must be visibly brighter than its no-moon control; measured $clearBrightness", clearBrightness > 40f)
+			assertTrue("Clouds over the dark hemisphere must preserve lit-crescent brightness; cloudy=$cloudyBrightness clear=$clearBrightness", retainsCrescentBrightness(cloudyBrightness, clearBrightness))
+
+			val overDimmedMoon = dimmedRenderedFrame(cloudyMoon)
+			val overDimmedWithoutMoon = dimmedRenderedFrame(cloudyWithoutMoon)
+			try {
+				val overDimmedBrightness = lunarContribution(overDimmedMoon, overDimmedWithoutMoon, prepared.cloudSamples, centerX, centerY, radius)
+				assertFalse("A deliberately 35%-bright rendered crescent must fail the same brightness guard; dimmed=$overDimmedBrightness clear=$clearBrightness", retainsCrescentBrightness(overDimmedBrightness, clearBrightness))
+			} finally {
+				overDimmedMoon.recycle()
+				overDimmedWithoutMoon.recycle()
+			}
+		} finally {
+			cloudyMoon.recycle()
+			cloudyWithoutMoon.recycle()
+			clearMoon.recycle()
+			clearWithoutMoon.recycle()
+		}
+	}
+
+	@Test
+	fun attenuatedFullMoonRemainsOpaqueOverABackgroundStar() {
+		val params = clearNightParams(moonPhase = 0.5f, cloudiness = 0.7f)
+		val renderer = SceneRenderer(resources, epochDay = 20_748L)
+		val layer = MoonLayer(resources)
+		val width = 1440f
+		val height = 2560f
+		renderer.prewarmCloudTextures()
+		layer.prewarm(params.moonPhase)
+		val prepared = checkNotNull(layer.preparedFor(layer.phaseIndexFor(params.moonPhase)))
+		val radius = minOf(width, height) * MOON_RADIUS_FRACTION
+		val opacity = renderer.moonCloudOpacity(
+			width,
+			height,
+			width * CELESTIAL_X_FRACTION,
+			height * celestialHeightFraction(params.dayPhase, params.celestialProgress),
+			radius,
+			params,
+			476f,
+			prepared.cloudSamples
+		)
+		val transmittance = moonCloudTransmittance(opacity)
+		assertTrue("The test requires actual partial cloud overlap: opacity=$opacity", opacity in 0.15f..0.9f)
+		assertTrue("The partial overlap should visibly darken the moon", transmittance < 0.9f)
+
+		val withoutStar = createBitmap(200, 200)
+		val withStar = createBitmap(200, 200)
+		try {
+			val starPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
+			Canvas(withStar).drawCircle(100f, 100f, 2f, starPaint)
+			assertEquals(Color.WHITE, withStar.getPixel(100, 100))
+
+			renderer.drawMoonDisc(Canvas(withoutStar), prepared.sprite, 100f, 100f, 85f, transmittance)
+			renderer.drawMoonDisc(Canvas(withStar), prepared.sprite, 100f, 100f, 85f, transmittance)
+			assertEquals("The dimmed lunar surface must remain opaque to a background star", withoutStar.getPixel(100, 100), withStar.getPixel(100, 100))
+			assertEquals("Full-moon surface opacity must remain intact", 255, Color.alpha(withStar.getPixel(100, 100)))
+		} finally {
+			withoutStar.recycle()
+			withStar.recycle()
+		}
+	}
+
+	@Test
 	fun moonSizeScaleIsExcludedFromBackdropIndependence() {
 		val params50 = clearNightParams(moonSizeScale = 0.5f)
 		val params100 = clearNightParams(moonSizeScale = 1.0f)
@@ -415,6 +555,44 @@ class MoonRenderingTest {
 		renderer.renderForeground(Canvas(bitmap), width, height, params, timeSeconds)
 
 		return bitmap
+	}
+
+	/** Draw onto the same opaque night sky so RGB differences reflect lunar light rather than unpremultiplied transparent pixels. */
+	private fun renderForegroundOnNightSky(width: Int, height: Int, params: SceneParams, timeSeconds: Float, renderer: SceneRenderer): Bitmap {
+		val bitmap = createBitmap(width, height)
+		val canvas = Canvas(bitmap)
+		canvas.drawColor(Color.rgb(14, 20, 40))
+		renderer.renderForeground(canvas, width, height, params, timeSeconds)
+
+		return bitmap
+	}
+
+	private fun pixelLuminance(color: Int) = Color.red(color) * 0.2126f + Color.green(color) * 0.7152f + Color.blue(color) * 0.0722f
+
+	/** Measure only the moon's weighted RGB contribution, subtracting the identical scene drawn without the moon. */
+	private fun lunarContribution(withMoon: Bitmap, withoutMoon: Bitmap, samples: FloatArray, centerX: Float, centerY: Float, radius: Float): Float {
+		var luminance = 0f
+		for (index in samples.indices step 3) {
+			val x = (centerX + samples[index] * radius).roundToInt()
+			val y = (centerY + samples[index + 1] * radius).roundToInt()
+			val weight = samples[index + 2]
+			luminance += weight * (pixelLuminance(withMoon.getPixel(x, y)) - pixelLuminance(withoutMoon.getPixel(x, y))).coerceAtLeast(0f)
+		}
+
+		return luminance
+	}
+
+	private fun retainsCrescentBrightness(actual: Float, clear: Float) = clear > 40f && actual / clear > 0.75f
+
+	/** The negative control deliberately dims both rendered frames equally, preserving their shared sky and alpha. */
+	private fun dimmedRenderedFrame(source: Bitmap): Bitmap {
+		val output = createBitmap(source.width, source.height)
+		val paint = Paint(Paint.FILTER_BITMAP_FLAG).apply {
+			colorFilter = LightingColorFilter(Color.rgb(89, 89, 89), 0)
+		}
+		Canvas(output).drawBitmap(source, 0f, 0f, paint)
+
+		return output
 	}
 
 	private fun renderBackdrop(
