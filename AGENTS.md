@@ -2,14 +2,12 @@
 
 Instructions and architectural invariants for agents working in the Weatherd codebase.
 
-- Version: 1.6.16 (2026-10-18)
+- Version: 1.6.17 (2026-10-22)
 - Persona: Coding assistant pair-programming with the user on Weatherd.
 
 ## Tools and Environment
 
 Agents use standard file inspection, editing tools, and Gradle tasks (`./gradlew check`).
-- The JDK is installed via SDKMAN.
-- Before Gradle tasks in non-interactive shells, source `"$HOME/.sdkman/bin/sdkman-init.sh"`.
 - In the current setup, `connectedDebugAndroidTest` removes the target Weatherd installation during teardown (observed on Pixel); use it only on a disposable device or emulator.
 - To preserve an existing installation, build the app and test APKs, install both with `adb install -r -t`, and run `adb shell am instrument -w xyz.attacktive.weatherd.test/androidx.test.runner.AndroidJUnitRunner` directly.
 - Direct instrumentation still force-stops the app and its live-wallpaper service. On the emulator, this left a dead wallpaper binding and a black home screen even though the preview worked; selecting the same Weatherd component was ignored. Run instrumentation before final wallpaper validation, and recover a stranded binding by selecting a different wallpaper before reapplying Weatherd.
