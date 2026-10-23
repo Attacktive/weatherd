@@ -49,7 +49,7 @@ Run unit tests, lint, and Detekt with:
 ```
 
 **Instrumentation warning:** `connectedDebugAndroidTest` currently removes Weatherd and its app data during teardown; use only a disposable device or emulator.
-See [AGENTS.md](AGENTS.md) for the in-place instrumentation procedure, architectural constraints, asset generators, provider evaluation, and monitoring setup.
+See [AGENTS.md](AGENTS.md) for core architectural constraints and the [development reference](docs/development.md) for in-place instrumentation, asset generators, provider evaluation, and monitoring setup.
 
 ## Weather data attribution
 
