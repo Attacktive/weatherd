@@ -6,7 +6,6 @@ import android.graphics.Color
 import android.graphics.ComposeShader
 import android.graphics.Paint
 import android.graphics.PorterDuff
-import android.graphics.PorterDuffXfermode
 import android.graphics.RadialGradient
 import android.graphics.RectF
 import android.graphics.Shader
@@ -52,9 +51,8 @@ internal class RainbowLayer {
 
 	private val coverage = SunSpriteCoverage(bitmap)
 	private val destination = RectF()
-	private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG).apply {
-		xfermode = PorterDuffXfermode(PorterDuff.Mode.SCREEN)
-	}
+	// Translucent color blending retains spectral separation against blue sky instead of whitening it.
+	private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
 
 	fun draw(canvas: Canvas, centerX: Float, centerY: Float, dayPhase: DayPhase, visibility: Float = 1f) {
 		if (canvas.width <= 0 || canvas.height <= 0 || dayPhase == DayPhase.NIGHT || !visibility.isFinite() || visibility <= 0f) {

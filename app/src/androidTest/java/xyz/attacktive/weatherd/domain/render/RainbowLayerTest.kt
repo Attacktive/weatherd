@@ -46,6 +46,25 @@ class RainbowLayerTest {
 	}
 
 	@Test
+	fun spectralEdgesTintBlueSkyInsteadOfOnlyWhiteningIt() {
+		val sky = Color.rgb(100, 160, 220)
+		val image = createBitmap(360, 780)
+		try {
+			image.eraseColor(sky)
+			RainbowLayer().draw(Canvas(image), image.width / 2f, image.height / 2f, DayPhase.DAY)
+			val column = (image.height / 2 until image.height).map { y -> image.getPixel(image.width / 2, y) }
+			val cool = column.withIndex().minBy { Color.red(it.value) - Color.blue(it.value) }
+			val warm = column.withIndex().maxBy { Color.red(it.value) - Color.blue(it.value) }
+			assertTrue("The cool edge must precede the warm edge against opaque sky", cool.index < warm.index)
+			assertTrue("The inner edge must contribute blue", Color.blue(cool.value) > Color.blue(sky))
+			assertTrue("The outer edge must contribute red", Color.red(warm.value) > Color.red(sky))
+			assertTrue("The warm edge must reduce sky blue rather than lift all channels into haze", Color.blue(warm.value) < Color.blue(sky))
+		} finally {
+			image.recycle()
+		}
+	}
+
+	@Test
 	fun restrainedArcFadesWithSunVisibilityAndNeverBecomesOpaque() {
 		val full = render()
 		val half = render(visibility = 0.5f)
