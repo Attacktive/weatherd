@@ -272,6 +272,23 @@ class SceneParamsTest {
 		assertEquals(1.0f, infParams.moonSizeScale, 0.0001f)
 	}
 
+	@Test
+	fun `rainbow size scale is clamped and non-finite values resolve to one in scene params`() {
+		val snapshot = snapshot(weatherCode = 2, precipitationMillimeters = 0.0, windSpeedKilometersPerHour = 10.0, cloudCoverPercent = 40)
+
+		val clampedLow = sceneParamsFor(snapshot, NOW, rainbowSizeScale = 0.1f)
+		assertEquals(0.6f, clampedLow.rainbowSizeScale, 0.0001f)
+
+		val clampedHigh = sceneParamsFor(snapshot, NOW, rainbowSizeScale = 3.0f)
+		assertEquals(1.4f, clampedHigh.rainbowSizeScale, 0.0001f)
+
+		val nanParams = sceneParamsFor(snapshot, NOW, rainbowSizeScale = Float.NaN)
+		assertEquals(1.0f, nanParams.rainbowSizeScale, 0.0001f)
+
+		val infParams = sceneParamsFor(snapshot, NOW, rainbowSizeScale = Float.POSITIVE_INFINITY)
+		assertEquals(1.0f, infParams.rainbowSizeScale, 0.0001f)
+	}
+
 
 	@Test
 	fun `the scales leave a dry calm snapshot alone`() {
@@ -328,6 +345,15 @@ class SceneParamsTest {
 	}
 
 	@Test
+	fun `rainbow size scale changes leave cached backdrop pixels reusable`() {
+		val small = fullyPopulatedParams().copy(rainbowSizeScale = 0.6f)
+		val large = fullyPopulatedParams().copy(rainbowSizeScale = 1.4f)
+
+		assertNotEquals(small, large)
+		assertEquals(backdropSignature(small), backdropSignature(large))
+	}
+
+	@Test
 	fun `the backdrop signature excludes foreground-only fields`() {
 		val params = fullyPopulatedParams().copy(dayPhase = DayPhase.DAY)
 
@@ -335,6 +361,7 @@ class SceneParamsTest {
 
 		assertEquals(0f, signature.moonPhase, 0.0001f)
 		assertEquals(0f, signature.celestialProgress, 0.0001f)
+		assertEquals(1f, signature.rainbowSizeScale, 0.0001f)
 
 		// Putting the foreground-only fields back has to reproduce the original, which proves nothing else was touched.
 		assertEquals(
@@ -344,6 +371,7 @@ class SceneParamsTest {
 				celestialProgress = params.celestialProgress,
 				overlayLabels = params.overlayLabels,
 				cloudContrastScale = params.cloudContrastScale,
+				rainbowSizeScale = params.rainbowSizeScale
 			)
 		)
 	}
@@ -596,7 +624,8 @@ class SceneParamsTest {
 		celestialProgress = 0.62f,
 		backdropScene = BackdropScene.PHOTO,
 		photoRevision = 7,
-		overlayLabels = OverlayLabels(weather = "Rain · 10°", location = "Seoul")
+		overlayLabels = OverlayLabels(weather = "Rain · 10°", location = "Seoul"),
+		rainbowSizeScale = 1.35f
 	)
 
 	private fun snapshot(

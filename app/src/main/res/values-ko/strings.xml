@@ -74,6 +74,7 @@
 	<string name="subtitle_show_moon">밤에 달을 표시합니다</string>
 	<string name="label_sun_size">태양 크기 · %1$d%%</string>
 	<string name="label_moon_size">달 크기 · %1$d%%</string>
+	<string name="label_rainbow_size">무지개 크기 · %1$d%%</string>
 	<string name="sun_size_small">작게</string>
 	<string name="sun_size_large">크게</string>
 	<string name="label_sun_color">태양 색상</string>

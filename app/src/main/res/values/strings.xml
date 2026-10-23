@@ -97,6 +97,7 @@
 	<string name="subtitle_show_moon">Draw the moon at night</string>
 	<string name="label_sun_size">Sun size · %1$d%%</string>
 	<string name="label_moon_size">Moon size · %1$d%%</string>
+	<string name="label_rainbow_size">Rainbow size · %1$d%%</string>
 	<string name="sun_size_small">Smaller</string>
 	<string name="sun_size_large">Larger</string>
 	<string name="label_sun_color">Sun color</string>

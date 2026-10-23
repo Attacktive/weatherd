@@ -106,10 +106,95 @@ class RainbowLayerTest {
 		assertTrue("Twilight optics should recede rather than compete with the sky", strengths[0] > strengths[1] && strengths[1] > strengths[2])
 	}
 
-	private fun render(width: Int = 360, height: Int = 780, phase: DayPhase = DayPhase.DAY, visibility: Float = 1f): Bitmap {
-		val image = createBitmap(width, height)
-		RainbowLayer().draw(Canvas(image), width / 2f, height / 2f, phase, visibility)
-		return image
+	@Test
+	fun arcRadiusScalesProportionallyWithRainbowSizeScale() {
+		for ((width, height) in listOf(360 to 780, 780 to 360)) {
+			val small = render(width = width, height = height, sizeScale = 0.6f)
+			val normal = render(width = width, height = height, sizeScale = 1.0f)
+			val large = render(width = width, height = height, sizeScale = 1.4f)
+			try {
+				val centerX = width / 2
+				val centerY = height / 2
+				val smallRadius = peakAlphaRadius(small, centerX, centerY)
+				val normalRadius = peakAlphaRadius(normal, centerX, centerY)
+				val largeRadius = peakAlphaRadius(large, centerX, centerY)
+
+				assertTrue("Small arc radius ($smallRadius) must be strictly less than normal ($normalRadius)", smallRadius < normalRadius)
+				assertTrue("Large arc radius ($largeRadius) must be strictly greater than normal ($normalRadius)", largeRadius > normalRadius)
+
+				val smallRatio = smallRadius.toFloat() / normalRadius
+				val largeRatio = largeRadius.toFloat() / normalRadius
+				assertTrue("0.6x scale ratio was $smallRatio", smallRatio in 0.55f..0.65f)
+				assertTrue("1.4x scale ratio was $largeRatio", largeRatio in 1.35f..1.45f)
+			} finally {
+				small.recycle()
+				normal.recycle()
+				large.recycle()
+			}
+		}
+	}
+
+	@Test
+	fun nearEdgeArcsAreClippedTranslationsWithoutRecenteringOrResizing() {
+		for ((width, height) in listOf(360 to 780, 780 to 360)) {
+			for (scale in listOf(0.6f, 1f, 1.4f)) {
+				val reference = createBitmap(width, height).also {
+					RainbowLayer().draw(Canvas(it), width / 2f, (height / 3).toFloat(), DayPhase.DAY, sizeScale = scale)
+				}
+
+				try {
+					for ((centerX, centerY) in listOf(20 to 20, width - 20 to height - 120)) {
+						val clipped = createBitmap(width, height)
+						try {
+							RainbowLayer().draw(Canvas(clipped), centerX.toFloat(), centerY.toFloat(), DayPhase.DAY, sizeScale = scale)
+							val offsetX = centerX - width / 2
+							val offsetY = centerY - height / 3
+							var visiblePixels = 0
+							for (y in 0 until height) {
+								for (x in 0 until width) {
+									val sourceX = x - offsetX
+									val sourceY = y - offsetY
+									val expected = if (sourceX in 0 until width && sourceY in 0 until height) {
+										reference.getPixel(sourceX, sourceY)
+									} else {
+										Color.TRANSPARENT
+									}
+
+									assertEquals("Clipped arc at ($x, $y), scale $scale", Color.alpha(expected).toDouble(), Color.alpha(clipped.getPixel(x, y)).toDouble(), 1.0)
+									if (Color.alpha(expected) > 0) {
+										visiblePixels++
+									}
+								}
+							}
+
+							assertTrue("Boundary fixture must retain a visible arc", visiblePixels > 50)
+						} finally {
+							clipped.recycle()
+						}
+					}
+				} finally {
+					reference.recycle()
+				}
+			}
+		}
+	}
+
+	private fun peakAlphaRadius(bitmap: Bitmap, centerX: Int, centerY: Int): Int {
+		var maxAlpha = 0
+		var peakRadius = 0
+		for (y in centerY until bitmap.height) {
+			val alpha = Color.alpha(bitmap.getPixel(centerX, y))
+			if (alpha > maxAlpha) {
+				maxAlpha = alpha
+				peakRadius = y - centerY
+			}
+		}
+
+		return peakRadius
+	}
+
+	private fun render(width: Int = 360, height: Int = 780, phase: DayPhase = DayPhase.DAY, visibility: Float = 1f, sizeScale: Float = 1f) = createBitmap(width, height).also {
+		RainbowLayer().draw(Canvas(it), width / 2f, height / 2f, phase, visibility, sizeScale)
 	}
 
 	private fun pixels(image: Bitmap, top: Int = 0, height: Int = image.height) = IntArray(image.width * height).also {

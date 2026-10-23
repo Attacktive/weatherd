@@ -54,12 +54,12 @@ internal class RainbowLayer {
 	// Translucent color blending retains spectral separation against blue sky instead of whitening it.
 	private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
 
-	fun draw(canvas: Canvas, centerX: Float, centerY: Float, dayPhase: DayPhase, visibility: Float = 1f) {
+	fun draw(canvas: Canvas, centerX: Float, centerY: Float, dayPhase: DayPhase, visibility: Float = 1f, sizeScale: Float = 1f) {
 		if (canvas.width <= 0 || canvas.height <= 0 || dayPhase == DayPhase.NIGHT || !visibility.isFinite() || visibility <= 0f) {
 			return
 		}
 
-		val reach = minOf(canvas.width, canvas.height) * ARC_RADIUS_FRACTION / SPECTRUM_RADIUS_FRACTION
+		val reach = minOf(canvas.width, canvas.height) * ARC_RADIUS_FRACTION / SPECTRUM_RADIUS_FRACTION * sizeScale
 		destination.set(centerX - reach, centerY - reach, centerX + reach, centerY + reach)
 		paint.alpha = (255f * haloStrength(dayPhase) * visibility.coerceAtMost(1f)).roundToInt()
 		coverage.draw(canvas, destination, paint)

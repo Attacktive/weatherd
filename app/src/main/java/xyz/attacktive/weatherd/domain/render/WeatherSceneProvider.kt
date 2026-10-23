@@ -28,6 +28,7 @@ import xyz.attacktive.weatherd.domain.model.WeatherObservation
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
 import xyz.attacktive.weatherd.domain.model.WeatherSource
+import xyz.attacktive.weatherd.domain.model.normalizeRainbowSizeScale
 import xyz.attacktive.weatherd.domain.repository.LocationRepository
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.ReverseGeocodingRepository
@@ -203,6 +204,7 @@ class WeatherSceneProvider @Inject constructor(
 			sunStyle = sunStyle,
 			sunbeamMode = sunbeamMode,
 			lensFlareEnabled = lensFlareEnabled,
+			rainbowSizeScale = rainbowSizeScale,
 			lensFlareMotionEnabled = lensFlareMotionEnabled,
 			distantAircraftEnabled = distantAircraftEnabled,
 			birdFlockSize = birdFlockSize,
@@ -459,6 +461,7 @@ class WeatherSceneProvider @Inject constructor(
 			sunStyle = sunStyle,
 			sunbeamMode = sunbeamMode,
 			lensFlareEnabled = lensFlareEnabled,
+			rainbowSizeScale = rainbowSizeScale,
 			celestialProgress = sceneSimulatorCelestialProgress.coerceIn(0f, 1f),
 			lensFlareMotionEnabled = lensFlareMotionEnabled,
 			distantAircraftEnabled = distantAircraftEnabled,
@@ -701,6 +704,7 @@ class WeatherSceneProvider @Inject constructor(
 			sunStyle = sunStyle,
 			sunbeamMode = sunbeamMode,
 			lensFlareEnabled = lensFlareEnabled,
+			rainbowSizeScale = normalizeRainbowSizeScale(rainbowSizeScale),
 			lensFlareMotionEnabled = lensFlareMotionEnabled,
 			distantAircraftEnabled = distantAircraftEnabled,
 			birdFlockSize = birdFlockSize,

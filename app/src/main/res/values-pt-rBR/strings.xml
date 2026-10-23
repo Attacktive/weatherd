@@ -74,6 +74,7 @@
 	<string name="subtitle_show_moon">Mostra a lua à noite</string>
 	<string name="label_sun_size">Tamanho do sol · %1$d%%</string>
 	<string name="label_moon_size">Tamanho da lua · %1$d%%</string>
+	<string name="label_rainbow_size">Tamanho do arco-íris · %1$d%%</string>
 	<string name="sun_size_small">Menor</string>
 	<string name="sun_size_large">Maior</string>
 	<string name="label_sun_color">Cor do sol</string>

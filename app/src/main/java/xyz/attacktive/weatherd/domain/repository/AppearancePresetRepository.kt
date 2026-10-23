@@ -31,6 +31,7 @@ import xyz.attacktive.weatherd.domain.model.SunbeamMode
 import xyz.attacktive.weatherd.domain.model.TreeStyle
 import xyz.attacktive.weatherd.domain.model.normalizeReadabilityStrength
 import xyz.attacktive.weatherd.domain.model.normalizeMoonSizeScale
+import xyz.attacktive.weatherd.domain.model.normalizeRainbowSizeScale
 
 sealed interface AppearancePresetStorageState {
 	data class Ready(val presets: List<SavedAppearancePreset>): AppearancePresetStorageState
@@ -202,6 +203,7 @@ private data class StoredSnapshot(
 	val sunStyle: String = SunStyle.CLASSIC.name,
 	val sunbeamMode: String = SunbeamMode.THROUGH_CLOUDS.name,
 	val lensFlareEnabled: Boolean,
+	val rainbowSizeScale: Float = 1f,
 	val lensFlareMotionEnabled: Boolean,
 	val distantAircraftEnabled: Boolean = true,
 	val birdFlockSize: String = BirdFlockSize.SMALL.name,
@@ -235,6 +237,7 @@ private data class StoredSnapshot(
 		sunStyle = enumValue(sunStyle, SunStyle.entries),
 		sunbeamMode = enumValue(sunbeamMode, SunbeamMode.entries),
 		lensFlareEnabled = lensFlareEnabled,
+		rainbowSizeScale = normalizeRainbowSizeScale(rainbowSizeScale),
 		lensFlareMotionEnabled = lensFlareMotionEnabled,
 		distantAircraftEnabled = distantAircraftEnabled,
 		birdFlockSize = enumValue(birdFlockSize, BirdFlockSize.entries),
@@ -276,6 +279,7 @@ private fun AppearancePresetSnapshot.toStored() = StoredSnapshot(
 	sunStyle = sunStyle.name,
 	sunbeamMode = sunbeamMode.name,
 	lensFlareEnabled = lensFlareEnabled,
+	rainbowSizeScale = normalizeRainbowSizeScale(rainbowSizeScale),
 	lensFlareMotionEnabled = lensFlareMotionEnabled,
 	distantAircraftEnabled = distantAircraftEnabled,
 	birdFlockSize = birdFlockSize.name,
@@ -292,8 +296,8 @@ private fun <T : Enum<T>> enumValue(name: String, values: Iterable<T>) = values.
 internal fun appearancePresetNameKey(name: String) = Normalizer.normalize(name.trim().lowercase(Locale.ROOT), Normalizer.Form.NFC)
 
 /** Bump whenever persisted preset snapshot fields are added, removed, renamed, or change meaning. */
-internal const val APPEARANCE_PRESET_SCHEMA_VERSION = 13
+internal const val APPEARANCE_PRESET_SCHEMA_VERSION = 14
 internal const val APPEARANCE_PRESET_NAME_MAX_LENGTH = 40
 internal const val APPEARANCE_PRESETS_KEY_NAME = "appearance_presets_json"
-private val SUPPORTED_APPEARANCE_PRESET_SCHEMA_VERSIONS = setOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, APPEARANCE_PRESET_SCHEMA_VERSION)
+private val SUPPORTED_APPEARANCE_PRESET_SCHEMA_VERSIONS = setOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, APPEARANCE_PRESET_SCHEMA_VERSION)
 private val PRESETS_KEY = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)

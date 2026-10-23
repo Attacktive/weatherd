@@ -92,6 +92,7 @@ class SettingsRepositoryTest {
 			sunStyle = SunStyle.RADIANT,
 			sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO,
 			lensFlareEnabled = false,
+			rainbowSizeScale = 1.35f,
 			lensFlareMotionEnabled = true,
 			sceneSimulatorEnabled = true,
 			sceneSimulatorActive = true,
@@ -287,6 +288,7 @@ class SettingsRepositoryTest {
 			sunStyle = SunStyle.RADIANT,
 			sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO,
 			lensFlareEnabled = false,
+			rainbowSizeScale = 1.25f,
 			lensFlareMotionEnabled = true,
 			labelVerticalPosition = 0.33f,
 			wallpaperDimmingStrength = 0.35f,
@@ -325,6 +327,7 @@ class SettingsRepositoryTest {
 			sunStyle = SunStyle.RADIANT,
 			sunbeamMode = SunbeamMode.OFF,
 			lensFlareEnabled = true,
+			rainbowSizeScale = 0.75f,
 			lensFlareMotionEnabled = true,
 			labelVerticalPosition = 0.5f
 		)
@@ -416,12 +419,19 @@ class SettingsRepositoryTest {
 			sceneSimulatorEnabled = true,
 			sceneSimulatorActive = true
 		)
-		val after = before.copy(frameRateCap = FrameRateCap.FPS_10, sceneSimulatorEnabled = false, sceneSimulatorActive = false, moonSizeScale = 1.7f)
+		val after = before.copy(
+			frameRateCap = FrameRateCap.FPS_10,
+			sceneSimulatorEnabled = false,
+			sceneSimulatorActive = false,
+			moonSizeScale = 1.7f,
+			rainbowSizeScale = 1.25f
+		)
 
 		assertEquals(
 			listOf(
 				SettingsMutation.FrameRate(FrameRateCap.FPS_10),
 				SettingsMutation.MoonSize(1.7f),
+				SettingsMutation.RainbowSize(1.25f),
 				SettingsMutation.SceneSimulatorEnabled(false),
 				SettingsMutation.SceneSimulatorActive(false)
 			),

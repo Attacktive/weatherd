@@ -35,6 +35,7 @@ data class AppSettings(
 	val sunStyle: SunStyle = SunStyle.CLASSIC,
 	val sunbeamMode: SunbeamMode = SunbeamMode.THROUGH_CLOUDS,
 	val lensFlareEnabled: Boolean = true,
+	val rainbowSizeScale: Float = 1f,
 	val lensFlareMotionEnabled: Boolean = false,
 	val distantAircraftEnabled: Boolean = true,
 	val birdFlockSize: BirdFlockSize = BirdFlockSize.SMALL,
@@ -92,6 +93,16 @@ val MOON_SIZE_SCALE_RANGE = 0.5f..2f
 /** Normalizes a Moon size scale into [MOON_SIZE_SCALE_RANGE], safely resolving non-finite values to 1f. */
 fun normalizeMoonSizeScale(value: Float) = if (value.isFinite()) {
 	value.coerceIn(MOON_SIZE_SCALE_RANGE.start, MOON_SIZE_SCALE_RANGE.endInclusive)
+} else {
+	1f
+}
+
+/** Bounds for the prismatic solar arc; other lens reflections keep their own geometry. */
+val RAINBOW_SIZE_SCALE_RANGE = 0.6f..1.4f
+
+/** Preserves the established arc size when a persisted multiplier is non-finite. */
+fun normalizeRainbowSizeScale(value: Float) = if (value.isFinite()) {
+	value.coerceIn(RAINBOW_SIZE_SCALE_RANGE.start, RAINBOW_SIZE_SCALE_RANGE.endInclusive)
 } else {
 	1f
 }

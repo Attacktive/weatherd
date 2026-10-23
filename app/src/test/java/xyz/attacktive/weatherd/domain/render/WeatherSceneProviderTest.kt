@@ -238,6 +238,7 @@ class WeatherSceneProviderTest {
 			moonVisible = false,
 			sunSizeScale = 1.6f,
 			moonSizeScale = 1.35f,
+			rainbowSizeScale = 1.25f,
 			sunColorPreset = SunColorPreset.GOLDEN,
 			sunStyle = SunStyle.RADIANT,
 			sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO,
@@ -276,6 +277,7 @@ class WeatherSceneProviderTest {
 		assertEquals(SunStyle.RADIANT, params.sunStyle)
 		assertEquals(SunbeamMode.CLEAR_SKIES_TOO, params.sunbeamMode)
 		assertFalse(params.lensFlareEnabled)
+		assertEquals(1.25f, params.rainbowSizeScale, 0.0001f)
 		assertEquals(moonPhaseFor(1_000_030L), params.moonPhase, 0.0001f)
 		coVerify(exactly = 0) { locationRepository.currentLocation() }
 		coVerify(exactly = 0) { weatherRepository.current(any(), any()) }
@@ -427,7 +429,7 @@ class WeatherSceneProviderTest {
 			runCurrent()
 			assertEquals(PrecipitationKind.SNOW, provider.paramsFor(1_000_030L).precipitation?.kind)
 
-			settings.value = settings.value.copy(sceneSimulatorActive = false, windIntensityScale = 1.5f, sunStyle = SunStyle.RADIANT, sunbeamMode = SunbeamMode.OFF, moonSizeScale = 1.75f)
+			settings.value = settings.value.copy(sceneSimulatorActive = false, windIntensityScale = 1.5f, sunStyle = SunStyle.RADIANT, sunbeamMode = SunbeamMode.OFF, moonSizeScale = 1.75f, rainbowSizeScale = 0.75f)
 			runCurrent()
 			val fallback = provider.paramsFor(1_000_030L)
 			assertNull(fallback.precipitation)
@@ -435,6 +437,7 @@ class WeatherSceneProviderTest {
 			assertEquals(SunStyle.RADIANT, fallback.sunStyle)
 			assertEquals(SunbeamMode.OFF, fallback.sunbeamMode)
 			assertEquals(1.75f, fallback.moonSizeScale, 0.0001f)
+			assertEquals(0.75f, fallback.rainbowSizeScale, 0.0001f)
 			assertFalse(refresh.isCompleted)
 
 			coEvery { weatherRepository.current(any(), any()) } returns Result.success(snapshotWith(weatherCode = 63))
@@ -691,7 +694,7 @@ class WeatherSceneProviderTest {
 
 		provider.refresh(1_000_000L)
 
-		persistedSettings.value = device.copy(sunVisible = false, moonVisible = false, sunSizeScale = 1.8f, moonSizeScale = 1.45f, sunColorPreset = SunColorPreset.ORANGE, sunStyle = SunStyle.RADIANT, sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO)
+		persistedSettings.value = device.copy(sunVisible = false, moonVisible = false, sunSizeScale = 1.8f, moonSizeScale = 1.45f, rainbowSizeScale = 1.3f, sunColorPreset = SunColorPreset.ORANGE, sunStyle = SunStyle.RADIANT, sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO)
 		provider.refresh(1_000_060L)
 
 		val params = provider.paramsFor(1_000_090L)
@@ -699,6 +702,7 @@ class WeatherSceneProviderTest {
 		assertFalse(params.moonVisible)
 		assertEquals(1.8f, params.sunSizeScale, 0.0001f)
 		assertEquals(1.45f, params.moonSizeScale, 0.0001f)
+		assertEquals(1.3f, params.rainbowSizeScale, 0.0001f)
 		assertEquals(SunColorPreset.ORANGE, params.sunColorPreset)
 		assertEquals(SunStyle.RADIANT, params.sunStyle)
 		assertEquals(SunbeamMode.CLEAR_SKIES_TOO, params.sunbeamMode)
@@ -719,6 +723,22 @@ class WeatherSceneProviderTest {
 		provider.refresh(1_000_060L)
 
 		assertFalse(provider.paramsFor(1_000_090L).lensFlareEnabled)
+	}
+
+	@Test
+	fun `rainbow size setting reaches scene params even when refresh is throttled`() = runTest {
+		val device = AppSettings(useDeviceLocation = true, rainbowSizeScale = 1f)
+		persistedSettings.value = device
+		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
+		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 3))
+
+		provider.refresh(1_000_000L)
+		assertEquals(1f, provider.paramsFor(1_000_030L).rainbowSizeScale, 0.0001f)
+
+		persistedSettings.value = device.copy(rainbowSizeScale = 1.35f)
+		provider.refresh(1_000_060L)
+
+		assertEquals(1.35f, provider.paramsFor(1_000_090L).rainbowSizeScale, 0.0001f)
 	}
 
 	@Test

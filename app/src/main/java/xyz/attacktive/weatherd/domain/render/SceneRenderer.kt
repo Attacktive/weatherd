@@ -1579,7 +1579,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 
 		val rainbowCenterX = sun.centerX + displacementX * LENS_FLARE_RAINBOW_SHIFT_FACTOR
 		val rainbowCenterY = sun.centerY + displacementY * LENS_FLARE_RAINBOW_SHIFT_FACTOR
-		rainbow.draw(canvas, rainbowCenterX, rainbowCenterY, sun.params.dayPhase, visibility)
+		rainbow.draw(canvas, rainbowCenterX, rainbowCenterY, sun.params.dayPhase, visibility, sun.params.rainbowSizeScale)
 
 		val streak = tile("sunStreak", SUN_STREAK_SPRITE_WIDTH, SUN_STREAK_SPRITE_HEIGHT) { buildSunStreakSprite(it, core) }
 		val streakHalfWidth = radius * SUN_STREAK_REACH

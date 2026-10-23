@@ -212,6 +212,15 @@ class SceneDebugPresetsTest {
 	}
 
 	@Test
+	fun `rainbow size scale clamps and non-finite values resolve to one in debug scene params`() {
+		val preset = SCENE_PRESETS.first { it.name == "CLEAR" }
+		assertEquals(0.6f, debugSceneParams(preset, DayPhase.DAY, rainbowSizeScale = 0.2f).rainbowSizeScale, 0.0001f)
+		assertEquals(1.4f, debugSceneParams(preset, DayPhase.DAY, rainbowSizeScale = 3.5f).rainbowSizeScale, 0.0001f)
+		assertEquals(1.0f, debugSceneParams(preset, DayPhase.DAY, rainbowSizeScale = Float.NaN).rainbowSizeScale, 0.0001f)
+		assertEquals(1.0f, debugSceneParams(preset, DayPhase.DAY, rainbowSizeScale = Float.POSITIVE_INFINITY).rainbowSizeScale, 0.0001f)
+	}
+
+	@Test
 	fun `lens flare motion preference reaches debug scene params and gates sensor collection`() {
 		val preset = SCENE_PRESETS.first { it.name == "CLEAR" }
 		val defaultParams = debugSceneParams(preset, DayPhase.DAY)

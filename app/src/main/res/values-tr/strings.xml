@@ -74,6 +74,7 @@
 	<string name="subtitle_show_moon">Gece ayı gösterir</string>
 	<string name="label_sun_size">Güneş boyutu · %1$d%%</string>
 	<string name="label_moon_size">Ay boyutu · %1$d%%</string>
+	<string name="label_rainbow_size">Gökkuşağı boyutu · %1$d%%</string>
 	<string name="sun_size_small">Daha küçük</string>
 	<string name="sun_size_large">Daha büyük</string>
 	<string name="label_sun_color">Güneş rengi</string>

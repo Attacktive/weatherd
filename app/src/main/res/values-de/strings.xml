@@ -74,6 +74,7 @@
 	<string name="subtitle_show_moon">Mond nachts anzeigen</string>
 	<string name="label_sun_size">Sonnengröße · %1$d%%</string>
 	<string name="label_moon_size">Mondgröße · %1$d%%</string>
+	<string name="label_rainbow_size">Regenbogengröße · %1$d%%</string>
 	<string name="sun_size_small">Kleiner</string>
 	<string name="sun_size_large">Größer</string>
 	<string name="label_sun_color">Sonnenfarbe</string>

@@ -43,7 +43,7 @@ class AppearancePresetRepositoryTest {
 		val dataStore = dataStore()
 		val repository = AppearancePresetRepository(dataStore)
 		val firstSnapshot = AppSettings(backdropScene = BackdropScene.BEACH, sunbeamMode = SunbeamMode.OFF).toAppearancePresetSnapshot()
-		val secondSnapshot = AppSettings(backdropScene = BackdropScene.MOUNTAINS, skyColorPreset = SkyColorPreset.PASTEL, glassDropletsEnabled = true, distantAircraftEnabled = false, sunStyle = SunStyle.RADIANT, sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO).toAppearancePresetSnapshot()
+		val secondSnapshot = AppSettings(backdropScene = BackdropScene.MOUNTAINS, skyColorPreset = SkyColorPreset.PASTEL, glassDropletsEnabled = true, distantAircraftEnabled = false, sunStyle = SunStyle.RADIANT, sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO, rainbowSizeScale = 1.35f).toAppearancePresetSnapshot()
 
 		assertTrue(repository.create("Coast", firstSnapshot).isSuccess)
 		val created = (repository.state.first() as AppearancePresetStorageState.Ready).presets.single()
@@ -58,6 +58,7 @@ class AppearancePresetRepositoryTest {
 		assertEquals(secondSnapshot, replaced.snapshot)
 		assertTrue(replaced.snapshot.glassDropletsEnabled)
 		assertFalse(replaced.snapshot.distantAircraftEnabled)
+		assertEquals(1.35f, replaced.snapshot.rainbowSizeScale, 0.0001f)
 
 		assertTrue(reopened.delete(created.id).isSuccess)
 		assertTrue((reopened.state.first() as AppearancePresetStorageState.Ready).presets.isEmpty())

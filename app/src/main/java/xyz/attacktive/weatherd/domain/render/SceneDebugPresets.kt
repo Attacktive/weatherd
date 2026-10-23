@@ -15,6 +15,7 @@ import xyz.attacktive.weatherd.domain.model.SKY_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SKY_SATURATION_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.normalizeMoonSizeScale
+import xyz.attacktive.weatherd.domain.model.normalizeRainbowSizeScale
 import xyz.attacktive.weatherd.domain.model.normalizeReadabilityStrength
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
@@ -96,6 +97,7 @@ fun debugSceneParams(
 	sunStyle: SunStyle = SunStyle.CLASSIC,
 	sunbeamMode: SunbeamMode = SunbeamMode.THROUGH_CLOUDS,
 	lensFlareEnabled: Boolean = true,
+	rainbowSizeScale: Float = 1f,
 	celestialProgress: Float = 0.5f,
 	lensFlareMotionEnabled: Boolean = false,
 	distantAircraftEnabled: Boolean = true,
@@ -134,6 +136,7 @@ fun debugSceneParams(
 	sunStyle = sunStyle,
 	sunbeamMode = sunbeamMode,
 	lensFlareEnabled = lensFlareEnabled,
+	rainbowSizeScale = normalizeRainbowSizeScale(rainbowSizeScale),
 	celestialProgress = celestialProgress,
 	lensFlareMotionEnabled = lensFlareMotionEnabled,
 	distantAircraftEnabled = distantAircraftEnabled,

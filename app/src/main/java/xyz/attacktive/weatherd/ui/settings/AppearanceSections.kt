@@ -65,6 +65,7 @@ import xyz.attacktive.weatherd.domain.model.LABEL_VERTICAL_POSITION_RANGE
 import xyz.attacktive.weatherd.domain.model.NIGHT_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.PhotoBucket
 import xyz.attacktive.weatherd.domain.model.READABILITY_STRENGTH_RANGE
+import xyz.attacktive.weatherd.domain.model.RAINBOW_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SKY_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SKY_SATURATION_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
@@ -361,6 +362,22 @@ internal fun SunEffectsSection(settings: AppSettings, defaults: AppSettings, onS
 				checked = settings.lensFlareEnabled,
 				onToggle = { onSave(settings.copy(lensFlareEnabled = it)) },
 			)
+
+			AnimatedVisibility(visible = settings.lensFlareEnabled) {
+				Column {
+					Spacer(modifier = Modifier.height(12.dp))
+
+					PercentageSlider(
+						label = R.string.label_rainbow_size,
+						value = settings.rainbowSizeScale,
+						defaultValue = defaults.rainbowSizeScale,
+						valueRange = RAINBOW_SIZE_SCALE_RANGE,
+						lowLabel = R.string.sun_size_small,
+						highLabel = R.string.sun_size_large,
+						onCommit = { onSave(settings.copy(rainbowSizeScale = it)) }
+					)
+				}
+			}
 
 			ToggleSetting(
 				label = stringResource(R.string.label_lens_flare_motion),

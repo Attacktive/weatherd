@@ -1,11 +1,15 @@
 package xyz.attacktive.weatherd.ui.settings
 
+import java.io.File
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import android.Manifest
 import android.app.UiAutomation
 import android.content.res.Configuration
 import android.graphics.Rect
 import android.graphics.Color
 import android.os.Build
+import android.os.Bundle
 import android.os.ParcelFileDescriptor
 import android.os.SystemClock
 import android.provider.Settings
@@ -22,14 +26,18 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.runner.lifecycle.ActivityLifecycleCallback
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
 import androidx.test.runner.lifecycle.Stage
+import dagger.hilt.android.EntryPointAccessors
 import org.junit.After
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import xyz.attacktive.weatherd.MainActivity
 import xyz.attacktive.weatherd.R
+import xyz.attacktive.weatherd.data.provider.ProviderEvaluationEntryPoint
+import xyz.attacktive.weatherd.domain.repository.SettingsMutation
 
 @RunWith(AndroidJUnit4::class)
 class SettingsNavigationTest {
@@ -77,6 +85,90 @@ class SettingsNavigationTest {
 				ActivityLifecycleMonitorRegistry.getInstance().removeLifecycleCallback(viewport)
 			}
 		}
+	}
+
+	@Test
+	fun rainbowSizeRetainsSelectionWhenFlareIsHiddenAndResetsAfterRecreation() = runBlocking {
+		val repository = EntryPointAccessors.fromApplication(
+			instrumentation.targetContext.applicationContext,
+			ProviderEvaluationEntryPoint::class.java
+		).settingsRepository()
+
+		val original = repository.settings.first()
+		try {
+			repository.update(listOf(SettingsMutation.SunVisible(true), SettingsMutation.LensFlareEnabled(true), SettingsMutation.RainbowSize(1f)))
+			clickText(R.string.appearance_category_sun)
+			waitUntil("Sun detail") { !isVisible(R.string.settings_tab_weather) }
+			scrollToRainbowSize(100)
+			setRainbowProgress(1.4f, 100)
+			waitUntil("rainbow size persisted at 140%") { runBlocking { repository.settings.first().rainbowSizeScale == 1.4f } }
+			waitForNode("140% size label") { matchesText(it, rainbowSizeText(140)) }
+			if (InstrumentationRegistry.getArguments().getString("rainbowEvidence") == "true") {
+				automation.takeScreenshot()?.let { screenshot ->
+					File(instrumentation.targetContext.getExternalFilesDir(null), "rainbow-size-settings.png").outputStream().use {
+						screenshot.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+					}
+
+					screenshot.recycle()
+				}
+			}
+
+			scrollTo(R.string.label_lens_flare)
+			clickLensFlareSwitch()
+			waitUntil("Lens flare disabled") { runBlocking { !repository.settings.first().lensFlareEnabled } }
+			waitUntil("Rainbow size hidden") { findNode(automation.rootInActiveWindow) { matchesText(it, rainbowSizeText(140)) } == null }
+			assertEquals(1.4f, repository.settings.first().rainbowSizeScale, 0.0001f)
+			clickLensFlareSwitch()
+			scrollToRainbowSize(140)
+			scenario.recreate()
+			scrollToRainbowSize(140)
+			val reset = instrumentation.targetContext.getString(R.string.content_description_reset_to_default, rainbowSizeText(140))
+			click(waitForNode("Rainbow size reset") { it.contentDescription?.toString() == reset })
+			waitUntil("rainbow size reset persisted") { runBlocking { repository.settings.first().rainbowSizeScale == 1f } }
+			scrollToRainbowSize(100)
+			setRainbowProgress(0.6f, 100)
+			waitUntil("rainbow size persisted at 60%") { runBlocking { repository.settings.first().rainbowSizeScale == 0.6f } }
+			scrollToRainbowSize(60)
+		} finally {
+			repository.update(listOf(SettingsMutation.SunVisible(original.sunVisible), SettingsMutation.LensFlareEnabled(original.lensFlareEnabled), SettingsMutation.RainbowSize(original.rainbowSizeScale)))
+		}
+	}
+
+	private fun rainbowSizeText(percent: Int) = instrumentation.targetContext.getString(R.string.label_rainbow_size, percent)
+
+	private fun scrollToRainbowSize(percent: Int) = waitUntil("Rainbow size $percent%") {
+		if (findNode(automation.rootInActiveWindow) { it.isVisibleToUser && matchesText(it, rainbowSizeText(percent)) } != null) {
+			true
+		} else {
+			verticalScroller()?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+			false
+		}
+	}
+
+	private fun setRainbowProgress(value: Float, currentPercent: Int) {
+		val label = waitForNode("Rainbow size label") { matchesText(it, rainbowSizeText(currentPercent)) }
+		val labelBounds = Rect().also { label.getBoundsInScreen(it) }
+		val slider = waitForNode("Rainbow size slider") {
+			val bounds = Rect().also { rect -> it.getBoundsInScreen(rect) }
+			it.rangeInfo != null && bounds.top >= labelBounds.bottom
+		}
+
+		val arguments = Bundle().apply {
+			putFloat(AccessibilityNodeInfo.ACTION_ARGUMENT_PROGRESS_VALUE, value)
+		}
+
+		assertTrue("Rainbow slider accepts $value", slider.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_PROGRESS.id, arguments))
+	}
+
+	private fun clickLensFlareSwitch() {
+		val label = waitForNode("Lens flare label") { matchesText(it, text(R.string.label_lens_flare)) }
+		val labelBounds = Rect().also { label.getBoundsInScreen(it) }
+		val toggle = waitForNode("Lens flare switch") {
+			val bounds = Rect().also { rect -> it.getBoundsInScreen(rect) }
+			it.isCheckable && bounds.centerY() in labelBounds.top..(labelBounds.bottom + labelBounds.height() * 2)
+		}
+
+		click(toggle)
 	}
 
 	@Test

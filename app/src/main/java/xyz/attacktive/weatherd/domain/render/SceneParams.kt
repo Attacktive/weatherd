@@ -16,6 +16,7 @@ import xyz.attacktive.weatherd.domain.model.SKY_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SKY_SATURATION_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.normalizeMoonSizeScale
+import xyz.attacktive.weatherd.domain.model.normalizeRainbowSizeScale
 import xyz.attacktive.weatherd.domain.model.READABILITY_STRENGTH_RANGE
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
@@ -48,6 +49,7 @@ import xyz.attacktive.weatherd.domain.model.normalizeReadabilityStrength
  * [sunVisible], [moonVisible], [sunSizeScale], [moonSizeScale], [sunColorPreset] and [sunStyle] customize the celestial bodies without changing the time-of-day lighting.
  * [sunbeamMode] controls atmospheric shafts independently of sun artwork and lens flare; partial-cloud openings are the default and clear-sky rays are opt-in.
  * [lensFlareEnabled] is a display preference for camera-style streaks and optical ghosts around the sun; it does not disable the physical corona or atmospheric light shafts.
+ * [rainbowSizeScale] scales the destination reach of the procedural prismatic arc when [lensFlareEnabled] is active.
  * [lensFlareMotionEnabled] allows device tilt and motion sensors to subtly deflect camera optical reflections when [lensFlareEnabled] and direct sun are visible.
  * [distantAircraftEnabled] controls the optional procedural aircraft and contrail foreground detail without changing weather classification.
  * [birdFlockSize] and [birdAppearanceInterval] customize foreground flocks without changing their fair-weather daylight eligibility.
@@ -90,6 +92,7 @@ data class SceneParams(
 	val sunStyle: SunStyle = SunStyle.CLASSIC,
 	val sunbeamMode: SunbeamMode = SunbeamMode.THROUGH_CLOUDS,
 	val lensFlareEnabled: Boolean = true,
+	val rainbowSizeScale: Float = 1f,
 	val lensFlareMotionEnabled: Boolean = false,
 	val humidityHazeDensity: Float = 0f,
 	val distantAircraftEnabled: Boolean = true,
@@ -136,6 +139,7 @@ fun backdropSignature(params: SceneParams, backgroundPhotoAvailable: Boolean = f
 		sunStyle = SunStyle.CLASSIC,
 		sunbeamMode = SunbeamMode.THROUGH_CLOUDS,
 		lensFlareEnabled = true,
+		rainbowSizeScale = 1f,
 		lensFlareMotionEnabled = false,
 		distantAircraftEnabled = true,
 		glassDropletsEnabled = false,
@@ -227,6 +231,7 @@ fun sceneParamsFor(
 	sunStyle: SunStyle = SunStyle.CLASSIC,
 	sunbeamMode: SunbeamMode = SunbeamMode.THROUGH_CLOUDS,
 	lensFlareEnabled: Boolean = true,
+	rainbowSizeScale: Float = 1f,
 	lensFlareMotionEnabled: Boolean = false,
 	distantAircraftEnabled: Boolean = true,
 	glassDropletsEnabled: Boolean = false,
@@ -296,6 +301,7 @@ fun sceneParamsFor(
 		photoRevision = photoRevision,
 		overlayLabels = overlayLabels,
 		lensFlareEnabled = lensFlareEnabled,
+		rainbowSizeScale = normalizeRainbowSizeScale(rainbowSizeScale),
 		lensFlareMotionEnabled = lensFlareMotionEnabled,
 		humidityHazeDensity = humidityHazeDensityFor(observation.relativeHumidityPercent, condition.fog),
 		distantAircraftEnabled = distantAircraftEnabled,

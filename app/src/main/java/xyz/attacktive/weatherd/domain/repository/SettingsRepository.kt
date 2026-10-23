@@ -32,6 +32,7 @@ import xyz.attacktive.weatherd.domain.model.SKY_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SKY_SATURATION_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.normalizeMoonSizeScale
+import xyz.attacktive.weatherd.domain.model.normalizeRainbowSizeScale
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
@@ -78,6 +79,7 @@ sealed interface SettingsMutation {
 	data class SunStyle(val value: xyz.attacktive.weatherd.domain.model.SunStyle): SettingsMutation
 	data class SunbeamModeMutation(val value: xyz.attacktive.weatherd.domain.model.SunbeamMode): SettingsMutation
 	data class LensFlareEnabled(val enabled: Boolean): SettingsMutation
+	data class RainbowSize(val value: Float): SettingsMutation
 	data class LensFlareMotionEnabled(val enabled: Boolean): SettingsMutation
 	data class DistantAircraftEnabled(val enabled: Boolean): SettingsMutation
 	data class BirdFlockSize(val value: xyz.attacktive.weatherd.domain.model.BirdFlockSize): SettingsMutation
@@ -128,6 +130,7 @@ internal fun settingsMutationsBetween(previous: AppSettings, updated: AppSetting
 		addIfChanged(previous.sunStyle, updated.sunStyle, SettingsMutation::SunStyle)
 		addIfChanged(previous.sunbeamMode, updated.sunbeamMode, SettingsMutation::SunbeamModeMutation)
 		addIfChanged(previous.lensFlareEnabled, updated.lensFlareEnabled, SettingsMutation::LensFlareEnabled)
+		addIfChanged(previous.rainbowSizeScale, updated.rainbowSizeScale, SettingsMutation::RainbowSize)
 		addIfChanged(previous.lensFlareMotionEnabled, updated.lensFlareMotionEnabled, SettingsMutation::LensFlareMotionEnabled)
 		addIfChanged(previous.distantAircraftEnabled, updated.distantAircraftEnabled, SettingsMutation::DistantAircraftEnabled)
 		addIfChanged(previous.birdFlockSize, updated.birdFlockSize, SettingsMutation::BirdFlockSize)
@@ -212,6 +215,7 @@ private fun SettingsMutation.appliedTo(settings: AppSettings) = when (this) {
 	is SettingsMutation.SunStyle -> settings.copy(sunStyle = value)
 	is SettingsMutation.SunbeamModeMutation -> settings.copy(sunbeamMode = value)
 	is SettingsMutation.LensFlareEnabled -> settings.copy(lensFlareEnabled = enabled)
+	is SettingsMutation.RainbowSize -> settings.copy(rainbowSizeScale = value)
 	is SettingsMutation.LensFlareMotionEnabled -> settings.copy(lensFlareMotionEnabled = enabled)
 	is SettingsMutation.DistantAircraftEnabled -> settings.copy(distantAircraftEnabled = enabled)
 	is SettingsMutation.BirdFlockSize -> settings.copy(birdFlockSize = value)
@@ -267,6 +271,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		val SUN_STYLE = stringPreferencesKey("sun_style")
 		val SUNBEAM_MODE = stringPreferencesKey("sunbeam_mode")
 		val LENS_FLARE_ENABLED = booleanPreferencesKey("lens_flare_enabled")
+		val RAINBOW_SIZE_SCALE = floatPreferencesKey("rainbow_size_scale")
 		val LENS_FLARE_MOTION_ENABLED = booleanPreferencesKey("lens_flare_motion_enabled")
 		val DISTANT_AIRCRAFT_ENABLED = booleanPreferencesKey("distant_aircraft_enabled")
 		val BIRD_FLOCK_SIZE = stringPreferencesKey("bird_flock_size")
@@ -318,6 +323,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			sunStyle = enumOrDefault(preferences[Keys.SUN_STYLE], SunStyle.entries, defaults.sunStyle),
 			sunbeamMode = enumOrDefault(preferences[Keys.SUNBEAM_MODE], SunbeamMode.entries, defaults.sunbeamMode),
 			lensFlareEnabled = preferences[Keys.LENS_FLARE_ENABLED] ?: defaults.lensFlareEnabled,
+			rainbowSizeScale = normalizeRainbowSizeScale(preferences[Keys.RAINBOW_SIZE_SCALE] ?: defaults.rainbowSizeScale),
 			lensFlareMotionEnabled = preferences[Keys.LENS_FLARE_MOTION_ENABLED] ?: defaults.lensFlareMotionEnabled,
 			distantAircraftEnabled = preferences[Keys.DISTANT_AIRCRAFT_ENABLED] ?: defaults.distantAircraftEnabled,
 			birdFlockSize = enumOrDefault(preferences[Keys.BIRD_FLOCK_SIZE], BirdFlockSize.entries, defaults.birdFlockSize),
@@ -389,6 +395,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			preferences[Keys.SUN_STYLE] = settings.sunStyle.name
 			preferences[Keys.SUNBEAM_MODE] = settings.sunbeamMode.name
 			preferences[Keys.LENS_FLARE_ENABLED] = settings.lensFlareEnabled
+			preferences[Keys.RAINBOW_SIZE_SCALE] = normalizeRainbowSizeScale(settings.rainbowSizeScale)
 			preferences[Keys.LENS_FLARE_MOTION_ENABLED] = settings.lensFlareMotionEnabled
 			preferences[Keys.DISTANT_AIRCRAFT_ENABLED] = settings.distantAircraftEnabled
 			preferences[Keys.BIRD_FLOCK_SIZE] = settings.birdFlockSize.name
@@ -449,6 +456,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			is SettingsMutation.SunStyle -> this[Keys.SUN_STYLE] = mutation.value.name
 			is SettingsMutation.SunbeamModeMutation -> this[Keys.SUNBEAM_MODE] = mutation.value.name
 			is SettingsMutation.LensFlareEnabled -> this[Keys.LENS_FLARE_ENABLED] = mutation.enabled
+			is SettingsMutation.RainbowSize -> this[Keys.RAINBOW_SIZE_SCALE] = normalizeRainbowSizeScale(mutation.value)
 			is SettingsMutation.LensFlareMotionEnabled -> this[Keys.LENS_FLARE_MOTION_ENABLED] = mutation.enabled
 			is SettingsMutation.DistantAircraftEnabled -> this[Keys.DISTANT_AIRCRAFT_ENABLED] = mutation.enabled
 			is SettingsMutation.BirdFlockSize -> this[Keys.BIRD_FLOCK_SIZE] = mutation.value.name
@@ -494,6 +502,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		this[Keys.SUN_STYLE] = snapshot.sunStyle.name
 		this[Keys.SUNBEAM_MODE] = snapshot.sunbeamMode.name
 		this[Keys.LENS_FLARE_ENABLED] = snapshot.lensFlareEnabled
+		this[Keys.RAINBOW_SIZE_SCALE] = normalizeRainbowSizeScale(snapshot.rainbowSizeScale)
 		this[Keys.LENS_FLARE_MOTION_ENABLED] = snapshot.lensFlareMotionEnabled
 		this[Keys.DISTANT_AIRCRAFT_ENABLED] = snapshot.distantAircraftEnabled
 		this[Keys.BIRD_FLOCK_SIZE] = snapshot.birdFlockSize.name
