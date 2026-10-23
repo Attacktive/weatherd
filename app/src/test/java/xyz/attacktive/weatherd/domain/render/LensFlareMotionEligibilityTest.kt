@@ -33,6 +33,7 @@ class LensFlareMotionEligibilityTest {
 		val hiddenScenes = listOf(
 			enabled.copy(dayPhase = DayPhase.NIGHT),
 			enabled.copy(dayPhase = DayPhase.DUSK, celestialProgress = 1f),
+			enabled.copy(thunder = true),
 			enabled.copy(cloudiness = 0.9f),
 			enabled.copy(cloudiness = 0.4f, cloudCountScale = 2f),
 			enabled.copy(fogDensity = 1f),

@@ -28,7 +28,6 @@ import android.graphics.RadialGradient
 import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
-import android.graphics.SweepGradient
 import androidx.core.graphics.withClip
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.BackdropScene
@@ -82,6 +81,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 	private val sunRenderContext = SunRenderContext()
 	private val sunShaftGeometry = SunShaftGeometry()
 	private var strongestSunCloudOpacity = 0f
+	private var sunOpticalTransmission = 1f
 
 	private class SunRenderContext {
 		var span = 0f
@@ -150,7 +150,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		lazy(LazyThreadSafetyMode.NONE) { CloudLayer(resources, R.drawable.cloud_cumulus_broken, epochDay) }
 	)
 
-	private val rainbow by lazy(LazyThreadSafetyMode.NONE) { RainbowLayer(resources, R.drawable.rainbow) }
+	private val rainbow by lazy(LazyThreadSafetyMode.NONE) { RainbowLayer() }
 	private var tilesKey: String? = null
 	private var rainPoints = FloatArray(0)
 	private val spritePaint = Paint(Paint.FILTER_BITMAP_FLAG)
@@ -312,10 +312,6 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		if (params.dayPhase == DayPhase.NIGHT && showsCelestialBody(params)) {
 			drawStars(canvas, w, h, timeSeconds)
 			drawShootingStar(canvas, w, h, timeSeconds)
-		}
-
-		if (showsRainbow(params)) {
-			rainbow.draw(canvas, celestialCenterX, celestialCenterY, params.dayPhase, sunVisibility(params.dayPhase, params.celestialProgress))
 		}
 
 		if (showsCelestialBody(params)) {
@@ -1401,13 +1397,22 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		val core = sunColor(sun.params.dayPhase, sun.params.sunColorPreset)
 		val halo = tile("sunHalo", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildHaloSprite(it, core) }
 		val atmosphere = tile("sunAtmosphere", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildSunAtmosphereSprite(it, core) }
+		val drawsShafts = canDrawSunLightShafts(sun.params)
+		val cloudSampled = if (drawsShafts || showsRainbow(sun.params)) {
+			sampleSunCloudEdgeProfile(sun, radius, drawsShafts)
+		} else {
+			false
+		}
 
-		drawSunLightShafts(canvas, sun, radius, core)
+		if (drawsShafts) {
+			drawSunLightShafts(canvas, sun, radius, core, cloudSampled)
+		}
+
 		if (drawVeiledSun(canvas, sun, radius, core, atmosphere)) {
 			return
 		}
 
-		if (sun.params.lensFlareEnabled) {
+		if (showsRainbow(sun.params)) {
 			drawSunLensFlare(canvas, sun, radius, core)
 		}
 
@@ -1536,6 +1541,11 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 	private fun sunCoronaCloudStrength(cloudiness: Float) = lerp(1f, SUN_CORONA_CLOUD_MIN_STRENGTH, unlerp(0f, DIRECT_SUN_MAX_CLOUDINESS, cloudiness))
 
 	private fun drawSunLensFlare(canvas: Canvas, sun: SunRenderContext, radius: Float, core: Int) {
+		val visibility = sun.visibility * sunOpticalTransmission
+		if (visibility <= 0f) {
+			return
+		}
+
 		val motionX = if (sun.params.lensFlareMotionEnabled && lensFlareOffsetX.isFinite()) {
 			lensFlareOffsetX.coerceIn(-1f, 1f)
 		} else {
@@ -1565,16 +1575,15 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		val haloPhaseStrength = lensHaloPhaseStrength(sun.params.dayPhase, sun.params.celestialProgress) * haloAlphaScale
 		val lensHalo = tile("sunLensHalo-reference", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildLensHaloSprite(it) }
 		val lensHaloAlpha = SUN_LENS_HALO_ALPHA * haloPhaseStrength
-		blitCoveredSunSprite(canvas, lensHalo, haloCenterX, haloCenterY, radius * SUN_LENS_HALO_REACH, sunAlpha(lensHaloAlpha, sun.visibility), glowPaint)
+		blitCoveredSunSprite(canvas, lensHalo, haloCenterX, haloCenterY, radius * SUN_LENS_HALO_REACH, sunAlpha(lensHaloAlpha, visibility), glowPaint)
 
 		val rainbowCenterX = sun.centerX + displacementX * LENS_FLARE_RAINBOW_SHIFT_FACTOR
 		val rainbowCenterY = sun.centerY + displacementY * LENS_FLARE_RAINBOW_SHIFT_FACTOR
-		val rainbowHalo = tile("sunRainbowHalo-reference", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildLensRainbowHaloSprite(it) }
-		blitCoveredSunSprite(canvas, rainbowHalo, rainbowCenterX, rainbowCenterY, radius * SUN_LENS_HALO_REACH, sunAlpha(SUN_RAINBOW_HALO_ALPHA * haloPhaseStrength, sun.visibility), glowPaint)
+		rainbow.draw(canvas, rainbowCenterX, rainbowCenterY, sun.params.dayPhase, visibility)
 
 		val streak = tile("sunStreak", SUN_STREAK_SPRITE_WIDTH, SUN_STREAK_SPRITE_HEIGHT) { buildSunStreakSprite(it, core) }
 		val streakHalfWidth = radius * SUN_STREAK_REACH
-		blitGlowRect(canvas, streak, sun.centerX, sun.centerY, streakHalfWidth, streakHalfWidth * SUN_STREAK_ASPECT, sunAlpha(SUN_STREAK_ALPHA * (0.9f + 0.1f * sun.pulse), sun.visibility))
+		blitGlowRect(canvas, streak, sun.centerX, sun.centerY, streakHalfWidth, streakHalfWidth * SUN_STREAK_ASPECT, sunAlpha(SUN_STREAK_ALPHA * (0.9f + 0.1f * sun.pulse), visibility))
 		// Keep the complete train above the lower quarter while preserving its optical axis and relative spacing.
 		val lastGhost = LENS_GHOSTS.last()
 		val ghostAxisScale = if (axisY > 0f) {
@@ -1590,7 +1599,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 			val centerX = sun.centerX + ghostAxisX * ghost.distance
 			val centerY = sun.centerY + ghostAxisY * ghost.distance
 			val tint = tile("sunGhost-$index", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildLensGhostSprite(it, ghost.tint) }
-			blitGlow(canvas, tint, centerX, centerY, radius * ghost.scale, sunAlpha(ghost.strength * 255f, sun.visibility))
+			blitGlow(canvas, tint, centerX, centerY, radius * ghost.scale, sunAlpha(ghost.strength * 255f, visibility))
 		}
 	}
 
@@ -2740,11 +2749,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		effectiveOpaqueCloudiness(params) < CLOUD_DECK_THRESHOLD
 
 	/** Weather-dependent crepuscular shafts and opt-in camera-style clear-sky glare. */
-	private fun drawSunLightShafts(canvas: Canvas, sun: SunRenderContext, radius: Float, core: Int) {
-		if (!canDrawSunLightShafts(sun.params)) {
-			return
-		}
-
+	private fun drawSunLightShafts(canvas: Canvas, sun: SunRenderContext, radius: Float, core: Int, cloudSampled: Boolean) {
 		val opaqueCloudiness = effectiveOpaqueCloudiness(sun.params)
 		val deckFade = if (opaqueCloudiness > DIRECT_SUN_MAX_CLOUDINESS) {
 			unlerp(CLOUD_DECK_THRESHOLD, DIRECT_SUN_MAX_CLOUDINESS, opaqueCloudiness).coerceIn(0f, 1f)
@@ -2763,7 +2768,6 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		glowPaint.style = Paint.Style.FILL
 		glowPaint.alpha = 255
 
-		val cloudSampled = sampleSunCloudEdgeProfile(sun, radius)
 		if (cloudSampled) {
 			val drawn = drawSunShaftPeaks(canvas, sun, radius, baseAngle, baseReach, tint, deckFade)
 			if (drawn == 0) {
@@ -2890,7 +2894,8 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		drawSunShaftWedge(canvas, sunShaftGeometry, alpha)
 	}
 
-	private fun sampleSunCloudEdgeProfile(sun: SunRenderContext, radius: Float): Boolean {
+	private fun sampleSunCloudEdgeProfile(sun: SunRenderContext, radius: Float, sampleEdges: Boolean): Boolean {
+		sunOpticalTransmission = 1f
 		if (!canSampleSunCloudProfile(sun.params)) {
 			strongestSunCloudOpacity = 0f
 			return false
@@ -2914,6 +2919,11 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		}
 
 		val upperSampler = if (upperAlpha > 0 && upperIndex < cumulusSteps.size) cumulusSteps[upperIndex].value.opacitySampler(sun.width, deckHeight, offset, cloudTop, upperAlpha, sizeScale) else null
+		sunOpticalTransmission = 1f - sampleSunCloudOpacity(lowerSampler, upperSampler, sun.centerX, sun.centerY)
+		if (!sampleEdges) {
+			return false
+		}
+
 		val strongestOpacity = sampleSunCloudRows(sun, radius, lowerSampler, upperSampler)
 		strongestSunCloudOpacity = strongestOpacity
 		val strongestEdge = computeSunCloudEdgeEnergy()
@@ -3347,32 +3357,6 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		canvas.drawCircle(center, center, center, brush)
 	}
 
-	/** A broad, softly blurred chromatic ring matching the camera-lens rainbow in the ColorOS reference. */
-	private fun buildLensRainbowHaloSprite(canvas: Canvas) {
-		val center = HALO_SPRITE_SIZE / 2f
-		val radius = center * SUN_RAINBOW_HALO_RADIUS_FRACTION
-		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
-		brush.style = Paint.Style.STROKE
-		brush.strokeWidth = center * SUN_RAINBOW_HALO_STROKE_FRACTION
-		brush.maskFilter = BlurMaskFilter(center * SUN_RAINBOW_HALO_BLUR_FRACTION, BlurMaskFilter.Blur.NORMAL)
-		brush.shader = SweepGradient(
-			center,
-			center,
-			intArrayOf(
-				withAlpha(Color.rgb(82, 202, 255), SUN_RAINBOW_HALO_SPRITE_ALPHA),
-				withAlpha(Color.rgb(126, 138, 255), SUN_RAINBOW_HALO_SPRITE_ALPHA),
-				withAlpha(Color.rgb(235, 108, 205), SUN_RAINBOW_HALO_SPRITE_ALPHA),
-				withAlpha(Color.rgb(255, 126, 92), SUN_RAINBOW_HALO_SPRITE_ALPHA),
-				withAlpha(Color.rgb(235, 210, 92), SUN_RAINBOW_HALO_SPRITE_ALPHA),
-				withAlpha(Color.rgb(112, 222, 150), SUN_RAINBOW_HALO_SPRITE_ALPHA),
-				withAlpha(Color.rgb(82, 202, 255), SUN_RAINBOW_HALO_SPRITE_ALPHA)
-			),
-			floatArrayOf(0f, 0.16f, 0.34f, 0.52f, 0.68f, 0.84f, 1f)
-		)
-
-		canvas.drawCircle(center, center, radius, brush)
-	}
-
 	/**
 	 * The sun disc rasterized once per scene, the moon's counterpart.
 	 * A clipped-white center falls quickly into a warm shoulder and soft limb so the source reads as camera overexposure rather than a painted solar surface.
@@ -3742,13 +3726,6 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		private const val SUN_LENS_HALO_MIDDLE_STOP = 0.42f
 		private const val SUN_LENS_HALO_OUTER_STOP = 0.66f
 
-		/** Large but quiet chromatic ring around the sun's optical halo, modeled after the ColorOS camera-lens reference. */
-		private const val SUN_RAINBOW_HALO_ALPHA = 112f
-		private const val SUN_RAINBOW_HALO_RADIUS_FRACTION = 0.78f
-		private const val SUN_RAINBOW_HALO_STROKE_FRACTION = 0.10f
-		private const val SUN_RAINBOW_HALO_BLUR_FRACTION = 0.075f
-		private const val SUN_RAINBOW_HALO_SPRITE_ALPHA = 82
-
 		/** Fraction of a soft-dot sprite's radius that is solid color before the fade to transparent begins. */
 		private const val DOT_CORE_STOP = 0.5f
 
@@ -3974,8 +3951,8 @@ internal fun showsSunVeil(params: SceneParams) = params.sunVisible && params.day
 /** A heavy dry deck still transmits a broad patch of daylight even when the solar limb itself is no longer visible. */
 private fun showsOvercastSunTransmission(params: SceneParams) = params.sunVisible && params.dayPhase != DayPhase.NIGHT && params.precipitation == null && params.fogDensity <= 0f && !params.thunder && effectiveOpaqueCloudiness(params) > CLOUD_DECK_THRESHOLD
 
-/** The chromatic halo follows direct daylight visibility and disappears with the user's sun visibility preference. */
-internal fun showsRainbow(params: SceneParams) = params.sunVisible && params.dayPhase != DayPhase.NIGHT && params.precipitation == null && params.fogDensity <= 0f && effectiveOpaqueCloudiness(params) <= DIRECT_SUN_MAX_CLOUDINESS
+/** Prismatic optics require the lens-flare preference and a direct, fair-weather sun. */
+internal fun showsRainbow(params: SceneParams) = params.lensFlareEnabled && params.sunVisible && params.dayPhase != DayPhase.NIGHT && params.precipitation == null && params.fogDensity <= 0f && !params.thunder && effectiveOpaqueCloudiness(params) <= DIRECT_SUN_MAX_CLOUDINESS
 
 /**
  * Whether sensor-driven lens flare reflections can currently be drawn.
@@ -3983,7 +3960,6 @@ internal fun showsRainbow(params: SceneParams) = params.sunVisible && params.day
  */
 internal fun lensFlareMotionActive(params: SceneParams) =
 	params.lensFlareMotionEnabled &&
-		params.lensFlareEnabled &&
 		showsRainbow(params) &&
 		sunVisibility(params.dayPhase, params.celestialProgress) > 0f
 

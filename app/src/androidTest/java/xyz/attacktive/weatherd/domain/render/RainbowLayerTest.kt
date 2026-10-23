@@ -1,284 +1,99 @@
 package xyz.attacktive.weatherd.domain.render
 
-import kotlin.math.PI
-import kotlin.math.abs
-import kotlin.math.cos
-import kotlin.math.roundToInt
-import kotlin.math.sin
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import androidx.core.graphics.createBitmap
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
-import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.DayPhase
 
 @RunWith(AndroidJUnit4::class)
 class RainbowLayerTest {
-	private val resources = InstrumentationRegistry.getInstrumentation().targetContext.resources
-	private val cloudySky = Color.rgb(160, 174, 184)
-
 	@Test
-	fun haloFormsACircleAroundTheSunInPortrait() {
-		assertCircularHalo(PORTRAIT_WIDTH, PORTRAIT_HEIGHT)
-	}
-
-	@Test
-	fun haloKeepsItsSunRelativeRadiusInLandscape() {
-		assertCircularHalo(LANDSCAPE_WIDTH, LANDSCAPE_HEIGHT)
-	}
-
-	@Test
-	fun haloHasABroadFeatheredBand() {
-		val pair = renderPair(PORTRAIT_WIDTH, PORTRAIT_HEIGHT)
-		val center = sunCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT)
-		val span = minOf(PORTRAIT_WIDTH, PORTRAIT_HEIGHT)
-		val profile = radialProfile(pair, center, PI / 2.0, span)
-		val peak = profile.maxOrNull() ?: 0
-		val quarterPeakWidth = profile.count { it >= peak / 4 }
-
-		assertTrue("The halo must remain visible enough to measure its falloff, but peaked at $peak", peak >= 5)
-		assertTrue("The halo band should be broad, but its quarter-peak width was $quarterPeakWidth pixels", quarterPeakWidth >= span * 0.10f)
-		assertTrue("The halo band should feather away rather than wash the sky, but its quarter-peak width was $quarterPeakWidth pixels", quarterPeakWidth <= span * 0.36f)
-
-		pair.recycle()
-	}
-
-	@Test
-	fun haloRemainsTranslucentAgainstTheSky() {
-		val bitmap = renderLayer(Color.TRANSPARENT)
-		val alpha = highestAlpha(bitmap)
-
-		assertTrue("An optical halo should remain atmospheric, but reached alpha $alpha", alpha <= 32)
-		bitmap.recycle()
-	}
-
-	@Test
-	fun haloAvoidsNeonSpectralColors() {
-		val bitmap = renderLayer(cloudySky)
-		val pixel = mostChromaticPixel(bitmap)
-		val chroma = chroma(pixel)
-
-		assertTrue("The halo should blend into cloud and haze, but reached chroma $chroma at (${Color.red(pixel)}, ${Color.green(pixel)}, ${Color.blue(pixel)})", chroma <= 50)
-
-		bitmap.recycle()
-	}
-
-	@Test
-	fun twilightHaloStepsBackFromDaylight() {
-		val dayBitmap = renderLayer(Color.TRANSPARENT, DayPhase.DAY)
-		val dawnBitmap = renderLayer(Color.TRANSPARENT, DayPhase.DAWN)
-		val duskBitmap = renderLayer(Color.TRANSPARENT, DayPhase.DUSK)
-		val day = highestAlpha(dayBitmap)
-		val dawn = highestAlpha(dawnBitmap)
-		val dusk = highestAlpha(duskBitmap)
-
-		assertTrue("Dawn halo should be materially quieter than daytime, but alpha only changed $day -> $dawn", dawn * 2 <= day)
-		assertTrue("Dusk halo should recede farther than dawn, but alpha changed $dawn -> $dusk", dusk < dawn)
-
-		dayBitmap.recycle()
-		dawnBitmap.recycle()
-		duskBitmap.recycle()
-	}
-
-	@Test
-	fun haloDrawsNothingAtNight() {
-		val bitmap = renderLayer(Color.TRANSPARENT, DayPhase.NIGHT)
-
-		assertTrue("The daytime-only halo must leave every night pixel transparent", pixels(bitmap).all { Color.alpha(it) == 0 })
-
-		bitmap.recycle()
-	}
-
-	@Test
-	fun haloDrawsNothingWhenTheSunIsInvisible() {
-		val bitmap = renderInvisibleHalo()
-
-		assertTrue("A fully faded sun must leave no chromatic halo behind", pixels(bitmap).all { Color.alpha(it) == 0 })
-
-		bitmap.recycle()
-	}
-
-	private fun assertCircularHalo(width: Int, height: Int) {
-		val bitmap = renderLayer(Color.TRANSPARENT, width = width, height = height)
-		val center = sunCenter(width, height)
-		val span = minOf(width, height)
-		val expectedRadius = span * HALO_RADIUS_FRACTION
-		val peaks = doubleArrayOf(PI / 2.0, PI * 0.75, PI).map { direction ->
-			radialPeak(bitmap, center, direction, span)
+	fun prismaticArcLeavesTheUpperSkyOpenInBothOrientations() {
+		for ((width, height) in listOf(360 to 780, 780 to 360)) {
+			val image = render(width = width, height = height)
+			try {
+				val centerY = height / 2
+				val lower = pixels(image, centerY, height - centerY).maxOf(Color::alpha)
+				val upper = pixels(image, 0, centerY).maxOf(Color::alpha)
+				assertTrue("The lower prismatic arc must remain visible", lower >= 5)
+				assertEquals("The partial arc must not close into a ring above the sun", 0, upper)
+			} finally {
+				image.recycle()
+			}
 		}
-
-		for (peak in peaks) {
-			assertTrue("The halo should remain measurable around the sun, but its strongest alpha was ${peak.strength}", peak.strength >= 5)
-			assertTrue("The halo radius should follow the shorter side near $expectedRadius pixels, but was ${peak.radius}", abs(peak.radius - expectedRadius) <= span * RADIUS_TOLERANCE_FRACTION)
-		}
-
-		val spread = peaks.maxOf { it.radius } - peaks.minOf { it.radius }
-
-		assertTrue("A circular halo should keep a stable radius around the sun, but varied by $spread pixels", spread <= span * CIRCULARITY_TOLERANCE_FRACTION)
-
-		bitmap.recycle()
 	}
 
-	private fun radialPeak(bitmap: Bitmap, center: PixelPoint, direction: Double, span: Int): RadialPeak {
-		val minimum = (span * MIN_SEARCH_RADIUS_FRACTION).roundToInt()
-		val maximum = (span * MAX_SEARCH_RADIUS_FRACTION).roundToInt()
-		var peakRadius = minimum
-		var peakAlpha = -1
+	@Test
+	fun spectralColorChangesAcrossTheBandRatherThanAroundAFlatColoredRing() {
+		val image = render()
+		try {
+			val column = (image.height / 2 until image.height).map { y -> image.getPixel(image.width / 2, y) }
+			val visible = column.withIndex().filter { Color.alpha(it.value) >= 5 }
+			val cool = visible.minBy { Color.red(it.value) - Color.blue(it.value) }
+			val warm = visible.maxBy { Color.red(it.value) - Color.blue(it.value) }
+			assertTrue("The arc must separate cool inner and warm outer spectral bands", cool.index < warm.index)
+			assertTrue("Inner spectral light must contain more blue than red", Color.blue(cool.value) > Color.red(cool.value))
+			assertTrue("Outer spectral light must contain more red than blue", Color.red(warm.value) > Color.blue(warm.value))
+		} finally {
+			image.recycle()
+		}
+	}
 
-		for (radius in minimum..maximum) {
-			val alpha = sampleAlpha(bitmap, center, direction, radius)
-			if (alpha > peakAlpha) {
-				peakRadius = radius
-				peakAlpha = alpha
+	@Test
+	fun restrainedArcFadesWithSunVisibilityAndNeverBecomesOpaque() {
+		val full = render()
+		val half = render(visibility = 0.5f)
+		try {
+			val fullAlpha = pixels(full).maxOf(Color::alpha)
+			val halfAlpha = pixels(half).maxOf(Color::alpha)
+			assertTrue("Prismatic light must remain translucent", fullAlpha in 5..32)
+			assertTrue("A fading sun must fade the whole arc", halfAlpha in 1 until fullAlpha)
+			assertTrue("Half-visible sunlight must not retain full-strength optics", halfAlpha <= fullAlpha / 2 + 1)
+		} finally {
+			full.recycle()
+			half.recycle()
+		}
+	}
+
+	@Test
+	fun nightAndFullyFadedSunLeaveNoPrismaticLight() {
+		for ((phase, visibility) in listOf(DayPhase.NIGHT to 1f, DayPhase.DAY to 0f)) {
+			val image = render(phase = phase, visibility = visibility)
+			try {
+				assertTrue("No sunlight means no rainbow optics", pixels(image).all { Color.alpha(it) == 0 })
+			} finally {
+				image.recycle()
+			}
+		}
+	}
+
+	@Test
+	fun dawnAndDuskStayQuieterThanDaylight() {
+		val strengths = listOf(DayPhase.DAY, DayPhase.DAWN, DayPhase.DUSK).map { phase ->
+			val image = render(phase = phase)
+			try {
+				pixels(image).maxOf(Color::alpha)
+			} finally {
+				image.recycle()
 			}
 		}
 
-		return RadialPeak(peakRadius, peakAlpha)
+		assertTrue("Twilight optics should recede rather than compete with the sky", strengths[0] > strengths[1] && strengths[1] > strengths[2])
 	}
 
-	private fun sampleAlpha(bitmap: Bitmap, center: PixelPoint, direction: Double, radius: Int): Int {
-		val sampleX = center.x + (cos(direction) * radius).roundToInt()
-		val sampleY = center.y + (sin(direction) * radius).roundToInt()
-		var alpha = 0
-		var samples = 0
-
-		for (dy in -SAMPLE_RADIUS..SAMPLE_RADIUS) {
-			for (dx in -SAMPLE_RADIUS..SAMPLE_RADIUS) {
-				val x = sampleX + dx
-				val y = sampleY + dy
-				if (x !in 0 until bitmap.width || y !in 0 until bitmap.height) {
-					continue
-				}
-
-				alpha += Color.alpha(bitmap.getPixel(x, y))
-				samples++
-			}
-		}
-
-		return if (samples > 0) {
-			alpha / samples
-		} else {
-			0
-		}
+	private fun render(width: Int = 360, height: Int = 780, phase: DayPhase = DayPhase.DAY, visibility: Float = 1f): Bitmap {
+		val image = createBitmap(width, height)
+		RainbowLayer().draw(Canvas(image), width / 2f, height / 2f, phase, visibility)
+		return image
 	}
 
-	private fun radialProfile(pair: RenderPair, center: PixelPoint, direction: Double, span: Int): IntArray {
-		val maximum = (span * MAX_SEARCH_RADIUS_FRACTION).roundToInt()
-
-		return IntArray(maximum + 1) { radius ->
-			sampleDifference(pair, center, direction, radius)
-		}
-	}
-
-	private fun sampleDifference(pair: RenderPair, center: PixelPoint, direction: Double, radius: Int): Int {
-		val sampleX = center.x + (cos(direction) * radius).roundToInt()
-		val sampleY = center.y + (sin(direction) * radius).roundToInt()
-		var displacement = 0
-		var samples = 0
-
-		for (dy in -SAMPLE_RADIUS..SAMPLE_RADIUS) {
-			for (dx in -SAMPLE_RADIUS..SAMPLE_RADIUS) {
-				val x = sampleX + dx
-				val y = sampleY + dy
-				if (x !in 0 until pair.withHalo.width || y !in 0 until pair.withHalo.height) {
-					continue
-				}
-
-				displacement += colorDistance(pair.withHalo.getPixel(x, y), pair.withoutHalo.getPixel(x, y))
-				samples++
-			}
-		}
-
-		return if (samples > 0) {
-			displacement / samples
-		} else {
-			0
-		}
-	}
-
-	private fun colorDistance(first: Int, second: Int): Int {
-		return maxOf(
-			abs(Color.red(first) - Color.red(second)),
-			abs(Color.green(first) - Color.green(second)),
-			abs(Color.blue(first) - Color.blue(second))
-		)
-	}
-
-	private fun sunCenter(width: Int, height: Int) = PixelPoint(
-		x = (width * SUN_X_FRACTION).roundToInt(),
-		y = (height * MIDDAY_SUN_Y_FRACTION).roundToInt()
-	)
-
-	private fun renderPair(width: Int, height: Int): RenderPair {
-		return RenderPair(
-			withHalo = renderLayer(Color.TRANSPARENT, width = width, height = height),
-			withoutHalo = createBitmap(width, height)
-		)
-	}
-
-	private fun renderLayer(background: Int, dayPhase: DayPhase = DayPhase.DAY, width: Int = PORTRAIT_WIDTH, height: Int = PORTRAIT_HEIGHT): Bitmap {
-		val bitmap = createBitmap(width, height)
-		val canvas = Canvas(bitmap)
-		canvas.drawColor(background)
-		RainbowLayer(resources, R.drawable.rainbow).draw(canvas, bitmap.width * SUN_X_FRACTION, bitmap.height * MIDDAY_SUN_Y_FRACTION, dayPhase)
-
-		return bitmap
-	}
-
-	private fun renderInvisibleHalo(): Bitmap {
-		val bitmap = createBitmap(PORTRAIT_WIDTH, PORTRAIT_HEIGHT)
-		val canvas = Canvas(bitmap)
-		RainbowLayer(resources, R.drawable.rainbow).draw(canvas, bitmap.width * SUN_X_FRACTION, bitmap.height * MIDDAY_SUN_Y_FRACTION, DayPhase.DAY, 0f)
-
-		return bitmap
-	}
-
-	private fun highestAlpha(bitmap: Bitmap): Int {
-		return pixels(bitmap).maxOf(Color::alpha)
-	}
-
-	private fun mostChromaticPixel(bitmap: Bitmap): Int {
-		return pixels(bitmap).maxBy(::chroma)
-	}
-
-	private fun chroma(pixel: Int): Int {
-		return maxOf(Color.red(pixel), Color.green(pixel), Color.blue(pixel)) - minOf(Color.red(pixel), Color.green(pixel), Color.blue(pixel))
-	}
-
-	private fun pixels(bitmap: Bitmap): IntArray {
-		return IntArray(bitmap.width * bitmap.height).also {
-			bitmap.getPixels(it, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
-		}
-	}
-
-	private data class PixelPoint(val x: Int, val y: Int)
-
-	private data class RadialPeak(val radius: Int, val strength: Int)
-
-	private data class RenderPair(val withHalo: Bitmap, val withoutHalo: Bitmap) {
-		fun recycle() {
-			withHalo.recycle()
-			withoutHalo.recycle()
-		}
-	}
-
-	private companion object {
-		const val PORTRAIT_WIDTH = 360
-		const val PORTRAIT_HEIGHT = 780
-		const val LANDSCAPE_WIDTH = 780
-		const val LANDSCAPE_HEIGHT = 360
-		const val SAMPLE_RADIUS = 2
-		const val SUN_X_FRACTION = 0.72f
-		const val MIDDAY_SUN_Y_FRACTION = 0.17f
-		const val HALO_RADIUS_FRACTION = 0.34f
-		const val MIN_SEARCH_RADIUS_FRACTION = 0.28f
-		const val MAX_SEARCH_RADIUS_FRACTION = 0.62f
-		const val RADIUS_TOLERANCE_FRACTION = 0.035f
-		const val CIRCULARITY_TOLERANCE_FRACTION = 0.045f
+	private fun pixels(image: Bitmap, top: Int = 0, height: Int = image.height) = IntArray(image.width * height).also {
+		image.getPixels(it, 0, image.width, 0, top, image.width, height)
 	}
 }

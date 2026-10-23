@@ -101,24 +101,6 @@ class SunRenderingTest {
 	}
 
 	@Test
-	fun lensHaloFormsABroadOutwardFadingField() {
-		val enabledParams = clearParams()
-		val enabled = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams)
-		val disabled = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams.copy(lensFlareEnabled = false))
-		val center = lensHaloCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT)
-		val radius = lensHaloRadius(PORTRAIT_WIDTH, PORTRAIT_HEIGHT)
-		val innerLift = averageAlphaInAnnulus(enabled, center, radius * LENS_HALO_INNER_START, radius * LENS_HALO_INNER_END) - averageAlphaInAnnulus(disabled, center, radius * LENS_HALO_INNER_START, radius * LENS_HALO_INNER_END)
-		val middleLift = averageAlphaInAnnulus(enabled, center, radius * LENS_HALO_INNER_END, radius * LENS_HALO_MIDDLE_END) - averageAlphaInAnnulus(disabled, center, radius * LENS_HALO_INNER_END, radius * LENS_HALO_MIDDLE_END)
-		val outerLift = averageAlphaInAnnulus(enabled, center, radius * LENS_HALO_MIDDLE_END, radius * LENS_HALO_OUTER_END) - averageAlphaInAnnulus(disabled, center, radius * LENS_HALO_MIDDLE_END, radius * LENS_HALO_OUTER_END)
-
-		assertTrue("Lens haze should remain present away from the sun before the separate chromatic ring begins, but outer alpha lift was only $outerLift", outerLift > 0f)
-		assertTrue("Lens haze should keep fading before the separate chromatic ring begins, but annulus lifts were $innerLift -> $middleLift -> $outerLift", maxOf(innerLift, middleLift) > outerLift)
-
-		enabled.recycle()
-		disabled.recycle()
-	}
-
-	@Test
 	fun lensHaloPreferenceStillChangesDaySky() {
 		val enabledParams = clearParams()
 		val enabled = renderScene(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams)
@@ -195,27 +177,6 @@ class SunRenderingTest {
 		disabledForeground.recycle()
 		enabledScene.recycle()
 		disabledScene.recycle()
-	}
-
-	@Test
-	fun lensFlareAddsALargeChromaticRingAroundTheSun() {
-		val enabledParams = clearParams()
-		val enabled = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams)
-		val disabled = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams.copy(lensFlareEnabled = false))
-		val center = celestialCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, DayPhase.DAY)
-		val radius = lensHaloRadius(PORTRAIT_WIDTH, PORTRAIT_HEIGHT) * RAINBOW_HALO_RADIUS_SCALE
-		val left = PixelPoint((center.x - radius).roundToInt(), center.y)
-		val bottom = PixelPoint(center.x, (center.y + radius).roundToInt())
-		val leftAlphaLift = Color.alpha(enabled.getPixel(left.x, left.y)) - Color.alpha(disabled.getPixel(left.x, left.y))
-		val bottomAlphaLift = Color.alpha(enabled.getPixel(bottom.x, bottom.y)) - Color.alpha(disabled.getPixel(bottom.x, bottom.y))
-		val hueDistance = colorDistance(enabled.getPixel(left.x, left.y), enabled.getPixel(bottom.x, bottom.y))
-
-		assertTrue("The rainbow halo should remain visible on the left arc, but alpha only lifted by $leftAlphaLift", leftAlphaLift >= MIN_RAINBOW_HALO_ALPHA_LIFT)
-		assertTrue("The rainbow halo should remain visible on the lower arc, but alpha only lifted by $bottomAlphaLift", bottomAlphaLift >= MIN_RAINBOW_HALO_ALPHA_LIFT)
-		assertTrue("The large halo should vary chromatically around the ring instead of reading as a monochrome glow, but channel distance was only $hueDistance", hueDistance >= MIN_RAINBOW_HALO_HUE_DISTANCE)
-
-		enabled.recycle()
-		disabled.recycle()
 	}
 
 	@Test
@@ -785,17 +746,10 @@ class SunRenderingTest {
 		const val LENS_HALO_REACH = 5.6f
 		const val LENS_HALO_AXIS_OFFSET = 0.18f
 		const val LENS_HALO_RADIUS_FRACTION = 0.72f
-		const val LENS_HALO_INNER_START = 0.15f
-		const val LENS_HALO_INNER_END = 0.32f
-		const val LENS_HALO_MIDDLE_END = 0.50f
-		const val LENS_HALO_OUTER_END = 0.68f
 		const val LENS_HALO_DAY_SKY_SAMPLE_OFFSET = 0.42f
 		const val LENS_HALO_DAY_SKY_SAMPLE_RADIUS = 0.06f
 		const val LENS_GHOST_TRAIN_SAMPLE_RADIUS = 3f
 		const val MIN_LENS_GHOST_TRAIN_CONTRAST = 3f
-		const val RAINBOW_HALO_RADIUS_SCALE = 0.78f / LENS_HALO_RADIUS_FRACTION
-		const val MIN_RAINBOW_HALO_ALPHA_LIFT = 1
-		const val MIN_RAINBOW_HALO_HUE_DISTANCE = 4
 		const val OPAQUE_ALPHA_THRESHOLD = 245
 		const val MIN_SHOULDER_WARMTH_DELTA = 6
 		const val MIN_CORONA_ALPHA_SPREAD = 2

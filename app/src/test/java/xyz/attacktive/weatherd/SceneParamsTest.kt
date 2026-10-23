@@ -484,7 +484,7 @@ class SceneParamsTest {
 	}
 
 	@Test
-	fun `the halo follows direct daylight visibility instead of a setting`() {
+	fun `prismatic optics require enabled lens flare and unobstructed daylight`() {
 		val clearDay = SceneParams(
 			dayPhase = DayPhase.DAY,
 			cloudiness = 0.2f,
@@ -511,6 +511,9 @@ class SceneParamsTest {
 		assertFalse(showsRainbow(foggyDay))
 		assertFalse(showsRainbow(rainyDay))
 		assertFalse(showsRainbow(night))
+		assertFalse(showsRainbow(clearDay.copy(lensFlareEnabled = false)))
+		assertFalse(showsRainbow(clearDay.copy(sunVisible = false)))
+		assertFalse(showsRainbow(clearDay.copy(thunder = true)))
 	}
 
 	@Test

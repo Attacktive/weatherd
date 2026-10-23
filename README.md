@@ -46,7 +46,7 @@ The [submitted PNG](https://github.com/user-attachments/assets/68a92bcf-016d-427
 Starburst is reproducibly generated with `uv run scripts/generate-starburst-sun.py`, without sampling the supplied iOS image or other third-party artwork.
 Starburst combines overlapping luminous lobes with faint uneven streaks, without a pointed-star silhouette; its wider bloom fades to transparent before the texture boundary, and the bitmap is decoded once off the frame loop only when selected.
 Natural daylight uses a white light source; dawn, dusk, and explicit sun color choices retain their selected tint.
-No rainbow reflections are baked into Starburst: **Lens flare** controls the existing chromatic halo and optical reflections, and **Motion-responsive reflections** controls their motion independently of the sun artwork.
+No rainbow reflections are baked into Starburst: **Lens flare** controls the procedural prismatic arc and optical reflections, and **Motion-responsive reflections** controls their motion independently of the sun artwork.
 Distant aircraft and their contrails cross in front of the solar disc in all three styles, while cloud layers can still obscure them in both the preview and live wallpaper.
 The existing **Settings → Appearance → Sky → Distant aircraft** toggle also enables fair-weather night flights.
 At night, a faint silhouette carries small red/green navigation lights, a white tail light, a red beacon, and a brief white strobe with compact halos around their bright cores; no contrail is drawn.
@@ -80,8 +80,10 @@ Choose **Settings → Appearance → Sky → Sky palette → Clear blue** for a 
 **Natural** remains the default; existing palettes and saved settings are unchanged.
 Use the existing **Sky brightness** and **Sky saturation** sliders to make the blue darker, lighter, muted, or vivid.
 The palette is saved with appearance presets and shared by the preview, live wallpaper, simulator, and fallback; natural sunrise, sunset, and night colors remain intact, and cloudy/stormy weather still takes precedence.
-The existing **Lens flare** option retains the chromatic halo around the sun, with smaller reflections spaced into a tighter train rather than extending toward the bottom of the scene.
-The four-reflection train stays above the lower quarter during supported device tilt in portrait and landscape; near that boundary, its spacing compresses together without hiding the farthest circle or changing the separate chromatic halo.
+The existing **Lens flare** option draws one restrained, feathered prismatic arc below and around the sun, inspired by [#290](https://github.com/Attacktive/weatherd/issues/290), rather than stacking a textured atmospheric rainbow and a second colored ring.
+Its spectrum changes across the band, its upper edge stays open, and it recedes at dawn and dusk; switching Lens flare off removes the entire procedural rainbow treatment.
+The arc and existing optical reflections fade as moving near clouds obscure the solar source, even with Sunbeams set to Off; night, a hidden sun, precipitation, fog, thunder, and heavy opaque cloud cover suppress them.
+The four-reflection train stays above the lower quarter during supported device tilt in portrait and landscape; near that boundary, its spacing compresses together without hiding the farthest circle or changing the arc's geometry.
 
 In **Settings → Appearance → Sky**, choose **Birds**: **Off**, **Small flock** (3–5 birds), **Medium flock** (6–8), or **Large flock** (9–12).
 **Bird interval** offers **Natural**, **30 seconds**, **1 minute**, **2 minutes**, **5 minutes**, and **10 minutes**.
@@ -266,11 +268,11 @@ The cloud-boundary check compares rays over the same unobscured pixels in every 
 
 ## Daytime rendering performance
 
-The corona and optical halos cache disjoint alpha-coverage strips and clip drawing to them, skipping transparent overdraw while retaining the original bitmap sampling, SCREEN compositing, colors, opacity, and time-based animation.
-Coverage metadata is built once per source sprite and invalidated with its tile cache; the decoded atmospheric rainbow keeps its coverage for the layer's lifetime.
+The corona and optical light sprites cache disjoint alpha-coverage strips and clip drawing to them, skipping transparent overdraw while retaining full-bitmap filtering and compositing.
+Coverage metadata is built once per source sprite and invalidated with its tile cache; the first-party procedural prismatic arc keeps its immutable sprite and coverage for the layer's lifetime, with no per-frame artwork generation.
 Frame-rate caps and non-sun rendering paths are unchanged.
 
-For [#206](https://github.com/Attacktive/weatherd/issues/206), the Pixel emulator (API 36) at 1600×2560 produced these median frame times after eight warm-up frames and 60 measured frames:
+For [#206](https://github.com/Attacktive/weatherd/issues/206), the Pixel emulator (API 36) at 1600×2560 produced these median frame times after eight warm-up frames and 60 measured frames; these historical measurements predate the revised prismatic arc in #290:
 
 | Scene / measurement | Before | After |
 | --- | ---: | ---: |

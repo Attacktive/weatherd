@@ -217,10 +217,6 @@ class SunStyleRenderingTest {
 				assertFalse("$style must keep the separate procedural lens flare preference", disabled.sameAs(enabled))
 				assertFalse("Sensor offsets must still move the separate procedural reflections", enabled.sameAs(moved))
 				assertTrue("Offsets must not move $style artwork when flare is disabled", disabled.sameAs(disabledMoved))
-				// The left arc is far outside the artwork, so it must remain entirely optional.
-				val ringX = (WIDTH * 0.72f - WIDTH * 0.108f * 5.6f * 0.78f).roundToInt()
-				val ringY = (HEIGHT * 0.17f).roundToInt()
-				assertTrue("The distant rainbow must disappear with lens flare for $style", Color.alpha(enabled.getPixel(ringX, ringY)) > Color.alpha(disabled.getPixel(ringX, ringY)))
 			} finally {
 				disabled.recycle()
 				enabled.recycle()
@@ -266,24 +262,6 @@ class SunStyleRenderingTest {
 			assertTrue("The solar core must retain its overexposed opacity", Color.alpha(bitmap.getPixel(centerX.roundToInt(), centerY.roundToInt())) >= 245)
 			assertTrue("The outer haze must not form an opaque pale annulus", Color.alpha(bitmap.getPixel(outerHazeX, centerY.roundToInt())) <= 32)
 			assertTrue("The distant baked reflection must not form a separate glowing blob", Color.alpha(bitmap.getPixel(tailX, tailY)) <= 2)
-		} finally {
-			bitmap.recycle()
-		}
-	}
-
-	@Test
-	fun radiantLensHaloDoesNotWashOutTheDistantClearSky() {
-		val bitmap = render(clearParams().copy(sunStyle = SunStyle.RADIANT, lensFlareEnabled = true))
-		var strongestAlpha = 0
-		try {
-			// This band crosses the broad optical halo, away from the solar core and the individual lens ghosts.
-			for (y in 190..280) {
-				for (x in 95..150) {
-					strongestAlpha = maxOf(strongestAlpha, Color.alpha(bitmap.getPixel(x, y)))
-				}
-			}
-
-			assertTrue("The wide optical haze must stay subtle over a clear sky, but reached alpha $strongestAlpha", strongestAlpha <= 8)
 		} finally {
 			bitmap.recycle()
 		}
