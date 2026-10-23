@@ -2,8 +2,14 @@
 
 Instructions and architectural invariants for agents working in the Weatherd codebase.
 
-- Version: 1.6.18 (2026-10-22)
+- Version: 1.6.19 (2026-10-23)
 - Persona: Coding assistant pair-programming with the user on Weatherd.
+
+## Documentation Scope
+
+Keep `README.md` focused on the app overview, installation, basic builds/checks, and public attribution.
+Put durable implementation constraints and developer procedures here, merging with existing sections instead of appending a feature-by-feature change history.
+Document shared preview/live-wallpaper/simulator/fallback behavior once; individual features need only their exceptions and compatibility rules.
 
 ## Tools and Environment
 
@@ -13,6 +19,86 @@ Agents use standard file inspection, editing tools, and Gradle tasks (`./gradlew
 - Direct instrumentation still force-stops the app and its live-wallpaper service. On the emulator, this left a dead wallpaper binding and a black home screen even though the preview worked; selecting the same Weatherd component was ignored. Run instrumentation before final wallpaper validation, and recover a stranded binding by selecting a different wallpaper before reapplying Weatherd.
 - Back up app data separately from the APK before any test workflow that removes packages; saving the APK does not preserve settings or photos.
 - On API 34+, clear `UiAutomation`'s accessibility cache before polling navigation state. At the 320×640 CI viewport, scrolling visibly revealed a tab while cached nodes still described its old off-screen position; waiting for idle alone did not refresh those nodes.
+
+### Local Checks and Instrumentation
+
+Run the pull-request checks with `./gradlew test :app:lint :app:detekt`.
+The existing CI Test gate builds the debug app and instrumentation APKs alongside unit tests, lint, and Detekt while the emulator starts; instrumentation remains required after that gate succeeds.
+For an existing emulator installation, update both APKs in place and invoke instrumentation directly:
+
+```sh
+./gradlew :app:assembleDebug :app:assembleDebugAndroidTest
+adb -s emulator-5554 install -r -t app/build/outputs/apk/debug/app-debug.apk
+adb -s emulator-5554 install -r -t app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb -s emulator-5554 shell am instrument -w xyz.attacktive.weatherd.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+Replace `emulator-5554` with the intended device serial; the data-backup and wallpaper-binding warnings above still apply.
+Settings navigation tests wake the device, dismiss a nonsecure keyguard, and retain a bounded 320×640 dp activity window through recreation so large displays exercise scroll restoration rather than skip it.
+Navigation timeouts include activity state, the active accessibility tree, and window-manager diagnostics; assert the saved anchor remains visible with the first section off-screen, not exact pixel coordinates.
+Sunbeam fixtures pin the UTC cloud-placement day and compare rays over the same unobscured pixels each frame so foreground cloud occlusion is not mistaken for a ray-field discontinuity.
+
+### Automated Station Evaluation
+
+The local harness uses the real Android provider-comparison service and report formatter on a dedicated emulator, without changing release behavior or provider defaults.
+Requires Python 3.10+, the Android SDK, and debug app/test APKs.
+The configured SDK directory is trusted local developer configuration; only allowlisted `adb` and emulator binaries execute, without a host shell.
+Use a verified Italian station's exact published coordinates via the existing manual-location settings (`MANUAL_STATION`), not a nearby city center.
+Station IDs contain four ICAO letters, such as `LIRF`; lowercase is normalized before fixed-host HTTPS observation requests.
+GPS, device-location permissions, and an onsite tester are not required; keep the simulator disabled and **Tester observed: UNSURE**.
+
+```sh
+./gradlew :app:assembleDebug :app:assembleDebugAndroidTest
+python3 scripts/evaluate-providers.py clone --source Pixel
+python3 scripts/evaluate-providers.py boot --port 5556
+python3 scripts/evaluate-providers.py install --serial emulator-5556
+python3 scripts/evaluate-providers.py capture --serial emulator-5556 --station LIRF
+python3 scripts/evaluate-providers.py collect --serial emulator-5556 --station LIRF --count 0
+```
+
+- The headless clone is `Pixel_Weatherd_Provider_Evaluation`; preserve the source AVD hardware/system-image configuration but start with fresh app data, never copied userdata, snapshots, accounts, or photos.
+- Creation retains the pristine source config, generated config/registry, and creation ledger under `captures/provider-evaluation/emulator/`.
+- Refuse existing AVD targets rather than replacing them; mutating device commands require an explicit emulator serial whose AVD name matches the evaluation clone, never the original `Pixel` or physical devices.
+- Choose a free even port if `5556` is occupied and use its corresponding serial throughout.
+- `collect` runs in the foreground at fixed UTC boundaries, every 30 minutes by default; keep the host and clone running and stop with Ctrl+C, without a login service or concurrent collectors on the same clone.
+- `--count 1` runs one scheduled capture; `--interval-seconds` changes cadence; scheduled runs default to `ROUTINE`, while one-off `capture` defaults to `DIAGNOSTIC`, excluded from summaries.
+- Each unique `captures/provider-evaluation/runs/` directory retains unchanged `report.txt`, all provider statuses, `capture.json`, station metadata/source/retrieval time, instrumentation output, and observation/match revisions, including failed-collection diagnostics.
+- Store public station coordinates separately from the privacy-preserving original report; upload nothing automatically.
+- Observation-fetch failures or missing time matches leave runs `PENDING`; retry on the next scheduled tick without replacing the original report.
+- Bound matching to 48 hours after capture or 96 total attempts, including the initial attempt; append an `EXPIRED` revision with the last pending reason/count when exhausted, or immediately when outside the observation API's 30-day recent-retention window.
+- Never fetch or rewrite expired matches; explicit rematching of previously matched captures can pick up corrections within the same bounds.
+- A failed, missing, or bounded optional rematch preserves the usable `MATCHED` revision and scores; record it separately in `rematch-*.json`, using `SKIPPED` for bounds and the attempted match status otherwise, without requeueing it.
+- Successful rematches may replace the scored revision, including corrected measurement eligibility.
+
+```sh
+python3 scripts/evaluate-providers.py match captures/provider-evaluation/runs/<run-directory>
+python3 scripts/evaluate-providers.py summarize
+PYTHONPATH=scripts python3 -m unittest discover -s scripts/provider_evaluation -p 'test_*.py'
+```
+
+Observations come from the [NOAA Aviation Weather Center API](https://aviationweather.gov/data/api/); retain raw METAR/SPECI records and use an inclusive ±15-minute tolerance with signed offsets.
+Exact distance ties prefer the earlier observation independently of response order, for both capture-time and forecast-valid-time matches; keep those two comparisons separate.
+Accuracy summaries deduplicate routine station/observation pairs and use shared eligible paired denominators against ItaliaMeteo.
+Provider availability is successful samples divided by all obtained samples for that provider in eligible routine captures, without observation deduplication.
+Report routine collection success separately as completed collections divided by all routine attempts, including failures before provider samples; incomplete collections are not successes.
+Emitted `scoring_rules` freeze the pilot cloud-category mapping: automated or ambiguous sky reports are unscorable, never clear, and forecast trends are not observations.
+Corrected reports require resolvable revision ordering; cloud categories remain unscorable because `COR` can replace the automation flag, while eligible temperature observations remain usable.
+Evaluate temperature separately; cloud heights are not low/mid/high cover measurements, precipitation amounts are not scored, and descriptive results do not establish a provider ranking.
+The instrumentation collector skips ordinary suites unless explicitly opted in by the harness.
+
+### Google Play Vitals Monitoring
+
+The existing `.github/workflows/google-play-vitals.yaml` runs daily at 00:37 UTC and supports `workflow_dispatch`.
+It retrieves crash/ANR clusters using [Attacktive/google-play-vitals-action](https://github.com/Attacktive/google-play-vitals-action), comparing against the previous successful `play-vitals-snapshot` artifact; missing or expired artifacts establish a baseline without false-positive alerts.
+Each run writes a job summary and a JSON report retained for 90 days; it does not file issues or dispatch notifications.
+
+Prerequisites:
+
+1. Enable the Google Play Developer Reporting API.
+2. Give the Google Cloud service account **View app information (read-only)** permission in Play Console.
+3. Store its JSON key as `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`, reusing the deployment secret.
+4. Enable the IAM API and IAM Service Account Credentials API in the service account's project.
+5. Grant the account `roles/iam.serviceAccountTokenCreator` on itself per the [authentication action's access-token setup](https://github.com/google-github-actions/auth/tree/7c6bc770dae815cd3e89ee6cdf493a5fab2cc093#inputs-service-account-key-json).
 
 ### Roadmap Updates
 
@@ -76,6 +162,46 @@ Keep category summaries to one or two high-signal settings facts, localized cons
 Category regrouping must not change stored setting keys, defaults, reset scope, preset membership, simulator behavior, or the shared scene-provider path.
 Weather/Wallpaper internals stay in place unless an actual setting move requires touching them; MET Norway attribution belongs with Weather.
 
+Appearance categories are Scenery & photos (backdrops, conditional photo slots, Trees/shape), Sky (palette, brightness/night brightness, saturation, aircraft, birds/interval), Clouds (size/count/opacity/contrast), Sun & moon (visibility, styles, sunbeams, sizes, sun color, optical effects), Weather effects (precipitation, glass droplets, wind), On-screen text (visibility/position/unit), Readability (dimming/status-bar shade), and Presets (save/apply/rename/replace/delete).
+Weather owns location, providers, and refresh; Wallpaper owns motion/performance; Advanced owns the simulator.
+
+### System Appearance and Display Compatibility
+
+The app follows system light/dark appearance without an app-theme preference; this must not change scene lighting, simulator phase, or saved appearance settings.
+Keep icons over the edge-to-edge scene light and opaque navigation bars consistent with system appearance.
+Preview controls avoid system bars and cutouts, including landscape side cutouts and tall top insets, without insetting the weather scene.
+Display settings apply through the shared scene path and are saved in appearance presets.
+Preserve independent resets and missing-field defaults: Classic sun, Through clouds sunbeams, Natural palette, Moon size 100%, Trees off with Evergreen shape, and readability strengths off.
+Tree shape and bird interval remain selected when their parent toggles hide those controls.
+New preset writes use schema v13; v1–v12 remain readable, while older builds reject the new bank rather than silently dropping appearance settings.
+
+### On-Screen Text Position
+
+Show the vertical-position control when either weather or location text is enabled; move visible lines together without changing horizontal alignment, font sizes, or spacing.
+Map 0% to the block's top edge at the drawable top and 100% to its bottom edge at the drawable bottom, adapting bounds to the visible lines.
+Reset/unset values use the 9% compatibility anchor, preserving the historical weather baseline at 9% of scene height and location baseline at 12.1%, even with only one line enabled.
+Travel is continuous and linear on either side of the anchor, not uniformly spaced across the whole height; retain stored numeric percentages and the historical placement for presets missing the field.
+Simulation honors visibility/position, showing the simulated condition without an invented temperature and the selected or resolved real location.
+
+### Weather Acquisition and Refresh Widget
+
+The 15-minute–6-hour refresh interval is a minimum between automatic fetches, not a background timer.
+Check on preview resume, wallpaper visibility, and relevant location/provider changes; **Refresh now** and the widget bypass the interval.
+Regional model selection uses published grids and the explicit Open-Meteo model identifier; outside coverage or after primary failure, make at most one request to the configured global fallback without rewriting either preference.
+Cache the provider that actually returned the weather.
+The widget queues network-constrained work: acknowledge a tap immediately, animate progress when accepted work starts, then show a brief ✓ for completed refresh or ! for incomplete refresh, including unavailable location/final provider failure.
+Offline requests wait for network; **Settings → Weather → Last updated** reports refresh time even if the scene looks unchanged.
+After app updates, republish the refresh action without opening the app or forcing a fetch; ignore initialization-time taps rather than launching the preview.
+
+### Experimental Provider Comparison
+
+**Settings → Weather → Compare weather providers** queries Open-Meteo Best Match, ItaliaMeteo ICON-2I, DWD ICON EU, and MET Norway at the same effective location only after **Compare now**; users can select their observed sky.
+Bypass normal primary/fallback selection without changing preferences; skip providers outside coverage and show returned forecast-valid time, condition, cloud layers, temperature, and precipitation.
+Label accumulation windows: Open-Meteo's interval precedes its timestamp, MET Norway's next-hour precipitation follows it, and missing interval metadata stays unknown.
+Dismissal cancels sampling; normal app results are not persisted, automatically uploaded, or placed in the normal weather cache.
+**Share report** opens the Android chooser with plain text and the tester observation, excluding coordinates and place names.
+Coordinates necessarily go to queried providers; preserve that disclosure and the privacy-policy guidance.
+
 ### Scene Simulator Overrides Live Weather
 
 The scene simulator on `HomeScreen` has two modes:
@@ -95,6 +221,9 @@ It pins meteorological conditions (cloud cover, precipitation kind/severity, fog
 The simulator state is persisted through `SettingsRepository` and observed independently of location/weather acquisition in `WeatherSceneProvider.sceneState`.
 `WeatherSceneState` publishes immutable settings, cached weather, photo revision, and location-label inputs; both surfaces derive their scene through `paramsFor` from a single captured state.
 Disabling simulation selects cached weather or the normal clock-lit fallback without waiting for a refresh.
+Without matching weather, use locally calculated approximate sunrise/sunset and celestial progress for the selected city or known device fix and date, including polar day/night.
+Only unavailable/invalid locations use coarse device-local clock timing; valid provider solar times and explicit simulation retain precedence.
+Weather acquisition remains separate so slow or failed requests cannot block mode switching or replace cached real weather with simulated conditions.
 Cached snapshots are rendered only when `snapshotTarget` matches the effective location source, manual or known device coordinates, and requested primary/fallback provider configuration in the captured settings.
 The actual provider attribution in `WeatherSnapshot.source` may differ from that requested configuration after fallback; never use actual attribution as the cache-target key.
 Manual location labels derive from the captured settings; geocoded labels carry `locationLabelTarget` and are shown only for a matching location source.
@@ -194,3 +323,76 @@ The corollaries:
 
 It is a design aid, not a test: it re-implements a slice of `SceneRenderer` in Python and will drift unless the deck geometry, alpha ramp and tint are mirrored into it whenever the Kotlin changes. Where the two disagree, the Kotlin is right.
 - Fog retains downscaled scrolling veil tiles pre-rendered into the `tiles` map and blitted with alpha and motion; generation happens only on cache misses, never per frame.
+
+### Scenery and Tree Artwork
+
+Trees are an independent fixed foreground composition over any backdrop, including None and Photo, not a backdrop or seasonal landscape.
+Evergreen uses the multi-tree conifer composition; Broadleaf uses an inset left hero and a smaller independently grown right companion, leaving the upper-middle sky open.
+Keep the hero crown fully visible in portrait, landscape, and launcher scrolling without reducing scale; both trunks remain grounded.
+Mountains and both tree shapes share weather/day-phase lighting: preserve clear-day artwork colors, warm dawn/dusk continuously, desaturate overcast/precipitation, keep snow lighter than rain, and soften distant mountains in fog more than nearby foliage.
+At night, reduce mountain-blue saturation while retaining ambient foliage detail; night brightness dims both, easing through dawn/dusk without changing alpha or placement.
+Do not per-pixel grade custom photos; retain their weather overlays/night dimming and grade any trees over them normally.
+Fog and precipitation draw in front.
+Regenerate first-party sources with `uv run scripts/generate-tree-textures.py` and `uv run scripts/generate-broadleaf-textures.py`; Broadleaf authors separate trunk/branch/canopy structures and supports `--variant hero` or `--variant companion`.
+Decode only the selected style on first use off the frame loop; never copy reference-app or third-party artwork.
+
+### Sun, Moon, and Optical Effects
+
+- Classic is procedural; Radiant uses the [unchanged submitted PNG](https://github.com/user-attachments/assets/68a92bcf-016d-4276-bc35-4c1e38ae6b78) credited in the README; Starburst is first-party artwork inspired by [#291](https://github.com/Attacktive/weatherd/issues/291), not sampled from its iOS reference.
+- All sun styles honor visibility, size, color, weather veiling, and sunset fade; natural daylight uses a white source, while low sun and explicit colors retain their tint.
+- Prepare Radiant's immutable softened texture once on first use off the frame loop, preserving its bright core/short rays but fading outer haze and distant baked reflections before the boundary; keep extra wide halos restrained.
+- Generate Starburst with `uv run scripts/generate-starburst-sun.py`: broad overlapping luminous lobes and faint uneven streaks, not a pointed star; fade before the texture boundary and decode only when selected, off the frame loop.
+- Never bake rainbow reflections into Starburst; Lens flare controls the separate arc/reflections and Motion-responsive reflections controls motion independently.
+- Generate the north-up near-side Moon with `uv run scripts/generate-moon-texture.py` from unchanged `scripts/assets/moon/lroc_color_2k.jpg`, checking its SHA-256 before projection; retain NASA attribution from the README.
+- The image in [#283](https://github.com/Attacktive/weatherd/issues/283) is reference only; waxing/waning changes illumination without mirroring markings, and new Moon draws neither disc nor halo.
+- Moon size is independent, 50–200%, default 100%; change draw geometry without regenerating phase sprites or the static backdrop.
+- Sunbeams offers Off, Through clouds (default), and Clear skies too; moving near low-cloud openings generate soft spreading shafts, never distant openings.
+- Clear skies too adds source-fixed radial glare; low/mid cover attenuates it but high cirrus alone does not.
+- Night, hidden sun, precipitation, fog, thunder, and opaque decks suppress enabled sunbeams; Off removes shafts/extended glare but preserves the selected sun, compact corona, and independent lens flare.
+- Cache cloud-shaft softness in a small first-party sprite, transforming each frame without texture generation or blur.
+- Generate shared clear-sky glare with `uv run scripts/generate-sun-glare.py`: a hexagonal aperture's squared Fourier amplitude convolved with a finite solar disc and averaged over three wavelengths.
+- Follow [aperture diffraction](https://www.nature.com/articles/s41598-018-34400-z) rather than swaying/pulsing cloud shafts in clear air; tuned exposure/tint/falloff is an idealized optical approximation, not a calibrated camera.
+- Clear blue uses a rich blue zenith and pale horizon, inspired by [#252](https://github.com/Attacktive/weatherd/issues/252); retain natural sunrise/sunset/night and cloudy/stormy precedence.
+- Lens flare draws one restrained feathered prismatic arc inspired by [#290](https://github.com/Attacktive/weatherd/issues/290), with an open upper edge and low-sun fade, not stacked rainbow rings.
+- Keep the band compact and spectrally colored, with subdued reflection circles/horizontal streak; use translucent blending to tint blue sky rather than additive whitish haze.
+- Fade the arc/reflections with moving near-cloud solar occlusion even with Sunbeams Off; suppress for night, hidden sun, precipitation, fog, thunder, and heavy opaque cover; Lens flare Off removes all procedural rainbow treatment.
+- Keep all four reflections above the lower quarter during supported tilt in portrait/landscape; compress spacing near the boundary without hiding the farthest circle or changing arc geometry.
+
+### Sky Wildlife and Aircraft
+
+Birds offers Off, Small flock (3–5), Medium (6–8), and Large (9–12); Bird interval offers Natural, 30 seconds, 1 minute, 2 minutes, 5 minutes, and 10 minutes.
+Small + Natural retains the restrained randomized schedule; explicit intervals cause one crossing each interval without random skips.
+Birds remain fair-daylight only, suppressed by rain, fog, opaque cover, or night; schedule on the shared scene animation clock without background alarms or another animation lifecycle.
+Distant aircraft/contrails cross in front of every sun style; clouds can obscure the body and lights together.
+The Distant aircraft toggle also enables fair-weather night flights: faint silhouette, red port/green starboard navigation lights that follow heading, white tail light, red beacon, brief white strobe, compact core halos, and no night contrail.
+Subdue lights at dawn/dusk and omit them in daylight without changing flight paths, timing, weather restrictions, or daytime appearance.
+
+### Rendering Performance and Motion Sensors
+
+Corona/optical sprites cache disjoint alpha-coverage strips and clip transparent overdraw while retaining full-bitmap filtering/compositing.
+Build coverage once per source and invalidate with its tile cache; retain the procedural arc's immutable sprite/coverage for the layer lifetime, never generating artwork per frame or changing frame caps/non-sun paths for this optimization.
+Motion-responsive reflections defaults off, requires Lens flare, and is disabled without a compatible sensor; it can use extra battery/reduce performance.
+Use gravity or an accelerometer fallback only while a visible scene can draw reflections; stop when hidden, screen-off, or weather/night suppresses reflections, and recenter on stop or rotation.
+Sensor callbacks set normalized targets; each rendered preview/wallpaper frame advances visible offsets with the same time-based exponential filter, without increasing sensor rate or changing visibility gating.
+
+Historical [#206](https://github.com/Attacktive/weatherd/issues/206) measurements below predate the revised prismatic arc in #290; do not present them as current telemetry.
+Pixel emulator, API 36, 1600×2560: median frame times after eight warm-up frames and 60 measured frames:
+
+| Scene / measurement | Before | After |
+| --- | ---: | ---: |
+| Software foreground: sun without lens flare | 24.82 ms | 15.26 ms |
+| Software foreground: sun with lens flare | 38.24 ms | 22.12 ms |
+| Software foreground: sun and 0.5 cloud cover | 45.57 ms | 30.03 ms |
+| Hardware canvas: sun with lens flare, through image delivery/readback | 23.02 ms | 17.67 ms |
+
+Software measurements exclude backdrop restoration; hardware includes backdrop drawing, submission, and readable-frame waiting.
+These measure rendering, not launcher jank/input latency; full-resolution software comparisons kept clouds, Moon, overcast, mountains, and rain pixel-identical, with clear-day lens flare differing at nine pixels by at most one channel value.
+
+Galaxy S23, 1080×2340, uncapped clear-day simulator:
+
+| Build | Instrumented gravity sample cadence | Instrumented longest continuous wallpaper render segment | User-observed reflection motion |
+| --- | ---: | ---: | --- |
+| 3.8.1 Play baseline | 66.35 ms / 15.07 Hz | 118.75 jobs/s | Stepped |
+| Patched side-by-side debug build | 66.35 ms / 15.07 Hz | 117.50 jobs/s | Smooth |
+
+The unchanged instrumented cadences and before/after user observation are consistent with frame-driven interpolation removing stepping, not faster sensor sampling or a lower frame cap.
