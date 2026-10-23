@@ -56,11 +56,11 @@ internal class MoonLayer(private val resources: Resources) {
 	/** An evicted sprite is never recycled: a frame may still hold the returned immutable bitmap. */
 	fun spriteFor(phaseIndex: Int): Bitmap? = preparedFor(phaseIndex)?.sprite
 
-	/** Publish the phase art and its illumination probes atomically so a frame cannot mix phases. */
+	/** Publish the phase art, illumination probes, and occlusion alpha atomically so a frame cannot mix phases. */
 	fun preparedFor(phaseIndex: Int): PreparedPhase? = phaseSprites.get(phaseIndex)
 
-	/** Prepared only off the rendering thread; probe coordinates and weights are immutable once published. */
-	class PreparedPhase(val sprite: Bitmap, val cloudSamples: FloatArray)
+	/** Prepared only off the rendering thread; all arrays are immutable once published. */
+	class PreparedPhase(val sprite: Bitmap, val cloudSamples: FloatArray, val occlusionAlpha: ByteArray)
 
 	private fun normalizedPhase(phase: Float) = ((phase % 1f) + 1f) % 1f
 
@@ -88,7 +88,7 @@ internal class MoonLayer(private val resources: Resources) {
 	private fun buildSprite(phaseIndex: Int, sourceBitmap: Bitmap, sourcePixels: IntArray): PreparedPhase {
 		val quantizedPhase = phaseIndex.toFloat() / MOON_PHASE_STEPS
 		if (phaseIndex == MOON_PHASE_STEPS / 2) {
-			return PreparedPhase(sourceBitmap, buildCloudSamples(sourcePixels))
+			return PreparedPhase(sourceBitmap, buildCloudSamples(sourcePixels), buildOcclusionAlpha(sourcePixels))
 		}
 
 		val waning = quantizedPhase > 0.5f
@@ -128,7 +128,20 @@ internal class MoonLayer(private val resources: Resources) {
 
 		val sprite = Bitmap.createBitmap(destPixels, MOON_SPRITE_SIZE, MOON_SPRITE_SIZE, Bitmap.Config.ARGB_8888)
 
-		return PreparedPhase(sprite, buildCloudSamples(destPixels))
+		return PreparedPhase(sprite, buildCloudSamples(destPixels), buildOcclusionAlpha(destPixels))
+	}
+
+	/** Bilinear half-texel samples for the bounded mask, computed once from the prepared phase rather than on a frame. */
+	private fun buildOcclusionAlpha(pixels: IntArray): ByteArray {
+		val size = MoonOcclusionLayer.MASK_SIZE
+		val step = MOON_SPRITE_SIZE / size
+		return ByteArray(size * size) { index ->
+			val x = index % size * step + step / 2 - 1
+			val y = index / size * step + step / 2 - 1
+			val offset = y * MOON_SPRITE_SIZE + x
+			val alpha = (pixels[offset] ushr 24) + (pixels[offset + 1] ushr 24) + (pixels[offset + MOON_SPRITE_SIZE] ushr 24) + (pixels[offset + MOON_SPRITE_SIZE + 1] ushr 24)
+			((alpha + 2) / 4).toByte()
+		}
 	}
 
 	/**

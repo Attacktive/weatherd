@@ -1,6 +1,7 @@
 package xyz.attacktive.weatherd.domain.render
 
 import java.util.IdentityHashMap
+import java.util.concurrent.TimeUnit
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
@@ -70,6 +71,9 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 	private val starburstSun = StarburstSunLayer(resources)
 	private val sunGlare by lazy(LazyThreadSafetyMode.NONE) { SunGlareLayer(resources) }
 	private val moonLayer = MoonLayer(resources)
+	private val moonOcclusion = MoonOcclusionLayer()
+	private var frameMoon: MoonLayer.PreparedPhase? = null
+	private var moonMaskBankReady = false
 	private val birdPath = Path()
 	private val birdFrame = BirdFlockFrame()
 	private val sunCloudUpperSamples = FloatArray(SUN_SHAFT_PROFILE_SAMPLES)
@@ -151,12 +155,6 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 	private var rainPoints = FloatArray(0)
 	private val spritePaint = Paint(Paint.FILTER_BITMAP_FLAG)
 	private val spriteDest = RectF()
-	private val moonDiscPaint = Paint(Paint.FILTER_BITMAP_FLAG)
-	private val moonDimFilters = Array(MOON_DIM_FILTER_LEVELS) { index ->
-		val value = (255f * index / (MOON_DIM_FILTER_LEVELS - 1)).roundToInt()
-
-		LightingColorFilter(Color.rgb(value, value, value), 0)
-	}
 
 	/**
 	 * The photo backdrop is blitted through its own paint rather than the shared [paint] or [blitPaint].
@@ -308,6 +306,8 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 			sunSpriteCoverage.clear()
 			tilesKey = key
 		}
+
+		prepareMoonOcclusion(w, h, celestialCenterX, celestialCenterY, params, timeSeconds)
 
 		if (params.dayPhase == DayPhase.NIGHT && showsCelestialBody(params)) {
 			drawStars(canvas, w, h, timeSeconds)
@@ -1136,6 +1136,33 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		}
 	}
 
+	private fun prepareMoonOcclusion(width: Float, height: Float, centerX: Float, centerY: Float, params: SceneParams, timeSeconds: Float) {
+		frameMoon = if (params.dayPhase == DayPhase.NIGHT && params.moonVisible && showsCelestialBody(params)) {
+			moonLayer.preparedFor(moonLayer.phaseIndexFor(params.moonPhase))
+		} else {
+			null
+		}
+
+		val radius = min(width, height) * MOON_RADIUS_FRACTION * normalizeMoonSizeScale(params.moonSizeScale)
+		moonOcclusion.configure(frameMoon, centerX, centerY, radius)
+		if (frameMoon == null || params.cloudScale <= 0f || effectiveOpaqueCloudiness(params) <= SCATTERED_CLOUD_FLOOR) {
+			moonOcclusion.clearCloudMask()
+			return
+		}
+
+		val bankReady = heroOvercastBankDelegate.isInitialized()
+		if (bankReady != moonMaskBankReady) {
+			moonMaskBankReady = bankReady
+			moonOcclusion.clearCloudMask()
+		}
+
+		val layoutDay = epochDay ?: TimeUnit.MILLISECONDS.toDays(System.currentTimeMillis())
+		moonOcclusion.beginCloudMask(width, height, params, timeSeconds, layoutDay)?.let { cloudCanvas ->
+			drawScatteredClouds(cloudCanvas, width, height, params, timeSeconds)
+			moonOcclusion.finishCloudMask()
+		}
+	}
+
 	private fun drawStars(canvas: Canvas, width: Float, height: Float, timeSeconds: Float) {
 		val random = Random(STAR_SEED)
 		val count = (width * height / STAR_AREA_PER_STAR).roundToInt()
@@ -1159,6 +1186,8 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 
 			val twinkle = 0.55f + 0.45f * sin(timeSeconds * rate + phase)
 			val alpha = (baseAlpha * twinkle).roundToInt().coerceIn(0, 255)
+			val reach = if (bright) radius * 3.2f else radius
+			val starLayer = moonOcclusion.beginStar(canvas, x - reach, y - reach, x + reach, y + reach)
 
 			// A handful of standout stars get a cool-blue glint halo so the sky isn't uniform pinpricks.
 			if (bright) {
@@ -1174,6 +1203,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 
 			paint.color = Color.argb(alpha, 255, 255, 255)
 			canvas.drawCircle(x, y, coreRadius, paint)
+			moonOcclusion.endStar(canvas, starLayer)
 		}
 	}
 
@@ -1212,6 +1242,8 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		val tail = width * 0.08f * envelope
 		val tailX = headX - direction * cos(angle) * tail
 		val tailY = headY - sin(angle) * tail
+		val reach = maxOf(3f * envelope / DOT_CORE_STOP, 2.75f)
+		val starLayer = moonOcclusion.beginStar(canvas, minOf(headX, tailX) - reach, minOf(headY, tailY) - reach, maxOf(headX, tailX) + reach, maxOf(headY, tailY) + reach)
 
 		// The same halo-under-core pairing as rain streaks, with a soft-dot head that grows and shrinks with the envelope.
 		paint.style = Paint.Style.STROKE
@@ -1226,6 +1258,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 
 		paint.style = Paint.Style.FILL
 		drawSoftDot(canvas, nearFlakeSprite, headX, headY, 3f * envelope)
+		moonOcclusion.endStar(canvas, starLayer)
 	}
 
 	private fun drawCelestialBody(canvas: Canvas, width: Float, height: Float, centerX: Float, centerY: Float, params: SceneParams, timeSeconds: Float) {
@@ -1261,8 +1294,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 
 	private fun drawMoon(canvas: Canvas, width: Float, height: Float, span: Float, centerX: Float, centerY: Float, params: SceneParams, pulse: Float, timeSeconds: Float) {
 		val phaseIndex = moonLayer.phaseIndexFor(params.moonPhase)
-		val preparedMoon = moonLayer.preparedFor(phaseIndex) ?: return
-		val moonSprite = preparedMoon.sprite
+		val preparedMoon = frameMoon ?: return
 		val moonPhase = phaseIndex.toFloat() / MoonLayer.MOON_PHASE_STEPS
 
 		val radius = span * MOON_RADIUS_FRACTION * normalizeMoonSizeScale(params.moonSizeScale)
@@ -1280,19 +1312,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		// Wide, faint outer bloom breathing in counter-phase, so something is always in motion.
 		blitSprite(canvas, halo, centerX, centerY, radius * (3.6f + 0.9f * (1f - pulse)), ((26f + 34f * (1f - pulse)) * litScale * transmittance).roundToInt())
 
-		drawMoonDisc(canvas, moonSprite, centerX, centerY, radius, transmittance)
-	}
-
-	/**
-	 * Darkens the lunar surface without reducing its phase alpha: stars behind the illuminated disc
-	 * must stay hidden even when a foreground cloud attenuates its light.
-	 * Filter levels are cached, so cloud drift never allocates a new color filter per frame.
-	 */
-	internal fun drawMoonDisc(canvas: Canvas, sprite: Bitmap, centerX: Float, centerY: Float, radius: Float, transmittance: Float) {
-		val level = (transmittance.coerceIn(0f, 1f) * (MOON_DIM_FILTER_LEVELS - 1)).roundToInt()
-		moonDiscPaint.colorFilter = if (level == MOON_DIM_FILTER_LEVELS - 1) null else moonDimFilters[level]
-		spriteDest.set(centerX - radius, centerY - radius, centerX + radius, centerY + radius)
-		canvas.drawBitmap(sprite, null, spriteDest, moonDiscPaint)
+		moonOcclusion.drawDisc(canvas)
 	}
 
 	/**
@@ -3411,7 +3431,6 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		internal fun overcastBankHeight(width: Float, height: Float, viewports: Float, heightScale: Float) =
 			minOf(width * viewports / OVERCAST_SOURCE_ASPECT * heightScale, height * OVERCAST_MAX_BANK_HEIGHT_FRACTION)
 
-		private const val MOON_DIM_FILTER_LEVELS = 65
 		private const val STAR_SEED = 1L
 		private const val PRECIP_SEED = 3L
 		private const val BOLT_SEED = 5L
@@ -3929,7 +3948,7 @@ private inline fun wrapX(width: Float, cx: Float, reach: Float, draw: (Float) ->
 	}
 }
 
-/** Only locally overlapping cloud material dims the moon; a clear opening restores full brightness even in a cloudy forecast. */
+/** The diffuse lunar halo keeps its phase-weighted attenuation; surface detail uses a spatial mask instead. */
 internal fun moonCloudTransmittance(localOpacity: Float): Float {
 	if (!localOpacity.isFinite()) {
 		return 1f

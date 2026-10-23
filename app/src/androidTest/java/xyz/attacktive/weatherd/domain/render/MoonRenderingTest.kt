@@ -403,45 +403,81 @@ class MoonRenderingTest {
 	}
 
 	@Test
-	fun attenuatedFullMoonRemainsOpaqueOverABackgroundStar() {
-		val params = clearNightParams(moonPhase = 0.5f, cloudiness = 0.7f)
-		val renderer = SceneRenderer(resources, epochDay = 20_748L)
-		val layer = MoonLayer(resources)
-		val width = 1440f
-		val height = 2560f
+	fun partialCloudOverlapPreservesTheUncoveredLunarSurface() {
+		val renderer = SceneRenderer(resources, epochDay = 20_000L)
 		renderer.prewarmCloudTextures()
-		layer.prewarm(params.moonPhase)
-		val prepared = checkNotNull(layer.preparedFor(layer.phaseIndexFor(params.moonPhase)))
-		val radius = minOf(width, height) * MOON_RADIUS_FRACTION
-		val opacity = renderer.moonCloudOpacity(
-			width,
-			height,
-			width * CELESTIAL_X_FRACTION,
-			height * celestialHeightFraction(params.dayPhase, params.celestialProgress),
-			radius,
-			params,
-			476f,
-			prepared.cloudSamples
-		)
-		val transmittance = moonCloudTransmittance(opacity)
-		assertTrue("The test requires actual partial cloud overlap: opacity=$opacity", opacity in 0.15f..0.9f)
-		assertTrue("The partial overlap should visibly darken the moon", transmittance < 0.9f)
-
-		val withoutStar = createBitmap(200, 200)
-		val withStar = createBitmap(200, 200)
-		try {
-			val starPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
-			Canvas(withStar).drawCircle(100f, 100f, 2f, starPaint)
-			assertEquals(Color.WHITE, withStar.getPixel(100, 100))
-
-			renderer.drawMoonDisc(Canvas(withoutStar), prepared.sprite, 100f, 100f, 85f, transmittance)
-			renderer.drawMoonDisc(Canvas(withStar), prepared.sprite, 100f, 100f, 85f, transmittance)
-			assertEquals("The dimmed lunar surface must remain opaque to a background star", withoutStar.getPixel(100, 100), withStar.getPixel(100, 100))
-			assertEquals("Full-moon surface opacity must remain intact", 255, Color.alpha(withStar.getPixel(100, 100)))
-		} finally {
-			withoutStar.recycle()
-			withStar.recycle()
+		for (phase in listOf(0.5f, 0.25f)) {
+			val params = clearNightParams(moonPhase = phase, cloudiness = 0.7f)
+			renderer.prewarmMoonPhase(phase)
+			val cloudy = renderForegroundOnNightSky(540, 960, params, 592f, renderer)
+			val clear = renderForegroundOnNightSky(540, 960, params.copy(cloudiness = 0f), 592f, renderer)
+			try {
+				val cloudyBrightness = pixelLuminance(cloudy.getPixel(399, 260))
+				val clearBrightness = pixelLuminance(clear.getPixel(399, 260))
+				assertTrue("The exposed lunar surface must not dim when a cloud crosses elsewhere; phase=$phase cloudy=$cloudyBrightness clear=$clearBrightness", cloudyBrightness >= clearBrightness * 0.97f)
+			} finally {
+				cloudy.recycle()
+				clear.recycle()
+			}
 		}
+	}
+
+	@Test
+	fun denseCloudOverlapErasesLunarSurfaceDetail() {
+		val renderer = SceneRenderer(resources, epochDay = 20_000L)
+		val params = clearNightParams(cloudiness = 0.7f)
+		renderer.prewarmCloudTextures()
+		renderer.prewarmMoonPhase(params.moonPhase)
+		val cloudy = renderForegroundOnNightSky(540, 960, params, 592f, renderer)
+		val cloudyControl = renderForegroundOnNightSky(540, 960, params.copy(moonVisible = false), 592f, renderer)
+		val clear = renderForegroundOnNightSky(540, 960, params.copy(cloudiness = 0f), 592f, renderer)
+		val clearControl = renderForegroundOnNightSky(540, 960, params.copy(cloudiness = 0f, moonVisible = false), 592f, renderer)
+		try {
+			val cloudyDetail = lunarDetailEnergy(cloudy, cloudyControl)
+			val clearDetail = lunarDetailEnergy(clear, clearControl)
+			assertTrue("Dense cumulus must hide lunar markings instead of exposing a ghost disc; cloudy=$cloudyDetail clear=$clearDetail", cloudyDetail < clearDetail * 0.08f)
+		} finally {
+			cloudy.recycle()
+			cloudyControl.recycle()
+			clear.recycle()
+			clearControl.recycle()
+		}
+	}
+
+	@Test
+	fun frozenMoonMaskRefreshesWhenCloudAssetsFinishPrewarming() {
+		for (progress in listOf(0.1f, 0.3f, 0.5f, 0.7f, 0.9f)) {
+			val params = clearNightParams(cloudiness = 0.74f).copy(windScale = 0f, celestialProgress = progress)
+			val renderer = SceneRenderer(resources, epochDay = 20_000L)
+			renderer.prewarmMoonPhase(params.moonPhase)
+			renderForegroundOnNightSky(540, 960, params, 592f, renderer).recycle()
+			renderer.prewarmCloudTextures()
+			val afterPreparation = renderForegroundOnNightSky(540, 960, params, 592f, renderer)
+			val freshRenderer = SceneRenderer(resources, epochDay = 20_000L)
+			freshRenderer.prewarmCloudTextures()
+			freshRenderer.prewarmMoonPhase(params.moonPhase)
+			val preparedFromStart = renderForegroundOnNightSky(540, 960, params, 592f, freshRenderer)
+			try {
+				assertArrayEquals("Finishing cloud preparation must invalidate a stationary moon mask at progress $progress", pixels(preparedFromStart), pixels(afterPreparation))
+			} finally {
+				afterPreparation.recycle()
+				preparedFromStart.recycle()
+			}
+		}
+	}
+
+	/** Remove the cloud/sky control and measure local lunar contrast inside the fixed dense-overlap region. */
+	private fun lunarDetailEnergy(withMoon: Bitmap, withoutMoon: Bitmap): Float {
+		var energy = 0f
+		for (y in 212..228) {
+			for (x in 375..415) {
+				val here = pixelLuminance(withMoon.getPixel(x, y)) - pixelLuminance(withoutMoon.getPixel(x, y))
+				val next = pixelLuminance(withMoon.getPixel(x + 1, y)) - pixelLuminance(withoutMoon.getPixel(x + 1, y))
+				energy += abs(next - here)
+			}
+		}
+
+		return energy
 	}
 
 	@Test
