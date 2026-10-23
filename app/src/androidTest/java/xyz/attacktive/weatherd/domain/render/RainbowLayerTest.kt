@@ -147,27 +147,7 @@ class RainbowLayerTest {
 						val clipped = createBitmap(width, height)
 						try {
 							RainbowLayer().draw(Canvas(clipped), centerX.toFloat(), centerY.toFloat(), DayPhase.DAY, sizeScale = scale)
-							val offsetX = centerX - width / 2
-							val offsetY = centerY - height / 3
-							var visiblePixels = 0
-							for (y in 0 until height) {
-								for (x in 0 until width) {
-									val sourceX = x - offsetX
-									val sourceY = y - offsetY
-									val expected = if (sourceX in 0 until width && sourceY in 0 until height) {
-										reference.getPixel(sourceX, sourceY)
-									} else {
-										Color.TRANSPARENT
-									}
-
-									assertEquals("Clipped arc at ($x, $y), scale $scale", Color.alpha(expected).toDouble(), Color.alpha(clipped.getPixel(x, y)).toDouble(), 1.0)
-									if (Color.alpha(expected) > 0) {
-										visiblePixels++
-									}
-								}
-							}
-
-							assertTrue("Boundary fixture must retain a visible arc", visiblePixels > 50)
+							assertClippedTranslation(reference, clipped, centerX - width / 2, centerY - height / 3, scale)
 						} finally {
 							clipped.recycle()
 						}
@@ -177,6 +157,28 @@ class RainbowLayerTest {
 				}
 			}
 		}
+	}
+
+	private fun assertClippedTranslation(reference: Bitmap, clipped: Bitmap, offsetX: Int, offsetY: Int, scale: Float) {
+		var visiblePixels = 0
+		for (y in 0 until clipped.height) {
+			for (x in 0 until clipped.width) {
+				val sourceX = x - offsetX
+				val sourceY = y - offsetY
+				val expected = if (sourceX in 0 until reference.width && sourceY in 0 until reference.height) {
+					reference.getPixel(sourceX, sourceY)
+				} else {
+					Color.TRANSPARENT
+				}
+
+				assertEquals("Clipped arc at ($x, $y), scale $scale", Color.alpha(expected).toDouble(), Color.alpha(clipped.getPixel(x, y)).toDouble(), 1.0)
+				if (Color.alpha(expected) > 0) {
+					visiblePixels++
+				}
+			}
+		}
+
+		assertTrue("Boundary fixture must retain a visible arc", visiblePixels > 50)
 	}
 
 	private fun peakAlphaRadius(bitmap: Bitmap, centerX: Int, centerY: Int): Int {
