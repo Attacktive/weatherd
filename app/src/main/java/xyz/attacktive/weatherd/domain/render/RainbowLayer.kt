@@ -23,16 +23,16 @@ internal class RainbowLayer {
 			center,
 			intArrayOf(
 				Color.TRANSPARENT,
-				Color.argb(0, 147, 171, 247),
-				Color.rgb(147, 171, 247),
-				Color.rgb(136, 217, 238),
-				Color.rgb(174, 230, 186),
-				Color.rgb(246, 220, 160),
-				Color.rgb(247, 170, 164),
-				Color.argb(0, 247, 170, 164),
+				Color.argb(0, 100, 120, 245),
+				Color.rgb(100, 120, 245),
+				Color.rgb(55, 180, 235),
+				Color.rgb(80, 210, 130),
+				Color.rgb(245, 195, 65),
+				Color.rgb(245, 105, 90),
+				Color.argb(0, 245, 105, 90),
 				Color.TRANSPARENT
 			),
-			floatArrayOf(0f, 0.64f, 0.69f, 0.73f, 0.77f, 0.81f, 0.85f, 0.92f, 1f),
+			floatArrayOf(0f, 0.69f, 0.72f, 0.75f, 0.78f, 0.81f, 0.84f, 0.88f, 1f),
 			Shader.TileMode.CLAMP
 		)
 
@@ -69,7 +69,7 @@ internal class RainbowLayer {
 
 	private companion object {
 		const val SPRITE_SIZE = 256
-		const val ARC_RADIUS_FRACTION = 0.45f
+		const val ARC_RADIUS_FRACTION = 0.32f
 		const val SPECTRUM_RADIUS_FRACTION = 0.78f
 
 		fun haloStrength(dayPhase: DayPhase) = when (dayPhase) {

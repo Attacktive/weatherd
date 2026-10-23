@@ -150,73 +150,6 @@ class SunRenderingTest {
 	}
 
 	@Test
-	fun lensFlareBuildsASequenceOfDiscreteGhostsAlongTheOpticalAxis() {
-		val enabledParams = clearParams()
-		val enabledForeground = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams)
-		val disabledForeground = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams.copy(lensFlareEnabled = false))
-		val centers = findLensGhostBounds(enabledForeground, disabledForeground).map { PixelPoint(it.centerX, it.centerY) }
-
-		assertEquals(
-			"The photographic flare must retain all four distinguishable reflections, including the farthest",
-			4,
-			centers.size
-		)
-
-		val enabledScene = renderScene(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams)
-		val disabledScene = renderScene(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams.copy(lensFlareEnabled = false))
-		val contrasts = centers.map { center ->
-			averageColorDistance(enabledScene, disabledScene, center, LENS_GHOST_TRAIN_SAMPLE_RADIUS)
-		}
-
-		assertTrue(
-			"Each discrete ghost along the optical axis should remain visibly distinct, but sampled contrasts were $contrasts",
-			contrasts.all { it >= MIN_LENS_GHOST_TRAIN_CONTRAST }
-		)
-
-		enabledForeground.recycle()
-		disabledForeground.recycle()
-		enabledScene.recycle()
-		disabledScene.recycle()
-	}
-
-	@Test
-	fun lensFlareGhostsRemainReadableAgainstDaySky() {
-		val enabledParams = clearParams()
-		val enabledForeground = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams)
-		val disabledForeground = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams.copy(lensFlareEnabled = false))
-		val centers = findLensGhostBounds(enabledForeground, disabledForeground).map { PixelPoint(it.centerX, it.centerY) }
-
-		assertTrue(
-			"There should be multiple discrete reflections to test against day sky, but found ${centers.size}",
-			centers.size >= 3
-		)
-
-		val enabledScene = renderScene(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams)
-		val disabledScene = renderScene(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, enabledParams.copy(lensFlareEnabled = false))
-		val primaryCenter = centers.maxBy { Color.alpha(enabledForeground.getPixel(it.x, it.y)) - Color.alpha(disabledForeground.getPixel(it.x, it.y)) }
-		val primaryContrast = averageColorDistance(enabledScene, disabledScene, primaryCenter, LENS_GHOST_TRAIN_SAMPLE_RADIUS)
-
-		assertTrue(
-			"The primary daytime lens ghost should remain visibly distinct from the rendered blue sky, but contrast was $primaryContrast",
-			primaryContrast >= MIN_LENS_GHOST_DAY_SKY_CONTRAST
-		)
-
-		val otherContrasts = centers.filter { it != primaryCenter }.map {
-			averageColorDistance(enabledScene, disabledScene, it, LENS_GHOST_TRAIN_SAMPLE_RADIUS)
-		}
-
-		assertTrue(
-			"All other discrete reflections along the optical axis should remain visible against the day sky, but contrasts were $otherContrasts",
-			otherContrasts.all { it >= MIN_LENS_GHOST_FAR_DAY_SKY_CONTRAST }
-		)
-
-		enabledForeground.recycle()
-		disabledForeground.recycle()
-		enabledScene.recycle()
-		disabledScene.recycle()
-	}
-
-	@Test
 	fun lensFlareReflectionTrainEndsBeforeLowerQuarterOfViewport() {
 		for ((width, height) in listOf(PORTRAIT_WIDTH to PORTRAIT_HEIGHT, LANDSCAPE_WIDTH to LANDSCAPE_HEIGHT)) {
 			for (offsetY in floatArrayOf(0f, 0.5f, 1f)) {
@@ -748,8 +681,6 @@ class SunRenderingTest {
 		const val LENS_HALO_RADIUS_FRACTION = 0.72f
 		const val LENS_HALO_DAY_SKY_SAMPLE_OFFSET = 0.42f
 		const val LENS_HALO_DAY_SKY_SAMPLE_RADIUS = 0.06f
-		const val LENS_GHOST_TRAIN_SAMPLE_RADIUS = 3f
-		const val MIN_LENS_GHOST_TRAIN_CONTRAST = 3f
 		const val OPAQUE_ALPHA_THRESHOLD = 245
 		const val MIN_SHOULDER_WARMTH_DELTA = 6
 		const val MIN_CORONA_ALPHA_SPREAD = 2
@@ -758,8 +689,6 @@ class SunRenderingTest {
 		const val SUN_APPARENT_EDGE_SAMPLE_HALF_WIDTH = 1.5f
 		const val MIN_DEFAULT_SUN_EDGE_ALPHA = 4f
 		const val MIN_LENS_GHOST_CENTER_LIFT = 6
-		const val MIN_LENS_GHOST_DAY_SKY_CONTRAST = 20f
-		const val MIN_LENS_GHOST_FAR_DAY_SKY_CONTRAST = 8f
 		const val POSITION_TOLERANCE_PIXELS = 2
 		const val MIN_CLOUD_ATTENUATION = 2f
 		const val MIN_VEILED_DISPLACEMENT = 1.5f

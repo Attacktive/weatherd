@@ -82,6 +82,7 @@ Use the existing **Sky brightness** and **Sky saturation** sliders to make the b
 The palette is saved with appearance presets and shared by the preview, live wallpaper, simulator, and fallback; natural sunrise, sunset, and night colors remain intact, and cloudy/stormy weather still takes precedence.
 The existing **Lens flare** option draws one restrained, feathered prismatic arc below and around the sun, inspired by [#290](https://github.com/Attacktive/weatherd/issues/290), rather than stacking a textured atmospheric rainbow and a second colored ring.
 Its spectrum changes across the band, its upper edge stays open, and it recedes at dawn and dusk; switching Lens flare off removes the entire procedural rainbow treatment.
+The compact band emphasizes spectral color near the sun rather than a broad white wash; lower-opacity reflection circles and a softer horizontal streak keep those secondary effects subdued without changing their placement or motion.
 The arc and existing optical reflections fade as moving near clouds obscure the solar source, even with Sunbeams set to Off; night, a hidden sun, precipitation, fog, thunder, and heavy opaque cloud cover suppress them.
 The four-reflection train stays above the lower quarter during supported device tilt in portrait and landscape; near that boundary, its spacing compresses together without hiding the farthest circle or changing the arc's geometry.
 

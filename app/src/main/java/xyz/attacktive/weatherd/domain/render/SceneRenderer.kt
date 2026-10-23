@@ -3709,7 +3709,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		private const val SUN_STREAK_ASPECT = 0.11f
 
 		/** Peak alpha of the streak before the restrained breathing scales it. */
-		private const val SUN_STREAK_ALPHA = 36f
+		private const val SUN_STREAK_ALPHA = 18f
 		private const val LENS_FLARE_MOTION_MAX_SHIFT = 0.12f
 		private const val LENS_FLARE_RAINBOW_SHIFT_FACTOR = 0.35f
 
@@ -4177,10 +4177,10 @@ private const val LENS_GHOST_MAX_HEIGHT_FRACTION = 0.75f
  * They stay subtle at ordinary brightness, but remain intentionally readable against a clear daytime sky.
  */
 private val LENS_GHOSTS = listOf(
-	LensGhost(0.42f, 0.22f, 0.11f, Color.rgb(222, 234, 255)),
-	LensGhost(0.78f, 0.46f, 0.34f, Color.rgb(218, 238, 255)),
-	LensGhost(1.12f, 0.24f, 0.13f, Color.rgb(188, 236, 226)),
-	LensGhost(1.48f, 0.34f, 0.20f, Color.rgb(202, 226, 244))
+	LensGhost(0.42f, 0.22f, 0.08f, Color.rgb(222, 234, 255)),
+	LensGhost(0.78f, 0.46f, 0.17f, Color.rgb(218, 238, 255)),
+	LensGhost(1.12f, 0.24f, 0.09f, Color.rgb(188, 236, 226)),
+	LensGhost(1.48f, 0.34f, 0.12f, Color.rgb(202, 226, 244))
 )
 
 internal fun darken(color: Int, factor: Float) =
