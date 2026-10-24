@@ -85,9 +85,7 @@ class WidgetDiagnosticJournal(
 				recordEvictedEvents(evictedInPrevious)
 			}
 
-			if (previousFile.exists() && !previousFile.delete()) {
-				throw IOException("Failed to delete previous journal file: $previousFile")
-			}
+			deleteIfPresent(previousFile, "previous journal file")
 
 			if (activeFile.exists()) {
 				atomicMove(activeFile, previousFile)
@@ -110,6 +108,12 @@ class WidgetDiagnosticJournal(
 		}
 	}
 
+	private fun deleteIfPresent(file: File, description: String) {
+		if (file.exists() && !file.delete()) {
+			throw IOException("Failed to delete $description: $file")
+		}
+	}
+
 	fun clear() {
 		synchronized(lock) {
 			if (!directory.exists()) {
@@ -120,17 +124,9 @@ class WidgetDiagnosticJournal(
 				throw IOException("Directory unavailable: $directory")
 			}
 
-			if (activeFile.exists() && !activeFile.delete()) {
-				throw IOException("Failed to delete active journal file: $activeFile")
-			}
-
-			if (previousFile.exists() && !previousFile.delete()) {
-				throw IOException("Failed to delete previous journal file: $previousFile")
-			}
-
-			if (healthFile.exists() && !healthFile.delete()) {
-				throw IOException("Failed to delete health file: $healthFile")
-			}
+			deleteIfPresent(activeFile, "active journal file")
+			deleteIfPresent(previousFile, "previous journal file")
+			deleteIfPresent(healthFile, "health file")
 		}
 	}
 
@@ -300,6 +296,32 @@ class WidgetDiagnosticJournal(
 		return buffer
 	}
 
+	private fun calculateLineStartIndex(bytes: ByteArray, isTruncatedLeading: Boolean): Int {
+		if (!isTruncatedLeading) {
+			return 0
+		}
+
+		val newlineIndex = bytes.indexOf('\n'.code.toByte())
+		return if (newlineIndex == -1) {
+			bytes.size
+		} else {
+			newlineIndex + 1
+		}
+	}
+
+	private fun calculateLineEndIndex(bytes: ByteArray): Int {
+		if (bytes.last() == '\n'.code.toByte()) {
+			return bytes.size
+		}
+
+		val newlineIndex = bytes.lastIndexOf('\n'.code.toByte())
+		return if (newlineIndex == -1) {
+			0
+		} else {
+			newlineIndex + 1
+		}
+	}
+
 	private fun readLinesBounded(file: File, maxBytesToRead: Int): List<String> {
 		if (!file.exists()) {
 			return emptyList()
@@ -315,28 +337,8 @@ class WidgetDiagnosticJournal(
 			return emptyList()
 		}
 
-		val startIndex = if (length > maxBytesToRead) {
-			val idx = bytes.indexOf('\n'.code.toByte())
-			if (idx == -1) {
-				bytes.size
-			} else {
-				idx + 1
-			}
-		} else {
-			0
-		}
-
-		val endIndex = if (bytes.last() == '\n'.code.toByte()) {
-			bytes.size
-		} else {
-			val idx = bytes.lastIndexOf('\n'.code.toByte())
-			if (idx == -1) {
-				0
-			} else {
-				idx + 1
-			}
-		}
-
+		val startIndex = calculateLineStartIndex(bytes, length > maxBytesToRead)
+		val endIndex = calculateLineEndIndex(bytes)
 		if (startIndex >= endIndex) {
 			return emptyList()
 		}

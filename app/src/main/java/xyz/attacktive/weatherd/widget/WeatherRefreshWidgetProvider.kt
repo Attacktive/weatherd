@@ -72,17 +72,7 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 
 	override fun onReceive(context: Context, intent: Intent) {
 		val receipt = SystemClock.elapsedRealtimeNanos().toString()
-		val action = when (intent.action) {
-			ACTION_REFRESH -> "refresh"
-			Intent.ACTION_MY_PACKAGE_REPLACED -> "package_replaced"
-			AppWidgetManager.ACTION_APPWIDGET_UPDATE -> "update"
-			AppWidgetManager.ACTION_APPWIDGET_ENABLED -> "enabled"
-			AppWidgetManager.ACTION_APPWIDGET_DISABLED -> "disabled"
-			AppWidgetManager.ACTION_APPWIDGET_DELETED -> "deleted"
-			AppWidgetManager.ACTION_APPWIDGET_RESTORED -> "restored"
-			AppWidgetManager.ACTION_APPWIDGET_OPTIONS_CHANGED -> "options_changed"
-			else -> "other"
-		}
+		val action = DIAGNOSTIC_ACTION_LABELS[intent.action] ?: "other"
 
 		WidgetDiagnostics.get(context).record("receiver_received", "action" to action, "receipt" to receipt)
 		if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) {
@@ -190,6 +180,16 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 		private const val RESULT_TOKEN_KEY = "result_token"
 		private const val RESULT_DISPLAY_MILLIS = 1_500L
 		private val STATE_LOCK = Any()
+		private val DIAGNOSTIC_ACTION_LABELS = mapOf(
+			ACTION_REFRESH to "refresh",
+			Intent.ACTION_MY_PACKAGE_REPLACED to "package_replaced",
+			AppWidgetManager.ACTION_APPWIDGET_UPDATE to "update",
+			AppWidgetManager.ACTION_APPWIDGET_ENABLED to "enabled",
+			AppWidgetManager.ACTION_APPWIDGET_DISABLED to "disabled",
+			AppWidgetManager.ACTION_APPWIDGET_DELETED to "deleted",
+			AppWidgetManager.ACTION_APPWIDGET_RESTORED to "restored",
+			AppWidgetManager.ACTION_APPWIDGET_OPTIONS_CHANGED to "options_changed"
+		)
 
 		internal fun showRunning(context: Context) {
 			WorkManager.getInstance(context).cancelUniqueWork(RESET_WORK_NAME)

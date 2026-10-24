@@ -264,6 +264,18 @@ class WidgetDiagnostics internal constructor(
 		}
 	}
 
+	private fun formatFields(fields: Array<out Pair<String, String>>): String {
+		if (fields.isEmpty()) {
+			return ""
+		}
+
+		return fields.joinToString(separator = " ", prefix = " ") { (key, value) ->
+			val sanitizedKey = key.replace(WHITESPACE_REGEX, "_")
+			val sanitizedValue = value.replace('\n', ' ').replace('\r', ' ')
+			"$sanitizedKey=$sanitizedValue"
+		}
+	}
+
 	private fun formatEvent(
 		wallTime: Long,
 		elapsedRealtime: Long,
@@ -277,57 +289,59 @@ class WidgetDiagnostics internal constructor(
 
 		val sanitizedEvent = event.replace(WHITESPACE_REGEX, "_")
 		val buildCode = BuildConfig.VERSION_CODE
-
-		val formattedFields = if (fields.isEmpty()) {
-			""
-		} else {
-			fields.joinToString(separator = " ", prefix = " ") { (key, value) ->
-				val sanitizedKey = key.replace(WHITESPACE_REGEX, "_")
-				val sanitizedValue = value.replace('\n', ' ').replace('\r', ' ')
-				"$sanitizedKey=$sanitizedValue"
-			}
-		}
+		val formattedFields = formatFields(fields)
 
 		return "time=$wallIso elapsed_ms=$elapsedRealtime session=$sessionId seq=$seq build=$buildCode event=$sanitizedEvent$formattedFields"
+	}
+
+	private fun describeLauncherMetadata(): String {
+		val launcher = currentHomeLauncher(context)
+		if (launcher == null) {
+			return "unavailable"
+		}
+
+		val launcherVersion = runCatching {
+			context.packageManager.getPackageInfo(launcher.packageName, 0).versionName
+		}.getOrNull() ?: "unknown"
+
+		return "${launcher.label} (${launcher.packageName}, v$launcherVersion)"
+	}
+
+	private fun readEvictedEventsText(): String {
+		val evictedCount = runCatching { journal.evictedCount() }.getOrNull()
+		return if (evictedCount != null) {
+			evictedCount.toString()
+		} else {
+			"unknown (read failed)"
+		}
+	}
+
+	private fun describeRetainedWindow(lines: List<String>): String {
+		if (lines.isEmpty()) {
+			return "none"
+		}
+
+		val firstLine = lines.first()
+		val lastLine = lines.last()
+		if (firstLine.contains("time=") && lastLine.contains("time=")) {
+			val firstTime = firstLine.substringAfter("time=").substringBefore(" ")
+			val firstSeq = firstLine.substringAfter("seq=").substringBefore(" ")
+			val lastTime = lastLine.substringAfter("time=").substringBefore(" ")
+			val lastSeq = lastLine.substringAfter("seq=").substringBefore(" ")
+			return "from $firstTime (seq $firstSeq) to $lastTime (seq $lastSeq) (${lines.size} records retained)"
+		}
+
+		return "${lines.size} records retained"
 	}
 
 	private fun buildReport(journalReport: String): String {
 		val appVersion = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
 		val device = "${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE}, API ${Build.VERSION.SDK_INT})"
-		val launcher = currentHomeLauncher(context)
-		val launcherInfo = if (launcher != null) {
-			val launcherVersion = runCatching {
-				context.packageManager.getPackageInfo(launcher.packageName, 0).versionName
-			}.getOrNull() ?: "unknown"
-			"${launcher.label} (${launcher.packageName}, v$launcherVersion)"
-		} else {
-			"unavailable"
-		}
-
+		val launcherInfo = describeLauncherMetadata()
 		val currentState = _state.value
-		val evictedCount = runCatching { journal.evictedCount() }.getOrNull()
-		val evictedText = if (evictedCount != null) {
-			evictedCount.toString()
-		} else {
-			"unknown (read failed)"
-		}
-
+		val evictedText = readEvictedEventsText()
 		val lines = journalReport.lines().filter { it.isNotBlank() }
-		val retainedWindow = if (lines.isEmpty()) {
-			"none"
-		} else {
-			val firstLine = lines.first()
-			val lastLine = lines.last()
-			if (firstLine.contains("time=") && lastLine.contains("time=")) {
-				val firstTime = firstLine.substringAfter("time=").substringBefore(" ")
-				val firstSeq = firstLine.substringAfter("seq=").substringBefore(" ")
-				val lastTime = lastLine.substringAfter("time=").substringBefore(" ")
-				val lastSeq = lastLine.substringAfter("seq=").substringBefore(" ")
-				"from $firstTime (seq $firstSeq) to $lastTime (seq $lastSeq) (${lines.size} records retained)"
-			} else {
-				"${lines.size} records retained"
-			}
-		}
+		val retainedWindow = describeRetainedWindow(lines)
 
 		return buildString {
 			appendLine("=== Weatherd Widget Diagnostics ===")

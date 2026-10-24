@@ -1,6 +1,7 @@
 package xyz.attacktive.weatherd.ui.settings
 
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -28,6 +29,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.diagnostics.WidgetDiagnostics
@@ -38,6 +40,7 @@ internal fun WidgetDiagnosticsSection(modifier: Modifier = Modifier) {
 	val diagnostics = remember(context) {
 		WidgetDiagnostics.get(context)
 	}
+
 	val state by diagnostics.state.collectAsStateWithLifecycle()
 	val coroutineScope = rememberCoroutineScope()
 
@@ -60,28 +63,13 @@ internal fun WidgetDiagnosticsSection(modifier: Modifier = Modifier) {
 			subtitle = stringResource(R.string.subtitle_widget_diagnostics_capture),
 			checked = state.enabled,
 			onToggle = { enabled ->
-				if (controlsEnabled) {
-					isBusy = true
-					operationFailed = false
-
-					coroutineScope.launch {
-						try {
-							val result = diagnostics.setEnabled(enabled)
-
-							if (result.isFailure) {
-								operationFailed = true
-							}
-						} catch (e: Exception) {
-							if (e is CancellationException) {
-								throw e
-							}
-
-							operationFailed = true
-						} finally {
-							isBusy = false
-						}
-					}
-				}
+				runDiagnosticsOperation(
+					enabled = controlsEnabled,
+					coroutineScope = coroutineScope,
+					setBusy = { isBusy = it },
+					setOperationFailed = { operationFailed = it },
+					action = { diagnostics.setEnabled(enabled) }
+				)
 			},
 			enabled = controlsEnabled
 		)
@@ -94,197 +82,280 @@ internal fun WidgetDiagnosticsSection(modifier: Modifier = Modifier) {
 
 		HintText(stringResource(R.string.widget_diagnostics_privacy))
 
-		if (state.storageFailed) {
-			Spacer(modifier = Modifier.height(8.dp))
-			ErrorText(stringResource(R.string.widget_diagnostics_status_storage_failed))
-		}
-
-		if (state.droppedEvents > 0L) {
-			Spacer(modifier = Modifier.height(8.dp))
-			ErrorText(stringResource(R.string.widget_diagnostics_status_dropped_events, state.droppedEvents))
-		}
-
-		if (operationFailed) {
-			Spacer(modifier = Modifier.height(8.dp))
-			ErrorText(stringResource(R.string.widget_diagnostics_operation_failed))
-		}
+		WidgetDiagnosticsStatusMessages(
+			storageFailed = state.storageFailed,
+			droppedEvents = state.droppedEvents,
+			operationFailed = operationFailed
+		)
 
 		Spacer(modifier = Modifier.height(8.dp))
 
-		Row(
-			modifier = Modifier.fillMaxWidth(),
-			horizontalArrangement = Arrangement.spacedBy(8.dp)
-		) {
-			TextButton(
-				onClick = {
-					if (controlsEnabled) {
-						isBusy = true
-						operationFailed = false
-
-						coroutineScope.launch {
-							try {
-								val result = diagnostics.report()
-
-								if (result.isSuccess) {
-									val reportText = result.getOrNull()
-									previewReportText = if (reportText.isNullOrBlank()) {
-										emptyReportText
-									} else {
-										reportText
-									}
-								} else {
-									operationFailed = true
-								}
-							} catch (e: Exception) {
-								if (e is CancellationException) {
-									throw e
-								}
-
-								operationFailed = true
-							} finally {
-								isBusy = false
-							}
-						}
+		WidgetDiagnosticsActionButtons(
+			enabled = controlsEnabled,
+			onShare = {
+				runDiagnosticsOperation(
+					enabled = controlsEnabled,
+					coroutineScope = coroutineScope,
+					setBusy = { isBusy = it },
+					setOperationFailed = { operationFailed = it },
+					action = { diagnostics.report() },
+					onSuccess = { reportText ->
+						previewReportText = resolveReportText(reportText, emptyReportText)
 					}
-				},
-				enabled = controlsEnabled
-			) {
-				Text(stringResource(R.string.widget_diagnostics_share))
+				)
+			},
+			onClear = {
+				if (controlsEnabled) {
+					operationFailed = false
+					showClearDialog = true
+				}
 			}
-
-			TextButton(
-				onClick = {
-					if (controlsEnabled) {
-						operationFailed = false
-						showClearDialog = true
-					}
-				},
-				enabled = controlsEnabled
-			) {
-				Text(stringResource(R.string.widget_diagnostics_clear))
-			}
-		}
+		)
 	}
 
-	if (showClearDialog) {
-		AlertDialog(
-			onDismissRequest = {
-				if (!isBusy) {
+	WidgetDiagnosticsDialogs(
+		showClearDialog = showClearDialog,
+		previewReportText = previewReportText,
+		isBusy = isBusy,
+		operationFailed = operationFailed,
+		onConfirmClear = {
+			runDiagnosticsOperation(
+				enabled = !isBusy,
+				coroutineScope = coroutineScope,
+				setBusy = { isBusy = it },
+				setOperationFailed = { operationFailed = it },
+				action = { diagnostics.clear() },
+				onSuccess = {
 					showClearDialog = false
 				}
-			},
-			title = {
-				Text(stringResource(R.string.widget_diagnostics_clear_confirm_title))
-			},
-			text = {
-				Column {
-					Text(stringResource(R.string.widget_diagnostics_clear_confirm_message))
+			)
+		},
+		onDismissClear = { showClearDialog = false },
+		onDismissPreview = { previewReportText = null }
+	)
+}
 
-					if (operationFailed) {
-						Spacer(modifier = Modifier.height(8.dp))
-						ErrorText(stringResource(R.string.widget_diagnostics_operation_failed))
-					}
-				}
-			},
-			confirmButton = {
-				TextButton(
-					onClick = {
-						if (!isBusy) {
-							isBusy = true
-							operationFailed = false
+@Composable
+private fun WidgetDiagnosticsStatusMessages(
+	storageFailed: Boolean,
+	droppedEvents: Long,
+	operationFailed: Boolean
+) {
+	if (storageFailed) {
+		Spacer(modifier = Modifier.height(8.dp))
+		ErrorText(stringResource(R.string.widget_diagnostics_status_storage_failed))
+	}
 
-							coroutineScope.launch {
-								try {
-									val result = diagnostics.clear()
+	if (droppedEvents > 0L) {
+		Spacer(modifier = Modifier.height(8.dp))
+		ErrorText(stringResource(R.string.widget_diagnostics_status_dropped_events, droppedEvents))
+	}
 
-									if (result.isSuccess) {
-										showClearDialog = false
-									} else {
-										operationFailed = true
-									}
-								} catch (e: Exception) {
-									if (e is CancellationException) {
-										throw e
-									}
+	if (operationFailed) {
+		Spacer(modifier = Modifier.height(8.dp))
+		ErrorText(stringResource(R.string.widget_diagnostics_operation_failed))
+	}
+}
 
-									operationFailed = true
-								} finally {
-									isBusy = false
-								}
-							}
-						}
-					},
-					enabled = !isBusy
-				) {
-					Text(stringResource(R.string.widget_diagnostics_clear))
-				}
-			},
-			dismissButton = {
-				TextButton(
-					onClick = {
-						if (!isBusy) {
-							showClearDialog = false
-						}
-					},
-					enabled = !isBusy
-				) {
-					Text(stringResource(R.string.cancel))
-				}
-			}
+@Composable
+private fun WidgetDiagnosticsActionButtons(
+	enabled: Boolean,
+	onShare: () -> Unit,
+	onClear: () -> Unit
+) = Row(
+	modifier = Modifier.fillMaxWidth(),
+	horizontalArrangement = Arrangement.spacedBy(8.dp)
+) {
+	TextButton(
+		onClick = onShare,
+		enabled = enabled
+	) {
+		Text(stringResource(R.string.widget_diagnostics_share))
+	}
+
+	TextButton(
+		onClick = onClear,
+		enabled = enabled
+	) {
+		Text(stringResource(R.string.widget_diagnostics_clear))
+	}
+}
+
+@Composable
+private fun WidgetDiagnosticsDialogs(
+	showClearDialog: Boolean,
+	previewReportText: String?,
+	isBusy: Boolean,
+	operationFailed: Boolean,
+	onConfirmClear: () -> Unit,
+	onDismissClear: () -> Unit,
+	onDismissPreview: () -> Unit
+) {
+	if (showClearDialog) {
+		WidgetDiagnosticsClearDialog(
+			isBusy = isBusy,
+			operationFailed = operationFailed,
+			onConfirm = onConfirmClear,
+			onDismiss = onDismissClear
 		)
 	}
 
-	previewReportText?.let { reportText ->
-		val shareTitle = stringResource(R.string.widget_diagnostics_share_chooser_title)
+	if (previewReportText != null) {
+		WidgetDiagnosticsReportDialog(
+			reportText = previewReportText,
+			onDismiss = onDismissPreview
+		)
+	}
+}
 
-		AlertDialog(
-			onDismissRequest = {
-				previewReportText = null
-			},
-			title = {
-				Text(stringResource(R.string.widget_diagnostics_report_title))
-			},
-			text = {
-				Column(
-					modifier = Modifier
-						.fillMaxWidth()
-						.verticalScroll(rememberScrollState())
-				) {
-					SelectionContainer {
-						Text(
-							text = reportText,
-							style = MaterialTheme.typography.bodySmall
-						)
-					}
+@Composable
+private fun WidgetDiagnosticsClearDialog(
+	isBusy: Boolean,
+	operationFailed: Boolean,
+	onConfirm: () -> Unit,
+	onDismiss: () -> Unit
+) = AlertDialog(
+	onDismissRequest = {
+		if (!isBusy) {
+			onDismiss()
+		}
+	},
+	title = {
+		Text(stringResource(R.string.widget_diagnostics_clear_confirm_title))
+	},
+	text = {
+		ClearDialogContent(operationFailed)
+	},
+	confirmButton = {
+		TextButton(
+			onClick = {
+				if (!isBusy) {
+					onConfirm()
 				}
 			},
-			confirmButton = {
-				TextButton(
-					onClick = {
-						val intent = Intent(Intent.ACTION_SEND).apply {
-							type = "text/plain"
-							putExtra(Intent.EXTRA_TEXT, reportText)
-						}
-
-						try {
-							context.startActivity(Intent.createChooser(intent, shareTitle))
-						} catch (_: ActivityNotFoundException) {
-							// Without a compatible share target, keep the selectable report preview visible
-						}
-					}
-				) {
-					Text(stringResource(R.string.widget_diagnostics_share_button))
+			enabled = !isBusy
+		) {
+			Text(stringResource(R.string.widget_diagnostics_clear))
+		}
+	},
+	dismissButton = {
+		TextButton(
+			onClick = {
+				if (!isBusy) {
+					onDismiss()
 				}
 			},
-			dismissButton = {
-				TextButton(
-					onClick = {
-						previewReportText = null
-					}
-				) {
-					Text(stringResource(R.string.cancel))
+			enabled = !isBusy
+		) {
+			Text(stringResource(R.string.cancel))
+		}
+	}
+)
+
+@Composable
+private fun ClearDialogContent(operationFailed: Boolean) = Column {
+	Text(stringResource(R.string.widget_diagnostics_clear_confirm_message))
+
+	if (operationFailed) {
+		Spacer(modifier = Modifier.height(8.dp))
+		ErrorText(stringResource(R.string.widget_diagnostics_operation_failed))
+	}
+}
+
+@Composable
+private fun WidgetDiagnosticsReportDialog(
+	reportText: String,
+	onDismiss: () -> Unit
+) {
+	val context = LocalContext.current
+	val shareTitle = stringResource(R.string.widget_diagnostics_share_chooser_title)
+
+	AlertDialog(
+		onDismissRequest = onDismiss,
+		title = {
+			Text(stringResource(R.string.widget_diagnostics_report_title))
+		},
+		text = {
+			Column(
+				modifier = Modifier
+					.fillMaxWidth()
+					.verticalScroll(rememberScrollState())
+			) {
+				SelectionContainer {
+					Text(
+						text = reportText,
+						style = MaterialTheme.typography.bodySmall
+					)
 				}
 			}
-		)
+		},
+		confirmButton = {
+			TextButton(
+				onClick = {
+					shareReport(context, reportText, shareTitle)
+				}
+			) {
+				Text(stringResource(R.string.widget_diagnostics_share_button))
+			}
+		},
+		dismissButton = {
+			TextButton(onClick = onDismiss) {
+				Text(stringResource(R.string.cancel))
+			}
+		}
+	)
+}
+
+private fun shareReport(context: Context, reportText: String, chooserTitle: String) {
+	val intent = Intent(Intent.ACTION_SEND).apply {
+		type = "text/plain"
+		putExtra(Intent.EXTRA_TEXT, reportText)
+	}
+
+	try {
+		context.startActivity(Intent.createChooser(intent, chooserTitle))
+	} catch (_: ActivityNotFoundException) {
+		// Without a compatible share target, keep the selectable report preview visible
+	}
+}
+
+private fun resolveReportText(report: String, emptyFallback: String) = if (report.isBlank()) {
+	emptyFallback
+} else {
+	report
+}
+
+private fun <T> runDiagnosticsOperation(
+	enabled: Boolean,
+	coroutineScope: CoroutineScope,
+	setBusy: (Boolean) -> Unit,
+	setOperationFailed: (Boolean) -> Unit,
+	action: suspend () -> Result<T>,
+	onSuccess: (T) -> Unit = { }
+) {
+	if (!enabled) {
+		return
+	}
+
+	setBusy(true)
+	setOperationFailed(false)
+
+	coroutineScope.launch {
+		try {
+			val result = action()
+			if (result.isSuccess) {
+				onSuccess(result.getOrThrow())
+			} else {
+				setOperationFailed(true)
+			}
+		} catch (e: Exception) {
+			if (e is CancellationException) {
+				throw e
+			}
+
+			setOperationFailed(true)
+		} finally {
+			setBusy(false)
+		}
 	}
 }
