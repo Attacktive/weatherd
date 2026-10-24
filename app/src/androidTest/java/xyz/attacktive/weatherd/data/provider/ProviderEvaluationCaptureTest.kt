@@ -31,13 +31,19 @@ import xyz.attacktive.weatherd.domain.repository.SettingsRepository
 @RunWith(AndroidJUnit4::class)
 class ProviderEvaluationCaptureTest {
 	@Test
-	fun captureProviderEvaluation() = runBlocking {
+	fun captureProviderEvaluation() {
 		val arguments = InstrumentationRegistry.getArguments()
 		Assume.assumeTrue(
 			"Provider evaluation capture test is opt-in; pass -e providerEvaluation true to execute",
 			arguments.getString(ARG_PROVIDER_EVALUATION)?.equals("true", ignoreCase = true) == true
 		)
 
+		runBlocking {
+			capture(arguments)
+		}
+	}
+
+	private suspend fun capture(arguments: android.os.Bundle) {
 		val parsedArguments = parseArguments(arguments)
 		val instrumentation = InstrumentationRegistry.getInstrumentation()
 		val context = instrumentation.targetContext

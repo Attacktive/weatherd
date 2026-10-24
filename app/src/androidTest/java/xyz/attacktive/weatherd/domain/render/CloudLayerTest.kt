@@ -121,15 +121,15 @@ class CloudLayerTest {
 
 	@Test
 	fun farCumulusOpacitySamplingHonorsItsCustomRepeatSpan() {
-		val layer = CloudLayer(resources, R.drawable.cloud_cumulus_far)
+		val layer = CloudLayer(resources, R.drawable.cloud_cumulus_far, epochDay = 20_000L)
 		val bitmap = render(layer, offset = -17.25f, viewports = 2f)
 		val sampler = checkNotNull(layer.opacitySampler(540f, 320f, -17.25f, 0f, 255, viewports = 2f))
 		var totalDifference = 0f
 		var samples = 0
 		var visibleSamples = 0
 
-		for (y in 16 until bitmap.height step 32) {
-			for (x in 16 until bitmap.width step 32) {
+		for (y in 8 until bitmap.height step 16) {
+			for (x in 8 until bitmap.width step 16) {
 				val renderedAlpha = Color.alpha(bitmap.getPixel(x, y)) / 255f
 				val sampledAlpha = sampler.opacityAt(x.toFloat(), y.toFloat())
 				totalDifference += abs(renderedAlpha - sampledAlpha)
