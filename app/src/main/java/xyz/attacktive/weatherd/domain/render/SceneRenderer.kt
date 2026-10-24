@@ -1436,7 +1436,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 
 		drawDirectSunGlow(canvas, sun, directRadius, core, halo, atmosphere)
 
-		val disc = tile("sunDisc", SUN_SPRITE_SIZE, SUN_SPRITE_SIZE) { buildSunSprite(it, core) }
+		val disc = tile("sunDisc", SUN_SPRITE_SIZE, SUN_SPRITE_SIZE) { buildSunSprite(it, core, sun.params.sunColorPreset) }
 		blitSprite(canvas, disc, sun.centerX, sun.centerY, directRadius / SUN_DISC_MARGIN * SUN_DIRECT_DISC_SCALE, sunAlpha(255f, sun.visibility))
 	}
 
@@ -1474,7 +1474,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 
 		val cover = unlerp(DIRECT_SUN_MAX_CLOUDINESS, CLOUD_DECK_THRESHOLD, effectiveOpaqueCloudiness(sun.params))
 		val discAlpha = sunAlpha(lerp(SUN_VEILED_DISC_MAX_ALPHA, SUN_VEILED_DISC_MIN_ALPHA, cover), sun.visibility)
-		val disc = tile("sunDisc", SUN_SPRITE_SIZE, SUN_SPRITE_SIZE) { buildSunSprite(it, core) }
+		val disc = tile("sunDisc", SUN_SPRITE_SIZE, SUN_SPRITE_SIZE) { buildSunSprite(it, core, sun.params.sunColorPreset) }
 		blitSprite(canvas, disc, sun.centerX, sun.centerY, radius / SUN_DISC_MARGIN * SUN_VEILED_DISC_SCALE, discAlpha)
 	}
 
@@ -3359,16 +3359,17 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 
 	/**
 	 * The sun disc rasterized once per scene, the moon's counterpart.
-	 * A clipped-white center falls quickly into a warm shoulder and soft limb so the source reads as camera overexposure rather than a painted solar surface.
+	 * Natural light keeps its clipped-white center; Orange retains the selected warm core instead of bleaching it away.
 	 */
-	private fun buildSunSprite(canvas: Canvas, core: Int) {
+	private fun buildSunSprite(canvas: Canvas, core: Int, preset: SunColorPreset) {
 		val center = SUN_SPRITE_SIZE / 2f
 		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
-		val innerShoulder = lighten(core, SUN_INNER_LIFT)
-		val softEdge = lighten(core, SUN_EDGE_LIFT)
+		val hotCore = if (preset == SunColorPreset.ORANGE) core else Color.WHITE
+		val innerShoulder = if (preset == SunColorPreset.ORANGE) core else lighten(core, SUN_INNER_LIFT)
+		val softEdge = if (preset == SunColorPreset.ORANGE) core else lighten(core, SUN_EDGE_LIFT)
 		val stops = intArrayOf(
-			Color.WHITE,
-			Color.WHITE,
+			hotCore,
+			hotCore,
 			innerShoulder,
 			withAlpha(softEdge, SUN_SHOULDER_ALPHA),
 			withAlpha(softEdge, SUN_EDGE_ALPHA),
@@ -4106,7 +4107,7 @@ private fun sunColor(dayPhase: DayPhase, preset: SunColorPreset) = when (preset)
 
 	SunColorPreset.WHITE -> Color.rgb(255, 255, 248)
 	SunColorPreset.GOLDEN -> Color.rgb(255, 228, 150)
-	SunColorPreset.ORANGE -> Color.rgb(255, 188, 118)
+	SunColorPreset.ORANGE -> Color.rgb(255, 231, 202)
 }
 
 /**

@@ -153,6 +153,41 @@ class SunStyleRenderingTest {
 	}
 
 	@Test
+	fun orangeSunKeepsAPaleWarmCoreAcrossStyles() {
+		for (style in SunStyle.entries) {
+			val bitmap = render(clearParams().copy(sunStyle = style, sunColorPreset = SunColorPreset.ORANGE))
+			try {
+				val pixel = bitmap.getPixel((WIDTH * 0.72f).roundToInt(), (HEIGHT * 0.17f).roundToInt())
+				val red = Color.red(pixel)
+				val green = Color.green(pixel)
+				val blue = Color.blue(pixel)
+
+				assertTrue("Orange must retain a warm core in $style, but was ($red, $green, $blue)", red - green >= 10 && green - blue >= 15)
+				assertTrue("Orange must remain pale rather than saturated amber in $style, but was ($red, $green, $blue)", green >= 210 && blue >= 180)
+			} finally {
+				bitmap.recycle()
+			}
+		}
+	}
+
+	@Test
+	fun classicOrangeDoesNotFormABrighterWhiteRingAroundItsCore() {
+		val bitmap = render(clearParams().copy(sunColorPreset = SunColorPreset.ORANGE))
+		try {
+			val x = (WIDTH * 0.72f).roundToInt()
+			val y = (HEIGHT * 0.17f).roundToInt()
+			val core = bitmap.getPixel(x, y)
+			val shoulder = bitmap.getPixel(x, y + 8)
+			val coreLight = Color.green(core) + Color.blue(core)
+			val shoulderLight = Color.green(shoulder) + Color.blue(shoulder)
+
+			assertTrue("The inner shoulder must not bleach into a brighter ring around the Orange core: $coreLight -> $shoulderLight", shoulderLight <= coreLight + 5)
+		} finally {
+			bitmap.recycle()
+		}
+	}
+
+	@Test
 	fun imageSunStylesFadeContinuouslyAtSunset() {
 		for (style in listOf(SunStyle.RADIANT, SunStyle.STARBURST)) {
 			val alphas = listOf(0.15f, 0.65f, 0.93f).map { progress ->
