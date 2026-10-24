@@ -22,16 +22,16 @@ import kotlinx.coroutines.launch
 import xyz.attacktive.weatherd.BuildConfig
 import xyz.attacktive.weatherd.platform.currentHomeLauncher
 
-data class WidgetDiagnosticState(
+data class DiagnosticState(
 	val ready: Boolean = false,
 	val enabled: Boolean = false,
 	val storageFailed: Boolean = false,
 	val droppedEvents: Long = 0L
 )
 
-class WidgetDiagnostics internal constructor(
+class Diagnostics internal constructor(
 	private val context: Context,
-	journalFactory: () -> WidgetDiagnosticJournal,
+	journalFactory: () -> DiagnosticJournal,
 	private val coroutineScope: CoroutineScope,
 	private val dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
@@ -40,16 +40,16 @@ class WidgetDiagnostics internal constructor(
 		private val WHITESPACE_REGEX = Regex("\\s+")
 
 		@Volatile
-		private var instance: WidgetDiagnostics? = null
+		private var instance: Diagnostics? = null
 
 		fun get(context: Context) = instance ?: synchronized(this) {
 			instance ?: run {
 				val appContext = context.applicationContext
-				WidgetDiagnostics(
+				Diagnostics(
 					context = appContext,
 					journalFactory = {
-						val directory = File(checkNotNull(appContext.noBackupFilesDir), "widget_diagnostics")
-						WidgetDiagnosticJournal(directory)
+						val directory = File(checkNotNull(appContext.noBackupFilesDir), "diagnostics")
+						DiagnosticJournal(directory)
 					},
 					coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
 					dispatcher = Dispatchers.IO
@@ -72,8 +72,8 @@ class WidgetDiagnostics internal constructor(
 	private val pendingDroppedEvents = AtomicLong(0L)
 	private val channel = Channel<Command>(capacity = QUEUE_CAPACITY)
 
-	private val _state = MutableStateFlow(WidgetDiagnosticState())
-	val state: StateFlow<WidgetDiagnosticState> = _state.asStateFlow()
+	private val _state = MutableStateFlow(DiagnosticState())
+	val state: StateFlow<DiagnosticState> = _state.asStateFlow()
 
 	init {
 		coroutineScope.launch(dispatcher) {
@@ -344,7 +344,7 @@ class WidgetDiagnostics internal constructor(
 		val retainedWindow = describeRetainedWindow(lines)
 
 		return buildString {
-			appendLine("=== Weatherd Widget Diagnostics ===")
+			appendLine("=== Weatherd Diagnostics ===")
 			appendLine("App version: $appVersion")
 			appendLine("Device: $device")
 			appendLine("Default launcher: $launcherInfo")

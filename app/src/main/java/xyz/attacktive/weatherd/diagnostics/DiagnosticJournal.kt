@@ -7,7 +7,7 @@ import java.io.RandomAccessFile
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 
-class WidgetDiagnosticJournal(
+class DiagnosticJournal(
 	val directory: File,
 	val maxBytes: Int = DEFAULT_MAX_BYTES
 ) {

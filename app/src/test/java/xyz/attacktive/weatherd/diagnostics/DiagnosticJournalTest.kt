@@ -9,13 +9,13 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
-class WidgetDiagnosticJournalTest {
+class DiagnosticJournalTest {
 	@get:Rule
 	val temporaryFolder = TemporaryFolder()
 
 	@Test
 	fun disabledCaptureDoesNotRetainEvents() {
-		val journal = WidgetDiagnosticJournal(temporaryFolder.newFolder())
+		val journal = DiagnosticJournal(temporaryFolder.newFolder())
 		journal.append("receiver_received")
 
 		assertFalse(journal.isEnabled())
@@ -25,25 +25,25 @@ class WidgetDiagnosticJournalTest {
 	@Test
 	fun enabledCaptureAndEventsSurviveReopening() {
 		val directory = temporaryFolder.newFolder()
-		val journal = WidgetDiagnosticJournal(directory)
+		val journal = DiagnosticJournal(directory)
 		journal.setEnabled(true)
 		journal.append("receiver_received receipt=7")
 
-		val reopened = WidgetDiagnosticJournal(directory)
+		val reopened = DiagnosticJournal(directory)
 
 		assertTrue(reopened.isEnabled())
 		assertTrue(reopened.report().contains("receiver_received receipt=7"))
 		reopened.setEnabled(false)
 		reopened.append("must_not_be_recorded")
 
-		assertFalse(WidgetDiagnosticJournal(directory).isEnabled())
+		assertFalse(DiagnosticJournal(directory).isEnabled())
 		assertFalse(reopened.report().contains("must_not_be_recorded"))
 		assertTrue(reopened.report().contains("receiver_received receipt=7"))
 	}
 
 	@Test
 	fun clearingRemovesCapturedEventsWithoutDisablingCapture() {
-		val journal = WidgetDiagnosticJournal(temporaryFolder.newFolder())
+		val journal = DiagnosticJournal(temporaryFolder.newFolder())
 		journal.setEnabled(true)
 		journal.append("before_clear")
 		journal.clear()
@@ -56,7 +56,7 @@ class WidgetDiagnosticJournalTest {
 
 	@Test
 	fun rotationKeepsRecentCompleteUtf8EventsWithinTheByteBudget() {
-		val journal = WidgetDiagnosticJournal(temporaryFolder.newFolder(), maxBytes = 80)
+		val journal = DiagnosticJournal(temporaryFolder.newFolder(), maxBytes = 80)
 		journal.setEnabled(true)
 		for (index in 0..19) {
 			journal.append("event=$index 한글")
@@ -72,7 +72,7 @@ class WidgetDiagnosticJournalTest {
 
 	@Test
 	fun oversizedEventDoesNotDestroyPreviouslyCapturedEvidence() {
-		val journal = WidgetDiagnosticJournal(temporaryFolder.newFolder(), maxBytes = 80)
+		val journal = DiagnosticJournal(temporaryFolder.newFolder(), maxBytes = 80)
 		journal.setEnabled(true)
 		journal.append("important_before")
 		journal.append("x".repeat(200))
@@ -88,14 +88,14 @@ class WidgetDiagnosticJournalTest {
 	@Test(expected = IOException::class)
 	fun unavailableStorageIsNotReportedAsSuccessfulCapture() {
 		val file = temporaryFolder.newFile()
-		val journal = WidgetDiagnosticJournal(File(file, "not_a_directory"))
+		val journal = DiagnosticJournal(File(file, "not_a_directory"))
 		journal.setEnabled(true)
 	}
 
 	@Test
 	fun partialTrailingLineFromInterruptedWriteIsDiscardedPreservingPriorCompleteLines() {
 		val directory = temporaryFolder.newFolder()
-		val journal = WidgetDiagnosticJournal(directory)
+		val journal = DiagnosticJournal(directory)
 		journal.setEnabled(true)
 		journal.append("complete_record_1")
 		journal.append("complete_record_2")
@@ -116,12 +116,12 @@ class WidgetDiagnosticJournalTest {
 	@Test
 	fun reopenedJournalDoesNotMergeAnInterruptedTailIntoTheNextEvent() {
 		val directory = temporaryFolder.newFolder()
-		val journal = WidgetDiagnosticJournal(directory)
+		val journal = DiagnosticJournal(directory)
 		journal.setEnabled(true)
 		journal.append("before_restart")
 		File(directory, "journal.log").appendText("interrupted_tail")
 
-		val reopened = WidgetDiagnosticJournal(directory)
+		val reopened = DiagnosticJournal(directory)
 		reopened.append("after_restart")
 
 		assertEquals("before_restart\nafter_restart\n", reopened.report())
@@ -131,7 +131,7 @@ class WidgetDiagnosticJournalTest {
 	@Test
 	fun appendFailureForcesTailRecoveryBeforeTheNextEvent() {
 		val directory = temporaryFolder.newFolder()
-		val journal = WidgetDiagnosticJournal(directory)
+		val journal = DiagnosticJournal(directory)
 		journal.setEnabled(true)
 		journal.append("before_failure")
 		val active = File(directory, "journal.log")
@@ -161,7 +161,7 @@ class WidgetDiagnosticJournalTest {
 		val journalFile = File(directory, "journal.log")
 		journalFile.writeText("corrupted_line\n".repeat(50))
 
-		val journal = WidgetDiagnosticJournal(directory, maxBytes = 80)
+		val journal = DiagnosticJournal(directory, maxBytes = 80)
 		journal.setEnabled(true)
 		journal.append("fresh_event")
 
@@ -174,7 +174,7 @@ class WidgetDiagnosticJournalTest {
 	@Test
 	fun clearOnNonExistentJournalLeavesEnabledIntact() {
 		val directory = temporaryFolder.newFolder()
-		val journal = WidgetDiagnosticJournal(directory)
+		val journal = DiagnosticJournal(directory)
 		journal.setEnabled(true)
 		journal.clear()
 
@@ -185,12 +185,12 @@ class WidgetDiagnosticJournalTest {
 	@Test
 	fun reopeningJournalPreservesEvictedAndDroppedHealthCounts() {
 		val directory = temporaryFolder.newFolder()
-		val journal = WidgetDiagnosticJournal(directory, maxBytes = 80)
+		val journal = DiagnosticJournal(directory, maxBytes = 80)
 		journal.setEnabled(true)
 		journal.append("important_before")
 		journal.append("x".repeat(200))
 
-		val reopened = WidgetDiagnosticJournal(directory, maxBytes = 80)
+		val reopened = DiagnosticJournal(directory, maxBytes = 80)
 
 		assertTrue(reopened.droppedCount() >= 1L)
 	}
@@ -201,7 +201,7 @@ class WidgetDiagnosticJournalTest {
 		val enabledFile = File(directory, "enabled")
 		enabledFile.writeText("garbage_data")
 
-		val journal = WidgetDiagnosticJournal(directory)
+		val journal = DiagnosticJournal(directory)
 		journal.isEnabled()
 	}
 
@@ -211,7 +211,7 @@ class WidgetDiagnosticJournalTest {
 		val healthFile = File(directory, "health")
 		healthFile.writeText("corrupted_health_data")
 
-		val journal = WidgetDiagnosticJournal(directory)
+		val journal = DiagnosticJournal(directory)
 		journal.droppedCount()
 	}
 }

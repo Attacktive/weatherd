@@ -24,10 +24,13 @@ Settings navigation tests wake the device, dismiss a nonsecure keyguard, and ret
 Navigation timeouts include activity state, the active accessibility tree, and window-manager diagnostics; assert the saved anchor remains visible with the first section off-screen, not exact pixel coordinates.
 Sunbeam fixtures pin the UTC cloud-placement day and compare rays over the same unobscured pixels each frame so foreground cloud occlusion is not mistaken for a ray-field discontinuity.
 
-### Widget Diagnostics and Report Collection
+### Diagnostics and Report Collection
 
-**Settings → Advanced → Widget diagnostics** provides opt-in capture for post-update refresh-widget investigations such as [#284](https://github.com/Attacktive/weatherd/issues/284).
-Capture is off by default, independent of appearance presets, and retained across process restarts and in-place app updates.
+**Settings → Advanced → Diagnostics** provides a reusable opt-in local journal and report-sharing flow.
+The current instrumentation covers refresh-widget investigations such as [#284](https://github.com/Attacktive/weatherd/issues/284) and related app-activity lifecycle events; other features can record events through the same `Diagnostics` recorder without a separate logger.
+Capture is off by default, independent of appearance presets, and retained across process restarts and in-place app updates until explicitly disabled.
+
+For the current widget investigation (#284):
 
 1. Enable **Capture diagnostic events**, ideally before the next app update.
 2. Leave the failing widget in place and tap it once; note the approximate time and whether Weatherd opened.

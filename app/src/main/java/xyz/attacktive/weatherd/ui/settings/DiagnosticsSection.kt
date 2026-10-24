@@ -32,13 +32,13 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import xyz.attacktive.weatherd.R
-import xyz.attacktive.weatherd.diagnostics.WidgetDiagnostics
+import xyz.attacktive.weatherd.diagnostics.Diagnostics
 
 @Composable
-internal fun WidgetDiagnosticsSection(modifier: Modifier = Modifier) {
+internal fun DiagnosticsSection(modifier: Modifier = Modifier) {
 	val context = LocalContext.current
 	val diagnostics = remember(context) {
-		WidgetDiagnostics.get(context)
+		Diagnostics.get(context)
 	}
 
 	val state by diagnostics.state.collectAsStateWithLifecycle()
@@ -51,16 +51,16 @@ internal fun WidgetDiagnosticsSection(modifier: Modifier = Modifier) {
 
 	val ready = state.ready
 	val controlsEnabled = ready && !isBusy
-	val emptyReportText = stringResource(R.string.widget_diagnostics_report_empty)
+	val emptyReportText = stringResource(R.string.diagnostics_report_empty)
 
 	Column(modifier = modifier.fillMaxWidth()) {
-		SectionLabel(stringResource(R.string.section_widget_diagnostics))
+		SectionLabel(stringResource(R.string.section_diagnostics))
 
 		Spacer(modifier = Modifier.height(4.dp))
 
 		ToggleSetting(
-			label = stringResource(R.string.label_widget_diagnostics_capture),
-			subtitle = stringResource(R.string.subtitle_widget_diagnostics_capture),
+			label = stringResource(R.string.label_diagnostics_capture),
+			subtitle = stringResource(R.string.subtitle_diagnostics_capture),
 			checked = state.enabled,
 			onToggle = { enabled ->
 				runDiagnosticsOperation(
@@ -76,13 +76,13 @@ internal fun WidgetDiagnosticsSection(modifier: Modifier = Modifier) {
 
 		Spacer(modifier = Modifier.height(8.dp))
 
-		HintText(stringResource(R.string.widget_diagnostics_instructions))
+		HintText(stringResource(R.string.diagnostics_instructions))
 
 		Spacer(modifier = Modifier.height(4.dp))
 
-		HintText(stringResource(R.string.widget_diagnostics_privacy))
+		HintText(stringResource(R.string.diagnostics_privacy))
 
-		WidgetDiagnosticsStatusMessages(
+		DiagnosticsStatusMessages(
 			storageFailed = state.storageFailed,
 			droppedEvents = state.droppedEvents,
 			operationFailed = operationFailed
@@ -90,7 +90,7 @@ internal fun WidgetDiagnosticsSection(modifier: Modifier = Modifier) {
 
 		Spacer(modifier = Modifier.height(8.dp))
 
-		WidgetDiagnosticsActionButtons(
+		DiagnosticsActionButtons(
 			enabled = controlsEnabled,
 			onShare = {
 				runDiagnosticsOperation(
@@ -113,7 +113,7 @@ internal fun WidgetDiagnosticsSection(modifier: Modifier = Modifier) {
 		)
 	}
 
-	WidgetDiagnosticsDialogs(
+	DiagnosticsDialogs(
 		showClearDialog = showClearDialog,
 		previewReportText = previewReportText,
 		isBusy = isBusy,
@@ -136,29 +136,29 @@ internal fun WidgetDiagnosticsSection(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun WidgetDiagnosticsStatusMessages(
+private fun DiagnosticsStatusMessages(
 	storageFailed: Boolean,
 	droppedEvents: Long,
 	operationFailed: Boolean
 ) {
 	if (storageFailed) {
 		Spacer(modifier = Modifier.height(8.dp))
-		ErrorText(stringResource(R.string.widget_diagnostics_status_storage_failed))
+		ErrorText(stringResource(R.string.diagnostics_status_storage_failed))
 	}
 
 	if (droppedEvents > 0L) {
 		Spacer(modifier = Modifier.height(8.dp))
-		ErrorText(stringResource(R.string.widget_diagnostics_status_dropped_events, droppedEvents))
+		ErrorText(stringResource(R.string.diagnostics_status_dropped_events, droppedEvents))
 	}
 
 	if (operationFailed) {
 		Spacer(modifier = Modifier.height(8.dp))
-		ErrorText(stringResource(R.string.widget_diagnostics_operation_failed))
+		ErrorText(stringResource(R.string.diagnostics_operation_failed))
 	}
 }
 
 @Composable
-private fun WidgetDiagnosticsActionButtons(
+private fun DiagnosticsActionButtons(
 	enabled: Boolean,
 	onShare: () -> Unit,
 	onClear: () -> Unit
@@ -170,19 +170,19 @@ private fun WidgetDiagnosticsActionButtons(
 		onClick = onShare,
 		enabled = enabled
 	) {
-		Text(stringResource(R.string.widget_diagnostics_share))
+		Text(stringResource(R.string.diagnostics_share))
 	}
 
 	TextButton(
 		onClick = onClear,
 		enabled = enabled
 	) {
-		Text(stringResource(R.string.widget_diagnostics_clear))
+		Text(stringResource(R.string.diagnostics_clear))
 	}
 }
 
 @Composable
-private fun WidgetDiagnosticsDialogs(
+private fun DiagnosticsDialogs(
 	showClearDialog: Boolean,
 	previewReportText: String?,
 	isBusy: Boolean,
@@ -192,7 +192,7 @@ private fun WidgetDiagnosticsDialogs(
 	onDismissPreview: () -> Unit
 ) {
 	if (showClearDialog) {
-		WidgetDiagnosticsClearDialog(
+		DiagnosticsClearDialog(
 			isBusy = isBusy,
 			operationFailed = operationFailed,
 			onConfirm = onConfirmClear,
@@ -201,7 +201,7 @@ private fun WidgetDiagnosticsDialogs(
 	}
 
 	if (previewReportText != null) {
-		WidgetDiagnosticsReportDialog(
+		DiagnosticsReportDialog(
 			reportText = previewReportText,
 			onDismiss = onDismissPreview
 		)
@@ -209,7 +209,7 @@ private fun WidgetDiagnosticsDialogs(
 }
 
 @Composable
-private fun WidgetDiagnosticsClearDialog(
+private fun DiagnosticsClearDialog(
 	isBusy: Boolean,
 	operationFailed: Boolean,
 	onConfirm: () -> Unit,
@@ -221,7 +221,7 @@ private fun WidgetDiagnosticsClearDialog(
 		}
 	},
 	title = {
-		Text(stringResource(R.string.widget_diagnostics_clear_confirm_title))
+		Text(stringResource(R.string.diagnostics_clear_confirm_title))
 	},
 	text = {
 		ClearDialogContent(operationFailed)
@@ -235,7 +235,7 @@ private fun WidgetDiagnosticsClearDialog(
 			},
 			enabled = !isBusy
 		) {
-			Text(stringResource(R.string.widget_diagnostics_clear))
+			Text(stringResource(R.string.diagnostics_clear))
 		}
 	},
 	dismissButton = {
@@ -254,26 +254,26 @@ private fun WidgetDiagnosticsClearDialog(
 
 @Composable
 private fun ClearDialogContent(operationFailed: Boolean) = Column {
-	Text(stringResource(R.string.widget_diagnostics_clear_confirm_message))
+	Text(stringResource(R.string.diagnostics_clear_confirm_message))
 
 	if (operationFailed) {
 		Spacer(modifier = Modifier.height(8.dp))
-		ErrorText(stringResource(R.string.widget_diagnostics_operation_failed))
+		ErrorText(stringResource(R.string.diagnostics_operation_failed))
 	}
 }
 
 @Composable
-private fun WidgetDiagnosticsReportDialog(
+private fun DiagnosticsReportDialog(
 	reportText: String,
 	onDismiss: () -> Unit
 ) {
 	val context = LocalContext.current
-	val shareTitle = stringResource(R.string.widget_diagnostics_share_chooser_title)
+	val shareTitle = stringResource(R.string.diagnostics_share_chooser_title)
 
 	AlertDialog(
 		onDismissRequest = onDismiss,
 		title = {
-			Text(stringResource(R.string.widget_diagnostics_report_title))
+			Text(stringResource(R.string.diagnostics_report_title))
 		},
 		text = {
 			Column(
@@ -295,7 +295,7 @@ private fun WidgetDiagnosticsReportDialog(
 					shareReport(context, reportText, shareTitle)
 				}
 			) {
-				Text(stringResource(R.string.widget_diagnostics_share_button))
+				Text(stringResource(R.string.diagnostics_share_button))
 			}
 		},
 		dismissButton = {

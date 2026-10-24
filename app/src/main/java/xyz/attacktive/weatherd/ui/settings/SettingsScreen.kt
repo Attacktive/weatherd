@@ -265,7 +265,7 @@ private fun AdvancedSettingsTab(viewModel: SettingsViewModel, scrollState: Scrol
 
 		Spacer(modifier = Modifier.height(24.dp))
 
-		WidgetDiagnosticsSection()
+		DiagnosticsSection()
 	}
 }
 

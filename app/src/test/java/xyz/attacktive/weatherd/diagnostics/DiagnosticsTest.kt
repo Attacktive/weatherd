@@ -16,15 +16,15 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class WidgetDiagnosticsTest {
+class DiagnosticsTest {
 	@get:Rule
 	val temporaryFolder = TemporaryFolder()
 
 	@Test
 	fun coldProcessRetainsEventsWhilePersistedCaptureStateLoads() = runTest {
-		val journal = WidgetDiagnosticJournal(temporaryFolder.newFolder())
+		val journal = DiagnosticJournal(temporaryFolder.newFolder())
 		journal.setEnabled(true)
-		val diagnostics = WidgetDiagnostics(mockk<Context>(), { journal }, backgroundScope, StandardTestDispatcher(testScheduler))
+		val diagnostics = Diagnostics(mockk<Context>(), { journal }, backgroundScope, StandardTestDispatcher(testScheduler))
 		diagnostics.record("cold_process_receiver")
 		runCurrent()
 
@@ -33,9 +33,9 @@ class WidgetDiagnosticsTest {
 
 	@Test
 	fun overflowingRecordQueueNeverWritesLossMetadataOnTheCallerThread() = runTest {
-		val journal = WidgetDiagnosticJournal(temporaryFolder.newFolder())
+		val journal = DiagnosticJournal(temporaryFolder.newFolder())
 		journal.setEnabled(true)
-		val diagnostics = WidgetDiagnostics(mockk<Context>(), { journal }, backgroundScope, StandardTestDispatcher(testScheduler))
+		val diagnostics = Diagnostics(mockk<Context>(), { journal }, backgroundScope, StandardTestDispatcher(testScheduler))
 		runCurrent()
 		repeat(1000) { diagnostics.record("queued_event") }
 
@@ -47,9 +47,9 @@ class WidgetDiagnosticsTest {
 
 	@Test
 	fun togglingCaptureDoesNotErasePriorStorageFailureEvidence() = runTest {
-		val journal = WidgetDiagnosticJournal(temporaryFolder.newFolder())
+		val journal = DiagnosticJournal(temporaryFolder.newFolder())
 		journal.recordStorageFailed(true)
-		val diagnostics = WidgetDiagnostics(mockk<Context>(), { journal }, backgroundScope, StandardTestDispatcher(testScheduler))
+		val diagnostics = Diagnostics(mockk<Context>(), { journal }, backgroundScope, StandardTestDispatcher(testScheduler))
 		runCurrent()
 		val enabling = async { diagnostics.setEnabled(true) }
 		runCurrent()
@@ -67,10 +67,10 @@ class WidgetDiagnosticsTest {
 	@Test
 	fun unreadableHealthDoesNotDisableCaptureAndClearingRepairsRecording() = runTest {
 		val directory = temporaryFolder.newFolder()
-		val journal = WidgetDiagnosticJournal(directory)
+		val journal = DiagnosticJournal(directory)
 		journal.setEnabled(true)
 		File(directory, "health").writeText("corrupt")
-		val diagnostics = WidgetDiagnostics(mockk<Context>(), { journal }, backgroundScope, StandardTestDispatcher(testScheduler))
+		val diagnostics = Diagnostics(mockk<Context>(), { journal }, backgroundScope, StandardTestDispatcher(testScheduler))
 		runCurrent()
 
 		assertTrue(diagnostics.state.value.enabled)
@@ -87,12 +87,12 @@ class WidgetDiagnosticsTest {
 	@Test
 	fun journalRecoveryAndQueueOverflowContributeToTheSameLossCounter() = runTest {
 		val directory = temporaryFolder.newFolder()
-		val journal = WidgetDiagnosticJournal(directory)
+		val journal = DiagnosticJournal(directory)
 		journal.setEnabled(true)
 		journal.append("before_restart")
 		File(directory, "journal.log").appendText("interrupted")
-		val reopened = WidgetDiagnosticJournal(directory)
-		val diagnostics = WidgetDiagnostics(mockk<Context>(), { reopened }, backgroundScope, StandardTestDispatcher(testScheduler))
+		val reopened = DiagnosticJournal(directory)
+		val diagnostics = Diagnostics(mockk<Context>(), { reopened }, backgroundScope, StandardTestDispatcher(testScheduler))
 		runCurrent()
 		repeat(1000) { diagnostics.record("queued_after_restart") }
 		val queueLosses = diagnostics.state.value.droppedEvents
@@ -106,10 +106,10 @@ class WidgetDiagnosticsTest {
 	@Test
 	fun persistedDropRemainsVisibleWhenWritingItsMarkerFails() = runTest {
 		val directory = temporaryFolder.newFolder()
-		val journal = WidgetDiagnosticJournal(directory)
+		val journal = DiagnosticJournal(directory)
 		journal.setEnabled(true)
 		journal.append("before_failure")
-		val diagnostics = WidgetDiagnostics(mockk<Context>(), { journal }, backgroundScope, StandardTestDispatcher(testScheduler))
+		val diagnostics = Diagnostics(mockk<Context>(), { journal }, backgroundScope, StandardTestDispatcher(testScheduler))
 		runCurrent()
 		assertTrue(File(directory, "journal.log").delete())
 		assertTrue(File(directory, "journal.log").mkdir())

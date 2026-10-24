@@ -22,7 +22,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import dagger.hilt.android.AndroidEntryPoint
-import xyz.attacktive.weatherd.diagnostics.WidgetDiagnostics
+import xyz.attacktive.weatherd.diagnostics.Diagnostics
 import xyz.attacktive.weatherd.ui.home.HomeScreen
 import xyz.attacktive.weatherd.ui.settings.SettingsScreen
 import xyz.attacktive.weatherd.ui.theme.WeatherdTheme
@@ -97,7 +97,7 @@ class MainActivity: ComponentActivity() {
 		}
 
 		// Do not dump external intent data, extras, referrers, or arbitrary action/category strings.
-		WidgetDiagnostics.get(this).record(
+		Diagnostics.get(this).record(
 			event,
 			"task_id" to taskId.toString(),
 			"action" to action,

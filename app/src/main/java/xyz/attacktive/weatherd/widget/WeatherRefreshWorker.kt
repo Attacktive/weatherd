@@ -8,7 +8,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CancellationException
-import xyz.attacktive.weatherd.diagnostics.WidgetDiagnostics
+import xyz.attacktive.weatherd.diagnostics.Diagnostics
 import xyz.attacktive.weatherd.domain.render.SceneAnimationRestartController
 import xyz.attacktive.weatherd.domain.render.WeatherRefreshOutcome
 import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
@@ -16,7 +16,7 @@ import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
 /** Runs widget-triggered refreshes outside the broadcast receiver timeout window. */
 internal class WeatherRefreshWorker(appContext: Context, workerParams: WorkerParameters): CoroutineWorker(appContext, workerParams) {
 	override suspend fun doWork(): Result {
-		val diagnostics = WidgetDiagnostics.get(applicationContext)
+		val diagnostics = Diagnostics.get(applicationContext)
 		diagnostics.record("worker_started", "work_id" to id.toString(), "attempt" to runAttemptCount.toString())
 
 		try {
@@ -30,7 +30,7 @@ internal class WeatherRefreshWorker(appContext: Context, workerParams: WorkerPar
 		}
 	}
 
-	private suspend fun refresh(diagnostics: WidgetDiagnostics): Result {
+	private suspend fun refresh(diagnostics: Diagnostics): Result {
 		WeatherRefreshWidgetProvider.showRunning(applicationContext)
 
 		val entryPoint = weatherRefreshEntryPoint(applicationContext)

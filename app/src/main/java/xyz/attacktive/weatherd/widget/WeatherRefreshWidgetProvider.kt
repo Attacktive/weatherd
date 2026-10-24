@@ -19,7 +19,7 @@ import androidx.work.workDataOf
 import java.util.concurrent.TimeUnit
 import xyz.attacktive.weatherd.BuildConfig
 import xyz.attacktive.weatherd.R
-import xyz.attacktive.weatherd.diagnostics.WidgetDiagnostics
+import xyz.attacktive.weatherd.diagnostics.Diagnostics
 
 internal enum class WeatherRefreshWidgetState {
 	IDLE,
@@ -40,33 +40,33 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 			appWidgetIds.forEach { appWidgetManager.updateAppWidget(it, views) }
 			recordUpdate(context, appWidgetIds, state, "sent")
 		} catch (exception: RuntimeException) {
-			WidgetDiagnostics.get(context).record("widget_update_failed", "exception" to exception.javaClass.simpleName)
+			Diagnostics.get(context).record("widget_update_failed", "exception" to exception.javaClass.simpleName)
 			throw exception
 		}
 	}
 
 	override fun onEnabled(context: Context) {
-		WidgetDiagnostics.get(context).record("widget_enabled")
+		Diagnostics.get(context).record("widget_enabled")
 		super.onEnabled(context)
 	}
 
 	override fun onDisabled(context: Context) {
-		WidgetDiagnostics.get(context).record("widget_disabled")
+		Diagnostics.get(context).record("widget_disabled")
 		super.onDisabled(context)
 	}
 
 	override fun onDeleted(context: Context, appWidgetIds: IntArray) {
-		WidgetDiagnostics.get(context).record("widget_deleted", "widget_ids" to appWidgetIds.joinToString(","))
+		Diagnostics.get(context).record("widget_deleted", "widget_ids" to appWidgetIds.joinToString(","))
 		super.onDeleted(context, appWidgetIds)
 	}
 
 	override fun onRestored(context: Context, oldWidgetIds: IntArray, newWidgetIds: IntArray) {
-		WidgetDiagnostics.get(context).record("widget_restored", "old_ids" to oldWidgetIds.joinToString(","), "new_ids" to newWidgetIds.joinToString(","))
+		Diagnostics.get(context).record("widget_restored", "old_ids" to oldWidgetIds.joinToString(","), "new_ids" to newWidgetIds.joinToString(","))
 		super.onRestored(context, oldWidgetIds, newWidgetIds)
 	}
 
 	override fun onAppWidgetOptionsChanged(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int, newOptions: Bundle) {
-		WidgetDiagnostics.get(context).record("widget_options_changed", "widget_id" to appWidgetId.toString())
+		Diagnostics.get(context).record("widget_options_changed", "widget_id" to appWidgetId.toString())
 		super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
 	}
 
@@ -74,7 +74,7 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 		val receipt = SystemClock.elapsedRealtimeNanos().toString()
 		val action = DIAGNOSTIC_ACTION_LABELS[intent.action] ?: "other"
 
-		WidgetDiagnostics.get(context).record("receiver_received", "action" to action, "receipt" to receipt)
+		Diagnostics.get(context).record("receiver_received", "action" to action, "receipt" to receipt)
 		if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) {
 			synchronized(STATE_LOCK) {
 				renderWidgets(context, readState(context))
@@ -102,7 +102,7 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 			.setConstraints(constraints)
 			.build()
 
-		val diagnostics = WidgetDiagnostics.get(context)
+		val diagnostics = Diagnostics.get(context)
 		val workId = request.id.toString()
 		diagnostics.record("enqueue_requested", "receipt" to receipt, "proposed_work_id" to workId, "policy" to "KEEP")
 
@@ -257,14 +257,14 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 				appWidgetManager.updateAppWidget(appWidgetIds, views)
 				recordUpdate(context, appWidgetIds, state, "sent")
 			} catch (exception: RuntimeException) {
-				WidgetDiagnostics.get(context).record("widget_update_failed", "exception" to exception.javaClass.simpleName)
+				Diagnostics.get(context).record("widget_update_failed", "exception" to exception.javaClass.simpleName)
 				throw exception
 			}
 		}
 
 		private fun recordUpdate(context: Context, appWidgetIds: IntArray, state: WeatherRefreshWidgetState, stage: String) {
 			val layout = if (state == WeatherRefreshWidgetState.LOADING) "loading" else "normal"
-			WidgetDiagnostics.get(context).record(
+			Diagnostics.get(context).record(
 				"widget_update_$stage",
 				"widget_ids" to appWidgetIds.joinToString(","),
 				"state" to state.name,
