@@ -78,6 +78,13 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 	private val sunCloudUpperSamples = FloatArray(SUN_SHAFT_PROFILE_SAMPLES)
 	private val sunCloudLowerSamples = FloatArray(SUN_SHAFT_PROFILE_SAMPLES)
 	private val sunCloudEdgeEnergy = FloatArray(SUN_SHAFT_PROFILE_SAMPLES)
+	private val sunShaftResponse = SunShaftResponse(SUN_SHAFT_PROFILE_SAMPLES + 1)
+	private val sunShaftIndices = FloatArray(SUN_SHAFT_PROFILE_SAMPLES) { it.toFloat() }
+	private var previousSunShaftParams: SceneParams? = null
+	private var previousSunShaftWidth = 0
+	private var previousSunShaftHeight = 0
+	private var previousSunShaftTime = Float.NaN
+	private var resetSunShaftResponse = true
 	private val sunRenderContext = SunRenderContext()
 	private val sunShaftGeometry = SunShaftGeometry()
 	private var strongestSunCloudOpacity = 0f
@@ -286,6 +293,8 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 
 	/** The animated layers (stars, sun/moon glow, horizon scenery, drifting clouds/overcast/mist, precipitation, lightning). */
 	fun renderForeground(canvas: Canvas, width: Int, height: Int, params: SceneParams, timeSeconds: Float, includeOverlayLabels: Boolean = true) {
+		prepareSunShaftFrame(width, height, params, timeSeconds)
+
 		if (params.dayPhase != previousGradePhase || params.celestialProgress != previousGradeProgress) {
 			cloudGrade = cloudColorGradeFor(params.dayPhase, params.celestialProgress)
 			previousGradePhase = params.dayPhase
@@ -1385,6 +1394,24 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		}
 
 		return opacitySum.coerceIn(0f, 1f)
+	}
+
+	private fun prepareSunShaftFrame(width: Int, height: Int, params: SceneParams, timeSeconds: Float) {
+		val previous = previousSunShaftParams
+		resetSunShaftResponse = previous == null ||
+			width != previousSunShaftWidth || height != previousSunShaftHeight ||
+			params.dayPhase != previous.dayPhase || abs(params.celestialProgress - previous.celestialProgress) > 0.01f ||
+			(timeSeconds == previousSunShaftTime && params.celestialProgress != previous.celestialProgress) ||
+			params.cloudiness != previous.cloudiness || params.cloudLayers != previous.cloudLayers ||
+			params.cloudScale != previous.cloudScale || params.cloudSizeScale != previous.cloudSizeScale || params.cloudCountScale != previous.cloudCountScale ||
+			params.windFactor != previous.windFactor || params.windScale != previous.windScale ||
+			params.sunbeamMode != previous.sunbeamMode || params.sunSizeScale != previous.sunSizeScale ||
+			params.sunColorPreset != previous.sunColorPreset || params.sunStyle != previous.sunStyle
+
+		previousSunShaftParams = if (canDrawSunLightShafts(params) && showsCelestialBody(params) && sunVisibility(params.dayPhase, params.celestialProgress) > 0f) params else null
+		previousSunShaftWidth = width
+		previousSunShaftHeight = height
+		previousSunShaftTime = timeSeconds
 	}
 
 	/** The sun as a structured atmospheric light source rather than a painted object. */
@@ -2768,10 +2795,11 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		glowPaint.style = Paint.Style.FILL
 		glowPaint.alpha = 255
 
+		sunShaftResponse.targets.fill(0f)
 		if (cloudSampled) {
-			val drawn = drawSunShaftPeaks(canvas, sun, radius, baseAngle, baseReach, tint, deckFade)
-			if (drawn == 0) {
-				drawFallbackSunShaft(canvas, sun, radius, baseAngle, baseReach, tint, deckFade)
+			val sampled = sampleSunShaftPeaks()
+			if (sampled == 0) {
+				sampleFallbackSunShaft()
 			}
 		}
 
@@ -2784,11 +2812,18 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 
 			val obstructionFade = (1f - strongestSunCloudOpacity).coerceIn(0f, 1f)
 
-			val clearStrength = cloudCoverFade * obstructionFade * deckFade
-			if (clearStrength > 0.02f) {
-				val alpha = sunAlpha(CLEAR_SUN_GLARE_ALPHA * clearStrength, sun.visibility)
-				sunGlare.draw(canvas, sun.centerX, sun.centerY, radius * CLEAR_SUN_GLARE_REACH, tint, alpha)
-			}
+			sunShaftResponse.targets[SUN_SHAFT_PROFILE_SAMPLES] = cloudCoverFade * obstructionFade * deckFade
+		}
+
+		sunShaftResponse.update(sun.timeSeconds, resetSunShaftResponse)
+		for (index in 0 until SUN_SHAFT_PROFILE_SAMPLES) {
+			drawSunShaft(canvas, sun, radius, baseAngle, baseReach, tint, sunShaftIndices[index], sunShaftResponse.strengths[index] * deckFade)
+		}
+
+		val clearStrength = sunShaftResponse.strengths[SUN_SHAFT_PROFILE_SAMPLES]
+		if (clearStrength > 0.02f) {
+			val alpha = sunAlpha(CLEAR_SUN_GLARE_ALPHA * clearStrength, sun.visibility)
+			sunGlare.draw(canvas, sun.centerX, sun.centerY, radius * CLEAR_SUN_GLARE_REACH, tint, alpha)
 		}
 
 		resetGlowPaint()
@@ -2813,7 +2848,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		return towardLowerSky + timeLean
 	}
 
-	private fun drawSunShaftPeaks(canvas: Canvas, sun: SunRenderContext, radius: Float, baseAngle: Float, baseReach: Float, tint: Int, deckFade: Float): Int {
+	private fun sampleSunShaftPeaks(): Int {
 		var drawn = 0
 		var lastPeak = -SUN_SHAFT_MIN_PEAK_GAP
 		for (index in 1 until SUN_SHAFT_PROFILE_SAMPLES - 1) {
@@ -2829,7 +2864,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 			}
 
 			val refinedIndex = refinedSunShaftIndex(index, leftEnergy, energy, rightEnergy)
-			drawSunShaft(canvas, sun, radius, baseAngle, baseReach, tint, refinedIndex, energy, deckFade)
+			setSunShaftTarget(index, refinedIndex, energy)
 			drawn++
 			lastPeak = index
 			if (drawn >= SUN_SHAFT_MAX_RAYS) {
@@ -2852,7 +2887,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		return ((index - 1) * leftEnergy + index * energy + (index + 1) * rightEnergy) / weight
 	}
 
-	private fun drawFallbackSunShaft(canvas: Canvas, sun: SunRenderContext, radius: Float, baseAngle: Float, baseReach: Float, tint: Int, deckFade: Float) {
+	private fun sampleFallbackSunShaft() {
 		var totalEnergy = 0f
 		var weightedIndex = 0f
 		var strongestEnergy = 0f
@@ -2864,13 +2899,18 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		}
 
 		if (strongestEnergy >= SUN_SHAFT_EDGE_THRESHOLD && totalEnergy > 0.0001f) {
-			drawSunShaft(canvas, sun, radius, baseAngle, baseReach, tint, weightedIndex / totalEnergy, strongestEnergy, deckFade)
+			val refinedIndex = weightedIndex / totalEnergy
+			setSunShaftTarget(refinedIndex.roundToInt(), refinedIndex, strongestEnergy)
 		}
 	}
 
-	private fun drawSunShaft(canvas: Canvas, sun: SunRenderContext, radius: Float, baseAngle: Float, baseReach: Float, tint: Int, refinedIndex: Float, energy: Float, deckFade: Float) {
+	private fun setSunShaftTarget(index: Int, refinedIndex: Float, energy: Float) {
+		sunShaftIndices[index] = refinedIndex
+		sunShaftResponse.targets[index] = ((energy - SUN_SHAFT_EDGE_THRESHOLD) / (1f - SUN_SHAFT_EDGE_THRESHOLD)).coerceIn(0f, 1f).pow(0.72f)
+	}
+
+	private fun drawSunShaft(canvas: Canvas, sun: SunRenderContext, radius: Float, baseAngle: Float, baseReach: Float, tint: Int, refinedIndex: Float, strength: Float) {
 		val normalizedX = -1f + 2f * refinedIndex / (SUN_SHAFT_PROFILE_SAMPLES - 1f)
-		val strength = ((energy - SUN_SHAFT_EDGE_THRESHOLD) / (1f - SUN_SHAFT_EDGE_THRESHOLD)).coerceIn(0f, 1f).pow(0.72f) * deckFade
 		val alpha = sunAlpha(SUN_SHAFT_MAX_ALPHA * strength, sun.visibility).coerceAtMost(SUN_SHAFT_MAX_ALPHA)
 		if (alpha <= 1) {
 			return
