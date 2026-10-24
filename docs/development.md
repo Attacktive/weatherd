@@ -139,6 +139,7 @@ Decode only the selected style on first use off the frame loop; never copy refer
 - Moon size is independent, 50–200%, default 100%; change draw geometry without regenerating phase sprites or the static backdrop.
 - Sunbeams offers Off, Through clouds (default), and Clear skies too; moving near low-cloud openings generate soft spreading shafts, never distant openings.
 - Clear skies too adds source-fixed radial glare; low/mid cover attenuates it but high cirrus alone does not.
+- Cloud-driven shaft strengths and clear-glare attenuation ease over elapsed animation time with a 1.2-second response, independent of frame rate; neighboring opening samples cross-fade rather than instantly replacing lit shafts. Keep cloud geometry/speed and independent lens-reflection occlusion unchanged. History belongs to each renderer, resets for scene/viewport changes (including celestial-progress edits while animation is paused), and initializes from the current samples on first draw, clock reversal, or gaps over two seconds; suppression remains immediate.
 - Night, hidden sun, precipitation, fog, thunder, and opaque decks suppress enabled sunbeams; Off removes shafts/extended glare but preserves the selected sun, compact corona, and independent lens flare.
 - Cache cloud-shaft softness in a small first-party sprite, transforming each frame without texture generation or blur.
 - Generate shared clear-sky glare with `uv run scripts/generate-sun-glare.py`: a hexagonal aperture's squared Fourier amplitude convolved with a finite solar disc and averaged over three wavelengths.

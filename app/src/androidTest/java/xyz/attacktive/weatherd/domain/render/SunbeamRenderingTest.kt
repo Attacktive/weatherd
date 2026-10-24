@@ -87,6 +87,88 @@ class SunbeamRenderingTest {
 	}
 
 	@Test
+	fun passingCloudEdgesDoNotIgniteShaftsInASingleFrame() {
+		val params = clearParams().copy(cloudiness = 0.7f)
+		val activeRenderer = renderer()
+		val controlRenderer = renderer()
+		var previousEnergy = 0L
+		var largestJump = 0L
+		var peakEnergy = 0L
+		for (frame in 0..90) {
+			val time = 223f + frame / 30f
+			val active = render(params, renderer = activeRenderer, time = time)
+			val off = render(params.copy(sunbeamMode = SunbeamMode.OFF), renderer = controlRenderer, time = time)
+			try {
+				val energy = beamEnergy(active, off)
+				if (frame > 0) {
+					largestJump = maxOf(largestJump, abs(energy - previousEnergy))
+				}
+
+				peakEnergy = maxOf(peakEnergy, energy)
+				previousEnergy = energy
+			} finally {
+				active.recycle()
+				off.recycle()
+			}
+		}
+
+		assertTrue("A passing cloud must produce visible shafts", peakEnergy > 0L)
+		assertTrue("One frame must not ignite a large fraction of the shaft field: jump=$largestJump peak=$peakEnergy", largestJump < peakEnergy / 5)
+	}
+
+	@Test
+	fun fadedShaftHistoryCannotSurviveHiddenSunOrSuppressedWeather() {
+		val base = clearParams().copy(cloudiness = 0.7f)
+		val suppressed = listOf(
+			base.copy(sunbeamMode = SunbeamMode.OFF),
+			base.copy(dayPhase = DayPhase.NIGHT),
+			base.copy(sunVisible = false),
+			base.copy(fogDensity = 0.5f),
+			base.copy(thunder = true),
+			base.copy(precipitation = Precipitation(PrecipitationKind.RAIN, severity = 0.5f, observed = 0.5f)),
+			base.copy(cloudiness = 0.85f)
+		)
+
+		for (params in suppressed) {
+			val shared = renderer()
+			render(base, renderer = shared, time = 223f).recycle()
+			render(base, renderer = shared, time = 224f).recycle()
+			val hidden = render(params, renderer = shared, time = 224.1f)
+			val hiddenFresh = render(params, time = 224.1f)
+			val restored = render(base, renderer = shared, time = 224.2f)
+			val restoredFresh = render(base, time = 224.2f)
+			try {
+				assertTrue("Suppression must remove shafts immediately: $params", hidden.sameAs(hiddenFresh))
+				assertTrue("Returning to sunlight must not reuse old shaft strengths: $params", restored.sameAs(restoredFresh))
+			} finally {
+				hidden.recycle()
+				hiddenFresh.recycle()
+				restored.recycle()
+				restoredFresh.recycle()
+			}
+		}
+	}
+
+	@Test
+	fun settledSimulatorProgressEditsCannotFreezeOldCloudOpenings() {
+		val base = clearParams().copy(cloudiness = 0.7f)
+		val shared = renderer()
+		render(base, renderer = shared, time = 223f).recycle()
+		render(base, renderer = shared, time = 224f).recycle()
+		for (step in 1..20) {
+			val params = base.copy(celestialProgress = 0.5f + step * 0.001f)
+			val edited = render(params, renderer = shared, time = 224f)
+			val current = render(params, time = 224f)
+			try {
+				assertTrue("A settled slider edit must resample the current opening at step $step", edited.sameAs(current))
+			} finally {
+				edited.recycle()
+				current.recycle()
+			}
+		}
+	}
+
+	@Test
 	fun midOnlyCloudVeilingSuppressesClearRaysWithoutAddingDistantOpeningShafts() {
 		for (style in SunStyle.entries) {
 			val params = clearParams().copy(cloudiness = 0.6f, cloudLayers = SceneCloudLayers(low = 0f, mid = 0.6f, high = 0f), sunStyle = style)
