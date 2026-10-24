@@ -24,6 +24,29 @@ Settings navigation tests wake the device, dismiss a nonsecure keyguard, and ret
 Navigation timeouts include activity state, the active accessibility tree, and window-manager diagnostics; assert the saved anchor remains visible with the first section off-screen, not exact pixel coordinates.
 Sunbeam fixtures pin the UTC cloud-placement day and compare rays over the same unobscured pixels each frame so foreground cloud occlusion is not mistaken for a ray-field discontinuity.
 
+### Widget Diagnostics and Report Collection
+
+**Settings → Advanced → Widget diagnostics** provides opt-in capture for post-update refresh-widget investigations such as [#284](https://github.com/Attacktive/weatherd/issues/284).
+Capture is off by default, independent of appearance presets, and retained across process restarts and in-place app updates.
+
+1. Enable **Capture diagnostic events**, ideally before the next app update.
+2. Leave the failing widget in place and tap it once; note the approximate time and whether Weatherd opened.
+3. Return to **Advanced → View and share report**, review the selectable text, then tap **Share**.
+4. Use Android's chooser to copy or send the report, then paste the text or attach a saved copy to #284; nothing is uploaded automatically.
+5. Disable capture when finished; this keeps existing evidence. **Clear diagnostic logs** requires confirmation and removes the retained records without changing the capture toggle.
+
+Installing an instrumented update or re-adding the widget can change the failing launcher state; a successful tap afterward does not disprove the original report.
+If the failure remains, collect it before re-adding the widget, then obtain a second report after a successful tap for comparison.
+
+The private, no-backup journal retains up to 64 KiB in two bounded generations.
+Serialized background writes record widget lifecycle/publication attempts, receiver delivery, WorkManager enqueue requests and completions, worker IDs/attempts/outcomes, and sanitized activity lifecycle/intent metadata.
+The report adds app/Android/device/launcher versions, wall and monotonic timestamps, process-session IDs, per-session sequences, and storage/loss/rollover health.
+It excludes coordinates, place names, weather payloads, arbitrary external intent strings/data/extras, and exception messages.
+Enqueue completion under `KEEP` does not prove that the proposed work ID was accepted; correlate it with the actual worker ID.
+An update marked `sent` establishes only the app-side publication call, not launcher consumption.
+The journal is best-effort: abrupt process death can lose queued events even with zero reported drops, and missing app-side events cannot establish the launching caller or a launcher-specific fallback.
+System activity-launch logs may still be needed; do not close #284 merely because a generic emulator capture succeeds.
+
 ### Automated Station Evaluation
 
 The local harness uses the real Android provider-comparison service and report formatter on a dedicated emulator, without changing release behavior or provider defaults.

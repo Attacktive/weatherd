@@ -6,6 +6,8 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.Bundle
+import android.os.SystemClock
 import android.view.View
 import android.widget.RemoteViews
 import androidx.work.Constraints
@@ -15,7 +17,9 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import java.util.concurrent.TimeUnit
+import xyz.attacktive.weatherd.BuildConfig
 import xyz.attacktive.weatherd.R
+import xyz.attacktive.weatherd.diagnostics.WidgetDiagnostics
 
 internal enum class WeatherRefreshWidgetState {
 	IDLE,
@@ -28,12 +32,59 @@ internal enum class WeatherRefreshWidgetState {
 /** A one-tap home-screen control that queues a forced refresh of the same weather source used by the app and live wallpaper. */
 class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 	override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
-		val views = widgetViews(context, readState(context))
+		val state = readState(context)
+		recordUpdate(context, appWidgetIds, state, "requested")
 
-		appWidgetIds.forEach { appWidgetManager.updateAppWidget(it, views) }
+		try {
+			val views = widgetViews(context, state)
+			appWidgetIds.forEach { appWidgetManager.updateAppWidget(it, views) }
+			recordUpdate(context, appWidgetIds, state, "sent")
+		} catch (exception: RuntimeException) {
+			WidgetDiagnostics.get(context).record("widget_update_failed", "exception" to exception.javaClass.simpleName)
+			throw exception
+		}
+	}
+
+	override fun onEnabled(context: Context) {
+		WidgetDiagnostics.get(context).record("widget_enabled")
+		super.onEnabled(context)
+	}
+
+	override fun onDisabled(context: Context) {
+		WidgetDiagnostics.get(context).record("widget_disabled")
+		super.onDisabled(context)
+	}
+
+	override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+		WidgetDiagnostics.get(context).record("widget_deleted", "widget_ids" to appWidgetIds.joinToString(","))
+		super.onDeleted(context, appWidgetIds)
+	}
+
+	override fun onRestored(context: Context, oldWidgetIds: IntArray, newWidgetIds: IntArray) {
+		WidgetDiagnostics.get(context).record("widget_restored", "old_ids" to oldWidgetIds.joinToString(","), "new_ids" to newWidgetIds.joinToString(","))
+		super.onRestored(context, oldWidgetIds, newWidgetIds)
+	}
+
+	override fun onAppWidgetOptionsChanged(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int, newOptions: Bundle) {
+		WidgetDiagnostics.get(context).record("widget_options_changed", "widget_id" to appWidgetId.toString())
+		super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
 	}
 
 	override fun onReceive(context: Context, intent: Intent) {
+		val receipt = SystemClock.elapsedRealtimeNanos().toString()
+		val action = when (intent.action) {
+			ACTION_REFRESH -> "refresh"
+			Intent.ACTION_MY_PACKAGE_REPLACED -> "package_replaced"
+			AppWidgetManager.ACTION_APPWIDGET_UPDATE -> "update"
+			AppWidgetManager.ACTION_APPWIDGET_ENABLED -> "enabled"
+			AppWidgetManager.ACTION_APPWIDGET_DISABLED -> "disabled"
+			AppWidgetManager.ACTION_APPWIDGET_DELETED -> "deleted"
+			AppWidgetManager.ACTION_APPWIDGET_RESTORED -> "restored"
+			AppWidgetManager.ACTION_APPWIDGET_OPTIONS_CHANGED -> "options_changed"
+			else -> "other"
+		}
+
+		WidgetDiagnostics.get(context).record("receiver_received", "action" to action, "receipt" to receipt)
 		if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) {
 			synchronized(STATE_LOCK) {
 				renderWidgets(context, readState(context))
@@ -44,7 +95,7 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 
 		if (intent.action == ACTION_REFRESH) {
 			weatherRefreshEntryPoint(context).sceneAnimationRestartController().restart()
-			enqueueRefresh(context, WorkManager.getInstance(context))
+			enqueueRefresh(context, WorkManager.getInstance(context), receipt)
 
 			return
 		}
@@ -52,7 +103,7 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 		super.onReceive(context, intent)
 	}
 
-	private fun enqueueRefresh(context: Context, workManager: WorkManager) {
+	private fun enqueueRefresh(context: Context, workManager: WorkManager, receipt: String) {
 		val constraints = Constraints.Builder()
 			.setRequiredNetworkType(NetworkType.CONNECTED)
 			.build()
@@ -61,7 +112,28 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 			.setConstraints(constraints)
 			.build()
 
-		workManager.enqueueUniqueWork(REFRESH_WORK_NAME, ExistingWorkPolicy.KEEP, request)
+		val diagnostics = WidgetDiagnostics.get(context)
+		val workId = request.id.toString()
+		diagnostics.record("enqueue_requested", "receipt" to receipt, "proposed_work_id" to workId, "policy" to "KEEP")
+
+		try {
+			val completion = workManager.enqueueUniqueWork(REFRESH_WORK_NAME, ExistingWorkPolicy.KEEP, request).result
+			completion.addListener(
+				{
+					try {
+						completion.get()
+						// KEEP may retain existing work; completion does not establish that this proposed ID was accepted.
+						diagnostics.record("enqueue_completed", "receipt" to receipt, "proposed_work_id" to workId, "acceptance" to "unknown")
+					} catch (exception: Exception) {
+						diagnostics.record("enqueue_failed", "receipt" to receipt, "proposed_work_id" to workId, "exception" to exception.javaClass.simpleName)
+					}
+				},
+				{ command -> command.run() }
+			)
+		} catch (exception: RuntimeException) {
+			diagnostics.record("enqueue_failed", "receipt" to receipt, "proposed_work_id" to workId, "exception" to exception.javaClass.simpleName)
+			throw exception
+		}
 	}
 
 	internal fun widgetViews(context: Context, state: WeatherRefreshWidgetState = WeatherRefreshWidgetState.IDLE): RemoteViews {
@@ -178,9 +250,27 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 				return
 			}
 
-			val views = WeatherRefreshWidgetProvider().widgetViews(context, state)
+			recordUpdate(context, appWidgetIds, state, "requested")
 
-			appWidgetManager.updateAppWidget(appWidgetIds, views)
+			try {
+				val views = WeatherRefreshWidgetProvider().widgetViews(context, state)
+				appWidgetManager.updateAppWidget(appWidgetIds, views)
+				recordUpdate(context, appWidgetIds, state, "sent")
+			} catch (exception: RuntimeException) {
+				WidgetDiagnostics.get(context).record("widget_update_failed", "exception" to exception.javaClass.simpleName)
+				throw exception
+			}
+		}
+
+		private fun recordUpdate(context: Context, appWidgetIds: IntArray, state: WeatherRefreshWidgetState, stage: String) {
+			val layout = if (state == WeatherRefreshWidgetState.LOADING) "loading" else "normal"
+			WidgetDiagnostics.get(context).record(
+				"widget_update_$stage",
+				"widget_ids" to appWidgetIds.joinToString(","),
+				"state" to state.name,
+				"layout" to layout,
+				"binding_revision" to BuildConfig.VERSION_CODE.toString()
+			)
 		}
 
 		private fun statePreferences(context: Context) = context.getSharedPreferences(STATE_PREFERENCES, Context.MODE_PRIVATE)

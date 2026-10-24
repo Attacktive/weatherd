@@ -1,6 +1,7 @@
 package xyz.attacktive.weatherd
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -21,6 +22,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import dagger.hilt.android.AndroidEntryPoint
+import xyz.attacktive.weatherd.diagnostics.WidgetDiagnostics
 import xyz.attacktive.weatherd.ui.home.HomeScreen
 import xyz.attacktive.weatherd.ui.settings.SettingsScreen
 import xyz.attacktive.weatherd.ui.theme.WeatherdTheme
@@ -33,6 +35,7 @@ class MainActivity: ComponentActivity() {
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
+		recordActivity("activity_created", intent, savedInstanceState != null)
 
 		requestLocationPermissionIfNeeded()
 
@@ -69,6 +72,39 @@ class MainActivity: ComponentActivity() {
 				}
 			}
 		}
+	}
+
+	override fun onNewIntent(intent: Intent) {
+		super.onNewIntent(intent)
+		recordActivity("activity_new_intent", intent)
+	}
+
+	override fun onStart() {
+		super.onStart()
+		recordActivity("activity_started", intent)
+	}
+
+	override fun onResume() {
+		super.onResume()
+		recordActivity("activity_resumed", intent)
+	}
+
+	private fun recordActivity(event: String, launchIntent: Intent?, restored: Boolean? = null) {
+		val action = when (launchIntent?.action) {
+			Intent.ACTION_MAIN -> "main"
+			null -> "none"
+			else -> "other"
+		}
+
+		// Do not dump external intent data, extras, referrers, or arbitrary action/category strings.
+		WidgetDiagnostics.get(this).record(
+			event,
+			"task_id" to taskId.toString(),
+			"action" to action,
+			"launcher_category" to (launchIntent?.hasCategory(Intent.CATEGORY_LAUNCHER) == true).toString(),
+			"flags" to (launchIntent?.flags ?: 0).toString(16),
+			"restored" to (restored?.toString() ?: "not_applicable")
+		)
 	}
 
 	private fun requestLocationPermissionIfNeeded() {

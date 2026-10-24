@@ -262,6 +262,10 @@ private fun AdvancedSettingsTab(viewModel: SettingsViewModel, scrollState: Scrol
 
 	SettingsTabContent(scrollState) {
 		SceneSimulatorSection(settings = settings, onSave = onSave)
+
+		Spacer(modifier = Modifier.height(24.dp))
+
+		WidgetDiagnosticsSection()
 	}
 }
 
