@@ -1,3 +1,4 @@
+import com.android.build.gradle.internal.tasks.DeviceProviderInstrumentTestTask
 import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -8,6 +9,10 @@ plugins {
 	alias(libs.plugins.ksp)
 	alias(libs.plugins.kotlin.serialization)
 	alias(libs.plugins.detekt)
+}
+
+if (providers.gradleProperty("android.experimental.androidTest.builtin_test_platform").orNull?.toBoolean() == true) {
+	throw GradleException("Weatherd instrumentation isolation requires the default test platform. Remove android.experimental.androidTest.builtin_test_platform=true.")
 }
 
 val localProperties = Properties().apply {
@@ -31,6 +36,7 @@ android {
 		versionCode = 114
 		versionName = "3.9.2"
 		testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+		testInstrumentationRunnerArguments["notClass"] = "xyz.attacktive.weatherd.data.provider.ProviderEvaluationCaptureTest"
 	}
 
 	signingConfigs {
@@ -74,6 +80,31 @@ android {
 				}
 			}
 		}
+	}
+}
+
+val instrumentationAdb = androidComponents.sdkComponents.adb
+val instrumentationScripts = rootProject.layout.projectDirectory.dir("scripts").asFile
+val instrumentationProviders = providers
+val instrumentationEnvironmentSerial = providers.environmentVariable("ANDROID_SERIAL").orElse("")
+
+tasks.withType<DeviceProviderInstrumentTestTask>().configureEach {
+	val requestedSerials = testRunnerFactory.deviceSerialValues.orElse(testRunnerFactory.connectedCheckDeviceSerials).orElse(emptyList())
+	doFirst {
+		val taskSerials = requestedSerials.get()
+		val serials = if (taskSerials.isNotEmpty()) taskSerials else instrumentationEnvironmentSerial.get().split(',').filter { it.isNotBlank() }
+		val command = listOf("python3", "-m", "provider_evaluation.instrumentation_safety", "--adb", instrumentationAdb.get().asFile.absolutePath) + serials.flatMap { listOf("--serial", it) }
+		val preflight = instrumentationProviders.exec {
+			workingDir(instrumentationScripts)
+			commandLine(command)
+			isIgnoreExitValue = true
+		}
+
+		if (preflight.result.get().exitValue != 0) {
+			throw GradleException(preflight.standardError.asText.get().trim())
+		}
+
+		logger.lifecycle(preflight.standardOutput.asText.get().trim())
 	}
 }
 

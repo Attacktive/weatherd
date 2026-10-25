@@ -10,16 +10,27 @@ Run commands from the repository root.
 
 Run the pull-request checks with `./gradlew test :app:lint :app:detekt`.
 The existing CI Test gate builds the debug app and instrumentation APKs alongside unit tests, lint, and Detekt while the emulator starts; instrumentation remains required after that gate succeeds.
+Ordinary connected tests exclude the opt-in `ProviderEvaluationCaptureTest` and require exactly one device selected with AGP's `--serial` option or `ANDROID_SERIAL`; an explicit task option takes precedence over the environment.
+The read-only preflight rejects the reserved `Pixel_Weatherd_Provider_Evaluation` AVD even when explicitly selected, so scheduled captures cannot be interrupted by ordinary Gradle instrumentation.
+The experimental `android.experimental.androidTest.builtin_test_platform=true` option is unsupported and rejected during configuration, before device lookup; ordinary instrumentation retains the current test engine.
+Use a separate disposable emulator, substituting its serial below; connected-test teardown still removes Weatherd and its app data:
+
+```sh
+./gradlew :app:connectedDebugAndroidTest --serial emulator-5582
+```
+
 For an existing emulator installation, update both APKs in place and invoke instrumentation directly:
 
 ```sh
 ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest
 adb -s emulator-5554 install -r -t app/build/outputs/apk/debug/app-debug.apk
 adb -s emulator-5554 install -r -t app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
-adb -s emulator-5554 shell am instrument -w xyz.attacktive.weatherd.test/androidx.test.runner.AndroidJUnitRunner
+adb -s emulator-5554 shell am instrument -w -e notClass xyz.attacktive.weatherd.data.provider.ProviderEvaluationCaptureTest xyz.attacktive.weatherd.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
 Replace `emulator-5554` with the intended device serial; the data-backup and wallpaper-binding warnings in [AGENTS.md](../AGENTS.md#tools-and-environment) still apply.
+Direct `adb` invocation bypasses Gradle's preflight and default filter: keep the explicit `notClass` argument and never target the reserved evaluation AVD for an ordinary suite.
+The provider-evaluation harness below remains the explicit opt-in capture path; do not set `providerEvaluation=true` merely to silence an ordinary test report.
 Settings navigation tests wake the device, dismiss a nonsecure keyguard, and retain a bounded 320×640 dp activity window through recreation so large displays exercise scroll restoration rather than skip it.
 Navigation timeouts include activity state, the active accessibility tree, and window-manager diagnostics; assert the saved anchor remains visible with the first section off-screen, not exact pixel coordinates.
 Sunbeam fixtures pin the UTC cloud-placement day and compare rays over the same unobscured pixels each frame so foreground cloud occlusion is not mistaken for a ray-field discontinuity.

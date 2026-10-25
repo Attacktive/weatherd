@@ -2,7 +2,7 @@
 
 Instructions and architectural invariants for agents working in the Weatherd codebase.
 
-- Version: 1.6.20 (2026-10-23)
+- Version: 1.6.21 (2026-10-25)
 - Persona: Coding assistant pair-programming with the user on Weatherd.
 
 ## Documentation Scope
@@ -25,7 +25,8 @@ Before working on a topic below, read its linked section in [docs/development.md
 
 Agents use standard file inspection, editing tools, and Gradle tasks (`./gradlew check`).
 - In the current setup, `connectedDebugAndroidTest` removes the target Weatherd installation during teardown (observed on Pixel); use it only on a disposable device or emulator.
-- To preserve an existing installation, build the app and test APKs, install both with `adb install -r -t`, and run `adb shell am instrument -w xyz.attacktive.weatherd.test/androidx.test.runner.AndroidJUnitRunner` directly.
+- Ordinary instrumentation must select one device and must never use the reserved provider-evaluation AVD; follow the [development reference](docs/development.md#local-checks-and-instrumentation) for the Gradle preflight and ordinary-suite exclusion.
+- To preserve an existing installation, build the app and test APKs, install both with `adb install -r -t`, and use the reference's direct instrumentation command with an explicit serial and capture-test exclusion.
 - Direct instrumentation still force-stops the app and its live-wallpaper service. On the emulator, this left a dead wallpaper binding and a black home screen even though the preview worked; selecting the same Weatherd component was ignored. Run instrumentation before final wallpaper validation, and recover a stranded binding by selecting a different wallpaper before reapplying Weatherd.
 - Back up app data separately from the APK before any test workflow that removes packages; saving the APK does not preserve settings or photos.
 - On API 34+, clear `UiAutomation`'s accessibility cache before polling navigation state. At the 320×640 CI viewport, scrolling visibly revealed a tab while cached nodes still described its old off-screen position; waiting for idle alone did not refresh those nodes.
