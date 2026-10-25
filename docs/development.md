@@ -52,14 +52,15 @@ The workflow installs the hash-pinned `defusedxml` wheel from `scripts/ci/requir
 For local reporting-tool checks, install that requirements file in an isolated Python environment and run `python -m unittest discover -s scripts/ci -p 'test_*.py'`.
 Outside Actions, generated diagnostics default to the repository's ignored `build/weatherd-ci/`, not a predictable directory in shared temporary storage; `RUNNER_TEMP` and the reporting CLI's explicit `--directory` remain available.
 
-Each `test-diagnostics-<attempt>` artifact is retained for 14 days on success or failure and contains Gradle logs/profiles, JVM/Android reports and result XML, individual Android test timings, and the phase summary; reruns preserve earlier attempts instead of overwriting them.
+Each `test-diagnostics-<attempt>` artifact has a 14-day retention setting on success or failure and contains Gradle logs/profiles, JVM/Android reports and result XML, individual Android test timings, and the phase summary.
+Attempt-specific names identify the evidence but do not guarantee earlier archives remain available after a workflow rerun; download each archive before requesting another attempt.
 During the connected invocation, a separate monitor captures only instrumentation-runner logcat tags and samples numeric runner load/memory and device uptime/load/process presence every 15 seconds.
 Its five-second ADB probe limit bounds diagnostics only; it never limits or cancels tests.
 Compare test XML durations and runner start/finish timestamps with the connected wall time and device samples to separate slow test bodies, pre/post-test runner overhead, ADB stalls, and host/device contention.
 No general device logcat, bugreport, user settings, or provider/location payload is collected.
 Missing or partial XML and unreached phase endpoints remain explicit in the summary, including emulator failure before the callback.
 
-For a reproducible comparison, rerun the existing workflow at unchanged source and record each run ID **and attempt**, runner image, event/ref, dependency-cache state, task-cache outcomes, phase durations, and workflow/job timestamps.
+For a reproducible comparison, rerun the existing workflow at unchanged source and record each run ID **and attempt**, runner image, event/ref, dependency-cache state, task-cache outcomes, phase durations, and workflow/job timestamps; archive each attempt's diagnostics before rerunning it.
 Use several attempts per retained candidate, separate cold from warm cache runs, retain outliers, and report medians plus total runner job-seconds rather than assuming wall-time savings equal billed savings.
 Actions job/step timestamps include setup, post-action cache restore/save, and artifact overhead that the Gradle timers do not; billing data, when unavailable, must remain unknown.
 Change one cache variable per candidate, avoid duplicate ownership of Gradle User Home, and keep a cache change only when the measured end-to-end result or stability improves.
@@ -77,14 +78,69 @@ Workflow wall time is `run_started_at` through the Test job's completion; runner
 | 2 | 496 | 492 | 333 | 140 | 7 | 0 |
 | 3 | 483 | 480 | 347 | 110 | 8 | 0 |
 
-The baseline median is 483 workflow seconds, with a range of 470–496 seconds and 1,440 total runner job-seconds.
-The dependency cache restored in 2/3 attempts and the independent wrapper cache in 3/3; attempt 1 reported `gradle cache is not found` and a competing cache-save reservation.
-Task build caching was disabled, so the baseline has no build-cache hit rate to compare; dependency-cache hits are not task-cache hits.
+Attempt 1 reported `gradle cache is not found` and a competing cache-save reservation; attempts 2–3 restored the dependency cache, and all three restored the independent wrapper cache.
+Task build caching was disabled and all three logs contain zero `FROM-CACHE` tasks, so there is no baseline task-cache hit-rate denominator; dependency-cache hits are not task-cache hits.
 
 The retained [33-minute outlier](https://github.com/Attacktive/weatherd/actions/runs/40052071132) logs say `Emulator booted.` at `2026-10-24T01:59:08.6357415Z`, `Static gate passed.` at `02:05:11.1973387Z`, and `Running tests on devices: test(AVD) - 15` at `02:05:16.3883089Z`.
 The next output appears at `02:29:51.8895454Z`, a 1,475.50-second silent interval after instrumentation started; `BUILD SUCCESSFUL in 24m 40s` follows.
 This localizes the delay after boot and the static gate, but cannot distinguish a slow test body, ADB/device stall, or test-runner overhead retrospectively.
 Do not attribute that historical delay to emulator boot or KVM without additional evidence.
+
+#### Measured Candidate (#349)
+
+The matched candidate uses [run 40182492869](https://github.com/Attacktive/weatherd/actions/runs/40182492869), attempts 1–3, at `d8b29f415ca8f6905863a071f51adc4d53686e96`, with unchanged application and Android/JVM test source, required tasks, API 35 emulator configuration, runner image, and toolchain.
+All three Test workflow attempts passed; dependency and wrapper caches restored in every attempt.
+The table uses Actions timestamps and the two `BUILD SUCCESSFUL in ...` Gradle durations, including setup, reporting, artifact, and post-action overhead in workflow/job time.
+
+| Candidate attempt | Workflow seconds | Runner job-seconds | Static Gradle seconds | Connected Gradle seconds | JDK/cache setup seconds | Post-JDK cache step seconds |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 331 | 328 | 171 | 130 | 7 | 0 |
+| 2 | 340 | 337 | 179 | 126 | 9 | 0 |
+| 3 | 508 | 504 | 268 | 200 | 12 | 0 |
+
+| Measurement | Baseline | Candidate |
+| --- | ---: | ---: |
+| Median workflow seconds | 483 | 340 |
+| Workflow range, seconds | 470–496 | 331–508 |
+| Total Test runner job-seconds, three attempts | 1,440 | 1,169 |
+| Dependency-cache hits | 2/3 | 3/3 |
+| Task-cache hits / cache-keyed executions | Off; denominator unknown | 32/59 (54.24%) each |
+
+Keep build caching: median workflow time fell 29.6%, and aggregate Test runner job-seconds fell 18.8%, with the slower third attempt included rather than discarded.
+These are three-attempt measurements, not a prediction or a cold-start guarantee: the baseline includes one dependency-cache miss, the candidate is warm, push/main and PR events differ, and hosted-runner timing varies.
+The two warm baseline attempts have a 489.5-second workflow median, so the improvement is not dependent on including the cold baseline row.
+Earlier exploratory candidates are separate evidence, not matched samples: [40181095981](https://github.com/Attacktive/weatherd/actions/runs/40181095981) took 674 workflow seconds / 409 job-seconds including 265 seconds queued behind a canceled run; [40181918531](https://github.com/Attacktive/weatherd/actions/runs/40181918531) took 391 / 389 seconds before the reporting-only refactor.
+The canceled run's reporter waited 257 seconds for the background build; canceled finalization now publishes partial evidence without that wait, with a regression covering the fast path.
+
+The phase markers expose the overlap rather than counting boot plus build serially:
+
+| Candidate attempt | Static/build seconds | Emulator provisioning/boot seconds | Post-boot static wait seconds | Connected invocation seconds |
+| --- | ---: | ---: | ---: | ---: |
+| 1 | 172.53 | 168.52 | 4.09 | 130.58 |
+| 2 | 182.15 | 166.51 | 16.14 | 127.01 |
+| 3 | 271.33 | 197.56 | 74.59 | 201.17 |
+
+All three summaries report 183 Android passes, zero failures, and zero skips; the retained third-attempt XML also contains 553 JVM passes with zero failures/skips.
+The connected phase reuses 84 `UP-TO-DATE` tasks and executes the connected-test task; `preDebugAndroidTestBuild SKIPPED` already appears in both baseline and candidate and is not a newly skipped test.
+The slower third attempt retains 183 test starts/finishes, individual durations, and 14 device samples: no sampled ADB error, a maximum 0.273-second probe, and one-minute host load spanning 1.84–9.45 on four CPUs.
+Its longest test is `SettingsNavigationTest.homeControlsAvoidSystemBarsAndDisplayCutouts` at 55.536 seconds; both static and connected phases also slow down, so do not attribute the entire wall-time increase to that test or claim a root cause from load correlation alone.
+This demonstrates the new diagnostic path without sharding, weakening assertions, or imposing a test timeout.
+
+The rerun artifact API exposed only attempt 3 after the benchmark, and an earlier uploaded artifact ID returned 404.
+The first two attempts' phase/cache/result-count evidence above comes from retained attempt logs; only the third attempt's complete XML and per-test archive remained downloadable at collection time.
+Future benchmark collection must download each archive between attempts, rather than relying on attempt-specific names alone.
+
+#### Cache Ownership Decision
+
+`actions/setup-java` remains the sole Gradle User Home cache owner.
+Its [primary-key save guard](https://github.com/actions/setup-java/blob/v6/src/cache.ts) skips saving after an exact dependency-cache hit; task-cache reuse must therefore be measured rather than assumed to refresh on every source-only PR.
+The evaluated [setup-gradle 6.4.0 basic provider](https://github.com/gradle/actions/blob/v6.4.0/docs/setup-gradle.md#basic-caching) uses the same dependency-hash strategy and cached directories, so replacing the owner with that provider was not treated as an independent performance improvement.
+The enhanced provider changes both cache behavior and [licensing/terms](https://github.com/gradle/actions/blob/v6.4.0/DISTRIBUTION.md); it was not adopted implicitly as part of this optimization.
+Never enable both setup-java Gradle caching and setup-gradle Gradle User Home caching together.
+
+CodeQL's manual traced build explicitly uses `./gradlew --no-build-cache assembleDebug`, while retaining dependency caching.
+The initial global-cache candidate restored `compileDebugKotlin` and `compileDebugJavaWithJavac` from cache, leaving CodeQL with `CodeQL could not process any code written in Java/Kotlin`.
+The analysis build must execute compilation for extraction; do not remove this override or disable analysis to make a cached build appear green.
 
 ### Diagnostics and Report Collection
 

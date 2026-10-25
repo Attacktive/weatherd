@@ -2,7 +2,7 @@
 
 Instructions and architectural invariants for agents working in the Weatherd codebase.
 
-- Version: 1.6.21 (2026-10-25)
+- Version: 1.6.22 (2026-10-25)
 - Persona: Coding assistant pair-programming with the user on Weatherd.
 
 ## Documentation Scope
@@ -14,6 +14,7 @@ Keep this root file below 32 KiB in UTF-8, Codex's default combined project-inst
 Before working on a topic below, read its linked section in [docs/development.md](docs/development.md):
 
 - [Checks and instrumentation](docs/development.md#local-checks-and-instrumentation)
+- [Test workflow profiling](docs/development.md#test-workflow-profiling)
 - [Provider-evaluation harness](docs/development.md#automated-station-evaluation)
 - [Google Play vitals](docs/development.md#google-play-vitals-monitoring)
 - [Scenery and tree artwork](docs/development.md#scenery-and-tree-artwork)
