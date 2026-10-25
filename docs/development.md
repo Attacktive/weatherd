@@ -47,7 +47,7 @@ These overlapping intervals must not be added together.
 Both Gradle invocations use plain console output, `--info`, and `--profile`; the always-run summary distinguishes `FROM-CACHE`, same-runner `UP-TO-DATE`, actual executions, and missing evidence.
 Task-cache hit rate is `FROM-CACHE / (FROM-CACHE + executed tasks with an observed build-cache key)`; a missing denominator is unknown, not a zero-percent hit rate.
 
-The `test-diagnostics` artifact is retained for 14 days on success or failure and contains Gradle logs/profiles, JVM/Android reports and result XML, individual Android test timings, and the phase summary.
+Each `test-diagnostics-<attempt>` artifact is retained for 14 days on success or failure and contains Gradle logs/profiles, JVM/Android reports and result XML, individual Android test timings, and the phase summary; reruns preserve earlier attempts instead of overwriting them.
 During the connected invocation, a separate monitor captures only instrumentation-runner logcat tags and samples numeric runner load/memory and device uptime/load/process presence every 15 seconds.
 Its five-second ADB probe limit bounds diagnostics only; it never limits or cancels tests.
 Compare test XML durations and runner start/finish timestamps with the connected wall time and device samples to separate slow test bodies, pre/post-test runner overhead, ADB stalls, and host/device contention.
@@ -59,6 +59,27 @@ Use several attempts per retained candidate, separate cold from warm cache runs,
 Actions job/step timestamps include setup, post-action cache restore/save, and artifact overhead that the Gradle timers do not; billing data, when unavailable, must remain unknown.
 Change one cache variable per candidate, avoid duplicate ownership of Gradle User Home, and keep a cache change only when the measured end-to-end result or stability improves.
 Do not introduce configuration cache, snapshots, sharding, or a test timeout without evidence.
+
+#### Baseline and Outlier Evidence (#349)
+
+The unchanged-source baseline uses [run 40174702312](https://github.com/Attacktive/weatherd/actions/runs/40174702312), attempts 1–3, at `30e72946a6a2919d27238004a09bba4d4eca9d2b`, on `ubuntu-24.04` image `20261012.334.1`, Temurin `21.0.12+1`, with Gradle `9.8.2`, AGP `9.4.1`, Kotlin `2.4.21`, and KSP `2.3.12`.
+All attempts passed the existing push/main gate.
+Workflow wall time is `run_started_at` through the Test job's completion; runner consumption is the Test job's `started_at` through `completed_at`, not the deprecated billing API's zero-valued public-repository durations.
+
+| Baseline attempt | Workflow seconds | Runner job-seconds | Static Gradle seconds | Connected Gradle seconds | JDK/cache setup seconds | Post-JDK cache step seconds |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 470 | 468 | 373 | 78 | 2 | 3 |
+| 2 | 496 | 492 | 333 | 140 | 7 | 0 |
+| 3 | 483 | 480 | 347 | 110 | 8 | 0 |
+
+The baseline median is 483 workflow seconds, with a range of 470–496 seconds and 1,440 total runner job-seconds.
+The dependency cache restored in 2/3 attempts and the independent wrapper cache in 3/3; attempt 1 reported `gradle cache is not found` and a competing cache-save reservation.
+Task build caching was disabled, so the baseline has no build-cache hit rate to compare; dependency-cache hits are not task-cache hits.
+
+The retained [33-minute outlier](https://github.com/Attacktive/weatherd/actions/runs/40052071132) logs say `Emulator booted.` at `2026-10-24T01:59:08.6357415Z`, `Static gate passed.` at `02:05:11.1973387Z`, and `Running tests on devices: test(AVD) - 15` at `02:05:16.3883089Z`.
+The next output appears at `02:29:51.8895454Z`, a 1,475.50-second silent interval after instrumentation started; `BUILD SUCCESSFUL in 24m 40s` follows.
+This localizes the delay after boot and the static gate, but cannot distinguish a slow test body, ADB/device stall, or test-runner overhead retrospectively.
+Do not attribute that historical delay to emulator boot or KVM without additional evidence.
 
 ### Diagnostics and Report Collection
 
