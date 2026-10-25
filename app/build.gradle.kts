@@ -33,8 +33,8 @@ android {
 		applicationId = "xyz.attacktive.weatherd"
 		minSdk = 26
 		targetSdk = 37
-		versionCode = 115
-		versionName = "3.9.3"
+		versionCode = 116
+		versionName = "3.9.4"
 		testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 		testInstrumentationRunnerArguments["notClass"] = "xyz.attacktive.weatherd.data.provider.ProviderEvaluationCaptureTest"
 	}
