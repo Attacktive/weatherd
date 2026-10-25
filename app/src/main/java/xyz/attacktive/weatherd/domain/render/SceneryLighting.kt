@@ -52,13 +52,18 @@ internal fun writeSceneryColorMatrix(destination: FloatArray, params: SceneParam
 	val ambient = night * depth.nightAmbient
 	val fogLight = fog * depth.fogLight
 	val lowSun = warmth * (1f - weather)
+	val warmTint = if (plane == SceneryPlane.NEAR) {
+		lowSun
+	} else {
+		0f
+	}
 
 	destination.fill(0f)
 	for (row in 0..2) {
 		val tint = when (row) {
 			0 -> 1f - night * 0.16f - weather * 0.06f
-			1 -> (1f - night * 0.1f - weather * 0.025f) * (1f - lowSun * 0.12f)
-			else -> 1f - lowSun * 0.28f
+			1 -> (1f - night * 0.1f - weather * 0.025f) * (1f - warmTint * 0.12f)
+			else -> 1f - warmTint * 0.28f
 		}
 
 		val factor = brightness * contrast * tint
@@ -71,6 +76,27 @@ internal fun writeSceneryColorMatrix(destination: FloatArray, params: SceneParam
 	}
 
 	destination[18] = 1f
+	if (plane == SceneryPlane.FAR && lowSun > 0f) {
+		applyMountainAlpenglow(destination, lowSun)
+	}
+}
+
+/** Compose the material grade before environmental lighting: violet at luminance 128, peach at 255; leave alpha and fog light untouched. */
+private fun applyMountainAlpenglow(matrix: FloatArray, strength: Float) {
+	val redSlope = (255f - 85f) / 127f
+	val greenSlope = (193f - 82f) / 127f
+	val blueSlope = (166f - 111f) / 127f
+	for (row in 0..2) {
+		val start = row * 5
+		val red = matrix[start]
+		val green = matrix[start + 1]
+		val blue = matrix[start + 2]
+		val slope = red * redSlope + green * greenSlope + blue * blueSlope
+		matrix[start] = red * (1f - strength) + strength * slope * 0.2126f
+		matrix[start + 1] = green * (1f - strength) + strength * slope * 0.7152f
+		matrix[start + 2] = blue * (1f - strength) + strength * slope * 0.0722f
+		matrix[start + 4] += strength * (red * 85f + green * 82f + blue * 111f - 128f * slope)
+	}
 }
 
 private fun sceneryNightStrength(params: SceneParams) = when (params.dayPhase) {

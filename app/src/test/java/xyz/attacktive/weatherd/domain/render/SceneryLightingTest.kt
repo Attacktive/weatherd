@@ -21,6 +21,32 @@ class SceneryLightingTest {
 	}
 
 	@Test
+	fun lowSunWarmsMountainHighlightsWithoutWarmingShadowOrFoliageColors() {
+		for (phase in listOf(DayPhase.DAWN, DayPhase.DUSK)) {
+			val params = clear.copy(dayPhase = phase, celestialProgress = 0.5f)
+			val mountains = matrix(params, SceneryPlane.FAR)
+			val highlight = transform(mountains, 180f, 210f, 230f)
+			val shadow = transform(mountains, 65f, 110f, 155f)
+			assertTrue("$phase mountain highlights must turn peach instead of cyan", highlight[0] > highlight[1] && highlight[1] > highlight[2])
+			assertTrue("$phase mountain shadows must retain cool separation", shadow[2] > shadow[0] && shadow[2] > shadow[1])
+			assertTrue("$phase must retain mountain relief", highlight.sum() > shadow.sum())
+			assertArrayEquals(floatArrayOf(0f, 0f, 0f, 1f, 0f), mountains.copyOfRange(15, 20), 0f)
+			val foliage = transform(matrix(params, SceneryPlane.NEAR), 32f, 58f, 22f)
+			assertTrue("$phase foliage must retain its green material instead of receiving mountain alpenglow", foliage[1] > foliage[0] && foliage[1] > foliage[2])
+		}
+	}
+
+	@Test
+	fun opaqueWeatherSuppressesMountainAlpenglow() {
+		for (weather in listOf(clear.copy(cloudiness = 1f), clear.copy(thunder = true))) {
+			val daylight = matrix(weather, SceneryPlane.FAR)
+			for (phase in listOf(DayPhase.DAWN, DayPhase.DUSK)) {
+				assertArrayEquals(daylight, matrix(weather.copy(dayPhase = phase, celestialProgress = 0.5f), SceneryPlane.FAR), 0.0001f)
+			}
+		}
+	}
+
+	@Test
 	fun snowStaysBrighterThanRainAndThunderWhileFogSoftensDistantContrastMore() {
 		val snow = clear.copy(precipitation = Precipitation(PrecipitationKind.SNOW, 1f, 1f))
 		val rain = clear.copy(precipitation = Precipitation(PrecipitationKind.RAIN, 1f, 1f))

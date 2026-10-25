@@ -46,6 +46,47 @@ class SceneryLightingRenderingTest {
 	}
 
 	@Test
+	fun twilightMountainArtworkHasWarmHighlightsAndCoolShadows() {
+		val layer = CloudMountainLayer(resources)
+		layer.prewarm()
+		val day = render { layer.draw(it, WIDTH.toFloat(), HEIGHT.toFloat(), clear) }
+		try {
+			for (phase in listOf(DayPhase.DAWN, DayPhase.DUSK)) {
+				val twilight = render { layer.draw(it, WIDTH.toFloat(), HEIGHT.toFloat(), clear.copy(dayPhase = phase, celestialProgress = 0.5f)) }
+				try {
+					var highlightWarmth = 0L
+					var shadowWarmth = 0L
+					for (y in 0 until HEIGHT) {
+						for (x in 0 until WIDTH) {
+							val source = day.getPixel(x, y)
+							if (Color.alpha(source) < 240) {
+								continue
+							}
+
+							val luminance = Color.red(source) * 0.2126 + Color.green(source) * 0.7152 + Color.blue(source) * 0.0722
+							val color = twilight.getPixel(x, y)
+							val warmth = Color.red(color) - Color.blue(color)
+							if (luminance > 190) {
+								highlightWarmth += warmth
+							} else if (luminance in 100.0..130.0) {
+								shadowWarmth += warmth
+							}
+						}
+					}
+
+					assertTrue("$phase must warm the artwork's highlights", highlightWarmth > 0)
+					assertTrue("$phase must keep the artwork's shadows cool", shadowWarmth < 0)
+					assertSameAlpha(day, twilight)
+				} finally {
+					twilight.recycle()
+				}
+			}
+		} finally {
+			day.recycle()
+		}
+	}
+
+	@Test
 	fun bothTreeStylesRespectNightBrightnessWithoutChangingTheirSilhouette() {
 		val layer = ForegroundTreeLayer(resources)
 		for (style in TreeStyle.entries) {

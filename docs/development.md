@@ -134,6 +134,8 @@ Keep the hero crown fully visible in portrait, landscape, and launcher scrolling
 Mountain artwork scales uniformly to cover the viewport width and at least 38% of its height, center-cropping horizontal excess on tall screens so the ridge clears lower launcher icons without stretching the source or moving trees.
 Keep the fading base bottom-aligned; when scaled artwork exceeds the viewport height, pin its top instead so landscape peaks remain visible.
 Mountains and both tree shapes share weather/day-phase lighting: preserve clear-day artwork colors, warm dawn/dusk continuously, desaturate overcast/precipitation, keep snow lighter than rain, and soften distant mountains in fog more than nearby foliage.
+Mountains alone use luminance-aware alpenglow at low sun: peach/pink highlights over cool violet shadows, including the mist baked into the artwork; trees retain their existing warm material tint.
+Compose that RGB grade before weather/night/fog lighting in the cached color matrix, attenuate it with the existing low-sun/weather strength, and preserve clear-day/night colors, source alpha, and placement without regenerating pixels per frame.
 At night, reduce mountain-blue saturation while retaining ambient foliage detail; night brightness dims both, easing through dawn/dusk without changing alpha or placement.
 Do not per-pixel grade custom photos; retain their weather overlays/night dimming and grade any trees over them normally.
 Fog and precipitation draw in front.
