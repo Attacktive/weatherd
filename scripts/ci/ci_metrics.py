@@ -48,6 +48,24 @@ def task_statistics(log):
 	}
 
 
+def android_test(case):
+	seconds = None
+	try:
+		value = float(case.attrib["time"])
+		if math.isfinite(value) and value >= 0:
+			seconds = value
+	except (KeyError, ValueError):
+		pass
+
+	outcome = "passed"
+	if case.find("failure") is not None or case.find("error") is not None:
+		outcome = "failed"
+	elif case.find("skipped") is not None:
+		outcome = "skipped"
+
+	return {"class": case.get("classname", ""), "name": case.get("name", ""), "seconds": seconds, "outcome": outcome}
+
+
 def android_tests(results):
 	tests = []
 	errors = []
@@ -59,22 +77,7 @@ def android_tests(results):
 			errors.append(f"{path}: {error}")
 			continue
 
-		for case in root.iter("testcase"):
-			seconds = None
-			try:
-				value = float(case.attrib["time"])
-				if math.isfinite(value) and value >= 0:
-					seconds = value
-			except (KeyError, ValueError):
-				pass
-
-			outcome = "passed"
-			if case.find("failure") is not None or case.find("error") is not None:
-				outcome = "failed"
-			elif case.find("skipped") is not None:
-				outcome = "skipped"
-
-			tests.append({"class": case.get("classname", ""), "name": case.get("name", ""), "seconds": seconds, "outcome": outcome})
+		tests.extend(android_test(case) for case in root.iter("testcase"))
 
 	return {
 		"xml_files": len(files),
@@ -135,7 +138,7 @@ def monitor(directory, serial):
 				logcat.wait()
 
 
-def report(directory, results):
+def phase_statistics(directory):
 	markers = {}
 	marker_errors = []
 	phases = {
@@ -156,16 +159,14 @@ def report(directory, results):
 		except (ValueError, OSError) as error:
 			marker_errors.append(f"{path}: {error}")
 
-	summary = {
+	return {
 		"marker_errors": marker_errors,
 		"phases_seconds": {name: elapsed(markers, *bounds) for name, bounds in phases.items()},
 		"gradle": {gate: task_statistics(directory / f"{gate}.log") for gate in ("static", "instrumentation")},
 	}
 
-	tests = android_tests(results)
-	(directory / "android-test-timings.json").write_text(json.dumps(tests, indent=2) + "\n")
-	summary["android_tests"] = {key: value for key, value in tests.items() if key != "tests"}
-	(directory / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
+
+def phase_markdown(summary):
 	lines = ["## Test critical path", "", "Overlapping phases are independent, not additive. Unknown means an endpoint was not reached.", "", "| Phase | Seconds |", "| --- | ---: |"]
 	for name, seconds in summary["phases_seconds"].items():
 		value = "Unknown"
@@ -174,18 +175,26 @@ def report(directory, results):
 
 		lines.append(f"| {name} | {value} |")
 
-	for error in marker_errors:
+	for error in summary["marker_errors"]:
 		lines.append(f"\nUnavailable marker: {error}")
 
-	lines.extend(["", "### Gradle task outcomes", "", "Cache hit rate counts FROM-CACHE / (FROM-CACHE + executed cache-keyed tasks); UP-TO-DATE is same-runner reuse, not a cache hit.", ""])
-	for gate, stats in summary["gradle"].items():
+	return lines
+
+
+def gradle_markdown(gradle):
+	lines = ["", "### Gradle task outcomes", "", "Cache hit rate counts FROM-CACHE / (FROM-CACHE + executed cache-keyed tasks); UP-TO-DATE is same-runner reuse, not a cache hit.", ""]
+	for gate, stats in gradle.items():
 		rate = "Unknown (no cache-keyed executions observed)"
 		if stats["cache_hit_rate"] is not None:
 			rate = f'{stats["cache_hit_rate"]:.1%}'
 
 		lines.append(f'- {gate}: {json.dumps(stats["outcomes"], sort_keys=True)}; task cache hit rate: {rate}.')
 
-	lines.extend(["", "### Android test timings", "", f'XML files: {tests["xml_files"]}; outcomes: {json.dumps(tests["counts"], sort_keys=True)}.', "", "Individual durations are in android-test-timings.json; test-time sums are not connected-task wall time.", "", "| Slowest test | Seconds | Outcome |", "| --- | ---: | --- |"])
+	return lines
+
+
+def android_markdown(tests):
+	lines = ["", "### Android test timings", "", f'XML files: {tests["xml_files"]}; outcomes: {json.dumps(tests["counts"], sort_keys=True)}.', "", "Individual durations are in android-test-timings.json; test-time sums are not connected-task wall time.", "", "| Slowest test | Seconds | Outcome |", "| --- | ---: | --- |"]
 	known = [test for test in tests["tests"] if test["seconds"] is not None]
 	for test in sorted(known, key=lambda test: test["seconds"], reverse=True)[:10]:
 		name = f'{test["class"]}.{test["name"]}'.replace("|", "\\|").replace("\n", " ")
@@ -197,6 +206,16 @@ def report(directory, results):
 	for error in tests["xml_errors"]:
 		lines.append(f"\nIncomplete/unreadable XML: {error}")
 
+	return lines
+
+
+def report(directory, results):
+	summary = phase_statistics(directory)
+	tests = android_tests(results)
+	(directory / "android-test-timings.json").write_text(json.dumps(tests, indent=2) + "\n")
+	summary["android_tests"] = {key: value for key, value in tests.items() if key != "tests"}
+	(directory / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
+	lines = phase_markdown(summary) + gradle_markdown(summary["gradle"]) + android_markdown(tests)
 	lines.extend(["", "Artifacts retain Gradle logs/profiles, result XML, runner-tagged logcat, and 15-second numeric host/device samples. A probe timeout diagnoses ADB health only; it never limits the tests. Workflow/job wall time and post-action cache restore/save overhead come from the Actions job/step timestamps.", ""])
 	text = "\n".join(lines)
 	(directory / "summary.md").write_text(text)
