@@ -62,22 +62,20 @@ class CloudMountainTest {
 	}
 
 	@Test
-	fun portraitMountainRidgeClearsTheLowerIconRow() {
+	fun portraitMountainsRetainOriginalWidthBasedScale() {
 		for ((width, height) in listOf(360f to 780f, 1264f to 2780f, 800f to 1280f)) {
-			val artworkHeight = cloudMountainArtworkHeight(width, height, 697, 430)
+			val artworkHeight = cloudMountainArtworkHeight(width, 697, 430)
 			val top = cloudMountainArtworkTop(height, artworkHeight)
-			val lowestRidge = top + 106f * artworkHeight / 430f
 
-			assertTrue("The ridge should reach above the lower icon row at $width × $height", lowestRidge < height * 0.72f)
-			assertTrue("The upper skyline must remain on screen", top >= 0f)
-			assertEquals("The mountain fade must stay grounded behind the trees", height, top + artworkHeight, 0.001f)
+			assertEquals("Do not enlarge or crop the image based on portrait height at $width × $height", width * 430f / 697f, artworkHeight, 0.001f)
+			assertEquals("Keep the mountain fade grounded at $width × $height", height, top + artworkHeight, 0.001f)
 		}
 	}
 
 	@Test
 	fun wideLandscapeKeepsTheMountainSkylineVisible() {
 		for ((width, height) in listOf(780f to 360f, 1200f to 540f, 1920f to 540f)) {
-			val artworkHeight = cloudMountainArtworkHeight(width, height, 697, 430)
+			val artworkHeight = cloudMountainArtworkHeight(width, 697, 430)
 			val top = cloudMountainArtworkTop(height, artworkHeight)
 			val scale = width / 697f
 
@@ -91,9 +89,8 @@ class CloudMountainTest {
 
 	@Test
 	fun invalidArtworkDimensionsHaveZeroDrawingHeight() {
-		assertEquals(0f, cloudMountainArtworkHeight(0f, 780f, 697, 440), 0f)
-		assertEquals(0f, cloudMountainArtworkHeight(360f, 0f, 697, 440), 0f)
-		assertEquals(0f, cloudMountainArtworkHeight(360f, 780f, 0, 440), 0f)
-		assertEquals(0f, cloudMountainArtworkHeight(360f, 780f, 697, -1), 0f)
+		assertEquals(0f, cloudMountainArtworkHeight(0f, 697, 440), 0f)
+		assertEquals(0f, cloudMountainArtworkHeight(360f, 0, 440), 0f)
+		assertEquals(0f, cloudMountainArtworkHeight(360f, 697, -1), 0f)
 	}
 }

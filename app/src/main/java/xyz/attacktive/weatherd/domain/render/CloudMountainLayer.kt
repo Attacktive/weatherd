@@ -49,11 +49,9 @@ internal class CloudMountainLayer(private val resources: Resources) {
 
 		val artwork = source ?: return
 		if (width != cachedWidth || height != cachedHeight) {
-			val artworkHeight = cloudMountainArtworkHeight(width, height, artwork.width, artwork.height)
-			val artworkWidth = artworkHeight * artwork.width / artwork.height
-			val left = (width - artworkWidth) / 2f
+			val artworkHeight = cloudMountainArtworkHeight(width, artwork.width, artwork.height)
 			val top = cloudMountainArtworkTop(height, artworkHeight)
-			destination.set(left, top, left + artworkWidth, top + artworkHeight)
+			destination.set(0f, top, width, top + artworkHeight)
 			cachedWidth = width
 			cachedHeight = height
 		}
@@ -69,14 +67,14 @@ internal class CloudMountainLayer(private val resources: Resources) {
 	}
 }
 
-/** Cover the width and lift portrait peaks with uniform scaling; crop the sides rather than stretch the artwork. */
-internal fun cloudMountainArtworkHeight(viewWidth: Float, viewHeight: Float, sourceWidth: Int, sourceHeight: Int): Float {
-	if (viewWidth <= 0f || viewHeight <= 0f || sourceWidth <= 0 || sourceHeight <= 0) {
+/** Scale by viewport width to preserve the original image proportions and full horizontal composition. */
+internal fun cloudMountainArtworkHeight(viewWidth: Float, sourceWidth: Int, sourceHeight: Int): Float {
+	if (viewWidth <= 0f || sourceWidth <= 0 || sourceHeight <= 0) {
 		return 0f
 	}
 
-	return maxOf(viewWidth * sourceHeight / sourceWidth, viewHeight * 0.38f)
+	return viewWidth * sourceHeight / sourceWidth
 }
 
-/** Keep the fading base grounded; pin the skyline to the top when landscape is shorter than the scaled artwork. */
+/** Keep the fading base grounded when it fits; pin the skyline to the top if the artwork exceeds the viewport height. */
 internal fun cloudMountainArtworkTop(viewHeight: Float, artworkHeight: Float) = (viewHeight - artworkHeight).coerceAtLeast(0f)
