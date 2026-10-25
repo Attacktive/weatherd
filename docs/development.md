@@ -41,11 +41,16 @@ Sunbeam fixtures pin the UTC cloud-placement day and compare rays over the same 
 The required `Test` job keeps JVM tests, Android lint, Detekt, and both debug APK builds in the background while the SHA-pinned API 35 emulator action provisions and boots.
 Connected instrumentation waits for that gate and reuses its outputs on the same runner; the existing opt-in provider-capture exclusion is unchanged.
 Concurrency cancellation applies only to older runs of the same pull request, using the workflow, event, and PR number; push/main runs use their unique run ID and never request cancellation.
+Canceled runs publish partial diagnostics without waiting for an unfinished background static gate; non-canceled runs still wait for and propagate that gate's result.
 
 `scripts/ci/ci_metrics.py` records independent monotonic endpoints for dependency/cache setup, the static/build gate, emulator provisioning/boot, post-boot static wait, and the connected Gradle invocation.
 These overlapping intervals must not be added together.
 Both Gradle invocations use plain console output, `--info`, and `--profile`; the always-run summary distinguishes `FROM-CACHE`, same-runner `UP-TO-DATE`, actual executions, and missing evidence.
 Task-cache hit rate is `FROM-CACHE / (FROM-CACHE + executed tasks with an observed build-cache key)`; a missing denominator is unknown, not a zero-percent hit rate.
+
+The workflow installs the hash-pinned `defusedxml` wheel from `scripts/ci/requirements.txt` in an isolated Python environment before exercising the reporting tools; XML with DTDs/entities is reported as unusable rather than expanded.
+For local reporting-tool checks, install that requirements file in an isolated Python environment and run `python -m unittest discover -s scripts/ci -p 'test_*.py'`.
+Outside Actions, generated diagnostics default to the repository's ignored `build/weatherd-ci/`, not a predictable directory in shared temporary storage; `RUNNER_TEMP` and the reporting CLI's explicit `--directory` remain available.
 
 Each `test-diagnostics-<attempt>` artifact is retained for 14 days on success or failure and contains Gradle logs/profiles, JVM/Android reports and result XML, individual Android test timings, and the phase summary; reruns preserve earlier attempts instead of overwriting them.
 During the connected invocation, a separate monitor captures only instrumentation-runner logcat tags and samples numeric runner load/memory and device uptime/load/process presence every 15 seconds.

@@ -4,6 +4,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from ci_metrics import android_tests, elapsed, report, task_statistics
 
@@ -32,7 +33,7 @@ class CiMetricsTest(unittest.TestCase):
 			results = root / "results"
 			results.mkdir()
 			(results / "test.xml").write_text('<testsuite><testcase classname="Suite" name="done" time="2"/></testsuite>')
-			with contextlib.redirect_stdout(io.StringIO()):
+			with contextlib.redirect_stdout(io.StringIO()), patch.dict("os.environ", {"GITHUB_STEP_SUMMARY": ""}):
 				report(root, results)
 
 			summary = json.loads((root / "summary.json").read_text())
@@ -100,6 +101,17 @@ class CiMetricsTest(unittest.TestCase):
 		])
 
 		self.assertEqual(report["xml_errors"], [])
+
+	def test_entity_definitions_are_rejected_without_hiding_other_results(self):
+		with tempfile.TemporaryDirectory() as directory:
+			results = Path(directory)
+			(results / "unsafe.xml").write_text('<!DOCTYPE testsuite [<!ENTITY injected "not-a-test">]><testsuite><testcase name="&injected;" time="1"/></testsuite>')
+			(results / "valid.xml").write_text('<testsuite><testcase classname="Suite" name="done" time="2"/></testsuite>')
+			report = android_tests(results)
+
+		self.assertEqual(report["counts"], {"passed": 1, "failed": 0, "skipped": 0})
+		self.assertEqual(report["tests"][0]["name"], "done")
+		self.assertIn("unsafe.xml", report["xml_errors"][0])
 
 	def test_incomplete_xml_is_reported_without_discarding_complete_suites(self):
 		with tempfile.TemporaryDirectory() as directory:

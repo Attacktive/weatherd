@@ -1,4 +1,6 @@
+import json
 import os
+import shlex
 import shutil
 import signal
 import subprocess
@@ -9,6 +11,23 @@ from pathlib import Path
 
 
 class CiGateTest(unittest.TestCase):
+	def test_canceled_report_does_not_wait_for_unfinished_static_process(self):
+		with tempfile.TemporaryDirectory() as directory:
+			root = Path(directory)
+			scripts = root / "scripts/ci"
+			scripts.mkdir(parents=True)
+			for name in ("overlap-test-gate.sh", "ci_metrics.py"):
+				shutil.copy2(Path(__file__).parent / name, scripts / name)
+
+			diagnostics = root / "weatherd-ci"
+			diagnostics.mkdir()
+			(diagnostics / "static.pid").write_text(str(os.getpid()))
+			environment = dict(os.environ, RUNNER_TEMP=str(root), CI_CANCELLED="true", PATH=str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"], GITHUB_STEP_SUMMARY=str(root / "step-summary.md"))
+			result = subprocess.run(["bash", "scripts/ci/overlap-test-gate.sh", "report"], cwd=root, env=environment, capture_output=True, timeout=3)
+			self.assertEqual(result.returncode, 0, (result.stdout, result.stderr))
+			summary = json.loads((diagnostics / "summary.json").read_text())
+			self.assertIsNone(summary["phases_seconds"]["Gradle static/build gate"])
+
 	def test_monitor_and_logcat_are_reaped_on_success_and_failure(self):
 		for connected_status in (0, 17):
 			with self.subTest(connected_status=connected_status), tempfile.TemporaryDirectory() as directory:
@@ -20,7 +39,9 @@ class CiGateTest(unittest.TestCase):
 
 				bin_directory = root / "bin"
 				bin_directory.mkdir()
-				(bin_directory / "python3").symlink_to(sys.executable)
+				python = bin_directory / "python3"
+				python.write_text(f'#!/bin/sh\nexec {shlex.quote(sys.executable)} "$@"\n')
+				python.chmod(0o755)
 				adb = bin_directory / "adb"
 				adb.write_text(
 					'#!/usr/bin/env python3\n'

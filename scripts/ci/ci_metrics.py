@@ -9,9 +9,11 @@ import signal
 import subprocess
 import threading
 import time
-import xml.etree.ElementTree as ET
 from collections import Counter
 from pathlib import Path
+
+from defusedxml import ElementTree as ET
+from defusedxml.common import DefusedXmlException
 
 
 def elapsed(markers, start, end):
@@ -52,8 +54,8 @@ def android_tests(results):
 	files = sorted(results.rglob("*.xml"))
 	for path in files:
 		try:
-			root = ET.parse(path).getroot()
-		except (ET.ParseError, OSError) as error:
+			root = ET.parse(path, forbid_dtd=True).getroot()
+		except (ET.ParseError, DefusedXmlException, OSError) as error:
 			errors.append(f"{path}: {error}")
 			continue
 
@@ -208,7 +210,7 @@ def main():
 	parser = argparse.ArgumentParser(description=__doc__)
 	parser.add_argument("command", choices=("mark", "monitor", "report"))
 	parser.add_argument("value", nargs="?")
-	parser.add_argument("--directory", type=Path, default=Path(os.environ.get("RUNNER_TEMP", os.environ.get("TMPDIR", "/tmp"))) / "weatherd-ci")
+	parser.add_argument("--directory", type=Path, default=Path(os.environ.get("RUNNER_TEMP", "build")) / "weatherd-ci")
 	parser.add_argument("--results", type=Path, default=Path("app/build/outputs/androidTest-results/connected"))
 	args = parser.parse_args()
 	args.directory.mkdir(parents=True, exist_ok=True)

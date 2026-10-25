@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-static_temp="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
+static_temp="${RUNNER_TEMP:-build}"
 diagnostics="$static_temp/weatherd-ci"
 static_log="$diagnostics/static.log"
 static_pid_file="$diagnostics/static.pid"
@@ -136,7 +136,9 @@ case "${1:-}" in
 		;;
 	report)
 		status=0
-		if [[ -f "$static_pid_file" ]]; then
+		if [[ "${CI_CANCELLED:-false}" == true ]]; then
+			echo "Canceled run: publishing partial diagnostics without waiting for the static gate."
+		elif [[ -f "$static_pid_file" ]]; then
 			wait_for_static_gate || status=$?
 		fi
 

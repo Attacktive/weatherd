@@ -24,7 +24,12 @@ jobs:
         run: |
           PYTHONPATH=scripts python3 -m unittest discover -s scripts/provider_evaluation -p 'test_*.py'
       - name: 'Test CI reporting tools'
-        run: 'python3 -m unittest discover -s scripts/ci -p "test_*.py"'
+        run: |
+          venv="$RUNNER_TEMP/weatherd-ci-python"
+          python3 -m venv "$venv"
+          "$venv/bin/python" -m pip install --disable-pip-version-check --require-hashes --only-binary=:all: -r scripts/ci/requirements.txt
+          printf '%s\n' "$venv/bin" >> "$GITHUB_PATH"
+          "$venv/bin/python" -m unittest discover -s scripts/ci -p 'test_*.py'
       - name: 'Start dependency/cache setup timing'
         run: 'python3 scripts/ci/ci_metrics.py mark setup-start'
       - name: 'Set up JDK'
@@ -53,6 +58,8 @@ jobs:
           script: 'bash scripts/ci/overlap-test-gate.sh instrumentation'
       - name: 'Publish CI timing and test summary'
         if: ${{ always() }}
+        env:
+          CI_CANCELLED: ${{ job.status == 'cancelled' }}
         run: 'bash scripts/ci/overlap-test-gate.sh report'
       - name: 'Retain CI test diagnostics'
         if: ${{ always() }}
