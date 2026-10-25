@@ -1,15 +1,16 @@
 """Read-only preflight for ordinary connected tests; the provider AVD is reserved."""
 
 import argparse
+# Only SDK-tool exception types are handled here; execution uses the existing allowlisted helper.
 import subprocess  # nosec B404
 import sys
 
-from provider_evaluation.runner import CLONE_NAME
+from provider_evaluation.runner import CLONE_NAME, _run_sdk_tool
 
 
 def select_ordinary_device(devices, requested):
 	if len(requested) != 1:
-		raise ValueError('Select exactly one disposable device with --serial emulator-NNNN; ordinary tests must not target all connected devices')
+		raise ValueError('Set ANDROID_SERIAL to exactly one disposable device; ordinary tests must not target all connected devices')
 
 	serial = requested[0]
 
@@ -26,10 +27,9 @@ def select_ordinary_device(devices, requested):
 	return serial
 
 
-def read_devices(adb_path):
+def read_devices():
 	def query(*arguments):
-		# Gradle supplies its configured SDK adb executable; no host shell or mutating device command is used.
-		return subprocess.run([adb_path, *arguments], capture_output=True, check=True, timeout=15, text=True).stdout  # nosec B603
+		return _run_sdk_tool('adb', arguments, timeout=15).stdout.decode()
 
 	devices = {}
 	for line in query('devices').splitlines()[1:]:
@@ -52,11 +52,10 @@ def read_devices(adb_path):
 
 def main():
 	parser = argparse.ArgumentParser(description=__doc__)
-	parser.add_argument('--adb', required=True)
 	parser.add_argument('--serial', action='append', default=[])
 	arguments = parser.parse_args()
 	try:
-		serial = select_ordinary_device(read_devices(arguments.adb), arguments.serial)
+		serial = select_ordinary_device(read_devices(), arguments.serial)
 	except (ValueError, OSError, subprocess.SubprocessError) as error:
 		print(f'Instrumentation preflight: {error}', file=sys.stderr)
 		return 1

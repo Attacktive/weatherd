@@ -59,7 +59,7 @@ wait_for_static_gate() {
 
 run_instrumentation() {
 	local serial="${ANDROID_SERIAL:-emulator-5554}"
-	if ./gradlew :app:connectedDebugAndroidTest --serial "$serial"; then
+	if ANDROID_SERIAL="$serial" ./gradlew :app:connectedDebugAndroidTest; then
 		# The emulator is discarded after this step, so successful test logs are
 		# otherwise lost. Publish only the Rome diagnostic metrics, not raw logcat.
 		if [[ -f app/src/androidTest/java/xyz/attacktive/weatherd/domain/render/RomeCloudLayerIsolationTest.kt ]]; then

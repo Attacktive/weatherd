@@ -92,10 +92,15 @@ tasks.withType<DeviceProviderInstrumentTestTask>().configureEach {
 	val requestedSerials = testRunnerFactory.deviceSerialValues.orElse(testRunnerFactory.connectedCheckDeviceSerials).orElse(emptyList())
 	doFirst {
 		val taskSerials = requestedSerials.get()
-		val serials = if (taskSerials.isNotEmpty()) taskSerials else instrumentationEnvironmentSerial.get().split(',').filter { it.isNotBlank() }
-		val command = listOf("python3", "-m", "provider_evaluation.instrumentation_safety", "--adb", instrumentationAdb.get().asFile.absolutePath) + serials.flatMap { listOf("--serial", it) }
+		if (taskSerials.isNotEmpty()) {
+			throw GradleException("This AGP version cannot safely execute task --serial selection. Set ANDROID_SERIAL to one disposable device instead.")
+		}
+
+		val serials = instrumentationEnvironmentSerial.get().split(',').filter { it.isNotBlank() }
+		val command = listOf("python3", "-m", "provider_evaluation.instrumentation_safety") + serials.flatMap { listOf("--serial", it) }
 		val preflight = instrumentationProviders.exec {
 			workingDir(instrumentationScripts)
+			environment("ANDROID_HOME", instrumentationAdb.get().asFile.parentFile.parentFile.absolutePath)
 			commandLine(command)
 			isIgnoreExitValue = true
 		}

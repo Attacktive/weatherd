@@ -10,13 +10,14 @@ Run commands from the repository root.
 
 Run the pull-request checks with `./gradlew test :app:lint :app:detekt`.
 The existing CI Test gate builds the debug app and instrumentation APKs alongside unit tests, lint, and Detekt while the emulator starts; instrumentation remains required after that gate succeeds.
-Ordinary connected tests exclude the opt-in `ProviderEvaluationCaptureTest` and require exactly one device selected with AGP's `--serial` option or `ANDROID_SERIAL`; an explicit task option takes precedence over the environment.
+Ordinary connected tests exclude the opt-in `ProviderEvaluationCaptureTest` and require exactly one device selected with `ANDROID_SERIAL`.
+Task-level `--serial` is rejected: the pinned AGP version mutates its immutable CLI-serial list when a device matches, throwing `UnsupportedOperationException`; environment-based selection avoids that broken path.
 The read-only preflight rejects the reserved `Pixel_Weatherd_Provider_Evaluation` AVD even when explicitly selected, so scheduled captures cannot be interrupted by ordinary Gradle instrumentation.
 The experimental `android.experimental.androidTest.builtin_test_platform=true` option is unsupported and rejected during configuration, before device lookup; ordinary instrumentation retains the current test engine.
 Use a separate disposable emulator, substituting its serial below; connected-test teardown still removes Weatherd and its app data:
 
 ```sh
-./gradlew :app:connectedDebugAndroidTest --serial emulator-5582
+ANDROID_SERIAL=emulator-5582 ./gradlew :app:connectedDebugAndroidTest
 ```
 
 For an existing emulator installation, update both APKs in place and invoke instrumentation directly:
