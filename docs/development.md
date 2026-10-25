@@ -36,6 +36,30 @@ Settings navigation tests wake the device, dismiss a nonsecure keyguard, and ret
 Navigation timeouts include activity state, the active accessibility tree, and window-manager diagnostics; assert the saved anchor remains visible with the first section off-screen, not exact pixel coordinates.
 Sunbeam fixtures pin the UTC cloud-placement day and compare rays over the same unobscured pixels each frame so foreground cloud occlusion is not mistaken for a ray-field discontinuity.
 
+### Test Workflow Profiling
+
+The required `Test` job keeps JVM tests, Android lint, Detekt, and both debug APK builds in the background while the SHA-pinned API 35 emulator action provisions and boots.
+Connected instrumentation waits for that gate and reuses its outputs on the same runner; the existing opt-in provider-capture exclusion is unchanged.
+Concurrency cancellation applies only to older runs of the same pull request, using the workflow, event, and PR number; push/main runs use their unique run ID and never request cancellation.
+
+`scripts/ci/ci_metrics.py` records independent monotonic endpoints for dependency/cache setup, the static/build gate, emulator provisioning/boot, post-boot static wait, and the connected Gradle invocation.
+These overlapping intervals must not be added together.
+Both Gradle invocations use plain console output, `--info`, and `--profile`; the always-run summary distinguishes `FROM-CACHE`, same-runner `UP-TO-DATE`, actual executions, and missing evidence.
+Task-cache hit rate is `FROM-CACHE / (FROM-CACHE + executed tasks with an observed build-cache key)`; a missing denominator is unknown, not a zero-percent hit rate.
+
+The `test-diagnostics` artifact is retained for 14 days on success or failure and contains Gradle logs/profiles, JVM/Android reports and result XML, individual Android test timings, and the phase summary.
+During the connected invocation, a separate monitor captures only instrumentation-runner logcat tags and samples numeric runner load/memory and device uptime/load/process presence every 15 seconds.
+Its five-second ADB probe limit bounds diagnostics only; it never limits or cancels tests.
+Compare test XML durations and runner start/finish timestamps with the connected wall time and device samples to separate slow test bodies, pre/post-test runner overhead, ADB stalls, and host/device contention.
+No general device logcat, bugreport, user settings, or provider/location payload is collected.
+Missing or partial XML and unreached phase endpoints remain explicit in the summary, including emulator failure before the callback.
+
+For a reproducible comparison, rerun the existing workflow at unchanged source and record each run ID **and attempt**, runner image, event/ref, dependency-cache state, task-cache outcomes, phase durations, and workflow/job timestamps.
+Use several attempts per retained candidate, separate cold from warm cache runs, retain outliers, and report medians plus total runner job-seconds rather than assuming wall-time savings equal billed savings.
+Actions job/step timestamps include setup, post-action cache restore/save, and artifact overhead that the Gradle timers do not; billing data, when unavailable, must remain unknown.
+Change one cache variable per candidate, avoid duplicate ownership of Gradle User Home, and keep a cache change only when the measured end-to-end result or stability improves.
+Do not introduce configuration cache, snapshots, sharding, or a test timeout without evidence.
+
 ### Diagnostics and Report Collection
 
 **Settings → Advanced → Diagnostics** provides a reusable opt-in local journal and report-sharing flow.

@@ -2,17 +2,35 @@
 set -euo pipefail
 
 static_temp="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
-static_log="$static_temp/weatherd-static-gate.log"
-static_pid_file="$static_temp/weatherd-static-gate.pid"
-static_status_file="$static_temp/weatherd-static-gate.status"
+diagnostics="$static_temp/weatherd-ci"
+static_log="$diagnostics/static.log"
+static_pid_file="$diagnostics/static.pid"
+static_status_file="$diagnostics/static.status"
+static_published_file="$diagnostics/static-published"
+monitor_pid=""
+
+metrics() {
+	python3 scripts/ci/ci_metrics.py "$@"
+}
+
+stop_monitor() {
+	if [[ -n "$monitor_pid" ]]; then
+		kill "$monitor_pid" 2>/dev/null || true
+		wait "$monitor_pid" 2>/dev/null || true
+		monitor_pid=""
+	fi
+}
 
 run_static_gate() {
+	metrics mark static-start
 	local status
-	if ./gradlew test :app:lint :app:detekt :app:assembleDebug :app:assembleDebugAndroidTest; then
+	if ./gradlew --console=plain --info --profile test :app:lint :app:detekt :app:assembleDebug :app:assembleDebugAndroidTest; then
 		status=0
 	else
 		status=$?
 	fi
+
+	metrics mark static-end
 
 	printf '%s\n' "$status" > "$static_status_file.tmp"
 	mv "$static_status_file.tmp" "$static_status_file"
@@ -20,7 +38,8 @@ run_static_gate() {
 }
 
 start_static_gate() {
-	rm -f "$static_log" "$static_pid_file" "$static_status_file" "$static_status_file.tmp"
+	mkdir -p "$diagnostics"
+	rm -f "$static_log" "$static_pid_file" "$static_status_file" "$static_status_file.tmp" "$static_published_file"
 
 	nohup bash "$0" run-static > "$static_log" 2>&1 &
 
@@ -45,7 +64,10 @@ wait_for_static_gate() {
 		sleep 1
 	done
 
-	cat "$static_log"
+	if [[ ! -f "$static_published_file" ]]; then
+		cat "$static_log"
+		touch "$static_published_file"
+	fi
 
 	local status
 	status="$(cat "$static_status_file")"
@@ -59,9 +81,22 @@ wait_for_static_gate() {
 
 run_instrumentation() {
 	local serial="${ANDROID_SERIAL:-emulator-5554}"
-	if ANDROID_SERIAL="$serial" ./gradlew :app:connectedDebugAndroidTest; then
-		# The emulator is discarded after this step, so successful test logs are
-		# otherwise lost. Publish only the Rome diagnostic metrics, not raw logcat.
+	local status
+	metrics mark instrumentation-start
+	python3 scripts/ci/ci_metrics.py monitor "$serial" > "$diagnostics/monitor.log" 2>&1 &
+	monitor_pid="$!"
+	trap stop_monitor EXIT
+	if ANDROID_SERIAL="$serial" ./gradlew --console=plain --info --profile :app:connectedDebugAndroidTest 2>&1 | tee "$diagnostics/instrumentation.log"; then
+		status=0
+	else
+		status=$?
+	fi
+
+	metrics mark instrumentation-end
+	stop_monitor
+	trap - EXIT
+	if (( status == 0 )); then
+		# Keep the existing Rome measurement gate alongside the targeted runner diagnostics.
 		if [[ -f app/src/androidTest/java/xyz/attacktive/weatherd/domain/render/RomeCloudLayerIsolationTest.kt ]]; then
 			local measurements
 			measurements="$(adb -s "$serial" logcat -d -v brief -s RomeCloudIsolation:I | grep -F 'Rome cloud isolation' || true)"
@@ -80,8 +115,11 @@ run_instrumentation() {
 		return
 	fi
 
-	find app/build/outputs/androidTest-results/connected -type f -name '*.xml' -exec cat {} +
-	return 1
+	if [[ -d app/build/outputs/androidTest-results/connected ]]; then
+		find app/build/outputs/androidTest-results/connected -type f -name '*.xml' -exec cat {} +
+	fi
+
+	return "$status"
 }
 
 case "${1:-}" in
@@ -92,11 +130,21 @@ case "${1:-}" in
 		run_static_gate
 		;;
 	instrumentation)
+		metrics mark emulator-ready
 		wait_for_static_gate
 		run_instrumentation
 		;;
+	report)
+		status=0
+		if [[ -f "$static_pid_file" ]]; then
+			wait_for_static_gate || status=$?
+		fi
+
+		metrics report || status=$?
+		exit "$status"
+		;;
 	*)
-		echo "Usage: $0 {start|run-static|instrumentation}" >&2
+		echo "Usage: $0 {start|run-static|instrumentation|report}" >&2
 		exit 2
 		;;
 esac
