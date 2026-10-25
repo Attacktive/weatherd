@@ -106,7 +106,7 @@ The table uses Actions timestamps and the two `BUILD SUCCESSFUL in ...` Gradle d
 | Dependency-cache hits | 2/3 | 3/3 |
 | Task-cache hits / cache-keyed executions | Off; denominator unknown | 32/59 (54.24%) each |
 
-Keep build caching: median workflow time fell 29.6%, and aggregate Test runner job-seconds fell 18.8%, with the slower third attempt included rather than discarded.
+In the preselected three-attempt comparison, median workflow time fell 29.6%, and aggregate Test runner job-seconds fell 18.8%, with the slower third attempt included rather than discarded; the later verification outlier below qualifies any broader cost or stability claim.
 These are three-attempt measurements, not a prediction or a cold-start guarantee: the baseline includes one dependency-cache miss, the candidate is warm, push/main and PR events differ, and hosted-runner timing varies.
 The two warm baseline attempts have a 489.5-second workflow median, so the improvement is not dependent on including the cold baseline row.
 Earlier exploratory candidates are separate evidence, not matched samples: [40181095981](https://github.com/Attacktive/weatherd/actions/runs/40181095981) took 674 workflow seconds / 409 job-seconds including 265 seconds queued behind a canceled run; [40181918531](https://github.com/Attacktive/weatherd/actions/runs/40181918531) took 391 / 389 seconds before the reporting-only refactor.
@@ -129,6 +129,31 @@ This demonstrates the new diagnostic path without sharding, weakening assertions
 The rerun artifact API exposed only attempt 3 after the benchmark, and an earlier uploaded artifact ID returned 404.
 The first two attempts' phase/cache/result-count evidence above comes from retained attempt logs; only the third attempt's complete XML and per-test archive remained downloadable at collection time.
 Future benchmark collection must download each archive between attempts, rather than relying on attempt-specific names alone.
+
+#### Later Verification Outlier and Limits
+
+The subsequent [final-head verification run 40184828037](https://github.com/Attacktive/weatherd/actions/runs/40184828037) passed at `2e2c1dd4733c34794dc99564e2307d79cdd7e3a2`, but took 888 workflow seconds and 885 Test runner seconds.
+Its static Gradle invocation took 241 seconds; the connected invocation took 619 seconds.
+The retained XML and runner start/finish timestamps localize 482.232 seconds, 77.8% of the connected interval, to three passing navigation test cases:
+
+| SettingsNavigationTest case | Seconds |
+| --- | ---: |
+| toolbarBackReturnsToHubBeforeLeavingSettings | 237.784 |
+| homeControlsAvoidSystemBarsAndDisplayCutouts | 162.243 |
+| categoryScrollSurvivesReopeningAndRecreation | 82.205 |
+
+All 183 Android cases still pass with no skips; 42 device probes report no ADB error, with a maximum 0.264-second probe.
+This identifies the long tail within specific JUnit case intervals rather than emulator boot or unexplained Gradle setup; it does not identify the precise framework/fixture call that stalled, nor prove the historical 24-minute run had the same cause.
+The navigation tests' selectors, synchronization, deadlines, and assertions remain unchanged; further tuning needs finer-grained evidence, not a shorter timeout or weaker coverage.
+
+| Sample | Median workflow seconds | Mean Test runner job-seconds |
+| --- | ---: | ---: |
+| Baseline, three attempts | 483 | 480 |
+| Matched candidate plus later verification, four observations | 424 | 513.5 |
+
+Including this later observation leaves the median lower but raises mean Test runner use 7.0% above the small baseline sample.
+Retain task caching for the measured static-work reduction—the static Gradle median is 210 seconds across these four observations versus 347 baseline seconds—but do not claim that overall runner cost or instrumentation stability is now reliably lower.
+The normal-path speedup and the unresolved navigation tail must both remain visible in delivery reports.
 
 #### Cache Ownership Decision
 
