@@ -241,6 +241,8 @@ Corrected reports require resolvable revision ordering; cloud categories remain 
 Evaluate temperature separately; cloud heights are not low/mid/high cover measurements, precipitation amounts are not scored, and descriptive results do not establish a provider ranking.
 The instrumentation collector skips ordinary suites unless explicitly opted in by the harness.
 
+Independent, offline satellite cloud-mask validation is described in [the satellite evaluation guide](provider-satellite-evaluation.md). It is diagnostic and does not change METAR scoring, provider defaults, or the collector.
+
 ### Google Play Vitals Monitoring
 
 The existing `.github/workflows/google-play-vitals.yaml` runs daily at 00:37 UTC and supports `workflow_dispatch`.
