@@ -285,6 +285,7 @@ Decode only the selected style on first use off the frame loop; never copy refer
 - Never bake rainbow reflections into Starburst; Lens flare controls the separate arc/reflections and Motion-responsive reflections controls motion independently.
 - Generate the north-up near-side Moon with `uv run scripts/generate-moon-texture.py` from unchanged `scripts/assets/moon/lroc_color_2k.jpg`, checking its SHA-256 before projection; retain NASA attribution from the [README](../README.md#artwork-credits).
 - The image in [#283](https://github.com/Attacktive/weatherd/issues/283) is reference only; waxing/waning changes illumination without mirroring markings, and new Moon draws neither disc nor halo.
+- Soften the rendered Moon texture colors by 8% toward white during off-thread phase preparation, preserving the original NASA source file, moon opacity, surface markings, cloud blocking, and existing halo.
 - Moon size is independent, 50–200%, default 100%; change draw geometry without regenerating phase sprites or the static backdrop.
 - Sunbeams offers Off, Through clouds (default), and Clear skies too; moving near low-cloud openings generate soft spreading shafts, never distant openings.
 - Clear skies too adds source-fixed radial glare; low/mid cover attenuates it but high cirrus alone does not.

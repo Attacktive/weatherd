@@ -79,11 +79,32 @@ internal class MoonLayer(private val resources: Resources) {
 		val pixels = IntArray(MOON_TEXTURE_SIZE * MOON_TEXTURE_SIZE)
 		bitmap.getPixels(pixels, 0, MOON_TEXTURE_SIZE, 0, 0, MOON_TEXTURE_SIZE, MOON_TEXTURE_SIZE)
 
-		sourcePixels = pixels
-		source = bitmap
+		// Preserve the authored texture while reducing the contrast of its colors once, off the render thread.
+		softenSurfaceColors(pixels)
+		val softenedBitmap = Bitmap.createBitmap(pixels, MOON_TEXTURE_SIZE, MOON_TEXTURE_SIZE, Bitmap.Config.ARGB_8888)
+		bitmap.recycle()
 
-		bitmap to pixels
+		sourcePixels = pixels
+		source = softenedBitmap
+
+		softenedBitmap to pixels
 	}
+
+	private fun softenSurfaceColors(pixels: IntArray) {
+		for (index in pixels.indices) {
+			val pixel = pixels[index]
+			if (pixel ushr 24 == 0) {
+				continue
+			}
+
+			val red = softenColorChannel((pixel ushr 16) and 0xFF)
+			val green = softenColorChannel((pixel ushr 8) and 0xFF)
+			val blue = softenColorChannel(pixel and 0xFF)
+			pixels[index] = (pixel and -0x1000000) or (red shl 16) or (green shl 8) or blue
+		}
+	}
+
+	private fun softenColorChannel(channel: Int) = channel + ((255 - channel) * MOON_COLOR_SOFTENING).roundToInt()
 
 	private fun buildSprite(phaseIndex: Int, sourceBitmap: Bitmap, sourcePixels: IntArray): PreparedPhase {
 		val quantizedPhase = phaseIndex.toFloat() / MOON_PHASE_STEPS
@@ -260,6 +281,7 @@ internal class MoonLayer(private val resources: Resources) {
 		private const val CLOUD_SAMPLE_GRID = 3
 		private const val CLOUD_SAMPLE_MIN_ALPHA = 64
 		private const val TERMINATOR_FALLOFF_ZONE = 0.15f
+		private const val MOON_COLOR_SOFTENING = 0.08f
 
 		@Volatile
 		private var source: Bitmap? = null

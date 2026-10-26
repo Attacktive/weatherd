@@ -8,6 +8,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LightingColorFilter
@@ -21,6 +22,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
@@ -222,6 +224,41 @@ class MoonRenderingTest {
 		assertTrue("Photographic lunar terrain should contain rich diverse color nuances rather than flat procedural circles (unique colors was ${uniqueColors.size})", uniqueColors.size > 50)
 
 		fullMoon.recycle()
+	}
+
+	@Test
+	fun fullMoonColorsAreSofterWithoutLosingOpacity() {
+		val original = checkNotNull(BitmapFactory.decodeResource(resources, R.drawable.moon_surface, BitmapFactory.Options().apply { inScaled = false }))
+		val softened = renderMoon(0.5f)
+		var opaqueSamples = 0
+		var lightenedSamples = 0
+		try {
+			for (y in 64 until 448 step 16) {
+				for (x in 64 until 448 step 16) {
+					val before = original.getPixel(x, y)
+					if (Color.alpha(before) != 255) {
+						continue
+					}
+
+					val after = softened.getPixel(x, y)
+					val changes = intArrayOf(Color.red(after) - Color.red(before), Color.green(after) - Color.green(before), Color.blue(after) - Color.blue(before))
+
+					assertEquals("Softening must leave lunar opacity unchanged", Color.alpha(before), Color.alpha(after))
+					assertTrue("Color softening must be subtle and never darken a channel: ${changes.toList()}", changes.all { it in 0..21 })
+					if (changes.sum() >= 8) {
+						lightenedSamples++
+					}
+
+					opaqueSamples++
+				}
+			}
+
+			assertTrue("Expected an opaque lunar interior, sampled ${opaqueSamples} pixels", opaqueSamples > 200)
+			assertTrue("Most lunar colors should visibly soften, changed ${lightenedSamples}/${opaqueSamples}", lightenedSamples > opaqueSamples / 2)
+		} finally {
+			original.recycle()
+			softened.recycle()
+		}
 	}
 
 	@Test
