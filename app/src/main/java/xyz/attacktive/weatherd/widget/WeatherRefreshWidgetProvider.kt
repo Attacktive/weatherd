@@ -40,6 +40,7 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 			appWidgetIds.forEach { appWidgetId ->
 				appWidgetManager.updateAppWidget(appWidgetId, widgetViews(context, state, appWidgetId))
 			}
+
 			recordUpdate(context, appWidgetIds, state, "sent")
 		} catch (exception: RuntimeException) {
 			Diagnostics.get(context).record("widget_update_failed", "exception" to exception.javaClass.simpleName)
@@ -79,6 +80,7 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 		val widgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
 		val widgetIdLabel = if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID) "unknown" else widgetId.toString()
 		Diagnostics.get(context).record("receiver_received", "action" to action, "receipt" to receipt, "widget_id" to widgetIdLabel)
+
 		if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) {
 			synchronized(STATE_LOCK) {
 				renderWidgets(context, readState(context))
@@ -262,6 +264,7 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 				appWidgetIds.forEach { appWidgetId ->
 					appWidgetManager.updateAppWidget(appWidgetId, provider.widgetViews(context, state, appWidgetId))
 				}
+
 				recordUpdate(context, appWidgetIds, state, "sent")
 			} catch (exception: RuntimeException) {
 				Diagnostics.get(context).record("widget_update_failed", "exception" to exception.javaClass.simpleName)
