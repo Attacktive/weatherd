@@ -7,6 +7,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LightingColorFilter
 import android.graphics.Paint
+import android.graphics.Rect
 import android.graphics.RectF
 import androidx.core.graphics.createBitmap
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -39,13 +40,14 @@ class SunCoreTintTest {
 					val top = floor(destination.centerY() - reach).toInt()
 					val right = ceil(destination.centerX() + reach).toInt()
 					val bottom = ceil(destination.centerY() + reach).toInt()
+					val coreBounds = Rect(left, top, right, bottom)
 					try {
 						for (y in 0 until baseline.height) {
 							for (x in 0 until baseline.width) {
 								val before = baseline.getPixel(x, y)
 								val after = corrected.getPixel(x, y)
 								assertEquals("Core tint must preserve alpha at $x,$y, size $size, opacity $alpha", Color.alpha(before), Color.alpha(after))
-								if (x < left || x >= right || y < top || y >= bottom) {
+								if (!coreBounds.contains(x, y)) {
 									assertEquals("Core tint must not alter surrounding artwork at $x,$y, size $size", before, after)
 								}
 							}
