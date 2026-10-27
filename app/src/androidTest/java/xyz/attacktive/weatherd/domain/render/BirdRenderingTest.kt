@@ -60,6 +60,47 @@ class BirdRenderingTest {
 	}
 
 	@Test
+	fun birdsAvoidTheDiscDuringTheDaylightTransition() {
+		val width = 360
+		val height = 780
+		val params = clearParams().copy(sunVisible = true, birdFlockSize = BirdFlockSize.LARGE, celestialProgress = 0.092f)
+		var crossings = 0
+		var discPixels = 0
+		for (time in 5..16) {
+			val actual = render(params, time.toFloat(), width, height)
+			val control = render(params.copy(birdFlockSize = BirdFlockSize.OFF), time.toFloat(), width, height)
+			for (x in 230..288) {
+				for (y in 100..300) {
+					if (actual.getPixel(x, y) != control.getPixel(x, y)) {
+						crossings++
+						val dx = x - 259
+						val dy = y - 179
+						if (dx * dx + dy * dy < 28 * 28) {
+							discPixels++
+						}
+					}
+				}
+			}
+
+			actual.recycle()
+			control.recycle()
+		}
+
+		assertTrue("Birds must cross the sun's horizontal position", crossings > 0)
+		assertEquals("Birds must not cross the visible solar disc", 0, discPixels)
+	}
+
+	@Test
+	fun fadedDuskUsesTheSameFlightAsAHiddenSun() {
+		val params = clearParams().copy(sunVisible = true, birdFlockSize = BirdFlockSize.LARGE, dayPhase = DayPhase.DUSK, celestialProgress = 0.95f)
+		val actual = render(params, 11f, 360, 780)
+		val hidden = render(params.copy(sunVisible = false), 11f, 360, 780)
+		assertTrue("A faded sun must not alter the flock's flight", actual.sameAs(hidden))
+		actual.recycle()
+		hidden.recycle()
+	}
+
+	@Test
 	fun configuredCrossingsFinishOffscreenAndRepeatAfterTheQuietGap() {
 		val params = clearParams().copy(birdFlockSize = BirdFlockSize.LARGE)
 		assertTrue(birdSilhouettes(params, 11f) in 9..12)

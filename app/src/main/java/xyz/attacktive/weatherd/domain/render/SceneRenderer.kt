@@ -1725,12 +1725,25 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		val flockSize = birdFrame.flockSize
 		val originalY = height * birdFrame.heightFraction
 		val sunHeight = celestialHeightFraction(params.dayPhase, params.celestialProgress)
-		val lowerFlight = if (params.sunVisible) {
-			val radius = min(width, height) * SUN_RADIUS_FRACTION * params.sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive)
+		val visibility = if (params.sunVisible) {
+			sunVisibility(params.dayPhase, params.celestialProgress)
+		} else {
+			0f
+		}
+
+		val avoidance = (visibility / 0.1f).coerceIn(0f, 1f)
+
+		val radius = if (visibility > 0f) {
+			min(width, height) * SUN_RADIUS_FRACTION * params.sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive)
+		} else {
+			0f
+		}
+
+		val lowerFlight = if (visibility > 0f) {
 			val clearance = height * 0.03f + width * 0.008f
 			val belowSun = (height * sunHeight + radius + clearance).coerceAtMost(height * 0.85f)
 			val transition = ((sunHeight - 0.20f) / 0.06f).coerceIn(0f, 1f)
-			lerp(originalY, maxOf(originalY, belowSun), transition * transition * (3f - 2f * transition))
+			lerp(originalY, maxOf(originalY, belowSun), avoidance * transition * transition * (3f - 2f * transition))
 		} else {
 			originalY
 		}
@@ -1744,6 +1757,8 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		}
 
 		val wing = width * 0.011f
+		val sunX = width * CELESTIAL_X_FRACTION
+		val lowerY = (height * sunHeight + radius + wing).coerceAtMost(height * 0.88f)
 		paint.style = Paint.Style.STROKE
 		paint.strokeCap = Paint.Cap.ROUND
 		paint.strokeJoin = Paint.Join.ROUND
@@ -1754,7 +1769,15 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 			val trailing = j * width * 0.045f * direction
 			val x = leadX - trailing
 			val lateral = laneFraction(j, slot) - 0.5f
-			val y = baseY + lateral * height * 0.05f + sin(timeSeconds * 1.3f + j * 1.7f) * height * 0.004f
+			val flightY = baseY + lateral * height * 0.05f + sin(timeSeconds * 1.3f + j * 1.7f) * height * 0.004f
+			val y = if (visibility > 0f) {
+				val distance = abs(x - sunX)
+				val nearSun = (1f - (distance - radius - wing) / (width * 0.12f)).coerceIn(0f, 1f)
+				val detour = nearSun * nearSun * (3f - 2f * nearSun)
+				lerp(flightY, maxOf(flightY, lowerY), detour * avoidance)
+			} else {
+				flightY
+			}
 
 			// The wingtips swing above and below the body, offset per bird, so the flock never flaps in unison.
 			val flap = sin(timeSeconds * 9f + j * 2.1f) * wing * 0.55f
