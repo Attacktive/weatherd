@@ -32,6 +32,7 @@ data class AppSettings(
 	val moonVisible: Boolean = true,
 	val sunSizeScale: Float = 1f,
 	val moonSizeScale: Float = 1f,
+	val moonOpacity: Float = 1f,
 	val sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
 	val sunStyle: SunStyle = SunStyle.CLASSIC,
 	val sunbeamMode: SunbeamMode = SunbeamMode.THROUGH_CLOUDS,
@@ -94,6 +95,16 @@ val MOON_SIZE_SCALE_RANGE = 0.5f..2f
 /** Normalizes a Moon size scale into [MOON_SIZE_SCALE_RANGE], safely resolving non-finite values to 1f. */
 fun normalizeMoonSizeScale(value: Float) = if (value.isFinite()) {
 	value.coerceIn(MOON_SIZE_SCALE_RANGE.start, MOON_SIZE_SCALE_RANGE.endInclusive)
+} else {
+	1f
+}
+
+/** Moon disc opacity range: retain a faint visible disc at minimum, with the historical appearance at 100%. */
+val MOON_OPACITY_RANGE = 0.25f..1f
+
+/** Non-finite or malformed opacity resolves to the previous 100% appearance. */
+fun normalizeMoonOpacity(value: Float) = if (value.isFinite()) {
+	value.coerceIn(MOON_OPACITY_RANGE.start, MOON_OPACITY_RANGE.endInclusive)
 } else {
 	1f
 }

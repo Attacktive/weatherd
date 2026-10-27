@@ -7,12 +7,15 @@ import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.RectF
+import kotlin.math.roundToInt
+import xyz.attacktive.weatherd.domain.model.normalizeMoonOpacity
 
 /** Separates lunar light transmission from star blocking without changing cloud artwork or painting a black disc. */
 internal class MoonOcclusionLayer {
 	private var phase: MoonLayer.PreparedPhase? = null
 	private val bounds = RectF()
 	private val paint = Paint(Paint.FILTER_BITMAP_FLAG)
+	private var opacity = 1f
 	private val erase = Paint(Paint.FILTER_BITMAP_FLAG).apply {
 		xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_OUT)
 	}
@@ -26,16 +29,19 @@ internal class MoonOcclusionLayer {
 	private var cachedTime = 0f
 	private var cachedLayoutDay = 0L
 
-	fun configure(phase: MoonLayer.PreparedPhase?, centerX: Float, centerY: Float, radius: Float) {
+	fun configure(phase: MoonLayer.PreparedPhase?, centerX: Float, centerY: Float, radius: Float, moonOpacity: Float = 1f) {
+		val normalizedOpacity = normalizeMoonOpacity(moonOpacity)
 		val left = centerX - radius
 		val top = centerY - radius
 		val right = centerX + radius
 		val bottom = centerY + radius
-		if (this.phase !== phase || !matchesBounds(left, top, right, bottom)) {
+		if (this.phase !== phase || !matchesBounds(left, top, right, bottom) || opacity != normalizedOpacity) {
 			clearCloudMask()
 		}
 
 		this.phase = phase
+		opacity = normalizedOpacity
+		paint.alpha = (255f * normalizedOpacity).roundToInt()
 		bounds.set(left, top, right, bottom)
 	}
 
@@ -127,8 +133,9 @@ internal class MoonOcclusionLayer {
 	}
 
 	/**
-	 * The later disc already attenuates stars by 1 - A*(1-O), where A is phase alpha and O is cloud occlusion.
-	 * Compensate only for its missing opacity: E = A*O / (1-A+A*O), so combined star transmission stays 1-A.
+	 * With lunar-disc opacity P, the disc attenuates stars by 1 - A*P*(1-O), where A is phase alpha and O is cloud occlusion.
+	 * Stars must remain blocked by dense clouds even when the Moon is made transparent: E = A*O / (1-A*P*(1-O)).
+	 * At P=1, this reduces to the original full-opacity compensation.
 	 */
 	private fun prepareStarMask() {
 		val mask = checkNotNull(cloudMask)
@@ -137,7 +144,8 @@ internal class MoonOcclusionLayer {
 			val lunarAlpha = phaseAlpha[index].toInt() and 255
 			val cloudAlpha = mask.pixels[index] ushr 24
 			val missingOpacity = lunarAlpha * cloudAlpha
-			val denominator = 255 * (255 - lunarAlpha) + missingOpacity
+			val visibleDiscOpacity = (lunarAlpha * (255 - cloudAlpha) * opacity).roundToInt()
+			val denominator = 255 * 255 - visibleDiscOpacity
 			val alpha = if (missingOpacity == 0) 0 else (255 * missingOpacity + denominator / 2) / denominator
 			mask.pixels[index] = alpha shl 24
 		}

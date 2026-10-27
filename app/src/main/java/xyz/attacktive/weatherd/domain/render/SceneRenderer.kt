@@ -1159,7 +1159,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		}
 
 		val radius = min(width, height) * MOON_RADIUS_FRACTION * normalizeMoonSizeScale(params.moonSizeScale)
-		moonOcclusion.configure(frameMoon, centerX, centerY, radius)
+		moonOcclusion.configure(frameMoon, centerX, centerY, radius, params.moonOpacity)
 		if (frameMoon == null || params.cloudScale <= 0f || effectiveOpaqueCloudiness(params) <= SCATTERED_CLOUD_FLOOR) {
 			moonOcclusion.clearCloudMask()
 			return

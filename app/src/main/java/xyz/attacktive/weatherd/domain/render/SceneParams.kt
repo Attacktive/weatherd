@@ -16,6 +16,7 @@ import xyz.attacktive.weatherd.domain.model.SKY_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SKY_SATURATION_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.normalizeMoonSizeScale
+import xyz.attacktive.weatherd.domain.model.normalizeMoonOpacity
 import xyz.attacktive.weatherd.domain.model.normalizeRainbowSizeScale
 import xyz.attacktive.weatherd.domain.model.READABILITY_STRENGTH_RANGE
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
@@ -46,7 +47,7 @@ import xyz.attacktive.weatherd.domain.model.normalizeReadabilityStrength
  * [cloudSizeScale] changes individual fair-weather cloud body geometry, [cloudCountScale] scales rendered cloud coverage, and [cloudContrastScale] changes RGB separation inside cloud artwork without touching its alpha mask.
  * [skyBrightnessScale], [skySaturationScale] and [skyColorPreset] customize the painted phase gradient before weather grayness and storm darkening are applied.
  * [nightBrightnessScale] dims the completed static night backdrop after weather transforms, so 0 makes the background black without dimming dawn, day, dusk, stars, celestial bodies or animated weather; bitmap mountains and trees also follow this scale, with continuous twilight transitions.
- * [sunVisible], [moonVisible], [sunSizeScale], [moonSizeScale], [sunColorPreset] and [sunStyle] customize the celestial bodies without changing the time-of-day lighting.
+ * [sunVisible], [moonVisible], [sunSizeScale], [moonSizeScale], [moonOpacity], [sunColorPreset] and [sunStyle] customize the celestial bodies without changing the time-of-day lighting.
  * [sunbeamMode] controls atmospheric shafts independently of sun artwork and lens flare; partial-cloud openings are the default and clear-sky rays are opt-in.
  * [lensFlareEnabled] is a display preference for camera-style streaks and optical ghosts around the sun; it does not disable the physical corona or atmospheric light shafts.
  * [rainbowSizeScale] scales the destination reach of the procedural prismatic arc when [lensFlareEnabled] is active.
@@ -89,6 +90,7 @@ data class SceneParams(
 	val moonVisible: Boolean = true,
 	val sunSizeScale: Float = 1f,
 	val moonSizeScale: Float = 1f,
+	val moonOpacity: Float = 1f,
 	val sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
 	val sunStyle: SunStyle = SunStyle.CLASSIC,
 	val sunbeamMode: SunbeamMode = SunbeamMode.THROUGH_CLOUDS,
@@ -137,6 +139,7 @@ fun backdropSignature(params: SceneParams, backgroundPhotoAvailable: Boolean = f
 		moonVisible = true,
 		sunSizeScale = 1f,
 		moonSizeScale = 1f,
+		moonOpacity = 1f,
 		sunColorPreset = SunColorPreset.NATURAL,
 		sunStyle = SunStyle.CLASSIC,
 		sunbeamMode = SunbeamMode.THROUGH_CLOUDS,
@@ -230,6 +233,7 @@ fun sceneParamsFor(
 	moonVisible: Boolean = true,
 	sunSizeScale: Float = 1f,
 	moonSizeScale: Float = 1f,
+	moonOpacity: Float = 1f,
 	sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
 	sunStyle: SunStyle = SunStyle.CLASSIC,
 	sunbeamMode: SunbeamMode = SunbeamMode.THROUGH_CLOUDS,
@@ -295,6 +299,7 @@ fun sceneParamsFor(
 		moonVisible = moonVisible,
 		sunSizeScale = sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive),
 		moonSizeScale = normalizeMoonSizeScale(moonSizeScale),
+		moonOpacity = normalizeMoonOpacity(moonOpacity),
 		sunColorPreset = sunColorPreset,
 		sunStyle = sunStyle,
 		sunbeamMode = sunbeamMode,

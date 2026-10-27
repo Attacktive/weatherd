@@ -32,6 +32,7 @@ import xyz.attacktive.weatherd.domain.model.SKY_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SKY_SATURATION_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.normalizeMoonSizeScale
+import xyz.attacktive.weatherd.domain.model.normalizeMoonOpacity
 import xyz.attacktive.weatherd.domain.model.normalizeRainbowSizeScale
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
@@ -76,6 +77,7 @@ sealed interface SettingsMutation {
 	data class MoonVisible(val visible: Boolean): SettingsMutation
 	data class SunSize(val value: Float): SettingsMutation
 	data class MoonSize(val value: Float): SettingsMutation
+	data class MoonOpacity(val value: Float): SettingsMutation
 	data class SunColor(val value: SunColorPreset): SettingsMutation
 	data class SunStyle(val value: xyz.attacktive.weatherd.domain.model.SunStyle): SettingsMutation
 	data class SunbeamModeMutation(val value: xyz.attacktive.weatherd.domain.model.SunbeamMode): SettingsMutation
@@ -128,6 +130,7 @@ internal fun settingsMutationsBetween(previous: AppSettings, updated: AppSetting
 		addIfChanged(previous.moonVisible, updated.moonVisible, SettingsMutation::MoonVisible)
 		addIfChanged(previous.sunSizeScale, updated.sunSizeScale, SettingsMutation::SunSize)
 		addIfChanged(previous.moonSizeScale, updated.moonSizeScale, SettingsMutation::MoonSize)
+		addIfChanged(previous.moonOpacity, updated.moonOpacity, SettingsMutation::MoonOpacity)
 		addIfChanged(previous.sunColorPreset, updated.sunColorPreset, SettingsMutation::SunColor)
 		addIfChanged(previous.sunStyle, updated.sunStyle, SettingsMutation::SunStyle)
 		addIfChanged(previous.sunbeamMode, updated.sunbeamMode, SettingsMutation::SunbeamModeMutation)
@@ -214,6 +217,7 @@ private fun SettingsMutation.appliedTo(settings: AppSettings) = when (this) {
 	is SettingsMutation.MoonVisible -> settings.copy(moonVisible = visible)
 	is SettingsMutation.SunSize -> settings.copy(sunSizeScale = value)
 	is SettingsMutation.MoonSize -> settings.copy(moonSizeScale = value)
+	is SettingsMutation.MoonOpacity -> settings.copy(moonOpacity = normalizeMoonOpacity(value))
 	is SettingsMutation.SunColor -> settings.copy(sunColorPreset = value)
 	is SettingsMutation.SunStyle -> settings.copy(sunStyle = value)
 	is SettingsMutation.SunbeamModeMutation -> settings.copy(sunbeamMode = value)
@@ -271,6 +275,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		val MOON_VISIBLE = booleanPreferencesKey("moon_visible")
 		val SUN_SIZE_SCALE = floatPreferencesKey("sun_size_scale")
 		val MOON_SIZE_SCALE = floatPreferencesKey("moon_size_scale")
+		val MOON_OPACITY = floatPreferencesKey("moon_opacity")
 		val SUN_COLOR_PRESET = stringPreferencesKey("sun_color_preset")
 		val SUN_STYLE = stringPreferencesKey("sun_style")
 		val SUNBEAM_MODE = stringPreferencesKey("sunbeam_mode")
@@ -324,6 +329,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			moonVisible = preferences[Keys.MOON_VISIBLE] ?: defaults.moonVisible,
 			sunSizeScale = (preferences[Keys.SUN_SIZE_SCALE] ?: defaults.sunSizeScale).coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive),
 			moonSizeScale = normalizeMoonSizeScale(preferences[Keys.MOON_SIZE_SCALE] ?: defaults.moonSizeScale),
+			moonOpacity = normalizeMoonOpacity(preferences[Keys.MOON_OPACITY] ?: defaults.moonOpacity),
 			sunColorPreset = enumOrDefault(preferences[Keys.SUN_COLOR_PRESET], SunColorPreset.entries, defaults.sunColorPreset),
 			sunStyle = enumOrDefault(preferences[Keys.SUN_STYLE], SunStyle.entries, defaults.sunStyle),
 			sunbeamMode = enumOrDefault(preferences[Keys.SUNBEAM_MODE], SunbeamMode.entries, defaults.sunbeamMode),
@@ -397,6 +403,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			preferences[Keys.MOON_VISIBLE] = settings.moonVisible
 			preferences[Keys.SUN_SIZE_SCALE] = settings.sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive)
 			preferences[Keys.MOON_SIZE_SCALE] = normalizeMoonSizeScale(settings.moonSizeScale)
+			preferences[Keys.MOON_OPACITY] = normalizeMoonOpacity(settings.moonOpacity)
 			preferences[Keys.SUN_COLOR_PRESET] = settings.sunColorPreset.name
 			preferences[Keys.SUN_STYLE] = settings.sunStyle.name
 			preferences[Keys.SUNBEAM_MODE] = settings.sunbeamMode.name
@@ -459,6 +466,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			is SettingsMutation.MoonVisible -> this[Keys.MOON_VISIBLE] = mutation.visible
 			is SettingsMutation.SunSize -> this[Keys.SUN_SIZE_SCALE] = mutation.value.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive)
 			is SettingsMutation.MoonSize -> this[Keys.MOON_SIZE_SCALE] = normalizeMoonSizeScale(mutation.value)
+			is SettingsMutation.MoonOpacity -> this[Keys.MOON_OPACITY] = normalizeMoonOpacity(mutation.value)
 			is SettingsMutation.SunColor -> this[Keys.SUN_COLOR_PRESET] = mutation.value.name
 			is SettingsMutation.SunStyle -> this[Keys.SUN_STYLE] = mutation.value.name
 			is SettingsMutation.SunbeamModeMutation -> this[Keys.SUNBEAM_MODE] = mutation.value.name
@@ -505,6 +513,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		this[Keys.MOON_VISIBLE] = snapshot.moonVisible
 		this[Keys.SUN_SIZE_SCALE] = snapshot.sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive)
 		this[Keys.MOON_SIZE_SCALE] = normalizeMoonSizeScale(snapshot.moonSizeScale)
+		this[Keys.MOON_OPACITY] = normalizeMoonOpacity(snapshot.moonOpacity)
 		this[Keys.SUN_COLOR_PRESET] = snapshot.sunColorPreset.name
 		this[Keys.SUN_STYLE] = snapshot.sunStyle.name
 		this[Keys.SUNBEAM_MODE] = snapshot.sunbeamMode.name
