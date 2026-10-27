@@ -78,7 +78,7 @@ class CloudMountainTest {
 
 		// The reference launcher's bottom app row starts around y=1960; the ridge spans source rows 38–106.
 		assertTrue(top + 106f * scale < 1960f)
-		assertTrue(top + 38f * scale >= 0f)
+		assertTrue("Keep the ridge in the lower half of the screen", top + 38f * scale > 1390f)
 		assertEquals(1264f / 697f, artworkHeight / 430f, 0.001f)
 	}
 
