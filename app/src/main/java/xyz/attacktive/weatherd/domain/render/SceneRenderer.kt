@@ -1723,7 +1723,19 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		val slot = birdFrame.slot
 		val direction = birdFrame.direction
 		val flockSize = birdFrame.flockSize
-		val baseY = height * birdFrame.heightFraction
+		val originalY = height * birdFrame.heightFraction
+		val sunHeight = celestialHeightFraction(params.dayPhase, params.celestialProgress)
+		val lowerFlight = if (params.sunVisible) {
+			val radius = min(width, height) * SUN_RADIUS_FRACTION * params.sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive)
+			val clearance = height * 0.03f + width * 0.008f
+			val belowSun = (height * sunHeight + radius + clearance).coerceAtMost(height * 0.85f)
+			val transition = ((sunHeight - 0.20f) / 0.06f).coerceIn(0f, 1f)
+			lerp(originalY, maxOf(originalY, belowSun), transition * transition * (3f - 2f * transition))
+		} else {
+			originalY
+		}
+
+		val baseY = lowerFlight
 		val span = width * (1.2f + (flockSize - 1) * 0.045f)
 		val leadX = if (direction > 0f) {
 			-width * 0.1f + span * birdFrame.progress

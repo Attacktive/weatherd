@@ -30,6 +30,36 @@ class BirdRenderingTest {
 	}
 
 	@Test
+	fun flocksPassBelowTheLowSunInPortraitAndLandscape() {
+		for ((width, height) in listOf(360 to 780, 780 to 360)) {
+			for (phase in listOf(DayPhase.DAWN, DayPhase.DUSK)) {
+				val params = clearParams().copy(sunVisible = true, birdFlockSize = BirdFlockSize.SMALL, dayPhase = phase, celestialProgress = 0.5f)
+				val actual = render(params, 11f, width, height)
+				val control = render(params.copy(birdFlockSize = BirdFlockSize.OFF), 11f, width, height)
+				val sunBottom = (height * 0.42f + minOf(width, height) * 0.108f).toInt()
+				var above = 0
+				var below = 0
+				for (x in 0 until width) {
+					for (y in 0 until height) {
+						if (actual.getPixel(x, y) != control.getPixel(x, y)) {
+							if (y <= sunBottom) {
+								above++
+							} else {
+								below++
+							}
+						}
+					}
+				}
+
+				actual.recycle()
+				control.recycle()
+				assertEquals("Birds must clear the low sun in $phase at ${width}x$height", 0, above)
+				assertTrue("Birds must remain visible below the sun in $phase at ${width}x$height", below > 0)
+			}
+		}
+	}
+
+	@Test
 	fun configuredCrossingsFinishOffscreenAndRepeatAfterTheQuietGap() {
 		val params = clearParams().copy(birdFlockSize = BirdFlockSize.LARGE)
 		assertTrue(birdSilhouettes(params, 11f) in 9..12)

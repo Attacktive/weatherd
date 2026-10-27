@@ -330,6 +330,7 @@ Decode only the selected style on first use off the frame loop; never copy refer
 
 Birds offers Off, Small flock (3–5), Medium (6–8), and Large (9–12); Bird interval offers Natural, 30 seconds, 1 minute, 2 minutes, 5 minutes, and 10 minutes.
 Small + Natural retains the restrained randomized schedule; explicit intervals cause one crossing each interval without random skips.
+When the visible sun descends, flock altitude smoothly shifts below its disc with formation clearance, bounded within the viewport; a hidden or high sun retains the original randomized flight heights.
 Birds remain fair-daylight only, suppressed by rain, fog, opaque cover, or night; schedule on the shared scene animation clock without background alarms or another animation lifecycle.
 Distant aircraft/contrails cross in front of every sun style; clouds can obscure the body and lights together.
 The Distant aircraft toggle also enables fair-weather night flights: faint silhouette, red port/green starboard navigation lights that follow heading, white tail light, red beacon, brief white strobe, compact core halos, and no night contrail.
