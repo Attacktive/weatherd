@@ -238,6 +238,35 @@ class WeatherSceneProviderTest {
 	}
 
 	@Test
+	fun `a failure for another city does not mark current weather stale after returning`() = runTest {
+		assertReturningTargetIgnoresOtherFailure(AppSettings(useDeviceLocation = false, manualLatitude = 48.14, manualLongitude = 11.58))
+	}
+
+	@Test
+	fun `a missing device fix does not mark current weather stale after returning`() = runTest {
+		coEvery { locationRepository.currentLocation() } returns null
+		assertReturningTargetIgnoresOtherFailure(AppSettings(useDeviceLocation = true))
+	}
+
+	private suspend fun assertReturningTargetIgnoresOtherFailure(failingSettings: AppSettings) {
+		val berlin = AppSettings(useDeviceLocation = false, manualLatitude = 52.52, manualLongitude = 13.40, updateIntervalMinutes = 30)
+		persistedSettings.value = berlin
+		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 63))
+		coEvery { weatherRepository.current(48.14, 11.58) } returns Result.failure(IllegalStateException("offline"))
+		provider.refresh(1_000_000L)
+
+		persistedSettings.value = failingSettings.copy(updateIntervalMinutes = 30)
+		provider.refresh(1_000_060L)
+		assertEquals(1_000_000L, provider.paramsFor(1_000_060L).weatherNotice?.refreshedAtEpochSeconds)
+
+		persistedSettings.value = berlin
+		provider.refresh(1_000_120L)
+		coVerify(exactly = 1) { weatherRepository.current(52.52, 13.40) }
+		assertNull(provider.paramsFor(1_000_120L).weatherNotice)
+		assertNull(provider.status.value.weatherNotice)
+	}
+
+	@Test
 	fun `obsolete missing device fix cannot mark a newer manual success stale`() = runTest {
 		assertObsoleteMissingFixPreservesSuccess(changeToManual = true)
 	}

@@ -62,7 +62,7 @@ data class WeatherSceneState(
 	val locationLabel: String? = null,
 	val locationLabelTarget: WeatherSceneTarget? = null,
 	val snapshotNotice: WeatherNotice? = null,
-	val refreshFailed: Boolean = false,
+	val failedRefreshTarget: WeatherSceneTarget? = null,
 	val restoredSnapshot: Boolean = false
 ) {
 	val simulatorActive: Boolean
@@ -71,7 +71,7 @@ data class WeatherSceneState(
 	val weatherNotice: WeatherNotice?
 		get() = if (snapshot == null) {
 			WeatherNotice.UNAVAILABLE
-		} else if (refreshFailed || restoredSnapshot || snapshotTarget?.matchesWeather(settings, deviceLocation) != true) {
+		} else if (restoredSnapshot || failedRefreshTarget?.matchesWeather(settings, deviceLocation) == true || snapshotTarget?.matchesWeather(settings, deviceLocation) != true) {
 			snapshotNotice
 		} else {
 			null
@@ -326,7 +326,7 @@ class WeatherSceneProvider @Inject constructor(
 			if (weatherRequestIsCurrent(settings)) {
 				synchronized(weatherRequestLock) {
 					if (lastPublishedWeatherRequestSequence == publishedBeforeLocation) {
-						_sceneState.update { it.copy(refreshFailed = true) }
+						_sceneState.update { it.copy(failedRefreshTarget = WeatherSceneTarget.from(settings, it.deviceLocation)) }
 						publishStatus(settings)
 					}
 				}
@@ -422,7 +422,7 @@ class WeatherSceneProvider @Inject constructor(
 				INITIAL_RETRY_SECONDS
 			}
 			refreshFailure = WeatherRefreshFailure(request, target, nowEpochSeconds, delay)
-			_sceneState.update { it.copy(refreshFailed = true) }
+			_sceneState.update { it.copy(failedRefreshTarget = target) }
 			publishStatus(settings)
 		}
 	}
@@ -490,7 +490,7 @@ class WeatherSceneProvider @Inject constructor(
 						snapshot = weather,
 						snapshotTarget = target,
 						snapshotNotice = cached.notice,
-						refreshFailed = refreshFailure != null,
+						failedRefreshTarget = refreshFailure?.target,
 						restoredSnapshot = false
 					)
 				}
