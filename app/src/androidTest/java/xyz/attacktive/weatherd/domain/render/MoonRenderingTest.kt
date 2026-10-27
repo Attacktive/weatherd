@@ -262,6 +262,34 @@ class MoonRenderingTest {
 	}
 
 	@Test
+	fun moonOpacityDimsHaloOutsideTheDiscWhileFullOpacityKeepsTheDefaultAppearance() {
+		val renderer = SceneRenderer(resources)
+		val params = clearNightParams(moonPhase = 0.5f)
+		renderer.prewarmMoonPhase(params.moonPhase)
+		val defaultMoon = renderForegroundOnNightSky(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, params, 0f, renderer)
+		val fullMoon = renderForegroundOnNightSky(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, params.copy(moonOpacity = 1f), 0f, renderer)
+		val quarterMoon = renderForegroundOnNightSky(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, params.copy(moonOpacity = 0.25f), 0f, renderer)
+		val hiddenMoon = renderForegroundOnNightSky(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, params.copy(moonVisible = false), 0f, renderer)
+
+		try {
+			assertArrayEquals("100% Moon opacity must keep the default foreground pixel-identical", pixels(defaultMoon), pixels(fullMoon))
+
+			val center = celestialCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT)
+			val radius = minOf(PORTRAIT_WIDTH, PORTRAIT_HEIGHT) * MOON_RADIUS_FRACTION
+			// All four probes are 1.5 radii from the center, outside the disc but inside both cached halo blits.
+			val haloSamples = floatArrayOf(1.5f, 0f, 0.25f, -1.5f, 0f, 0.25f, 0f, 1.5f, 0.25f, 0f, -1.5f, 0.25f)
+			val fullHalo = lunarContribution(fullMoon, hiddenMoon, haloSamples, center.x.toFloat(), center.y.toFloat(), radius)
+			val quarterHalo = lunarContribution(quarterMoon, hiddenMoon, haloSamples, center.x.toFloat(), center.y.toFloat(), radius)
+
+			assertTrue("The full-opacity halo must illuminate pixels beyond the lunar disc; contribution=$fullHalo", fullHalo > 15f)
+			assertTrue("The 25% halo should remain visible; contribution=$quarterHalo", quarterHalo > 0f)
+			assertTrue("The 25% halo must be significantly dimmer than at 100%; quarter=$quarterHalo full=$fullHalo", quarterHalo < fullHalo * 0.55f)
+		} finally {
+			listOf(defaultMoon, fullMoon, quarterMoon, hiddenMoon).forEach { it.recycle() }
+		}
+	}
+
+	@Test
 	fun exactNewMoonDrawsNoLunarDisc() {
 		val newMoon = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearNightParams(moonPhase = 0f))
 		val bounds = opaqueBounds(newMoon, threshold = OPAQUE_ALPHA_THRESHOLD)
