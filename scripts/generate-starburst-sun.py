@@ -10,6 +10,7 @@ import numpy as np
 from PIL import Image
 
 TEXTURE_SIZE = 512
+LIGHT_EXPOSURE = 1.3
 OUTPUT = Path(__file__).resolve().parents[1] / 'app/src/main/res/drawable-nodpi/sun_starburst.png'
 
 
@@ -34,7 +35,7 @@ def starburst_texture():
 
 	remaining = np.clip((400 - radius) / 80, 0.0, 1.0)
 	edge = remaining * remaining * (3.0 - 2.0 * remaining)
-	alpha = (1.0 - np.exp(-energy)) * edge
+	alpha = (1.0 - np.exp(-energy * LIGHT_EXPOSURE)) * edge
 	image = Image.new('RGBA', (TEXTURE_SIZE, TEXTURE_SIZE), (255, 255, 255, 0))
 	image.putalpha(Image.fromarray(np.rint(alpha * 255.0).astype(np.uint8)))
 	return image

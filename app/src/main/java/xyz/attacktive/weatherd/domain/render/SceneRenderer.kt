@@ -1457,7 +1457,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 				core
 			}
 
-			starburstSun.draw(canvas, sun.centerX, sun.centerY, directRadius * SUN_DIRECT_DISC_SCALE, tint, sunAlpha(255f, sun.visibility), sun.params.sunColorPreset == SunColorPreset.ORANGE)
+			starburstSun.draw(canvas, sun.centerX, sun.centerY, directRadius * SUN_DIRECT_DISC_SCALE, tint, sunAlpha(255f, sun.visibility))
 			return
 		}
 
@@ -3412,12 +3412,12 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 
 	/**
 	 * The sun disc rasterized once per scene, the moon's counterpart.
-	 * Orange keeps a trace of warmth in its near-white center without changing the shoulder or surrounding glow.
+	 * Natural light keeps its clipped-white center; Orange retains the selected warm core instead of bleaching it away.
 	 */
 	private fun buildSunSprite(canvas: Canvas, core: Int, preset: SunColorPreset) {
 		val center = SUN_SPRITE_SIZE / 2f
 		val brush = Paint(Paint.ANTI_ALIAS_FLAG)
-		val hotCore = if (preset == SunColorPreset.ORANGE) lighten(core, 0.9f) else Color.WHITE
+		val hotCore = if (preset == SunColorPreset.ORANGE) core else Color.WHITE
 		val innerShoulder = if (preset == SunColorPreset.ORANGE) core else lighten(core, SUN_INNER_LIFT)
 		val softEdge = if (preset == SunColorPreset.ORANGE) core else lighten(core, SUN_EDGE_LIFT)
 		val stops = intArrayOf(
@@ -3841,10 +3841,8 @@ private class SunGlareLayer(private val resources: Resources) {
 private class RadiantSunLayer(private val resources: Resources) {
 	private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
 	private val destination = RectF()
-	@Volatile
-	private var orangeCore: SunCoreTint? = null
 	val textureReady: Boolean
-		get() = orangeCore != null
+		get() = source != null
 
 	fun prewarm() {
 		if (textureReady) {
@@ -3862,8 +3860,6 @@ private class RadiantSunLayer(private val resources: Resources) {
 				}
 			}
 		}
-
-		orangeCore = SunCoreTint(checkNotNull(source), SOURCE_CORE_X, SOURCE_CORE_Y, SOURCE_CORE_RADIUS, sunColor(DayPhase.DAY, SunColorPreset.ORANGE))
 	}
 
 	fun draw(canvas: Canvas, centerX: Float, centerY: Float, discRadius: Float, params: SceneParams, visibility: Float) {
@@ -3872,15 +3868,9 @@ private class RadiantSunLayer(private val resources: Resources) {
 		val left = centerX - SOURCE_CORE_X * scale
 		val top = centerY - SOURCE_CORE_Y * scale
 		destination.set(left, top, left + bitmap.width * scale, top + bitmap.height * scale)
-		val alpha = sunAlpha(255f, visibility)
-		val preparedCore = orangeCore
-		if (params.sunColorPreset == SunColorPreset.ORANGE && preparedCore != null) {
-			preparedCore.draw(canvas, destination, alpha)
-		} else {
-			paint.alpha = alpha
-			paint.colorFilter = colorFilters[params.dayPhase.ordinal][params.sunColorPreset.ordinal]
-			canvas.drawBitmap(bitmap, null, destination, paint)
-		}
+		paint.alpha = sunAlpha(255f, visibility)
+		paint.colorFilter = colorFilters[params.dayPhase.ordinal][params.sunColorPreset.ordinal]
+		canvas.drawBitmap(bitmap, null, destination, paint)
 	}
 
 	/** Conditions alpha once, keeping the bright core intact while removing the opaque outer annulus, distant baked blob, and exposed sheet edges. */

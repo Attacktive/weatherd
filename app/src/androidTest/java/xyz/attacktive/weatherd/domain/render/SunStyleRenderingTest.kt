@@ -153,19 +153,35 @@ class SunStyleRenderingTest {
 	}
 
 	@Test
-	fun orangeSunHasANearWhiteCoreAcrossStylesAndDayPhases() {
-		for (style in SunStyle.entries) {
+	fun starburstKeepsItsCoreAndRaysPaleAcrossWarmColorsAndDayPhases() {
+		for (color in listOf(SunColorPreset.ORANGE, SunColorPreset.GOLDEN)) {
 			for (phase in listOf(DayPhase.DAY, DayPhase.DAWN, DayPhase.DUSK)) {
-				val params = clearParams().copy(sunStyle = style, sunColorPreset = SunColorPreset.ORANGE, dayPhase = phase, celestialProgress = 0.25f)
+				val params = clearParams().copy(sunStyle = SunStyle.STARBURST, sunColorPreset = color, dayPhase = phase, celestialProgress = 0.25f)
 				val bitmap = render(params)
 				try {
 					val x = (WIDTH * 0.72f).roundToInt()
 					val y = (HEIGHT * celestialHeightFraction(phase, 0.25f)).roundToInt()
-					val pixel = bitmap.getPixel(x, y)
-					assertTrue("Orange must have a bright near-white $style core at $phase, but was ${Color.red(pixel)}, ${Color.green(pixel)}, ${Color.blue(pixel)}", Color.red(pixel) >= 250 && Color.green(pixel) >= 248 && Color.blue(pixel) >= 245)
+					for (offset in listOf(0, 20)) {
+						val pixel = bitmap.getPixel(x, y + offset)
+						assertTrue("Starburst must keep visible light at core/ray offset $offset", Color.alpha(pixel) >= 40)
+						assertTrue("Starburst must retain pale warm light rather than a yellow disc for $color at $phase, offset $offset: $pixel", Color.green(pixel) >= 240 && Color.blue(pixel) >= 235 && Color.red(pixel) >= Color.blue(pixel) && Color.red(pixel) - Color.blue(pixel) <= 20)
+					}
 				} finally {
 					bitmap.recycle()
 				}
+			}
+		}
+	}
+
+	@Test
+	fun classicAndRadiantRetainTheirWarmOrangeCores() {
+		for (style in listOf(SunStyle.CLASSIC, SunStyle.RADIANT)) {
+			val bitmap = render(clearParams().copy(sunStyle = style, sunColorPreset = SunColorPreset.ORANGE))
+			try {
+				val pixel = bitmap.getPixel((WIDTH * 0.72f).roundToInt(), (HEIGHT * 0.17f).roundToInt())
+				assertTrue("$style must retain its existing warm Orange core", Color.red(pixel) - Color.blue(pixel) >= 35 && Color.green(pixel) - Color.blue(pixel) >= 15)
+			} finally {
+				bitmap.recycle()
 			}
 		}
 	}
@@ -299,43 +315,6 @@ class SunStyleRenderingTest {
 			assertTrue("The distant baked reflection must not form a separate glowing blob", Color.alpha(bitmap.getPixel(tailX, tailY)) <= 2)
 		} finally {
 			bitmap.recycle()
-		}
-	}
-
-	@Test
-	fun radiantKeepsItsCachedSunVisibleWhileANewRendererPreparesTheCore() {
-		assertCachedSunSurvivesCorePreparation(SunStyle.RADIANT)
-	}
-
-	@Test
-	fun starburstKeepsItsCachedSunVisibleWhileANewRendererPreparesTheCore() {
-		assertCachedSunSurvivesCorePreparation(SunStyle.STARBURST)
-	}
-
-	private fun assertCachedSunSurvivesCorePreparation(style: SunStyle) {
-		val params = clearParams().copy(sunStyle = style, sunColorPreset = SunColorPreset.ORANGE)
-		val prepared = render(params)
-		val freshRenderer = SceneRenderer(resources)
-		val firstFrame = render(params, freshRenderer)
-		try {
-			val core = firstFrame.getPixel((WIDTH * 0.72f).roundToInt(), (HEIGHT * 0.17f).roundToInt())
-			assertTrue("The cached $style Sun must remain visible before this renderer's core preparation, but alpha was ${Color.alpha(core)}", Color.alpha(core) >= 245)
-			for (y in 0 until HEIGHT) {
-				for (x in 0 until WIDTH) {
-					assertEquals("Preparing the $style core must not change source opacity at $x,$y", Color.alpha(prepared.getPixel(x, y)), Color.alpha(firstFrame.getPixel(x, y)))
-				}
-			}
-
-			freshRenderer.prewarmSunTexture(style)
-			val afterPreparation = render(params, freshRenderer)
-			try {
-				assertTrue("The $style Sun must adopt its corrected core after preparation", prepared.sameAs(afterPreparation))
-			} finally {
-				afterPreparation.recycle()
-			}
-		} finally {
-			prepared.recycle()
-			firstFrame.recycle()
 		}
 	}
 
