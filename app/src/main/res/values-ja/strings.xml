@@ -74,6 +74,9 @@
 	<string name="subtitle_show_moon">夜に月を表示します</string>
 	<string name="label_sun_size">太陽の大きさ · %1$d%%</string>
 	<string name="label_moon_size">月の大きさ · %1$d%%</string>
+	<string name="label_moon_opacity">月の不透明度 · %1$d%%</string>
+	<string name="moon_opacity_transparent">より透明</string>
+	<string name="moon_opacity_opaque">不透明</string>
 	<string name="label_rainbow_size">虹の大きさ · %1$d%%</string>
 	<string name="sun_size_small">小さく</string>
 	<string name="sun_size_large">大きく</string>

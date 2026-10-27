@@ -168,6 +168,41 @@ class MoonOcclusionLayerTest {
 		sprite.recycle()
 	}
 
+	@Test
+	fun transparentMoonRevealsStarsThroughTheUnobstructedDisc() {
+		val layer = MoonOcclusionLayer()
+		val sprite = createBitmap(100, 100).apply { eraseColor(Color.RED) }
+		layer.configure(prepared(sprite), 50f, 50f, 40f, moonOpacity = 0.5f)
+		val output = createBitmap(100, 100)
+		val canvas = Canvas(output)
+		canvas.drawColor(sky)
+		canvas.drawCircle(50f, 50f, 3f, white)
+		layer.drawDisc(canvas)
+		val color = output.getPixel(50, 50)
+		assertEquals(255, Color.red(color))
+		assertEquals(127f, Color.green(color).toFloat(), 1f)
+		assertEquals(127f, Color.blue(color).toFloat(), 1f)
+		listOf(sprite, output).forEach { it.recycle() }
+	}
+
+	@Test
+	fun denseCloudStillBlocksStarsWhenMoonDiscIsTransparent() {
+		val layer = MoonOcclusionLayer()
+		val sprite = createBitmap(100, 100).apply { eraseColor(Color.RED) }
+		layer.configure(prepared(sprite), 50f, 50f, 40f, moonOpacity = 0.5f)
+		checkNotNull(layer.beginCloudMask(100f, 100f, params, 1f, 20_000L)).drawColor(Color.WHITE)
+		layer.finishCloudMask()
+		val output = createBitmap(100, 100)
+		val canvas = Canvas(output)
+		canvas.drawColor(sky)
+		val star = layer.beginStar(canvas, 47f, 47f, 53f, 53f)
+		canvas.drawCircle(50f, 50f, 3f, white)
+		layer.endStar(canvas, star)
+		layer.drawDisc(canvas)
+		assertEquals(sky, output.getPixel(50, 50))
+		listOf(sprite, output).forEach { it.recycle() }
+	}
+
 	private fun prepared(sprite: Bitmap): MoonLayer.PreparedPhase {
 		val size = MoonOcclusionLayer.MASK_SIZE
 		val scaled = Bitmap.createScaledBitmap(sprite, size, size, true)

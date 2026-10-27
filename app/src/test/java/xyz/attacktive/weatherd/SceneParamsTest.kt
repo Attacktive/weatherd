@@ -163,6 +163,19 @@ class SceneParamsTest {
 	}
 
 	@Test
+	fun `Moon opacity affects only foreground drawing and not the static backdrop`() {
+		val snapshot = snapshot(weatherCode = 1, precipitationMillimeters = 0.0, windSpeedKilometersPerHour = 8.0, cloudCoverPercent = 20)
+		val defaultParams = sceneParamsFor(snapshot, NOW)
+		val fadedParams = sceneParamsFor(snapshot, NOW, moonOpacity = 0.35f)
+		val invalidParams = sceneParamsFor(snapshot, NOW, moonOpacity = Float.NaN)
+
+		assertEquals(1f, defaultParams.moonOpacity, 0.0001f)
+		assertEquals(0.35f, fadedParams.moonOpacity, 0.0001f)
+		assertEquals(1f, invalidParams.moonOpacity, 0.0001f)
+		assertEquals(backdropSignature(defaultParams), backdropSignature(fadedParams))
+	}
+
+	@Test
 	fun `the wind scale rides through without touching the observation`() {
 		val snapshot = snapshot(weatherCode = 2, precipitationMillimeters = 0.0, windSpeedKilometersPerHour = 12.0, cloudCoverPercent = 40)
 

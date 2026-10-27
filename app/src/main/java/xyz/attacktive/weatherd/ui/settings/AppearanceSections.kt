@@ -70,6 +70,7 @@ import xyz.attacktive.weatherd.domain.model.SKY_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SKY_SATURATION_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.MOON_SIZE_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.MOON_OPACITY_RANGE
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
@@ -341,6 +342,8 @@ internal fun SunEffectsSection(settings: AppSettings, defaults: AppSettings, onS
 		Column {
 			Spacer(modifier = Modifier.height(12.dp))
 			MoonSizeSlider(settings = settings, defaults = defaults, onSave = onSave)
+			Spacer(modifier = Modifier.height(12.dp))
+			MoonOpacitySlider(settings = settings, defaults = defaults, onSave = onSave)
 		}
 	}
 
@@ -492,6 +495,17 @@ private fun MoonSizeSlider(settings: AppSettings, defaults: AppSettings, onSave:
 	lowLabel = R.string.sun_size_small,
 	highLabel = R.string.sun_size_large,
 	onCommit = { onSave(settings.copy(moonSizeScale = it)) }
+)
+
+@Composable
+private fun MoonOpacitySlider(settings: AppSettings, defaults: AppSettings, onSave: (AppSettings) -> Unit) = PercentageSlider(
+	label = R.string.label_moon_opacity,
+	value = settings.moonOpacity,
+	defaultValue = defaults.moonOpacity,
+	valueRange = MOON_OPACITY_RANGE,
+	lowLabel = R.string.moon_opacity_transparent,
+	highLabel = R.string.moon_opacity_opaque,
+	onCommit = { onSave(settings.copy(moonOpacity = it)) }
 )
 
 @OptIn(ExperimentalMaterial3Api::class)

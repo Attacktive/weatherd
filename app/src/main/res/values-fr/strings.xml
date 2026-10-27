@@ -74,6 +74,9 @@
 	<string name="subtitle_show_moon">Affiche la lune la nuit</string>
 	<string name="label_sun_size">Taille du soleil · %1$d%%</string>
 	<string name="label_moon_size">Taille de la lune · %1$d%%</string>
+	<string name="label_moon_opacity">Opacité de la Lune · %1$d%%</string>
+	<string name="moon_opacity_transparent">Plus transparente</string>
+	<string name="moon_opacity_opaque">Opaque</string>
 	<string name="label_rainbow_size">Taille de l’arc-en-ciel · %1$d%%</string>
 	<string name="sun_size_small">Plus petit</string>
 	<string name="sun_size_large">Plus grand</string>
