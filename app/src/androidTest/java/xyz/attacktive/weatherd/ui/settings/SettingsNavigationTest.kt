@@ -136,13 +136,21 @@ class SettingsNavigationTest {
 
 	private fun rainbowSizeText(percent: Int) = instrumentation.targetContext.getString(R.string.label_rainbow_size, percent)
 
-	private fun scrollToRainbowSize(percent: Int) = waitUntil("Rainbow size $percent%") {
-		if (findNode(automation.rootInActiveWindow) { it.isVisibleToUser && matchesText(it, rainbowSizeText(percent)) } != null) {
-			true
-		} else {
+	private fun scrollToRainbowSize(percent: Int) = waitUntil("Rainbow size $percent% slider") {
+		val root = automation.rootInActiveWindow
+		val label = findNode(root) { it.isVisibleToUser && matchesText(it, rainbowSizeText(percent)) }
+		val labelBounds = Rect()
+		label?.getBoundsInScreen(labelBounds)
+		val sliderVisible = label != null && findNode(root) {
+			val bounds = Rect().also { rect -> it.getBoundsInScreen(rect) }
+			it.isVisibleToUser && it.rangeInfo != null && bounds.top >= labelBounds.bottom && it.actionList.any { action -> action.id == AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_PROGRESS.id }
+		} != null
+
+		if (!sliderVisible) {
 			verticalScroller()?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
-			false
 		}
+
+		sliderVisible
 	}
 
 	private fun setRainbowProgress(value: Float, currentPercent: Int) {
