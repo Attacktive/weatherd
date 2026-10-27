@@ -182,10 +182,17 @@ def cloud_fraction_in_footprint(latitudes, longitudes, values, station, radius_k
 	return footprint_from_counts(counts, total, radius_km)
 
 
-def extract_mask(grib_file, station_file, output, radius_km=DEFAULT_RADIUS_KM):
+def extract_mask(grib_file, station_file, output, radius_km=DEFAULT_RADIUS_KM, decoder='eccodes'):
 	station = read_station(station_file)
-	observed_at, latitudes, longitudes, classes, metadata = decode_grib_file(grib_file)
-	footprint = cloud_fraction_in_footprint(latitudes, longitudes, classes, station, radius_km)
+	if decoder == 'eccodes':
+		observed_at, latitudes, longitudes, classes, metadata = decode_grib_file(grib_file)
+		footprint = cloud_fraction_in_footprint(latitudes, longitudes, classes, station, radius_km)
+	elif decoder == 'rasterio':
+		from provider_evaluation.raster_cloudmask import extract_raster_cloud_mask
+
+		observed_at, footprint, metadata = extract_raster_cloud_mask(grib_file, station, radius_km)
+	else:
+		raise ValueError('Unsupported satellite decoder')
 	sha256_digest = hashlib.sha256()
 	with Path(grib_file).open('rb') as source:
 		for chunk in iter(lambda: source.read(1024 * 1024), b''):
@@ -512,10 +519,11 @@ def main():
 	extract.add_argument('--station-file', type=Path, required=True, help='Original station.json from a provider evaluation run')
 	extract.add_argument('--output', type=Path, default=Path('captures/provider-evaluation/satellite'))
 	extract.add_argument('--radius-km', type=float, default=DEFAULT_RADIUS_KM)
+	extract.add_argument('--decoder', choices=('eccodes', 'rasterio'), default='eccodes', help='Optional satellite GRIB decoder backend')
 	summary = subparsers.add_parser('summarize', help='Compare extracted satellite masks with routine provider captures, without rewriting them')
 	summary.add_argument('--output', type=Path, default=Path('captures/provider-evaluation'))
 	args = parser.parse_args()
 	if args.command == 'extract':
-		print(extract_mask(args.grib, args.station_file, args.output, args.radius_km))
+		print(extract_mask(args.grib, args.station_file, args.output, args.radius_km, decoder=args.decoder))
 	else:
 		print(json.dumps(summarize_satellite(args.output), indent=2, allow_nan=False))

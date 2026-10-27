@@ -16,6 +16,16 @@ Don't run the satellite extractor on the emulator; it reads the original collect
 
 ## Extract one immutable station-centered observation
 
+The original `eccodes` decoder remains the default. An alternative **Rasterio/GDAL decoder** is available for EUMETSAT's wrapped `.grb` files. It has been exercised on five original October 2026 EUMETSAT MSG CLM scans, whereas the `eccodes` path remains unverified against those files. The raster decoder reads only a station-sized window and reuses exactly the same cloud-fraction and quality-scoring functions as the default decoder.
+
+Install the optional alternative dependencies:
+
+```sh
+python3 -m pip install numpy rasterio pyproj
+```
+
+Extract the original GRIB member from the downloaded ZIP without rewriting its bytes, then pass `--decoder rasterio` to `extract`. The alternative preserves the same observation JSON schema, immutable source SHA-256, and `summarize` command. It checks the embedded GRIB2 message even when the .grb file contains a 272-byte EUMETSAT preamble, and requires EUMETSAT center 254, product template 30, and cloud-mask parameter 3/0/7. It is optional and has no effect on app runtime or provider selection.
+
 ```sh
 python3 scripts/evaluate-satellite.py extract \
   --grib /path/to/downloaded-clm.grib2 \
