@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.os.SystemClock
 import android.view.View
@@ -36,8 +37,9 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 		recordUpdate(context, appWidgetIds, state, "requested")
 
 		try {
-			val views = widgetViews(context, state)
-			appWidgetIds.forEach { appWidgetManager.updateAppWidget(it, views) }
+			appWidgetIds.forEach { appWidgetId ->
+				appWidgetManager.updateAppWidget(appWidgetId, widgetViews(context, state, appWidgetId))
+			}
 			recordUpdate(context, appWidgetIds, state, "sent")
 		} catch (exception: RuntimeException) {
 			Diagnostics.get(context).record("widget_update_failed", "exception" to exception.javaClass.simpleName)
@@ -74,7 +76,9 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 		val receipt = SystemClock.elapsedRealtimeNanos().toString()
 		val action = DIAGNOSTIC_ACTION_LABELS[intent.action] ?: "other"
 
-		Diagnostics.get(context).record("receiver_received", "action" to action, "receipt" to receipt)
+		val widgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
+		val widgetIdLabel = if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID) "unknown" else widgetId.toString()
+		Diagnostics.get(context).record("receiver_received", "action" to action, "receipt" to receipt, "widget_id" to widgetIdLabel)
 		if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) {
 			synchronized(STATE_LOCK) {
 				renderWidgets(context, readState(context))
@@ -126,7 +130,7 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 		}
 	}
 
-	internal fun widgetViews(context: Context, state: WeatherRefreshWidgetState = WeatherRefreshWidgetState.IDLE): RemoteViews {
+	internal fun widgetViews(context: Context, state: WeatherRefreshWidgetState = WeatherRefreshWidgetState.IDLE, appWidgetId: Int = AppWidgetManager.INVALID_APPWIDGET_ID): RemoteViews {
 		val layout = if (state == WeatherRefreshWidgetState.LOADING) {
 			R.layout.widget_weather_refresh_loading
 		} else {
@@ -134,7 +138,7 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 		}
 		val views = RemoteViews(context.packageName, layout)
 
-		views.setOnClickPendingIntent(R.id.weather_refresh_widget_container, refreshPendingIntent(context))
+		views.setOnClickPendingIntent(R.id.weather_refresh_widget_container, refreshPendingIntent(context, appWidgetId))
 		views.setContentDescription(R.id.weather_refresh_widget_container, context.getString(accessibilityDescription(state)))
 
 		when (state) {
@@ -163,13 +167,14 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 		WeatherRefreshWidgetState.ERROR -> R.string.widget_refresh_error_description
 	}
 
-	private fun refreshPendingIntent(context: Context): PendingIntent {
-		val intent = Intent(context, WeatherRefreshWidgetProvider::class.java)
-			.setAction(ACTION_REFRESH)
-			.addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+	/** Give each retained widget a versioned click token so the launcher can replace an old binding after an APK update. */
+	internal fun refreshPendingIntent(context: Context, appWidgetId: Int) = PendingIntent.getBroadcast(context, appWidgetId, refreshIntent(context, appWidgetId), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
-		return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-	}
+	internal fun refreshIntent(context: Context, appWidgetId: Int) = Intent(context, WeatherRefreshWidgetProvider::class.java)
+		.setAction(ACTION_REFRESH)
+		.setData(Uri.parse("weatherd://widget-refresh/${BuildConfig.VERSION_CODE}/$appWidgetId"))
+		.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+		.addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
 
 	internal companion object {
 		private const val ACTION_REFRESH = "xyz.attacktive.weatherd.action.REFRESH_WEATHER"
@@ -253,8 +258,10 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 			recordUpdate(context, appWidgetIds, state, "requested")
 
 			try {
-				val views = WeatherRefreshWidgetProvider().widgetViews(context, state)
-				appWidgetManager.updateAppWidget(appWidgetIds, views)
+				val provider = WeatherRefreshWidgetProvider()
+				appWidgetIds.forEach { appWidgetId ->
+					appWidgetManager.updateAppWidget(appWidgetId, provider.widgetViews(context, state, appWidgetId))
+				}
 				recordUpdate(context, appWidgetIds, state, "sent")
 			} catch (exception: RuntimeException) {
 				Diagnostics.get(context).record("widget_update_failed", "exception" to exception.javaClass.simpleName)

@@ -4,6 +4,7 @@ import android.appwidget.AppWidgetHostView
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.os.SystemClock
 import android.view.MotionEvent
 import android.view.View
@@ -12,9 +13,12 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import xyz.attacktive.weatherd.BuildConfig
 import xyz.attacktive.weatherd.MainActivity
 
 @RunWith(AndroidJUnit4::class)
@@ -67,6 +71,25 @@ class WeatherRefreshWidgetLifecycleTest {
 			instrumentation.waitForIdleSync()
 			assertEquals("Initial widget taps must not reach the host's app-launch fallback", 0, host.defaultLaunches)
 		}
+	}
+
+	@Test
+	fun refreshClickBindingsHaveDistinctWidgetAndBuildIdentities() {
+		val context = InstrumentationRegistry.getInstrumentation().targetContext
+		val provider = WeatherRefreshWidgetProvider()
+		val first = provider.refreshIntent(context, 101)
+		val second = provider.refreshIntent(context, 102)
+		val legacy = Intent(context, WeatherRefreshWidgetProvider::class.java).setAction(first.action)
+
+		assertEquals(ComponentName(context, WeatherRefreshWidgetProvider::class.java), first.component)
+		assertEquals(101, first.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID))
+		assertEquals(102, second.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID))
+		assertEquals(BuildConfig.VERSION_CODE.toString(), first.data?.pathSegments?.first())
+		assertEquals("101", first.data?.lastPathSegment)
+		assertFalse(first.filterEquals(second))
+		assertFalse(first.filterEquals(legacy))
+		assertNotEquals(provider.refreshPendingIntent(context, 101), provider.refreshPendingIntent(context, 102))
+		assertEquals(provider.refreshPendingIntent(context, 101), provider.refreshPendingIntent(context, 101))
 	}
 
 	private class DefaultWidgetHostView(context: Context): AppWidgetHostView(context) {
