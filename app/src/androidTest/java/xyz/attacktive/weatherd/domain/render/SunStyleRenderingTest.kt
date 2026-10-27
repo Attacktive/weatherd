@@ -130,42 +130,42 @@ class SunStyleRenderingTest {
 	}
 
 	@Test
-	fun imageSunStylesRespectColorWithoutChangingOpacity() {
+	fun imageSunStylesPreserveOpacityAcrossColorPresets() {
 		for (style in listOf(SunStyle.RADIANT, SunStyle.STARBURST)) {
-			val params = clearParams().copy(sunStyle = style)
-			val white = render(params.copy(sunColorPreset = SunColorPreset.WHITE))
-			val orange = render(params.copy(sunColorPreset = SunColorPreset.ORANGE))
-			val x = (WIDTH * 0.72f).roundToInt()
-			val y = (HEIGHT * 0.17f).roundToInt()
-			val whitePixel = white.getPixel(x, y)
-			val orangePixel = orange.getPixel(x, y)
-
-			assertTrue("Orange must warm the $style artwork", Color.red(orangePixel) - Color.blue(orangePixel) > Color.red(whitePixel) - Color.blue(whitePixel) + 30)
-			for (row in 0 until HEIGHT) {
-				for (column in 0 until WIDTH) {
-					assertEquals("Changing color must preserve texture opacity", Color.alpha(white.getPixel(column, row)), Color.alpha(orange.getPixel(column, row)))
+			for (size in listOf(0.5f, 1f, 2f)) {
+				for (progress in listOf(0.25f, 0.5f, 0.75f)) {
+					val params = clearParams().copy(sunStyle = style, sunSizeScale = size, celestialProgress = progress)
+					val white = render(params.copy(sunColorPreset = SunColorPreset.WHITE))
+					val orange = render(params.copy(sunColorPreset = SunColorPreset.ORANGE))
+					try {
+						for (row in 0 until HEIGHT) {
+							for (column in 0 until WIDTH) {
+								assertEquals("Changing color must preserve $style opacity at size $size, progress $progress, pixel $column,$row", Color.alpha(white.getPixel(column, row)), Color.alpha(orange.getPixel(column, row)))
+							}
+						}
+					} finally {
+						white.recycle()
+						orange.recycle()
+					}
 				}
 			}
-
-			white.recycle()
-			orange.recycle()
 		}
 	}
 
 	@Test
-	fun orangeSunKeepsAPaleWarmCoreAcrossStyles() {
+	fun orangeSunHasANearWhiteCoreAcrossStylesAndDayPhases() {
 		for (style in SunStyle.entries) {
-			val bitmap = render(clearParams().copy(sunStyle = style, sunColorPreset = SunColorPreset.ORANGE))
-			try {
-				val pixel = bitmap.getPixel((WIDTH * 0.72f).roundToInt(), (HEIGHT * 0.17f).roundToInt())
-				val red = Color.red(pixel)
-				val green = Color.green(pixel)
-				val blue = Color.blue(pixel)
-
-				assertTrue("Orange must retain a warm core in $style, but was ($red, $green, $blue)", red - green >= 10 && green - blue >= 15)
-				assertTrue("Orange must remain pale rather than saturated amber in $style, but was ($red, $green, $blue)", green >= 210 && blue >= 180)
-			} finally {
-				bitmap.recycle()
+			for (phase in listOf(DayPhase.DAY, DayPhase.DAWN, DayPhase.DUSK)) {
+				val params = clearParams().copy(sunStyle = style, sunColorPreset = SunColorPreset.ORANGE, dayPhase = phase, celestialProgress = 0.25f)
+				val bitmap = render(params)
+				try {
+					val x = (WIDTH * 0.72f).roundToInt()
+					val y = (HEIGHT * celestialHeightFraction(phase, 0.25f)).roundToInt()
+					val pixel = bitmap.getPixel(x, y)
+					assertTrue("Orange must have a bright near-white $style core at $phase, but was ${Color.red(pixel)}, ${Color.green(pixel)}, ${Color.blue(pixel)}", Color.red(pixel) >= 250 && Color.green(pixel) >= 248 && Color.blue(pixel) >= 245)
+				} finally {
+					bitmap.recycle()
+				}
 			}
 		}
 	}
