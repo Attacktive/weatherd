@@ -181,6 +181,7 @@ class DistantAircraftRenderingTest {
 	fun denseCloudsStillOccludeAircraft() {
 		val params = fairWeatherParams().copy(
 			cloudiness = 0.5f,
+			cloudSizeScale = 1.5f,
 			sunVisible = false,
 			birdFlockSize = BirdFlockSize.OFF
 		)

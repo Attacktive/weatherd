@@ -69,10 +69,10 @@ class SunbeamRenderingTest {
 	@Test
 	fun partialCloudOpeningsProduceLightAndRespondToCloudMovement() {
 		val params = clearParams().copy(cloudiness = 0.7f)
-		val active = render(params, time = 240f)
-		val off = render(params.copy(sunbeamMode = SunbeamMode.OFF), time = 240f)
-		val moved = render(params, time = 120f)
-		val movedOff = render(params.copy(sunbeamMode = SunbeamMode.OFF), time = 120f)
+		val active = render(params, time = 180f)
+		val off = render(params.copy(sunbeamMode = SunbeamMode.OFF), time = 180f)
+		val moved = render(params, time = 330f)
+		val movedOff = render(params.copy(sunbeamMode = SunbeamMode.OFF), time = 330f)
 		try {
 			val firstEnergy = beamEnergy(active, off)
 			val movedEnergy = beamEnergy(moved, movedOff)
@@ -94,8 +94,8 @@ class SunbeamRenderingTest {
 		var previousEnergy = 0L
 		var largestJump = 0L
 		var peakEnergy = 0L
-		for (frame in 0..90) {
-			val time = 223f + frame / 30f
+		for (frame in 0..600) {
+			val time = 160f + frame / 30f
 			val active = render(params, renderer = activeRenderer, time = time)
 			val off = render(params.copy(sunbeamMode = SunbeamMode.OFF), renderer = controlRenderer, time = time)
 			try {
@@ -263,8 +263,8 @@ class SunbeamRenderingTest {
 			val shared = renderer(epochDay)
 			val testCases = listOf(0.099f, 0.1f, 0.101f).map { cloudiness ->
 				val params = clearParams().copy(cloudiness = cloudiness)
-				val off = render(params.copy(sunbeamMode = SunbeamMode.OFF), renderer = shared)
-				val active = render(params.copy(sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO), renderer = shared)
+				val off = render(params.copy(sunbeamMode = SunbeamMode.OFF), renderer = shared, time = 0f)
+				val active = render(params.copy(sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO), renderer = shared, time = 0f)
 				Pair(active, off)
 			}
 			try {
@@ -287,7 +287,7 @@ class SunbeamRenderingTest {
 
 	@Test
 	fun cloudShaftsCannotComeFromAnEmptyPatchAroundTheSun() {
-		val params = clearParams().copy(cloudiness = 0.65f, cloudLayers = SceneCloudLayers(low = 0.65f, mid = 0f, high = 0f))
+		val params = clearParams().copy(cloudiness = 0.2f, cloudLayers = SceneCloudLayers(low = 0.2f, mid = 0f, high = 0f))
 		val shared = renderer()
 		var emptyFrames = 0
 		for (second in 0..360 step 15) {

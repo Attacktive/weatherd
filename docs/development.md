@@ -259,6 +259,15 @@ Prerequisites:
 
 ## Rendering and Artwork
 
+### Cloud Formation Placement
+
+Near and distant cumulus, the partly-cloudy support bank, and the overcast bank stack share a vertical lift of 12% of the viewport height in portrait and 4% in landscape.
+This raises formations toward the upper sky while preserving cloud artwork, body size, population, opacity, tint, drift, and the relative spacing between decks; the smaller landscape lift limits top-edge clipping.
+Keep cloud drawing, cast-shadow sampling, sun-edge sampling, and lunar transmission/halo sampling on the same translated geometry.
+Cirrus, fog veils, the sky gradient and overcast ceiling, celestial positions, and scenery remain in place; do not translate the entire canvas or change weather classification to reposition clouds.
+The shared renderer applies this composition to preview, live wallpaper, simulator, and fallback without a new setting or preset field.
+Mirror clear-sky placement changes into `scripts/preview-clear-sky.py`; Android rendering remains authoritative.
+
 ### Scenery and Tree Artwork
 
 Trees are an independent fixed foreground composition over any backdrop, including None and Photo, not a backdrop or seasonal landscape.

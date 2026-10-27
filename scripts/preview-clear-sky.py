@@ -32,6 +32,7 @@ NEAR_VIEWPORTS = 4.0
 FAR_VIEWPORTS = 2.5
 DECK_THRESHOLD = 0.75
 SCATTERED_FLOOR = 0.1
+CLOUD_FORMATION_PORTRAIT_LIFT = 0.12
 
 # Mirrors CloudLayer.cumulusStyle and nearCompositionAlpha.
 NEAR_BASE_HEIGHT_TO_WIDTH = 0.22
@@ -502,7 +503,7 @@ def draw_preview_partly_bank(destination, coverage, cloud_scale, top):
 	draw_bank(
 		destination,
 		PARTLY_BANK_SPRITE,
-		BankPlacement(PARTLY_BANK_VIEWPORTS, partly_bank_height, -WIDTH * PARTLY_BANK_PHASE, HEIGHT * PARTLY_BANK_TOP),
+		BankPlacement(PARTLY_BANK_VIEWPORTS, partly_bank_height, -WIDTH * PARTLY_BANK_PHASE, HEIGHT * (PARTLY_BANK_TOP - CLOUD_FORMATION_PORTRAIT_LIFT)),
 		partly_bank_color,
 		partly_bank_alpha,
 		MATERIAL_GRADE
@@ -536,7 +537,7 @@ def clear_sky(cloudiness, cloud_scale=1.0, cloud_size_scale=1.0, cloud_count_sca
 	canvas, top, _ = sky(opaque)
 	coverage = float(np.clip((low - SCATTERED_FLOOR) / (DECK_THRESHOLD - SCATTERED_FLOOR), 0, 1))
 	size_scale = float(np.clip(cloud_size_scale, CLOUD_SIZE_SCALE_MIN, CLOUD_SIZE_SCALE_MAX))
-	cloud_top = max(HEIGHT * 0.10, HEIGHT * 0.17 + WIDTH * 0.072 * 1.8 - HEIGHT * 0.08)
+	cloud_top = HEIGHT * (0.10 - CLOUD_FORMATION_PORTRAIT_LIFT)
 	far_color = lerp(CUMULUS_TINT, top, 0.35)
 
 	draw_cirrus(canvas, high, cloud_scale)

@@ -12,6 +12,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import xyz.attacktive.weatherd.domain.model.BirdFlockSize
 import xyz.attacktive.weatherd.domain.model.DayPhase
 
 @RunWith(AndroidJUnit4::class)
@@ -59,17 +60,28 @@ class CloudRenderingTest {
 	}
 
 	@Test
-	fun overcastCloudsReachIntoTheMidSky() {
-		val withoutClouds = renderForeground(cloudiness = 0.9f, cloudScale = 0f)
-		val withClouds = renderForeground(cloudiness = 0.9f, cloudScale = 1f)
-		val bounds = differenceBounds(withoutClouds, withClouds)
+	fun cloudFormationsLeaveTheLowerPortraitSkyOpen() {
+		for (cloudiness in listOf(0.4f, 0.7f, 0.9f)) {
+			val withoutClouds = renderForeground(cloudiness = cloudiness, cloudScale = 0f)
+			val withClouds = renderForeground(cloudiness = cloudiness, cloudScale = 1f)
+			val bounds = differenceBounds(withoutClouds, withClouds)
+			try {
+				assertTrue(
+					"Cloud formations must leave the lower portrait sky clear above the scenery at cover $cloudiness, but reached ${bounds.bottom}",
+					bounds.bottom < (HEIGHT * 0.60f).roundToInt()
+				)
 
-		assertTrue(
-			"Overcast cloud banks must occupy the mid-sky instead of collapsing into a top strip, but their lower edge was ${bounds.bottom}",
-			bounds.bottom >= (HEIGHT * 0.62f).roundToInt()
-		)
-		withoutClouds.recycle()
-		withClouds.recycle()
+				if (cloudiness == 0.9f) {
+					assertTrue(
+						"Overcast must still occupy the mid-sky rather than collapse into a top strip",
+						bounds.bottom >= (HEIGHT * 0.40f).roundToInt()
+					)
+				}
+			} finally {
+				withoutClouds.recycle()
+				withClouds.recycle()
+			}
+		}
 	}
 
 	@Test
@@ -209,9 +221,12 @@ class CloudRenderingTest {
 			windFactor = 0.2f,
 			cloudLayers = cloudLayers,
 			cloudScale = cloudScale,
-			cloudContrastScale = cloudContrastScale
+			cloudContrastScale = cloudContrastScale,
+			sunVisible = false,
+			distantAircraftEnabled = false,
+			birdFlockSize = BirdFlockSize.OFF
 		)
-		val renderer = SceneRenderer(resources)
+		val renderer = SceneRenderer(resources, epochDay = 20_000L)
 		renderer.prewarmCloudTextures()
 		renderer.renderForeground(Canvas(bitmap), WIDTH, HEIGHT, params, TIME_SECONDS)
 

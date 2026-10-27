@@ -1331,7 +1331,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 			return 0f
 		}
 
-		val cloudTop = scatteredCloudTop(width, height, params)
+		val cloudTop = scatteredCloudTop(width, height)
 		val sizeScale = cloudSizeScale(params)
 		val lowCoverage = scatteredCloudCoverage(lowCloudiness)
 		val nearState = if (lowCloudiness > SCATTERED_CLOUD_FLOOR) {
@@ -1372,7 +1372,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 			val offset = wrapOffset(timeSeconds * width * (0.0045f + params.windFactor * 0.009f) * params.windScale + drift * 0.60f - width * PARTLY_BANK_PHASE, period)
 			val bankHeight = overcastBankHeight(width, height, PARTLY_BANK_VIEWPORTS, PARTLY_BANK_HEIGHT_SCALE)
 
-			cloudDrawGeometry.configure(width, bankHeight, offset, height * PARTLY_BANK_TOP, PARTLY_BANK_VIEWPORTS)
+			cloudDrawGeometry.configure(width, bankHeight, offset, cloudFormationTop(width, height, PARTLY_BANK_TOP), PARTLY_BANK_VIEWPORTS)
 		} else {
 			null
 		}
@@ -1692,10 +1692,10 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 
 		val overcastGrade = cloudGradeFor(params)
 
-		farOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, farHeight, farOffset, height * OVERCAST_FAR_TOP + bob * 0.25f, OVERCAST_FAR_VIEWPORTS), darken(color, 0.96f), farAlpha, overcastGrade, contrast = params.cloudContrastScale)
-		supportOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, supportHeight, supportOffset, height * OVERCAST_SUPPORT_TOP - bob * 0.35f, OVERCAST_SUPPORT_VIEWPORTS), darken(color, 0.94f), supportAlpha, overcastGrade, contrast = params.cloudContrastScale)
-		heroOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, heroHeight, heroOffset, height * OVERCAST_HERO_TOP - bob, OVERCAST_HERO_VIEWPORTS), color, heroAlpha, overcastGrade, contrast = params.cloudContrastScale)
-		farOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, bridgeHeight, bridgeOffset, height * OVERCAST_BRIDGE_TOP + bob * 0.45f, OVERCAST_BRIDGE_VIEWPORTS), darken(color, 0.91f), bridgeAlpha, overcastGrade, contrast = params.cloudContrastScale)
+		farOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, farHeight, farOffset, cloudFormationTop(width, height, OVERCAST_FAR_TOP) + bob * 0.25f, OVERCAST_FAR_VIEWPORTS), darken(color, 0.96f), farAlpha, overcastGrade, contrast = params.cloudContrastScale)
+		supportOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, supportHeight, supportOffset, cloudFormationTop(width, height, OVERCAST_SUPPORT_TOP) - bob * 0.35f, OVERCAST_SUPPORT_VIEWPORTS), darken(color, 0.94f), supportAlpha, overcastGrade, contrast = params.cloudContrastScale)
+		heroOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, heroHeight, heroOffset, cloudFormationTop(width, height, OVERCAST_HERO_TOP) - bob, OVERCAST_HERO_VIEWPORTS), color, heroAlpha, overcastGrade, contrast = params.cloudContrastScale)
+		farOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, bridgeHeight, bridgeOffset, cloudFormationTop(width, height, OVERCAST_BRIDGE_TOP) + bob * 0.45f, OVERCAST_BRIDGE_VIEWPORTS), darken(color, 0.91f), bridgeAlpha, overcastGrade, contrast = params.cloudContrastScale)
 	}
 
 	/**
@@ -1827,7 +1827,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		val midCloudiness = effectiveMidCloudiness(params)
 		val lowCoverage = scatteredCloudCoverage(lowCloudiness)
 		val midCoverage = scatteredCloudCoverage(midCloudiness)
-		val cloudTop = scatteredCloudTop(width, height, params)
+		val cloudTop = scatteredCloudTop(width, height)
 		val nearState = if (lowCloudiness > SCATTERED_CLOUD_FLOOR) {
 			nearCumulusState(width, height, params, timeSeconds, lowCoverage)
 		} else {
@@ -1852,12 +1852,25 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		((cloudiness - SCATTERED_CLOUD_FLOOR) / (CLOUD_DECK_THRESHOLD - SCATTERED_CLOUD_FLOOR)).coerceIn(0f, 1f)
 
 	/** Where the clear-sky decks may start; clouds are allowed to cross the sun and naturally occlude the light drawn behind them. */
-	private fun scatteredCloudTop(width: Float, height: Float, params: SceneParams): Float {
-		return if (width < height) {
-			height * 0.10f
+	private fun scatteredCloudTop(width: Float, height: Float): Float {
+		val topFraction = if (width < height) {
+			0.10f
 		} else {
-			height * 0.08f
+			0.08f
 		}
+
+		return cloudFormationTop(width, height, topFraction)
+	}
+
+	/** Lift cloud formations without moving the sky or scenery; drawing and light sampling share the same translation. */
+	private fun cloudFormationTop(width: Float, height: Float, topFraction: Float): Float {
+		val lift = if (width < height) {
+			CLOUD_FORMATION_PORTRAIT_LIFT
+		} else {
+			CLOUD_FORMATION_LANDSCAPE_LIFT
+		}
+
+		return height * (topFraction - lift)
 	}
 
 	/** The pale wash the sun throws onto the air around it; drawn under the decks so a cloud crossing it still reads as solid. */
@@ -2066,7 +2079,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 
 		heroOvercastBank.draw(
 			canvas,
-			cloudDrawGeometry.configure(width, bankHeight, offset, height * PARTLY_BANK_TOP, PARTLY_BANK_VIEWPORTS),
+			cloudDrawGeometry.configure(width, bankHeight, offset, cloudFormationTop(width, height, PARTLY_BANK_TOP), PARTLY_BANK_VIEWPORTS),
 			tint,
 			alpha,
 			grade,
@@ -2942,7 +2955,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		}
 
 		val coverage = ((effectiveLowCloudiness(sun.params) - SCATTERED_CLOUD_FLOOR) / (CLOUD_DECK_THRESHOLD - SCATTERED_CLOUD_FLOOR)).coerceIn(0f, 1f)
-		val cloudTop = scatteredCloudTop(sun.width, sun.height, sun.params)
+		val cloudTop = scatteredCloudTop(sun.width, sun.height)
 		val offset = cumulusOffset(sun.width, sun.params, sun.timeSeconds, 0.008f + sun.params.windFactor * 0.016f, 1.5f, 0.78f, CLOUD_TEXTURE_VIEWPORTS)
 		val deckHeight = if (sun.width < sun.height) sun.height * 0.46f else sun.height * 0.40f
 		val step = nearCumulusStep(coverage)
@@ -3532,6 +3545,9 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		private const val CUMULUS_BLEND_FLOOR = 0.02f
 		private const val CUMULUS_PARTLY_INDEX = 2
 		private const val CUMULUS_BROKEN_BLEND_START = 0.90f
+
+		private const val CLOUD_FORMATION_PORTRAIT_LIFT = 0.12f
+		private const val CLOUD_FORMATION_LANDSCAPE_LIFT = 0.04f
 
 		private const val PARTLY_BANK_START_COVERAGE = 0.70f
 		private const val PARTLY_BANK_FULL_COVERAGE = 0.95f

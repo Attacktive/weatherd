@@ -368,7 +368,7 @@ class MoonRenderingTest {
 
 	@Test
 	fun cloudOverTheUnlitCrescentHemisphereDoesNotDimTheIlluminatedEdge() {
-		val params = clearNightParams(moonPhase = 0.9375f, cloudiness = 0.7f)
+		val params = isolatedLowCloudParams(moonPhase = 0.9375f)
 		val renderer = SceneRenderer(resources, epochDay = 20_000L)
 		val layer = MoonLayer(resources)
 		val width = 540f
@@ -385,7 +385,7 @@ class MoonRenderingTest {
 			height * celestialHeightFraction(params.dayPhase, params.celestialProgress),
 			radius,
 			params,
-			592f,
+			96f,
 			prepared.cloudSamples
 		)
 
@@ -395,19 +395,19 @@ class MoonRenderingTest {
 
 	@Test
 	fun waningCrescentKeepsRenderedBrightnessWhenCloudsCoverOnlyItsDarkSide() {
-		val params = clearNightParams(moonPhase = 0.9375f, cloudiness = 0.7f)
+		val params = isolatedLowCloudParams(moonPhase = 0.9375f)
 		val renderer = SceneRenderer(resources, epochDay = 20_000L)
 		val layer = MoonLayer(resources)
 		val width = 540
 		val height = 960
-		val timeSeconds = 592f
+		val timeSeconds = 96f
 		renderer.prewarmCloudTextures()
 		renderer.prewarmMoonPhase(params.moonPhase)
 		layer.prewarm(params.moonPhase)
 		val prepared = checkNotNull(layer.preparedFor(layer.phaseIndexFor(params.moonPhase)))
 		val cloudyMoon = renderForegroundOnNightSky(width, height, params, timeSeconds, renderer)
 		val cloudyWithoutMoon = renderForegroundOnNightSky(width, height, params.copy(moonVisible = false), timeSeconds, renderer)
-		val clear = params.copy(cloudiness = 0f)
+		val clear = params.copy(cloudiness = 0f, cloudLayers = null)
 		val clearMoon = renderForegroundOnNightSky(width, height, clear, timeSeconds, renderer)
 		val clearWithoutMoon = renderForegroundOnNightSky(width, height, clear.copy(moonVisible = false), timeSeconds, renderer)
 
@@ -444,10 +444,10 @@ class MoonRenderingTest {
 		val renderer = SceneRenderer(resources, epochDay = 20_000L)
 		renderer.prewarmCloudTextures()
 		for (phase in listOf(0.5f, 0.25f)) {
-			val params = clearNightParams(moonPhase = phase, cloudiness = 0.7f)
+			val params = isolatedLowCloudParams(moonPhase = phase)
 			renderer.prewarmMoonPhase(phase)
-			val cloudy = renderForegroundOnNightSky(540, 960, params, 592f, renderer)
-			val clear = renderForegroundOnNightSky(540, 960, params.copy(cloudiness = 0f), 592f, renderer)
+			val cloudy = renderForegroundOnNightSky(540, 960, params, 96f, renderer)
+			val clear = renderForegroundOnNightSky(540, 960, params.copy(cloudiness = 0f, cloudLayers = null), 96f, renderer)
 			try {
 				val cloudyBrightness = pixelLuminance(cloudy.getPixel(399, 260))
 				val clearBrightness = pixelLuminance(clear.getPixel(399, 260))
@@ -462,13 +462,13 @@ class MoonRenderingTest {
 	@Test
 	fun denseCloudOverlapErasesLunarSurfaceDetail() {
 		val renderer = SceneRenderer(resources, epochDay = 20_000L)
-		val params = clearNightParams(cloudiness = 0.7f)
+		val params = isolatedLowCloudParams().copy(cloudSizeScale = 2f)
 		renderer.prewarmCloudTextures()
 		renderer.prewarmMoonPhase(params.moonPhase)
-		val cloudy = renderForegroundOnNightSky(540, 960, params, 592f, renderer)
-		val cloudyControl = renderForegroundOnNightSky(540, 960, params.copy(moonVisible = false), 592f, renderer)
-		val clear = renderForegroundOnNightSky(540, 960, params.copy(cloudiness = 0f), 592f, renderer)
-		val clearControl = renderForegroundOnNightSky(540, 960, params.copy(cloudiness = 0f, moonVisible = false), 592f, renderer)
+		val cloudy = renderForegroundOnNightSky(540, 960, params, 336f, renderer)
+		val cloudyControl = renderForegroundOnNightSky(540, 960, params.copy(moonVisible = false), 336f, renderer)
+		val clear = renderForegroundOnNightSky(540, 960, params.copy(cloudiness = 0f, cloudLayers = null), 336f, renderer)
+		val clearControl = renderForegroundOnNightSky(540, 960, params.copy(cloudiness = 0f, cloudLayers = null, moonVisible = false), 336f, renderer)
 		try {
 			val cloudyDetail = lunarDetailEnergy(cloudy, cloudyControl)
 			val clearDetail = lunarDetailEnergy(clear, clearControl)
@@ -581,6 +581,10 @@ class MoonRenderingTest {
 		bitmap100.recycle()
 		bitmap200.recycle()
 	}
+
+	/** Isolate a low-cloud edge without a distant veil or the partly-cloudy support bank crossing the exposed lunar pixels. */
+	private fun isolatedLowCloudParams(moonPhase: Float = 0.5f) =
+		clearNightParams(moonPhase = moonPhase, cloudiness = 0.5f).copy(cloudLayers = SceneCloudLayers(low = 0.5f, mid = 0f, high = 0f))
 
 	private fun clearNightParams(
 		moonPhase: Float = 0.5f,
