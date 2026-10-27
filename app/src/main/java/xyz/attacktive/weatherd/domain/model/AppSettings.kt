@@ -6,6 +6,7 @@ data class AppSettings(
 	val weatherProvider: WeatherProviderType = WeatherProviderType.OPEN_METEO,
 	val weatherFallbackProvider: WeatherProviderType = WeatherProviderType.OPEN_METEO,
 	val updateIntervalMinutes: Int = 30,
+	val hideStaleWeatherWarning: Boolean = false,
 	val useDeviceLocation: Boolean = true,
 	val manualLatitude: Double? = null,
 	val manualLongitude: Double? = null,

@@ -252,4 +252,10 @@
 	<string name="content_description_preset_options">Plus d’options pour %1$s</string>
 	<string name="save">Enregistrer</string>
 	<string name="cancel">Annuler</string>
+	<string name="hide_stale_weather_warning">Masquer l’avertissement de météo périmée</string>
+	<string name="hide_stale_weather_warning_summary">Masque l’avertissement dans l’aperçu et le fond d’écran. L’état météo reste visible ici.</string>
+	<string name="stale_weather_title">Dernière météo connue</string>
+	<string name="stale_weather_location">Dernière météo connue pour %1$s</string>
+	<string name="stale_weather_updated">Mise à jour %1$s</string>
+	<string name="weather_unavailable">Météo indisponible</string>
 </resources>

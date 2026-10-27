@@ -61,7 +61,8 @@ class MissingSolarTimesWeatherSceneProviderTest {
 		settingsRepository,
 		photoBackgroundRepository,
 		logger,
-		applicationScope
+		applicationScope,
+		weatherCacheFixture()
 	)
 
 	@After

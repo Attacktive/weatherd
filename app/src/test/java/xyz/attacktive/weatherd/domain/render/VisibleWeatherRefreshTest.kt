@@ -171,7 +171,7 @@ class VisibleWeatherRefreshTest {
 		private val photos = mockk<PhotoBackgroundRepository> {
 			every { state } returns MutableStateFlow(PhotoBackgroundState(emptySet()))
 		}
-		val provider = WeatherSceneProvider(mockk<Context>(relaxed = true), locations, weather, mockk<ReverseGeocodingRepository>(), repository, photos, mockk<AppLogger>(relaxed = true), scope)
+		val provider = WeatherSceneProvider(mockk<Context>(relaxed = true), locations, weather, mockk<ReverseGeocodingRepository>(), repository, photos, mockk<AppLogger>(relaxed = true), scope, weatherCacheFixture())
 
 		init {
 			coEvery { weather.current(any(), any()) } returns Result.success(snapshot)

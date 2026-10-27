@@ -119,7 +119,8 @@ class HomeViewModelTest {
 			settingsRepository = repository,
 			photoBackgroundRepository = photos,
 			logger = mockk<AppLogger>(relaxed = true),
-			applicationScope = backgroundScope
+			applicationScope = backgroundScope,
+			weatherCacheRepository = xyz.attacktive.weatherd.domain.render.weatherCacheFixture()
 		)
 
 		val viewModel = HomeViewModel(provider, photos, repository, mockk<LensFlareMotionSensor>())

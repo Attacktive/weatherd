@@ -252,4 +252,10 @@
 	<string name="content_description_preset_options">%1$s için diğer seçenekler</string>
 	<string name="save">Kaydet</string>
 	<string name="cancel">İptal</string>
+	<string name="hide_stale_weather_warning">Güncel olmayan hava durumu uyarısını gizle</string>
+	<string name="hide_stale_weather_warning_summary">Önizleme ve duvar kağıdındaki uyarıyı gizler. Hava durumu bilgisi burada görünmeye devam eder.</string>
+	<string name="stale_weather_title">Bilinen son hava durumu</string>
+	<string name="stale_weather_location">%1$s için bilinen son hava durumu</string>
+	<string name="stale_weather_updated">Güncellendi: %1$s</string>
+	<string name="weather_unavailable">Hava durumu kullanılamıyor</string>
 </resources>

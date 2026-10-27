@@ -123,6 +123,13 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 		}
 	}
 
+	// Keep relative warning age ticking after animation settles, without invalidating the backdrop.
+	val noticeEpochSeconds = if (params.weatherNotice != null) {
+		clockSeconds / 60L * 60L
+	} else {
+		0L
+	}
+
 	val moonEnabledAtNight = params.dayPhase == DayPhase.NIGHT && params.moonVisible
 	var moonPhaseReady by remember(renderer, params.moonPhase) { mutableStateOf(renderer.isMoonPhaseReady(params.moonPhase)) }
 
@@ -282,7 +289,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 					renderer.lensFlareOffsetX = motionSensor.offsetX
 					renderer.lensFlareOffsetY = motionSensor.offsetY
 					renderer.renderForeground(canvas.nativeCanvas, widthPx, heightPx, params, timeSeconds, includeOverlayLabels = false)
-					screenEffects.render(canvas.nativeCanvas, widthPx, heightPx, params, timeSeconds)
+					screenEffects.render(canvas.nativeCanvas, widthPx, heightPx, params, timeSeconds, noticeEpochSeconds)
 				}
 			}
 		}

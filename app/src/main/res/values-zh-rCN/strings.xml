@@ -252,4 +252,10 @@
 	<string name="content_description_preset_options">%1$s 的更多选项</string>
 	<string name="save">保存</string>
 	<string name="cancel">取消</string>
+	<string name="hide_stale_weather_warning">隐藏天气数据过期警告</string>
+	<string name="hide_stale_weather_warning_summary">隐藏预览和壁纸上的提示。天气状态仍会在此处显示。</string>
+	<string name="stale_weather_title">上次获取的天气</string>
+	<string name="stale_weather_location">%1$s上次获取的天气</string>
+	<string name="stale_weather_updated">更新于%1$s</string>
+	<string name="weather_unavailable">天气信息不可用</string>
 </resources>

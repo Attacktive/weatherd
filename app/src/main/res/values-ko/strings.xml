@@ -252,4 +252,10 @@
 	<string name="content_description_preset_options">%1$s 추가 옵션</string>
 	<string name="save">저장</string>
 	<string name="cancel">취소</string>
+	<string name="hide_stale_weather_warning">오래된 날씨 정보 경고 숨기기</string>
+	<string name="hide_stale_weather_warning_summary">미리보기와 배경화면의 알림을 숨깁니다. 날씨 상태는 여기에 계속 표시됩니다.</string>
+	<string name="stale_weather_title">마지막으로 확인된 날씨</string>
+	<string name="stale_weather_location">%1$s의 마지막으로 확인된 날씨</string>
+	<string name="stale_weather_updated">업데이트: %1$s</string>
+	<string name="weather_unavailable">날씨 정보 없음</string>
 </resources>

@@ -75,6 +75,8 @@ import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.WeatherSource
 import xyz.attacktive.weatherd.domain.model.globalWeatherProviders
 import xyz.attacktive.weatherd.domain.render.WeatherSceneStatus
+import xyz.attacktive.weatherd.domain.render.WeatherNotice
+import xyz.attacktive.weatherd.domain.render.weatherNoticeTitle
 import xyz.attacktive.weatherd.domain.model.UPDATE_INTERVAL_OPTIONS
 import xyz.attacktive.weatherd.platform.HomeLauncher
 import xyz.attacktive.weatherd.platform.currentHomeLauncher
@@ -225,6 +227,15 @@ private fun WeatherSettingsTab(viewModel: SettingsViewModel, scrollState: Scroll
 
 		Spacer(modifier = Modifier.height(24.dp))
 
+		ToggleSetting(
+			label = stringResource(R.string.hide_stale_weather_warning),
+			subtitle = stringResource(R.string.hide_stale_weather_warning_summary),
+			checked = settings.hideStaleWeatherWarning,
+			onToggle = { onSave(settings.copy(hideStaleWeatherWarning = it)) }
+		)
+
+		Spacer(modifier = Modifier.height(24.dp))
+
 		WeatherComparisonSection(settings)
 
 		if (settings.weatherProvider == WeatherProviderType.MET_NORWAY || settings.weatherFallbackProvider == WeatherProviderType.MET_NORWAY) {
@@ -304,6 +315,7 @@ private data class CurrentLocationSummaryState(
 	val locationLabel: String?,
 	val lastRefreshEpochSeconds: Long?,
 	val lastFailureEpochSeconds: Long?,
+	val weatherNotice: WeatherNotice?,
 	val weatherSource: WeatherSource?,
 	val refreshInProgress: Boolean,
 	val onClear: (() -> Unit)?
@@ -610,6 +622,7 @@ private fun LocationSection(
 		locationLabel = if (manualLocationSelected) settings.manualLocationLabel else state.weatherStatus.locationLabel,
 		lastRefreshEpochSeconds = state.weatherStatus.lastRefreshEpochSeconds,
 		lastFailureEpochSeconds = state.weatherStatus.lastFailureEpochSeconds,
+		weatherNotice = state.weatherStatus.weatherNotice,
 		weatherSource = state.weatherStatus.weatherSource,
 		refreshInProgress = state.weatherRefreshInProgress,
 		onClear = locationActions.onClearManualLocation.takeIf { manualLocationSelected }
@@ -737,6 +750,14 @@ private fun CurrentLocationSummary(state: CurrentLocationSummaryState, onRefresh
 				style = MaterialTheme.typography.bodySmall,
 				color = MaterialTheme.colorScheme.onSurfaceVariant
 			)
+
+			state.weatherNotice?.let {
+				Text(
+					weatherNoticeTitle(LocalContext.current.resources, it),
+					style = MaterialTheme.typography.bodySmall,
+					color = MaterialTheme.colorScheme.error
+				)
+			}
 
 			if (state.lastFailureEpochSeconds != null) {
 				Text(

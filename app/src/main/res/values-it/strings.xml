@@ -252,4 +252,10 @@
 	<string name="content_description_preset_options">Altre opzioni per %1$s</string>
 	<string name="save">Salva</string>
 	<string name="cancel">Annulla</string>
+	<string name="hide_stale_weather_warning">Nascondi avviso meteo non aggiornato</string>
+	<string name="hide_stale_weather_warning_summary">Nasconde l’avviso nell’anteprima e sullo sfondo. Lo stato del meteo rimane visibile qui.</string>
+	<string name="stale_weather_title">Ultimo meteo disponibile</string>
+	<string name="stale_weather_location">Ultimo meteo disponibile per %1$s</string>
+	<string name="stale_weather_updated">Aggiornato %1$s</string>
+	<string name="weather_unavailable">Meteo non disponibile</string>
 </resources>

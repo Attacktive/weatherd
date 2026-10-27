@@ -54,7 +54,8 @@ class HumidityWeatherSceneProviderTest {
 		settingsRepository,
 		photoBackgroundRepository,
 		logger,
-		applicationScope
+		applicationScope,
+		weatherCacheFixture()
 	)
 
 	@After
@@ -89,7 +90,7 @@ class HumidityWeatherSceneProviderTest {
 	}
 
 	@Test
-	fun `fallback never uses humidity from a mismatched cached target`() {
+	fun `retained weather preserves humidity until matching weather replaces it`() {
 		val seoulSettings = manualSettings(latitude = 37.57, longitude = 126.98)
 		val seoulTarget = WeatherSceneTarget.from(seoulSettings)
 		val humidSnapshot = snapshot(relativeHumidityPercent = 100.0)
@@ -103,7 +104,7 @@ class HumidityWeatherSceneProviderTest {
 		val fallback = provider.paramsFor(NOW, mismatchedState, debugToolsAvailable = false)
 
 		assertEquals(0f, fallback.fogDensity, TOLERANCE)
-		assertEquals(0f, fallback.humidityHazeDensity, TOLERANCE)
+		assertEquals(0.25f, fallback.humidityHazeDensity, TOLERANCE)
 
 		val matchingLowHumidityState = WeatherSceneState(
 			settings = busanSettings,

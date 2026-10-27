@@ -1,5 +1,8 @@
 package xyz.attacktive.weatherd.domain.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class WeatherCondition(
 	val label: WeatherLabel? = null,
 	val precipitationKind: PrecipitationKind? = null,

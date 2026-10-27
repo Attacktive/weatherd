@@ -252,4 +252,10 @@
 	<string name="content_description_preset_options">%1$sのその他のオプション</string>
 	<string name="save">保存</string>
 	<string name="cancel">キャンセル</string>
+	<string name="hide_stale_weather_warning">古い天気情報の警告を非表示</string>
+	<string name="hide_stale_weather_warning_summary">プレビューと壁紙の通知を非表示にします。天気の状態はここに表示されます。</string>
+	<string name="stale_weather_title">最後に取得した天気</string>
+	<string name="stale_weather_location">%1$sの最後に取得した天気</string>
+	<string name="stale_weather_updated">更新：%1$s</string>
+	<string name="weather_unavailable">天気情報を取得できません</string>
 </resources>

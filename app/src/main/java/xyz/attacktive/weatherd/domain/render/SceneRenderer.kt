@@ -71,6 +71,9 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 	private val sunGlare by lazy(LazyThreadSafetyMode.NONE) { SunGlareLayer(resources) }
 	private val moonLayer = MoonLayer(resources)
 	private val moonOcclusion = MoonOcclusionLayer()
+	private val weatherNoticeLayer = WeatherNoticeLayer(resources)
+	private var overlayDrawnTop = Float.POSITIVE_INFINITY
+	private var overlayDrawnBottom = Float.NEGATIVE_INFINITY
 	private var frameMoon: MoonLayer.PreparedPhase? = null
 	private var moonMaskBankReady = false
 	private val birdPath = Path()
@@ -382,10 +385,14 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 	}
 
 	/** Draws the optional weather/location HUD independently of scene translation, so live-wallpaper parallax does not slide interface text across launcher pages. */
-	fun renderOverlayLabels(canvas: Canvas, width: Int, height: Int, params: SceneParams) {
+	fun renderOverlayLabels(canvas: Canvas, width: Int, height: Int, params: SceneParams, noticeEpochSeconds: Long = System.currentTimeMillis() / 1000L) {
+		overlayDrawnTop = Float.POSITIVE_INFINITY
+		overlayDrawnBottom = Float.NEGATIVE_INFINITY
 		params.overlayLabels?.let {
 			drawOverlayLabels(canvas, width.toFloat(), height.toFloat(), it, params.labelVerticalPosition)
 		}
+
+		weatherNoticeLayer.draw(canvas, width, height, params.weatherNotice, overlayDrawnTop, overlayDrawnBottom, noticeEpochSeconds * 1000L)
 	}
 
 	/**
@@ -406,6 +413,9 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		} else {
 			lerp(0f, overlayTextBottomOffset, (position - DEFAULT_LABEL_VERTICAL_POSITION) / (1f - DEFAULT_LABEL_VERTICAL_POSITION))
 		}
+
+		overlayDrawnTop = overlayTextTop + offset
+		overlayDrawnBottom = height - overlayTextBottomOffset + offset
 
 		textPaint.setShadowLayer(height * 0.005f, 0f, height * 0.0012f, Color.argb(165, 8, 12, 20))
 

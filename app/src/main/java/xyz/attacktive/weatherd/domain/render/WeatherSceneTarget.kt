@@ -1,10 +1,12 @@
 package xyz.attacktive.weatherd.domain.render
 
+import kotlinx.serialization.Serializable
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.GeoLocation
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 
 /** The requested location source and provider configuration, distinct from the provider that ultimately supplies fallback weather. */
+@Serializable
 data class WeatherSceneTarget(
 	val useDeviceLocation: Boolean,
 	val latitude: Double?,

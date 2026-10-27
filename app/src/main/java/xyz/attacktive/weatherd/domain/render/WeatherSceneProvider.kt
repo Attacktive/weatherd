@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -29,6 +30,8 @@ import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
 import xyz.attacktive.weatherd.domain.model.WeatherSource
 import xyz.attacktive.weatherd.domain.model.normalizeRainbowSizeScale
+import xyz.attacktive.weatherd.domain.repository.CachedWeather
+import xyz.attacktive.weatherd.domain.repository.WeatherCacheRepository
 import xyz.attacktive.weatherd.domain.repository.LocationRepository
 import xyz.attacktive.weatherd.domain.repository.PhotoBackgroundRepository
 import xyz.attacktive.weatherd.domain.repository.ReverseGeocodingRepository
@@ -45,7 +48,8 @@ data class WeatherSceneStatus(
 	val locationLabel: String? = null,
 	val lastRefreshEpochSeconds: Long? = null,
 	val weatherSource: WeatherSource? = null,
-	val lastFailureEpochSeconds: Long? = null
+	val lastFailureEpochSeconds: Long? = null,
+	val weatherNotice: WeatherNotice? = null
 )
 
 /** Immutable scene inputs; changing the selected scene never needs to acquire weather. */
@@ -56,10 +60,22 @@ data class WeatherSceneState(
 	val deviceLocation: GeoLocation? = null,
 	val photoRevision: Int = 0,
 	val locationLabel: String? = null,
-	val locationLabelTarget: WeatherSceneTarget? = null
+	val locationLabelTarget: WeatherSceneTarget? = null,
+	val snapshotNotice: WeatherNotice? = null,
+	val refreshFailed: Boolean = false,
+	val restoredSnapshot: Boolean = false
 ) {
 	val simulatorActive: Boolean
 		get() = sceneSimulatorOverridesWeather(settings.sceneSimulatorActive, settings.sceneSimulatorEnabled, debugToolsEnabled)
+
+	val weatherNotice: WeatherNotice?
+		get() = if (snapshot == null) {
+			WeatherNotice.UNAVAILABLE
+		} else if (refreshFailed || restoredSnapshot || snapshotTarget?.matchesWeather(settings, deviceLocation) != true) {
+			snapshotNotice
+		} else {
+			null
+		}
 }
 
 private data class WeatherRefreshTarget(
@@ -116,9 +132,10 @@ class WeatherSceneProvider @Inject constructor(
 	private val settingsRepository: SettingsRepository,
 	private val photoBackgroundRepository: PhotoBackgroundRepository,
 	private val logger: AppLogger,
-	@ApplicationScope private val applicationScope: CoroutineScope
+	@ApplicationScope private val applicationScope: CoroutineScope,
+	private val weatherCacheRepository: WeatherCacheRepository
 ) {
-	private val _status = MutableStateFlow(WeatherSceneStatus())
+	private val _status = MutableStateFlow(WeatherSceneStatus(weatherNotice = WeatherNotice.UNAVAILABLE))
 	val status: StateFlow<WeatherSceneStatus> = _status.asStateFlow()
 
 	private val _sceneState = MutableStateFlow(WeatherSceneState(settingsRepository.defaults))
@@ -150,8 +167,8 @@ class WeatherSceneProvider @Inject constructor(
 	private val lastDeviceFix: GeoLocation?
 		get() = _sceneState.value.deviceLocation
 
-	@Volatile private var lastRefreshLocation: GeoLocation? = null
 	@Volatile private var geocodedKey: String? = null
+	private val cacheWrites = MutableStateFlow<CachedWeather?>(null)
 
 	init {
 		applicationScope.launch(start = CoroutineStart.UNDISPATCHED) {
@@ -165,7 +182,30 @@ class WeatherSceneProvider @Inject constructor(
 				settings to photoRevision
 			}.collect { (settings, revision) ->
 				_sceneState.update { it.copy(settings = settings, photoRevision = revision) }
+				publishStatus(settings)
 			}
+		}
+
+		applicationScope.launch {
+			val cached = weatherCacheRepository.load()
+			if (cached != null) {
+				synchronized(weatherRequestLock) {
+					if (snapshot == null) {
+						_sceneState.update {
+							it.copy(
+								snapshot = cached.snapshot,
+								snapshotTarget = cached.target,
+								snapshotNotice = cached.notice,
+								restoredSnapshot = true
+							)
+						}
+						lastRefreshEpochSeconds = cached.refreshedAtEpochSeconds
+						publishStatus(sceneState.value.settings)
+					}
+				}
+			}
+
+			cacheWrites.filterNotNull().collect { weatherCacheRepository.save(it) }
 		}
 	}
 
@@ -176,11 +216,9 @@ class WeatherSceneProvider @Inject constructor(
 		}
 
 		val snapshot = state.snapshot ?: return@with fallbackParams(nowEpochSeconds, state)
-		if (state.snapshotTarget?.matchesWeather(state.settings, state.deviceLocation) != true) {
-			return@with fallbackParams(nowEpochSeconds, state)
-		}
 
 		sceneParamsFor(
+			weatherNotice = state.weatherNotice.takeUnless { hideStaleWeatherWarning },
 			snapshot = snapshot,
 			nowEpochSeconds = nowEpochSeconds,
 			backdropScene = backdropScene,
@@ -282,8 +320,18 @@ class WeatherSceneProvider @Inject constructor(
 			return Result.success(WeatherRefreshOutcome.SKIPPED)
 		}
 
+		val publishedBeforeLocation = synchronized(weatherRequestLock) { lastPublishedWeatherRequestSequence }
 		val location = resolveLocation(settings)
 		if (location == null) {
+			if (weatherRequestIsCurrent(settings)) {
+				synchronized(weatherRequestLock) {
+					if (lastPublishedWeatherRequestSequence == publishedBeforeLocation) {
+						_sceneState.update { it.copy(refreshFailed = true) }
+						publishStatus(settings)
+					}
+				}
+			}
+
 			logger.debug(TAG, "no location fix; keeping ${weatherFallbackDescription()}")
 			return Result.success(WeatherRefreshOutcome.SKIPPED)
 		}
@@ -309,6 +357,13 @@ class WeatherSceneProvider @Inject constructor(
 		lastAttemptedWeatherProvider = settings.weatherProvider
 		lastAttemptedWeatherFallbackProvider = settings.weatherFallbackProvider
 		val request = beginWeatherRequest(settings, location)
+		val requestState = sceneState.value
+		val requestLocationLabel = if (!WeatherSceneTarget.selectsDeviceLocation(settings)) {
+			settings.manualLocationLabel
+		} else {
+			requestState.locationLabel.takeIf { requestState.locationLabelTarget?.matchesLocation(settings, location) == true }
+		}
+
 		val weatherResult = weatherRepository.current(location.latitude, location.longitude)
 		if (weatherResult.isFailure) {
 			publishWeatherFailure(request, settings, location, nowEpochSeconds)
@@ -318,7 +373,7 @@ class WeatherSceneProvider @Inject constructor(
 		val latestSettings = settingsRepository.settings.first()
 
 		return weatherResult.map { weather ->
-			if (!publishWeatherResponse(request, settings, latestSettings, weather, nowEpochSeconds, locationKey, location)) {
+			if (!publishWeatherResponse(request, settings, latestSettings, weather, nowEpochSeconds, locationKey, location, requestLocationLabel)) {
 				logger.debug(TAG, "discarding obsolete weather response")
 				return@map WeatherRefreshOutcome.SKIPPED
 			}
@@ -335,6 +390,10 @@ class WeatherSceneProvider @Inject constructor(
 		val failure = refreshFailure?.takeIf { it.target.matchesWeather(settings, state.deviceLocation) }
 		if (failure != null) {
 			return !force && nowEpochSeconds >= failure.epochSeconds && nowEpochSeconds - failure.epochSeconds < failure.retryDelaySeconds
+		}
+
+		if (state.restoredSnapshot) {
+			return false
 		}
 
 		val locationChanged = locationKey != lastLocationKey || state.snapshotTarget?.matchesLocation(settings, state.deviceLocation) == false
@@ -363,6 +422,7 @@ class WeatherSceneProvider @Inject constructor(
 				INITIAL_RETRY_SECONDS
 			}
 			refreshFailure = WeatherRefreshFailure(request, target, nowEpochSeconds, delay)
+			_sceneState.update { it.copy(refreshFailed = true) }
 			publishStatus(settings)
 		}
 	}
@@ -408,7 +468,8 @@ class WeatherSceneProvider @Inject constructor(
 		weather: WeatherSnapshot,
 		nowEpochSeconds: Long,
 		locationKey: String,
-		location: GeoLocation
+		location: GeoLocation,
+		requestLocationLabel: String?
 	): Boolean {
 		if (!sameWeatherRequest(requestSettings, latestSettings)) {
 			return false
@@ -423,11 +484,20 @@ class WeatherSceneProvider @Inject constructor(
 					refreshFailure = null
 				}
 				val target = WeatherSceneTarget.from(requestSettings, location)
-				_sceneState.update { it.copy(snapshot = weather, snapshotTarget = target) }
+				val cached = CachedWeather(weather, target, nowEpochSeconds, requestLocationLabel)
+				_sceneState.update {
+					it.copy(
+						snapshot = weather,
+						snapshotTarget = target,
+						snapshotNotice = cached.notice,
+						refreshFailed = refreshFailure != null,
+						restoredSnapshot = false
+					)
+				}
+				cacheWrites.value = cached
 
 				lastRefreshEpochSeconds = nowEpochSeconds
 				lastLocationKey = locationKey
-				lastRefreshLocation = location
 				publishStatus(requestSettings)
 				true
 			}
@@ -582,6 +652,7 @@ class WeatherSceneProvider @Inject constructor(
 
 		if (location != lastDeviceFix) {
 			_sceneState.update { it.copy(deviceLocation = location, locationLabel = null, locationLabelTarget = null) }
+			publishStatus(settings)
 
 			geocodedKey = null
 		}
@@ -592,15 +663,16 @@ class WeatherSceneProvider @Inject constructor(
 		val currentLocation = manual ?: lastDeviceFix
 		val currentFixKey = currentLocation?.let(::locationFixKey)
 		val statusLabel = manual?.let { settings.manualLocationLabel } ?: deviceLocationLabel(currentFixKey)
-		val hasCurrentSnapshot = currentLocation != null && currentLocation == lastRefreshLocation
-		val lastUpdated = lastRefreshEpochSeconds.takeIf { hasCurrentSnapshot }
-		val weatherSource = snapshot?.source.takeIf { hasCurrentSnapshot }
+		val state = sceneState.value
+		val lastUpdated = state.snapshotNotice?.refreshedAtEpochSeconds
+		val weatherSource = state.snapshot?.source
 
 		_status.value = WeatherSceneStatus(
 			locationLabel = statusLabel,
 			lastRefreshEpochSeconds = lastUpdated,
 			weatherSource = weatherSource,
-			lastFailureEpochSeconds = refreshFailure?.takeIf { it.target.matchesWeather(settings, lastDeviceFix) }?.epochSeconds
+			lastFailureEpochSeconds = refreshFailure?.takeIf { it.target.matchesWeather(settings, lastDeviceFix) }?.epochSeconds,
+			weatherNotice = state.weatherNotice
 		)
 	}
 
@@ -625,7 +697,11 @@ class WeatherSceneProvider @Inject constructor(
 		}
 
 		val location = if (showLocationLabel) {
-			displayedLocationLabel(state)
+			if (snapshot != null && state.snapshotTarget?.matchesLocation(state.settings, state.deviceLocation) != true) {
+				state.snapshotNotice?.locationLabel
+			} else {
+				displayedLocationLabel(state)
+			}
 		} else {
 			null
 		}
@@ -676,6 +752,7 @@ class WeatherSceneProvider @Inject constructor(
 		}
 
 		SceneParams(
+			weatherNotice = WeatherNotice.UNAVAILABLE.takeUnless { hideStaleWeatherWarning },
 			dayPhase = phase,
 			cloudiness = 0.05f,
 			fogDensity = 0f,

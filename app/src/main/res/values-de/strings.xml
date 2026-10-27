@@ -252,4 +252,10 @@
 	<string name="content_description_preset_options">Weitere Optionen für %1$s</string>
 	<string name="save">Speichern</string>
 	<string name="cancel">Abbrechen</string>
+	<string name="hide_stale_weather_warning">Warnung bei veralteten Wetterdaten ausblenden</string>
+	<string name="hide_stale_weather_warning_summary">Blendet den Hinweis in Vorschau und Hintergrund aus. Der Wetterstatus bleibt hier sichtbar.</string>
+	<string name="stale_weather_title">Zuletzt bekanntes Wetter</string>
+	<string name="stale_weather_location">Zuletzt bekanntes Wetter für %1$s</string>
+	<string name="stale_weather_updated">Aktualisiert %1$s</string>
+	<string name="weather_unavailable">Wetter nicht verfügbar</string>
 </resources>

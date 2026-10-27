@@ -121,6 +121,11 @@ The 15-minute–6-hour refresh interval is a minimum between automatic fetches, 
 Check on preview resume, wallpaper visibility, and relevant location/provider changes; **Refresh now** and the widget bypass the interval.
 Regional model selection uses published grids and the explicit Open-Meteo model identifier; outside coverage or after primary failure, make at most one request to the configured global fallback without rewriting either preference.
 Cache the provider that actually returned the weather.
+Retain the last successful forecast across refresh failures, target changes, and offline restarts; never replace it with clear weather merely because the current request has no result.
+Persist one versioned record with its requested target, actual provider, original place label when available, and successful-refresh timestamp; simulation and failed or obsolete responses must never overwrite it.
+Restored, failed-refresh, and target-mismatched weather is explicitly last-known weather until a current-target request succeeds. With no usable history, report weather unavailable.
+The preview and wallpaper share the same screen-anchored notice independently of normal label visibility; **Settings → Weather → Hide stale-weather warning** defaults off and hides only that scene notice, never Settings status. Simulation suppresses the live notice.
+Keep retained-weather provenance separate from the selected location, preserve request-order guards and retry backoff, and keep day/night lighting advancing. See [last-success weather](docs/development.md#last-success-weather-and-stale-status) for the persistence and verification contract.
 The widget queues network-constrained work: acknowledge a tap immediately, animate progress when accepted work starts, then show a brief ✓ for completed refresh or ! for incomplete refresh, including unavailable location/final provider failure.
 Offline requests wait for network; **Settings → Weather → Last updated** reports refresh time even if the scene looks unchanged.
 After app updates, republish the refresh action without opening the app or forcing a fetch; ignore initialization-time taps rather than launching the preview.
@@ -153,13 +158,13 @@ It pins meteorological conditions (cloud cover, precipitation kind/severity, fog
 The simulator state is persisted through `SettingsRepository` and observed independently of location/weather acquisition in `WeatherSceneProvider.sceneState`.
 `WeatherSceneState` publishes immutable settings, cached weather, photo revision, and location-label inputs; both surfaces derive their scene through `paramsFor` from a single captured state.
 Disabling simulation selects cached weather or the normal clock-lit fallback without waiting for a refresh.
-Without matching weather, use locally calculated approximate sunrise/sunset and celestial progress for the selected city or known device fix and date, including polar day/night.
+Without any retained weather, use locally calculated approximate sunrise/sunset and celestial progress for the selected city or known device fix and date, including polar day/night.
 Only unavailable/invalid locations use coarse device-local clock timing; valid provider solar times and explicit simulation retain precedence.
 Weather acquisition remains separate so slow or failed requests cannot block mode switching or replace cached real weather with simulated conditions.
-Cached snapshots are rendered only when `snapshotTarget` matches the effective location source, manual or known device coordinates, and requested primary/fallback provider configuration in the captured settings.
+`snapshotTarget` matching determines freshness and acquisition eligibility, not whether the last-success snapshot may render; a mismatched snapshot remains visible with its stale notice.
 The actual provider attribution in `WeatherSnapshot.source` may differ from that requested configuration after fallback; never use actual attribution as the cache-target key.
-Manual location labels derive from the captured settings; geocoded labels carry `locationLabelTarget` and are shown only for a matching location source.
-`deviceLocation` captures the most recently known device fix; if a simulator status refresh observes a different point, the old snapshot is hidden and its refresh interval cannot throttle acquisition for the new point.
+Current manual location labels derive from the captured settings; geocoded labels carry `locationLabelTarget`. When displaying retained weather for a different location, use its original cached place label instead of pairing it with the newly selected place.
+`deviceLocation` captures the most recently known device fix; if a simulator status refresh observes a different point, the old snapshot becomes stale and its refresh interval cannot throttle acquisition for the new point.
 The preview reacts to state emissions, and the wallpaper invalidates its parameter cache when the state identity changes; unchanged inputs retain the once-per-second clock update.
 Never put weather I/O inside the simulator-settings mutation lock or a settings collector.
 Overlapping ordinary refreshes for the latest weather/location target share application-scoped work; changing targets or starting a forced refresh prevents reuse of obsolete work.

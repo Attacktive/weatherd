@@ -208,12 +208,98 @@ class WeatherSceneProviderTest {
 
 	private val applicationScope = CoroutineScope(UnconfinedTestDispatcher())
 	private val provider by lazy {
-		WeatherSceneProvider(context, locationRepository, weatherRepository, reverseGeocodingRepository, settingsRepository, photoBackgroundRepository, logger, applicationScope)
+		WeatherSceneProvider(context, locationRepository, weatherRepository, reverseGeocodingRepository, settingsRepository, photoBackgroundRepository, logger, applicationScope, weatherCacheFixture())
 	}
 
 	@After
 	fun cancelSettingsCollection() {
 		applicationScope.cancel()
+	}
+
+	@Test
+	fun `changed device fix retains last weather through failure and replaces it on recovery`() = runTest {
+		persistedSettings.value = AppSettings(useDeviceLocation = true)
+		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
+		coEvery { weatherRepository.current(any(), any()) } returns Result.success(snapshotWith(weatherCode = 63))
+		provider.refresh(1_000_000L, force = true)
+		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.520001, 13.40)
+		coEvery { weatherRepository.current(any(), any()) } coAnswers {
+			assertEquals(PrecipitationKind.RAIN, provider.paramsFor(1_000_060L).precipitation?.kind)
+			Result.failure(IllegalStateException("offline"))
+		}
+
+		provider.refresh(1_000_060L, force = true)
+		assertEquals(PrecipitationKind.RAIN, provider.paramsFor(1_000_060L).precipitation?.kind)
+		assertEquals(1_000_000L, provider.status.value.lastRefreshEpochSeconds)
+		coEvery { weatherRepository.current(any(), any()) } returns Result.success(snapshotWith(weatherCode = 71))
+		provider.refresh(1_000_120L, force = true)
+		assertEquals(PrecipitationKind.SNOW, provider.paramsFor(1_000_120L).precipitation?.kind)
+		assertEquals(1_000_120L, provider.status.value.lastRefreshEpochSeconds)
+	}
+
+	@Test
+	fun `obsolete missing device fix cannot mark a newer manual success stale`() = runTest {
+		assertObsoleteMissingFixPreservesSuccess(changeToManual = true)
+	}
+
+	@Test
+	fun `older missing device fix cannot mark a newer same-target success stale`() = runTest {
+		assertObsoleteMissingFixPreservesSuccess(changeToManual = false)
+	}
+
+	private suspend fun kotlinx.coroutines.test.TestScope.assertObsoleteMissingFixPreservesSuccess(changeToManual: Boolean) {
+		val started = CompletableDeferred<Unit>()
+		val release = CompletableDeferred<Unit>()
+		coEvery { locationRepository.currentLocation() } coAnswers {
+			started.complete(Unit)
+			release.await()
+			null
+		}
+		val obsolete = async { provider.refresh(1_000_000L, force = true) }
+		started.await()
+		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
+		if (changeToManual) {
+			persistedSettings.value = AppSettings(useDeviceLocation = false, manualLatitude = 48.14, manualLongitude = 11.58)
+		}
+
+		coEvery { weatherRepository.current(any(), any()) } returns Result.success(snapshotWith(weatherCode = 63))
+		try {
+			provider.refresh(1_000_060L, force = true)
+		} finally {
+			release.complete(Unit)
+		}
+
+		obsolete.await()
+		assertNull(provider.paramsFor(1_000_060L).weatherNotice)
+		assertNull(provider.status.value.weatherNotice)
+		assertEquals(1_000_060L, provider.status.value.lastRefreshEpochSeconds)
+	}
+
+	@Test
+	fun `pending response retains its own place name after simulator location changes`() = runTest {
+		persistedSettings.value = AppSettings(useDeviceLocation = true, showLocationLabel = true)
+		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40) andThen GeoLocation(48.14, 11.58)
+		coEvery { reverseGeocodingRepository.placeName(52.52, 13.40) } returns "Berlin"
+		coEvery { reverseGeocodingRepository.placeName(48.14, 11.58) } returns "Munich"
+		val started = CompletableDeferred<Unit>()
+		val response = CompletableDeferred<Result<WeatherSnapshot>>()
+		coEvery { weatherRepository.current(52.52, 13.40) } coAnswers {
+			started.complete(Unit)
+			response.await()
+		}
+		val refresh = async { provider.refresh(1_000_000L, force = true) }
+		started.await()
+		try {
+			persistedSettings.value = persistedSettings.value.copy(sceneSimulatorActive = true)
+			provider.refresh(1_000_060L, resolveLocationName = true)
+		} finally {
+			response.complete(Result.success(snapshotWith(weatherCode = 63)))
+		}
+
+		refresh.await()
+		persistedSettings.value = persistedSettings.value.copy(sceneSimulatorActive = false)
+		assertEquals("Berlin", provider.paramsFor(1_000_090L).weatherNotice?.locationLabel)
+		assertEquals("Berlin", provider.paramsFor(1_000_090L).overlayLabels?.location)
 	}
 
 	@Test
@@ -953,7 +1039,7 @@ class WeatherSceneProviderTest {
 	}
 
 	@Test
-	fun `clearing a manual city clears status when no device fix is available`() = runTest {
+	fun `clearing a manual city retains last success status without inventing a current fix`() = runTest {
 		val manual = AppSettings(
 			useDeviceLocation = false,
 			manualLatitude = 37.57,
@@ -975,7 +1061,9 @@ class WeatherSceneProviderTest {
 
 		provider.refresh(1_000_060L, resolveLocationName = true)
 
-		assertEquals(WeatherSceneStatus(), provider.status.value)
+		assertNull(provider.status.value.locationLabel)
+		assertEquals(1_000_000L, provider.status.value.lastRefreshEpochSeconds)
+		assertEquals("Seoul", provider.status.value.weatherNotice?.locationLabel)
 	}
 
 	@Test
@@ -1170,7 +1258,7 @@ class WeatherSceneProviderTest {
 	}
 
 	@Test
-	fun `leaving simulation after a city change uses fallback until matching weather arrives`() = runTest {
+	fun `leaving simulation after a city change retains original weather until matching weather arrives`() = runTest {
 		val berlin = AppSettings(useDeviceLocation = false, manualLatitude = 52.52, manualLongitude = 13.40, manualLocationLabel = "Berlin", showWeatherLabel = true, showLocationLabel = true)
 		persistedSettings.value = berlin
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 63))
@@ -1185,8 +1273,9 @@ class WeatherSceneProviderTest {
 		persistedSettings.value = munich
 
 		val fallback = provider.paramsFor(1_000_120L)
-		assertNull(fallback.precipitation)
-		assertEquals(OverlayLabels(weather = null, location = "Munich"), fallback.overlayLabels)
+		assertEquals(PrecipitationKind.RAIN, fallback.precipitation?.kind)
+		assertEquals("Berlin", fallback.overlayLabels?.location)
+		assertEquals("Berlin", fallback.weatherNotice?.locationLabel)
 
 		val response = CompletableDeferred<Result<WeatherSnapshot>>()
 		coEvery { weatherRepository.current(48.14, 11.58) } coAnswers { response.await() }
@@ -1195,8 +1284,8 @@ class WeatherSceneProviderTest {
 
 		runCurrent()
 		try {
-			assertNull(provider.paramsFor(1_000_120L).precipitation)
-			assertEquals(OverlayLabels(weather = null, location = "Munich"), provider.paramsFor(1_000_120L).overlayLabels)
+			assertEquals(PrecipitationKind.RAIN, provider.paramsFor(1_000_120L).precipitation?.kind)
+			assertEquals("Berlin", provider.paramsFor(1_000_120L).overlayLabels?.location)
 			response.complete(Result.success(snapshotWith(weatherCode = 71)))
 			refresh.await()
 			assertEquals(PrecipitationKind.SNOW, provider.paramsFor(1_000_150L).precipitation?.kind)
@@ -1217,14 +1306,15 @@ class WeatherSceneProviderTest {
 		provider.refresh(1_000_060L)
 		persistedSettings.value = persistedSettings.value.copy(sceneSimulatorActive = false)
 
-		assertNull(provider.paramsFor(1_000_090L).precipitation)
+		assertEquals(PrecipitationKind.RAIN, provider.paramsFor(1_000_090L).precipitation?.kind)
+		assertEquals(1_000_000L, provider.paramsFor(1_000_090L).weatherNotice?.refreshedAtEpochSeconds)
 		provider.refresh(1_000_090L)
 		assertEquals(PrecipitationKind.RAIN, provider.paramsFor(1_000_120L).precipitation?.kind)
 		assertEquals(WeatherProviderType.OPEN_METEO, provider.status.value.weatherSource?.provider)
 	}
 
 	@Test
-	fun `changing only the fallback provider invalidates cached weather on simulator exit`() = runTest {
+	fun `changing only the fallback provider marks retained weather stale on simulator exit`() = runTest {
 		val berlin = AppSettings(useDeviceLocation = false, manualLatitude = 52.52, manualLongitude = 13.40)
 		persistedSettings.value = berlin
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 63))
@@ -1233,11 +1323,12 @@ class WeatherSceneProviderTest {
 		provider.refresh(1_000_060L)
 		persistedSettings.value = persistedSettings.value.copy(sceneSimulatorActive = false)
 
-		assertNull(provider.paramsFor(1_000_090L).precipitation)
+		assertEquals(PrecipitationKind.RAIN, provider.paramsFor(1_000_090L).precipitation?.kind)
+		assertEquals(1_000_000L, provider.paramsFor(1_000_090L).weatherNotice?.refreshedAtEpochSeconds)
 	}
 
 	@Test
-	fun `switching from a manual place to device location hides its weather and label`() = runTest {
+	fun `switching from a manual place to device location retains original weather and label`() = runTest {
 		persistedSettings.value = AppSettings(useDeviceLocation = false, manualLatitude = 52.52, manualLongitude = 13.40, manualLocationLabel = "Berlin", showLocationLabel = true)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 63))
 		coEvery { locationRepository.currentLocation() } returns null
@@ -1247,8 +1338,9 @@ class WeatherSceneProviderTest {
 		persistedSettings.value = persistedSettings.value.copy(sceneSimulatorActive = false)
 
 		val fallback = provider.paramsFor(1_000_090L)
-		assertNull(fallback.precipitation)
-		assertNull(fallback.overlayLabels)
+		assertEquals(PrecipitationKind.RAIN, fallback.precipitation?.kind)
+		assertEquals("Berlin", fallback.overlayLabels?.location)
+		assertEquals("Berlin", fallback.weatherNotice?.locationLabel)
 	}
 
 	@Test
@@ -1265,7 +1357,7 @@ class WeatherSceneProviderTest {
 	}
 
 	@Test
-	fun `a known device location change during simulation requires matching weather on exit`() = runTest {
+	fun `a known device location change during simulation retains weather without throttling its replacement`() = runTest {
 		persistedSettings.value = AppSettings(useDeviceLocation = true, showWeatherLabel = true, showLocationLabel = true)
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40) andThen GeoLocation(48.14, 11.58)
 		coEvery { reverseGeocodingRepository.placeName(52.52, 13.40) } returns "Berlin"
@@ -1278,8 +1370,9 @@ class WeatherSceneProviderTest {
 		persistedSettings.value = persistedSettings.value.copy(sceneSimulatorActive = false)
 
 		val fallback = provider.paramsFor(1_000_090L)
-		assertNull(fallback.precipitation)
-		assertEquals(OverlayLabels(weather = null, location = "Munich"), fallback.overlayLabels)
+		assertEquals(PrecipitationKind.RAIN, fallback.precipitation?.kind)
+		assertEquals("Berlin", fallback.overlayLabels?.location)
+		assertEquals("Berlin", fallback.weatherNotice?.locationLabel)
 		provider.refresh(1_000_090L)
 		assertEquals(PrecipitationKind.SNOW, provider.paramsFor(1_000_120L).precipitation?.kind)
 	}

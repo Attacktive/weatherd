@@ -253,4 +253,10 @@
 	<string name="weather_heavy_snow_showers">Heavy snow showers</string>
 	<string name="weather_thunderstorm">Thunderstorm</string>
 	<string name="weather_thunderstorm_with_hail">Thunderstorm with hail</string>
+	<string name="hide_stale_weather_warning">Hide stale-weather warning</string>
+	<string name="hide_stale_weather_warning_summary">Hide the notice on the preview and wallpaper. Weather status remains visible here.</string>
+	<string name="stale_weather_title">Last known weather</string>
+	<string name="stale_weather_location">Last known weather for %1$s</string>
+	<string name="stale_weather_updated">Updated %1$s</string>
+	<string name="weather_unavailable">Weather unavailable</string>
 </resources>

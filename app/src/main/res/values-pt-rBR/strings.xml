@@ -252,4 +252,10 @@
 	<string name="content_description_preset_options">Mais opções para %1$s</string>
 	<string name="save">Salvar</string>
 	<string name="cancel">Cancelar</string>
+	<string name="hide_stale_weather_warning">Ocultar aviso de clima desatualizado</string>
+	<string name="hide_stale_weather_warning_summary">Oculta o aviso na prévia e no papel de parede. O status do clima continua visível aqui.</string>
+	<string name="stale_weather_title">Último clima conhecido</string>
+	<string name="stale_weather_location">Último clima conhecido em %1$s</string>
+	<string name="stale_weather_updated">Atualizado %1$s</string>
+	<string name="weather_unavailable">Clima indisponível</string>
 </resources>

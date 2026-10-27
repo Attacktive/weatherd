@@ -252,4 +252,10 @@
 	<string name="content_description_preset_options">Más opciones para %1$s</string>
 	<string name="save">Guardar</string>
 	<string name="cancel">Cancelar</string>
+	<string name="hide_stale_weather_warning">Ocultar aviso de datos meteorológicos desactualizados</string>
+	<string name="hide_stale_weather_warning_summary">Oculta el aviso en la vista previa y el fondo. El estado del tiempo sigue visible aquí.</string>
+	<string name="stale_weather_title">Último tiempo conocido</string>
+	<string name="stale_weather_location">Último tiempo conocido en %1$s</string>
+	<string name="stale_weather_updated">Actualizado %1$s</string>
+	<string name="weather_unavailable">Tiempo no disponible</string>
 </resources>

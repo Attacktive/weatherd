@@ -1,5 +1,8 @@
 package xyz.attacktive.weatherd.domain.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class WeatherSource(
 	val provider: WeatherProviderType,
 	val model: String? = null,
@@ -18,9 +21,11 @@ enum class PrecipitationWindowDirection {
 }
 
 /** The source-specific accumulation interval, not an instantaneous precipitation rate. */
+@Serializable
 data class PrecipitationWindow(val durationSeconds: Int, val direction: PrecipitationWindowDirection)
 
 /** A current-conditions observation plus its source and the sun times used to tint the scene for time of day. */
+@Serializable
 data class WeatherSnapshot(
 	val observation: WeatherObservation,
 	val observedAtEpochSeconds: Long,

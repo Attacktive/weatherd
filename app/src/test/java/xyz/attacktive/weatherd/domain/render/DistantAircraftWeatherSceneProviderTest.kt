@@ -61,7 +61,8 @@ class DistantAircraftWeatherSceneProviderTest {
 		settingsRepository = settingsRepository,
 		photoBackgroundRepository = photoBackgroundRepository,
 		logger = mockk<AppLogger>(relaxed = true),
-		applicationScope = applicationScope
+		applicationScope = applicationScope,
+		weatherCacheRepository = weatherCacheFixture()
 	)
 
 	@After

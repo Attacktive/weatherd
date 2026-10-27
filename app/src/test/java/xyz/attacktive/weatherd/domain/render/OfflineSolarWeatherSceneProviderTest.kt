@@ -56,7 +56,8 @@ class OfflineSolarWeatherSceneProviderTest {
 		settingsRepository,
 		photoRepository,
 		mockk<AppLogger>(relaxed = true),
-		applicationScope
+		applicationScope,
+		weatherCacheFixture()
 	)
 
 	@After
