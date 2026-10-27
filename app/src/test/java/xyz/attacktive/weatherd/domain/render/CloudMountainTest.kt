@@ -65,11 +65,26 @@ class CloudMountainTest {
 	fun portraitMountainsRetainOriginalWidthBasedScale() {
 		for ((width, height) in listOf(360f to 780f, 1264f to 2780f, 800f to 1280f)) {
 			val artworkHeight = cloudMountainArtworkHeight(width, 697, 430)
-			val top = cloudMountainArtworkTop(height, artworkHeight)
 
 			assertEquals("Do not enlarge or crop the image based on portrait height at $width × $height", width * 430f / 697f, artworkHeight, 0.001f)
-			assertEquals("Keep the mountain fade grounded at $width × $height", height, top + artworkHeight, 0.001f)
 		}
+	}
+
+	@Test
+	fun portraitMountainSkylineClearsTheBottomIconRowWithoutZooming() {
+		val artworkHeight = cloudMountainArtworkHeight(1264f, 697, 430)
+		val top = cloudMountainArtworkTop(2780f, artworkHeight)
+		val scale = 1264f / 697f
+
+		// The reference launcher's bottom app row starts around y=1960; the ridge spans source rows 38–106.
+		assertTrue(top + 106f * scale < 1960f)
+		assertTrue(top + 38f * scale >= 0f)
+		assertEquals(1264f / 697f, artworkHeight / 430f, 0.001f)
+	}
+
+	@Test
+	fun liftNeverPushesArtworkAboveTheViewport() {
+		assertEquals(0f, cloudMountainArtworkTop(400f, 390f), 0.001f)
 	}
 
 	@Test

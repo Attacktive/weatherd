@@ -274,7 +274,7 @@ Trees are an independent fixed foreground composition over any backdrop, includi
 Evergreen uses the multi-tree conifer composition; Broadleaf uses an inset left hero and a smaller independently grown right companion, leaving the upper-middle sky open.
 Keep the hero crown fully visible in portrait, landscape, and launcher scrolling without reducing scale; both trunks remain grounded.
 Mountain artwork scales uniformly to the viewport width, preserving its full horizontal composition without extra portrait enlargement or cropping.
-Keep the fading base bottom-aligned when it fits; when the scaled artwork exceeds the viewport height, pin its top so landscape peaks remain visible.
+Lift the width-scaled artwork by 9% of viewport height without enlarging, stretching, or cropping its horizontal composition; its transparent base fades into the underlying sky below. Clamp the artwork's top to zero in short viewports so landscape peaks remain visible.
 Mountains and both tree shapes share weather/day-phase lighting: preserve clear-day artwork colors, warm dawn/dusk continuously, desaturate overcast/precipitation, keep snow lighter than rain, and soften distant mountains in fog more than nearby foliage.
 Mountains alone use luminance-aware alpenglow at low sun: peach/pink highlights over cool violet shadows, including the mist baked into the artwork; trees retain their existing warm material tint.
 Compose that RGB grade before weather/night/fog lighting in the cached color matrix, attenuate it with the existing low-sun/weather strength, and preserve clear-day/night colors, source alpha, and placement without regenerating pixels per frame.

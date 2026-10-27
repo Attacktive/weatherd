@@ -76,5 +76,5 @@ internal fun cloudMountainArtworkHeight(viewWidth: Float, sourceWidth: Int, sour
 	return viewWidth * sourceHeight / sourceWidth
 }
 
-/** Keep the fading base grounded when it fits; pin the skyline to the top if the artwork exceeds the viewport height. */
-internal fun cloudMountainArtworkTop(viewHeight: Float, artworkHeight: Float) = (viewHeight - artworkHeight).coerceAtLeast(0f)
+/** Lift the unchanged artwork above the bottom icon row; clamp short viewports so the skyline stays visible. */
+internal fun cloudMountainArtworkTop(viewHeight: Float, artworkHeight: Float) = (viewHeight * 0.91f - artworkHeight).coerceAtLeast(0f)
