@@ -37,40 +37,18 @@ internal class WeatherNoticeLayer(private val resources: Resources) {
 			return
 		}
 
+		prepareIfNeeded(width, height, notice, occupiedTop, occupiedBottom, nowMillis)
+		canvas.drawRoundRect(bounds, radius, radius, backgroundPaint)
+		canvas.drawText(title, width / 2f, titleBaseline, textPaint)
+		updated?.let { canvas.drawText(it, width / 2f, updatedBaseline, textPaint) }
+	}
+
+	private fun prepareIfNeeded(width: Int, height: Int, notice: WeatherNotice, occupiedTop: Float, occupiedBottom: Float, nowMillis: Long) {
 		val minute = nowMillis / DateUtils.MINUTE_IN_MILLIS
 		val locale = resources.configuration.locales[0]
 		val fontScale = resources.configuration.fontScale
-		if (notice != lastNotice || minute != lastMinute || width != lastWidth || height != lastHeight || locale != lastLocale || fontScale != lastFontScale || occupiedTop != lastOccupiedTop || occupiedBottom != lastOccupiedBottom) {
-			textPaint.textSize = minOf(width, height) * 0.035f * fontScale.coerceIn(1f, 2f)
-			val padding = textPaint.textSize * 0.7f
-			val availableWidth = (width * 0.9f - padding * 2f).coerceAtLeast(1f)
-			title = TextUtils.ellipsize(weatherNoticeTitle(resources, notice), textPaint, availableWidth, TextUtils.TruncateAt.END).toString()
-			updated = weatherNoticeUpdated(resources, notice, nowMillis)?.let {
-				TextUtils.ellipsize(it, textPaint, availableWidth, TextUtils.TruncateAt.END).toString()
-			}
-
-			val lineHeight = textPaint.fontSpacing
-			val lineCount = if (updated == null) {
-				1
-			} else {
-				2
-			}
-
-			val boxHeight = lineHeight * lineCount + padding * 2f
-			val boxWidth = maxOf(textPaint.measureText(title), updated?.let(textPaint::measureText) ?: 0f) + padding * 2f
-			var top = height * 0.17f
-			if (top < occupiedBottom + padding && top + boxHeight > occupiedTop - padding) {
-				top = if (occupiedBottom + padding + boxHeight <= height * 0.9f) {
-					occupiedBottom + padding
-				} else {
-					occupiedTop - padding - boxHeight
-				}
-			}
-
-			bounds.set((width - boxWidth) / 2f, top, (width + boxWidth) / 2f, top + boxHeight)
-			titleBaseline = top + padding - textPaint.ascent()
-			updatedBaseline = titleBaseline + lineHeight
-			radius = padding
+		if (contentChanged(notice, minute, width, height) || layoutChanged(locale, fontScale, occupiedTop, occupiedBottom)) {
+			prepareLayout(width, height, notice, occupiedTop, occupiedBottom, nowMillis, fontScale)
 			lastNotice = notice
 			lastMinute = minute
 			lastWidth = width
@@ -80,9 +58,44 @@ internal class WeatherNoticeLayer(private val resources: Resources) {
 			lastOccupiedTop = occupiedTop
 			lastOccupiedBottom = occupiedBottom
 		}
+	}
 
-		canvas.drawRoundRect(bounds, radius, radius, backgroundPaint)
-		canvas.drawText(title, width / 2f, titleBaseline, textPaint)
-		updated?.let { canvas.drawText(it, width / 2f, updatedBaseline, textPaint) }
+	private fun contentChanged(notice: WeatherNotice, minute: Long, width: Int, height: Int) =
+		notice != lastNotice || minute != lastMinute || width != lastWidth || height != lastHeight
+
+	private fun layoutChanged(locale: Locale, fontScale: Float, occupiedTop: Float, occupiedBottom: Float) =
+		locale != lastLocale || fontScale != lastFontScale || occupiedTop != lastOccupiedTop || occupiedBottom != lastOccupiedBottom
+
+	private fun prepareLayout(width: Int, height: Int, notice: WeatherNotice, occupiedTop: Float, occupiedBottom: Float, nowMillis: Long, fontScale: Float) {
+		textPaint.textSize = minOf(width, height) * 0.035f * fontScale.coerceIn(1f, 2f)
+		val padding = textPaint.textSize * 0.7f
+		val availableWidth = (width * 0.9f - padding * 2f).coerceAtLeast(1f)
+		title = TextUtils.ellipsize(weatherNoticeTitle(resources, notice), textPaint, availableWidth, TextUtils.TruncateAt.END).toString()
+		updated = weatherNoticeUpdated(resources, notice, nowMillis)?.let {
+			TextUtils.ellipsize(it, textPaint, availableWidth, TextUtils.TruncateAt.END).toString()
+		}
+
+		val lineHeight = textPaint.fontSpacing
+		val lineCount = if (updated == null) {
+			1
+		} else {
+			2
+		}
+
+		val boxHeight = lineHeight * lineCount + padding * 2f
+		val boxWidth = maxOf(textPaint.measureText(title), updated?.let(textPaint::measureText) ?: 0f) + padding * 2f
+		var top = height * 0.17f
+		if (top < occupiedBottom + padding && top + boxHeight > occupiedTop - padding) {
+			top = if (occupiedBottom + padding + boxHeight <= height * 0.9f) {
+				occupiedBottom + padding
+			} else {
+				occupiedTop - padding - boxHeight
+			}
+		}
+
+		bounds.set((width - boxWidth) / 2f, top, (width + boxWidth) / 2f, top + boxHeight)
+		titleBaseline = top + padding - textPaint.ascent()
+		updatedBaseline = titleBaseline + lineHeight
+		radius = padding
 	}
 }
