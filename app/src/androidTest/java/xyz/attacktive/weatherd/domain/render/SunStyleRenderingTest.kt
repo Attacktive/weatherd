@@ -302,6 +302,43 @@ class SunStyleRenderingTest {
 		}
 	}
 
+	@Test
+	fun radiantKeepsItsCachedSunVisibleWhileANewRendererPreparesTheCore() {
+		assertCachedSunSurvivesCorePreparation(SunStyle.RADIANT)
+	}
+
+	@Test
+	fun starburstKeepsItsCachedSunVisibleWhileANewRendererPreparesTheCore() {
+		assertCachedSunSurvivesCorePreparation(SunStyle.STARBURST)
+	}
+
+	private fun assertCachedSunSurvivesCorePreparation(style: SunStyle) {
+		val params = clearParams().copy(sunStyle = style, sunColorPreset = SunColorPreset.ORANGE)
+		val prepared = render(params)
+		val freshRenderer = SceneRenderer(resources)
+		val firstFrame = render(params, freshRenderer)
+		try {
+			val core = firstFrame.getPixel((WIDTH * 0.72f).roundToInt(), (HEIGHT * 0.17f).roundToInt())
+			assertTrue("The cached $style Sun must remain visible before this renderer's core preparation, but alpha was ${Color.alpha(core)}", Color.alpha(core) >= 245)
+			for (y in 0 until HEIGHT) {
+				for (x in 0 until WIDTH) {
+					assertEquals("Preparing the $style core must not change source opacity at $x,$y", Color.alpha(prepared.getPixel(x, y)), Color.alpha(firstFrame.getPixel(x, y)))
+				}
+			}
+
+			freshRenderer.prewarmSunTexture(style)
+			val afterPreparation = render(params, freshRenderer)
+			try {
+				assertTrue("The $style Sun must adopt its corrected core after preparation", prepared.sameAs(afterPreparation))
+			} finally {
+				afterPreparation.recycle()
+			}
+		} finally {
+			prepared.recycle()
+			firstFrame.recycle()
+		}
+	}
+
 	private fun renderer() = SceneRenderer(resources).apply {
 		prewarmCloudTextures()
 		SunStyle.entries.forEach { prewarmSunTexture(it) }

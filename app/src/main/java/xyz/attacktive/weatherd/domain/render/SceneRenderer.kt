@@ -3873,8 +3873,9 @@ private class RadiantSunLayer(private val resources: Resources) {
 		val top = centerY - SOURCE_CORE_Y * scale
 		destination.set(left, top, left + bitmap.width * scale, top + bitmap.height * scale)
 		val alpha = sunAlpha(255f, visibility)
-		if (params.sunColorPreset == SunColorPreset.ORANGE) {
-			orangeCore?.draw(canvas, destination, alpha)
+		val preparedCore = orangeCore
+		if (params.sunColorPreset == SunColorPreset.ORANGE && preparedCore != null) {
+			preparedCore.draw(canvas, destination, alpha)
 		} else {
 			paint.alpha = alpha
 			paint.colorFilter = colorFilters[params.dayPhase.ordinal][params.sunColorPreset.ordinal]

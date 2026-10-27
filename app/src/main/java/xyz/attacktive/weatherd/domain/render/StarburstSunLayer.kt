@@ -51,8 +51,9 @@ internal class StarburstSunLayer(private val resources: Resources) {
 		// The approved bloom study has a roughly 40-unit core within a 400-unit half-width, with a wider luminous footprint than Classic.
 		val reach = discRadius * 5f
 		destination.set(centerX - reach, centerY - reach, centerX + reach, centerY + reach)
-		if (brightenCore) {
-			orangeCore?.draw(canvas, destination, alpha.coerceIn(0, 255))
+		val preparedCore = orangeCore
+		if (brightenCore && preparedCore != null) {
+			preparedCore.draw(canvas, destination, alpha.coerceIn(0, 255))
 		} else {
 			paint.alpha = alpha.coerceIn(0, 255)
 			canvas.drawBitmap(bitmap, null, destination, paint)
