@@ -338,6 +338,46 @@ Subdue lights at dawn/dusk and omit them in daylight without changing flight pat
 
 ### Rendering Performance and Motion Sensors
 
+#### Capped Frame Pacing
+
+Wallpaper and preview share `FrameRateCap.remainingDelayMillis`: callback latency and completed work consume the interval measured from the latest monotonic frame-clock timestamp.
+Request the next vsync only after the remaining budget, truncating to the scheduling APIs' millisecond precision; do not add a full interval after rendering, poll every vsync to discard frames, or accumulate deadlines that cause catch-up bursts after a stall.
+Uncapped rendering still requests the next vsync directly; visibility cancellation, settled-scene clock refreshes, and time-derived animation phases remain independent of the cap.
+The cap is a pacing ceiling at timer/display precision, not a guaranteed throughput target; scene invalidations can still request an immediate redraw.
+
+On 2026-10-28, #140's Samsung SM-S911N at a reported 120 Hz was traced with Perfetto (`sched freq idle gfx view`) while the wallpaper was visible.
+The installed 3.9.13 release and a separate patched debug package used different app settings/scenes, so these are scheduling observations, not a matched renderer or power benchmark.
+Count main-thread `Choreographer#doFrame` slices containing the wallpaper's `postAndWait` draw submission, rather than every Choreographer callback: the patched trace included callbacks that did not draw.
+
+| 30 FPS measurement | Installed 3.9.13 | Patched debug |
+| --- | ---: | ---: |
+| Draw submissions | 234 | 284 |
+| First-to-last draw span | 9.76 s | 9.90 s |
+| Draw callbacks per second | 23.87 | 28.57 |
+| Median frame-clock interval | 41.72 ms | 33.38 ms |
+| Median callback duration | 2.67 ms | 2.46 ms |
+| Median callback-end to next vsync-request delay | 33.29 ms | 28.39 ms |
+
+With the test package's saved cap checked before each capture and the wallpaper visible at reported 120 Hz, the additional patched runs were:
+
+| Selected cap | Draw submissions | First-to-last span | Draw callbacks/s | Median frame-clock interval | Main-thread CPU | RenderThread CPU |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 15 FPS | 143 | 9.93 s | 14.29 | 66.78 ms | 992.44 ms | 1,496.36 ms |
+| 10 FPS | 96 | 9.79 s | 9.70 | 100.16 ms | 636.68 ms | 931.76 ms |
+
+The trace supports removing the extra post-draw delay; occasional missed vsyncs remain.
+These are draw submissions, not independently measured presentation FPS.
+The baseline trace recorded 673.52 ms of main-thread CPU time and 2,175.81 ms of RenderThread CPU time; the patched trace recorded 964.36 ms and 1,526.00 ms respectively over the approximately ten-second captures.
+Different scenes, debug overhead, and trace overhead prevent attributing those CPU differences to the scheduler; presenting more frames can increase power consumption even without every-vsync polling.
+Perfetto reported systrace parse failures in both captures, so the retained scheduling slices are not proof of complete GPU accounting.
+Blank-window callback probes and the jittery 60 Hz emulator did not establish wallpaper throughput and are not acceptance evidence.
+With the patched wallpaper covered by an opaque app at the 10 FPS setting, Android reported it hidden before and after a 9.95-second trace.
+That capture contained no Choreographer callbacks or drawing slices and no scheduled main-thread/RenderThread CPU time for the test process; its dispatcher/executor threads used 4.03 ms of CPU across three scheduled slices.
+No trace-parser errors were reported for this hidden capture: it supports stopping rendering while covered, not zero process activity or a universal battery-life claim.
+Physical 90 Hz validation, cross-refresh animation-speed comparisons, and controlled power measurements remain outstanding.
+
+#### Rendering and Motion Measurements
+
 Corona/optical sprites cache disjoint alpha-coverage strips and clip transparent overdraw while retaining full-bitmap filtering/compositing.
 Build coverage once per source and invalidate with its tile cache; retain the procedural arc's immutable sprite/coverage for the layer lifetime, never generating artwork per frame or changing frame caps/non-sun paths for this optimization.
 Motion-responsive reflections defaults off, requires Lens flare, and is disabled without a compatible sensor; it can use extra battery/reduce performance.

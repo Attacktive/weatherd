@@ -207,8 +207,10 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 			return@LaunchedEffect
 		}
 
+		var frameTimeNanos = 0L
 		while (true) {
 			val continueAnimating = withFrameNanos { frameNanos ->
+				frameTimeNanos = frameNanos
 				val active = wallpaperAnimationActive(settings.animationIdleTimeout, previewMotionStartedAtNanos, frameNanos)
 				previewMotionActive = active
 				if (active) {
@@ -224,9 +226,9 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 			}
 
 			// Waiting before asking for the next frame is what idles the frame clock; gating the draw alone would still wake the compositor every vsync.
-			val intervalMillis = currentCap.value.intervalMillis
-			if (intervalMillis > 0L) {
-				delay(intervalMillis.milliseconds)
+			val delayMillis = currentCap.value.remainingDelayMillis(frameTimeNanos, System.nanoTime())
+			if (delayMillis > 0L) {
+				delay(delayMillis.milliseconds)
 			}
 		}
 	}

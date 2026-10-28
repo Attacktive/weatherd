@@ -208,7 +208,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 
 			// Use the shared monotonic frame clock while motion is active, then hold its final phase while the wallpaper is settled.
 			drawFrame(frameTimeNanos, timeSeconds, motionActive)
-			scheduleNextFrame(motionActive)
+			scheduleNextFrame(motionActive, frameTimeNanos)
 		}
 
 		private fun requestImmediateFrame() {
@@ -256,16 +256,16 @@ class WeatherLiveWallpaperService: WallpaperService() {
 		}
 
 		/** Asks for the next animation frame at the configured cap, or only a low-frequency clock refresh after motion settles. */
-		private fun scheduleNextFrame(motionActive: Boolean) {
+		private fun scheduleNextFrame(motionActive: Boolean, frameTimeNanos: Long) {
 			if (!motionActive) {
 				choreographer.postFrameCallbackDelayed(this, SETTLED_SCENE_REFRESH_MILLIS)
 
 				return
 			}
 
-			val intervalMillis = frameRateCap.intervalMillis
-			if (intervalMillis > 0L) {
-				choreographer.postFrameCallbackDelayed(this, intervalMillis)
+			val delayMillis = frameRateCap.remainingDelayMillis(frameTimeNanos, System.nanoTime())
+			if (delayMillis > 0L) {
+				choreographer.postFrameCallbackDelayed(this, delayMillis)
 			} else {
 				choreographer.postFrameCallback(this)
 			}
