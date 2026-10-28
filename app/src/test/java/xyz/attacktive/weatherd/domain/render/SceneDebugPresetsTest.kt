@@ -318,8 +318,10 @@ class SceneDebugPresetsTest {
 	@Test
 	fun `non-finite sun horizontal position restores default in debug scene params`() {
 		val preset = SCENE_PRESETS.first { it.name == "CLEAR" }
+
 		for (nonFinite in listOf(Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY)) {
 			val params = debugSceneParams(preset, DayPhase.DAY, sunHorizontalPosition = nonFinite)
+
 			assertEquals(DEFAULT_SUN_HORIZONTAL_POSITION, params.sunHorizontalPosition, 0.0001f)
 		}
 	}

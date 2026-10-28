@@ -34,6 +34,7 @@ class SunHorizontalPositionSettingsRepositoryTest {
 	fun `older installs default to 0_72 and choices survive save update and reopening`() = runTest {
 		val store = dataStore()
 		val repository = SettingsRepository(store)
+
 		assertEquals(DEFAULT_SUN_HORIZONTAL_POSITION, repository.settings.first().sunHorizontalPosition, 0.0001f)
 
 		repository.save(AppSettings(sunHorizontalPosition = 0.3f))
@@ -47,6 +48,7 @@ class SunHorizontalPositionSettingsRepositoryTest {
 	fun `invalid values normalize on write and when reading corrupt preferences`() = runTest {
 		val store = dataStore()
 		val repository = SettingsRepository(store)
+
 		repository.save(AppSettings(sunHorizontalPosition = -0.5f))
 		assertEquals(0f, repository.settings.first().sunHorizontalPosition, 0.0001f)
 
@@ -57,6 +59,7 @@ class SunHorizontalPositionSettingsRepositoryTest {
 		assertEquals(DEFAULT_SUN_HORIZONTAL_POSITION, repository.settings.first().sunHorizontalPosition, 0.0001f)
 
 		store.edit { it[floatPreferencesKey("sun_horizontal_position")] = Float.NEGATIVE_INFINITY }
+
 		assertEquals(DEFAULT_SUN_HORIZONTAL_POSITION, SettingsRepository(store).settings.first().sunHorizontalPosition, 0.0001f)
 	}
 
@@ -64,6 +67,7 @@ class SunHorizontalPositionSettingsRepositoryTest {
 	fun `stale appearance updates do not roll back unrelated settings`() = runTest {
 		val repository = SettingsRepository(dataStore())
 		val original = repository.settings.first()
+
 		repository.update(listOf(SettingsMutation.Backdrop(BackdropScene.BEACH)))
 		repository.update(settingsMutationsBetween(original, original.copy(sunHorizontalPosition = 0.25f)))
 		assertEquals(BackdropScene.BEACH, repository.settings.first().backdropScene)
@@ -74,10 +78,12 @@ class SunHorizontalPositionSettingsRepositoryTest {
 	fun `appearance presets retain sun horizontal position without replacing weather preferences`() = runTest {
 		val store = dataStore()
 		val presets = AppearancePresetRepository(store)
+
 		assertTrue(presets.create("Custom Sun Position", AppSettings(sunHorizontalPosition = 0.15f).toAppearancePresetSnapshot()).isSuccess)
 
 		val saved = (AppearancePresetRepository(store).state.first() as AppearancePresetStorageState.Ready).presets.single()
 		val settings = SettingsRepository(store)
+
 		settings.save(AppSettings(updateIntervalMinutes = 180))
 		settings.applyAppearancePreset(saved.snapshot)
 		assertEquals(0.15f, settings.settings.first().sunHorizontalPosition, 0.0001f)
@@ -89,16 +95,22 @@ class SunHorizontalPositionSettingsRepositoryTest {
 		val store = dataStore("legacy-sun-horizontal-position.preferences_pb")
 		val key = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)
 		val presets = AppearancePresetRepository(store)
+
 		assertTrue(presets.create("Previous", AppSettings().toAppearancePresetSnapshot()).isSuccess)
+
 		val current = store.data.first()[key]!!
 		val parsed = Json.parseToJsonElement(current).jsonObject
 		val v15Presets = parsed["presets"]!!.toString().replace(Regex(""""sunHorizontalPosition":\s*[\d.]+,?"""), "")
 		val legacy = """{"schemaVersion":15,"presets":$v15Presets}"""
 		val rechecked = Json.parseToJsonElement(legacy).jsonObject["presets"]!!
+
 		assertTrue(rechecked.toString().contains("Previous"))
 		assertTrue(!rechecked.toString().contains("sunHorizontalPosition"))
+
 		store.edit { it[key] = legacy }
+
 		val imported = (AppearancePresetRepository(store).state.first() as AppearancePresetStorageState.Ready).presets.single()
+
 		assertEquals(DEFAULT_SUN_HORIZONTAL_POSITION, imported.snapshot.sunHorizontalPosition, 0.0001f)
 		assertTrue(AppearancePresetRepository(store).rename(imported.id, "Migrated").isSuccess)
 		assertTrue(store.data.first()[key]!!.contains("\"schemaVersion\":16"))

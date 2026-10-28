@@ -36,13 +36,17 @@ class SunHorizontalPositionRenderingTest {
 					sunHorizontalPosition = position,
 					sunColorPreset = SunColorPreset.WHITE
 				)
+
 				val foreground = renderForeground(params, width = width, height = height)
+
 				try {
 					val core = whiteCoreBounds(foreground)
+
 					assertTrue(
 						"White core x should follow sun horizontal position $position, but centerX was ${core.centerX} (expected ${width * position})",
 						abs(core.centerX - width * position) <= 3f
 					)
+
 					assertTrue(
 						"White core y should remain at expected celestial height $expectedY, but centerY was ${core.centerY}",
 						abs(core.centerY - expectedY) <= 3f
@@ -52,6 +56,7 @@ class SunHorizontalPositionRenderingTest {
 						val oldAnchorX = (width * 0.72f).roundToInt()
 						val oldAnchorY = expectedY.roundToInt()
 						val pixelAtOldAnchor = foreground.getPixel(oldAnchorX, oldAnchorY)
+
 						assertTrue(
 							"Pixel at old anchor (0.72) should be cleared when position is $position, but alpha was ${Color.alpha(pixelAtOldAnchor)}",
 							Color.alpha(pixelAtOldAnchor) < 60
@@ -60,6 +65,7 @@ class SunHorizontalPositionRenderingTest {
 
 					if (width == PORTRAIT_WIDTH) {
 						val percent = (position * 100f).roundToInt()
+
 						maybeSaveEvidence("sun_position_${percent}_day") { renderCompleteScene(params, width, height) }
 					}
 				} finally {
@@ -75,22 +81,28 @@ class SunHorizontalPositionRenderingTest {
 			dayPhase = DayPhase.NIGHT,
 			sunHorizontalPosition = DEFAULT_SUN_HORIZONTAL_POSITION
 		)
+
 		val params25 = params72.copy(sunHorizontalPosition = 0.25f)
 		val params90 = params72.copy(sunHorizontalPosition = 0.90f)
 
 		val r = renderer()
+
 		runBlocking(Dispatchers.Default) { r.prewarmMoonPhase(0.5f) }
+
 		val night72 = renderForeground(params72, renderer = r)
 		val night25 = renderForeground(params25, renderer = r)
 		val night90 = renderForeground(params90, renderer = r)
+
 		try {
 			val moonX = (PORTRAIT_WIDTH * 0.72f).roundToInt()
 			val moonY = (PORTRAIT_HEIGHT * celestialHeightFraction(DayPhase.NIGHT, 0.5f)).roundToInt()
 			val moonPixel = night72.getPixel(moonX, moonY)
+
 			assertTrue(
 				"A visible prepared Moon must be rendered at night anchor (0.72), alpha was ${Color.alpha(moonPixel)}",
 				Color.alpha(moonPixel) >= 200
 			)
+
 			assertTrue("Night rendering with sun horizontal position 0.25f must match default 0.72f", night72.sameAs(night25))
 			assertTrue("Night rendering with sun horizontal position 0.90f must match default 0.72f", night72.sameAs(night90))
 
@@ -110,12 +122,14 @@ class SunHorizontalPositionRenderingTest {
 				celestialProgress = 0.5f,
 				sunHorizontalPosition = DEFAULT_SUN_HORIZONTAL_POSITION
 			)
+
 			val params25 = params72.copy(sunHorizontalPosition = 0.25f)
 			val params90 = params72.copy(sunHorizontalPosition = 0.90f)
 
 			val backdrop72 = renderBackdrop(params72)
 			val backdrop25 = renderBackdrop(params25)
 			val backdrop90 = renderBackdrop(params90)
+
 			try {
 				assertFalse("Backdrop at 0.25f must differ from 0.72f during $phase", backdrop72.sameAs(backdrop25))
 				assertFalse("Backdrop at 0.90f must differ from 0.72f during $phase", backdrop72.sameAs(backdrop90))
@@ -158,13 +172,17 @@ class SunHorizontalPositionRenderingTest {
 				sunHorizontalPosition = position,
 				sunColorPreset = SunColorPreset.WHITE
 			)
+
 			val foreground = renderForeground(params)
+
 			try {
 				val core = whiteCoreBounds(foreground)
+
 				assertTrue(
 					"Style $style white core x should center at $expectedX, but was ${core.centerX}",
 					abs(core.centerX - expectedX) <= 3f
 				)
+
 				assertTrue(
 					"Style $style white core y should center at $expectedY, but was ${core.centerY}",
 					abs(core.centerY - expectedY) <= 3f
@@ -183,13 +201,17 @@ class SunHorizontalPositionRenderingTest {
 
 		val paramsLeft = clearParams().copy(sunHorizontalPosition = 0f, sunColorPreset = SunColorPreset.WHITE)
 		val foregroundLeft = renderForeground(paramsLeft)
+
 		try {
 			val core = whiteCoreBounds(foregroundLeft)
+
 			assertTrue("Left endpoint 0.0 must have non-empty visible core width", core.width > 0)
 			assertTrue("Left endpoint 0.0 must have non-empty visible core height", core.height > 0)
 			assertEquals("Left endpoint 0.0 must touch left edge of screen", 0, core.left)
 			assertTrue("Left endpoint 0.0 core y should match expected celestial height", abs(core.centerY - expectedY) <= 3f)
+
 			val pixelAtOldAnchor = foregroundLeft.getPixel(oldAnchorX, oldAnchorY)
+
 			assertTrue("Pixel at old anchor must be clear when sun is at left endpoint", Color.alpha(pixelAtOldAnchor) < 60)
 		} finally {
 			foregroundLeft.recycle()
@@ -197,13 +219,17 @@ class SunHorizontalPositionRenderingTest {
 
 		val paramsRight = clearParams().copy(sunHorizontalPosition = 1f, sunColorPreset = SunColorPreset.WHITE)
 		val foregroundRight = renderForeground(paramsRight)
+
 		try {
 			val core = whiteCoreBounds(foregroundRight)
+
 			assertTrue("Right endpoint 1.0 must have non-empty visible core width", core.width > 0)
 			assertTrue("Right endpoint 1.0 must have non-empty visible core height", core.height > 0)
 			assertEquals("Right endpoint 1.0 must touch right edge of screen", PORTRAIT_WIDTH - 1, core.right)
 			assertTrue("Right endpoint 1.0 core y should match expected celestial height", abs(core.centerY - expectedY) <= 3f)
+
 			val pixelAtOldAnchor = foregroundRight.getPixel(oldAnchorX, oldAnchorY)
+
 			assertTrue("Pixel at old anchor must be clear when sun is at right endpoint", Color.alpha(pixelAtOldAnchor) < 60)
 		} finally {
 			foregroundRight.recycle()

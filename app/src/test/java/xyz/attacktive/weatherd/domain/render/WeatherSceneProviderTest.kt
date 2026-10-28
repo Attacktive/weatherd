@@ -1500,12 +1500,14 @@ class WeatherSceneProviderTest {
 		)
 
 		val params = provider.paramsFor(1_000_000L)
+
 		assertEquals(0.25f, params.sunHorizontalPosition, 0.0001f)
 	}
 
 	@Test
 	fun `sun horizontal position reaches live scene params even when refresh is throttled`() = runTest {
 		val device = AppSettings(useDeviceLocation = true, sunHorizontalPosition = 0.72f)
+
 		persistedSettings.value = device
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 0))
@@ -1529,6 +1531,7 @@ class WeatherSceneProviderTest {
 		)
 
 		val params = provider.paramsFor(1_000_000L)
+
 		assertEquals(0.35f, params.sunHorizontalPosition, 0.0001f)
 	}
 

@@ -95,17 +95,23 @@ class SettingsNavigationTest {
 		).settingsRepository()
 
 		val original = repository.settings.first()
+
 		fun positionText(percent: Int) = instrumentation.targetContext.getString(R.string.label_sun_horizontal_position, percent)
+
 		try {
 			repository.update(listOf(SettingsMutation.SunVisible(true), SettingsMutation.SunHorizontalPosition(0.72f)))
 			clickText(R.string.appearance_category_sun)
 			waitUntil("Sun detail") { !isVisible(R.string.settings_tab_weather) }
+
 			scrollToSlider(positionText(72))
 			setSliderProgress(positionText(72), 0.25f)
 			waitUntil("Sun position persisted at 25%") { runBlocking { repository.settings.first().sunHorizontalPosition == 0.25f } }
+
 			scrollToSlider(positionText(25))
+
 			if (InstrumentationRegistry.getArguments().getString("sunPositionEvidence") == "true") {
 				val screenshot = checkNotNull(automation.takeScreenshot())
+
 				try {
 					File(instrumentation.targetContext.getExternalFilesDir(null), "sun-position-settings.png").outputStream().use {
 						screenshot.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
@@ -127,18 +133,25 @@ class SettingsNavigationTest {
 			clickSettingSwitch(R.string.label_show_sun)
 			waitUntil("Sun disabled") { runBlocking { !repository.settings.first().sunVisible } }
 			waitUntil("Sun position control hidden") { findNode(automation.rootInActiveWindow) { matchesText(it, positionText(25)) } == null }
+
 			assertEquals(0.25f, repository.settings.first().sunHorizontalPosition, 0.0001f)
+
 			clickSettingSwitch(R.string.label_show_sun)
 			scrollToSlider(positionText(25))
 			scenario.recreate()
 			scrollToSlider(positionText(25))
 			setSliderProgress(positionText(25), 1f)
 			waitUntil("Sun position persisted at right edge") { runBlocking { repository.settings.first().sunHorizontalPosition == 1f } }
+
 			scrollToSlider(positionText(100))
+
 			val reset = instrumentation.targetContext.getString(R.string.content_description_reset_to_default, positionText(100))
+
 			click(waitForNode("Sun position reset") { it.contentDescription?.toString() == reset })
 			waitUntil("Sun position reset persisted") { runBlocking { repository.settings.first().sunHorizontalPosition == 0.72f } }
+
 			assertEquals(original.sunSizeScale, repository.settings.first().sunSizeScale, 0.0001f)
+
 			scrollToSlider(positionText(72))
 			setSliderProgress(positionText(72), 0f)
 			waitUntil("Sun position persisted at left edge") { runBlocking { repository.settings.first().sunHorizontalPosition == 0f } }
@@ -198,21 +211,29 @@ class SettingsNavigationTest {
 
 	private fun scrollToRainbowSize(percent: Int) = scrollToSlider(rainbowSizeText(percent))
 
-	private fun scrollToSlider(labelText: String) = waitUntil("$labelText slider") {
-		val root = automation.rootInActiveWindow
-		val label = findNode(root) { it.isVisibleToUser && matchesText(it, labelText) }
-		val labelBounds = Rect()
-		label?.getBoundsInScreen(labelBounds)
-		val sliderVisible = label != null && findNode(root) {
-			val bounds = Rect().also { rect -> it.getBoundsInScreen(rect) }
-			it.isVisibleToUser && it.rangeInfo != null && bounds.top >= labelBounds.bottom && it.actionList.any { action -> action.id == AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_PROGRESS.id }
-		} != null
-
-		if (!sliderVisible) {
-			verticalScroller()?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+	private fun scrollToSlider(labelText: String) {
+		// Recreation can restore the slider below a clipped label; searching only forward cannot recover that pair.
+		waitUntil("settings page start before finding $labelText") {
+			val scroller = verticalScroller()
+			scroller != null && !scroller.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
 		}
 
-		sliderVisible
+		waitUntil("$labelText slider") {
+			val root = automation.rootInActiveWindow
+			val label = findNode(root) { it.isVisibleToUser && matchesText(it, labelText) }
+			val labelBounds = Rect()
+			label?.getBoundsInScreen(labelBounds)
+			val sliderVisible = label != null && findNode(root) {
+				val bounds = Rect().also { rect -> it.getBoundsInScreen(rect) }
+				it.isVisibleToUser && it.rangeInfo != null && bounds.top >= labelBounds.bottom && it.actionList.any { action -> action.id == AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_PROGRESS.id }
+			} != null
+
+			if (!sliderVisible) {
+				verticalScroller()?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+			}
+
+			sliderVisible
+		}
 	}
 
 	private fun setRainbowProgress(value: Float, currentPercent: Int) = setSliderProgress(rainbowSizeText(currentPercent), value)

@@ -516,6 +516,7 @@ class SceneParamsTest {
 			backdropScene = BackdropScene.NONE,
 			sunHorizontalPosition = 0.25f
 		)
+
 		val later = early.copy(sunHorizontalPosition = 0.72f)
 
 		assertNotEquals(backdropSignature(early), backdropSignature(later))
@@ -528,6 +529,7 @@ class SceneParamsTest {
 			backdropScene = BackdropScene.PHOTO,
 			sunHorizontalPosition = 0.25f
 		)
+
 		val later = early.copy(sunHorizontalPosition = 0.72f)
 
 		assertEquals(
