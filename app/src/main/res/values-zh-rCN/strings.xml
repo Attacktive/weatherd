@@ -80,6 +80,9 @@
 	<string name="label_rainbow_size">彩虹大小 · %1$d%%</string>
 	<string name="sun_size_small">更小</string>
 	<string name="sun_size_large">更大</string>
+	<string name="label_sun_horizontal_position">太阳水平位置 · %1$d%%</string>
+	<string name="sun_horizontal_position_left">左</string>
+	<string name="sun_horizontal_position_right">右</string>
 	<string name="label_sun_color">太阳颜色</string>
 	<string name="sun_color_natural">自然</string>
 	<string name="sun_color_white">白色</string>

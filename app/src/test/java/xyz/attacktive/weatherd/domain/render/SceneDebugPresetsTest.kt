@@ -12,6 +12,7 @@ import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.SunbeamMode
 import xyz.attacktive.weatherd.domain.model.TreeStyle
+import xyz.attacktive.weatherd.domain.model.DEFAULT_SUN_HORIZONTAL_POSITION
 
 class SceneDebugPresetsTest {
 	@Test
@@ -300,6 +301,27 @@ class SceneDebugPresetsTest {
 
 		assertEquals(0f, params.wallpaperDimmingStrength, 0.0001f)
 		assertEquals(0f, params.statusBarShadeStrength, 0.0001f)
+	}
+
+	@Test
+	fun `sun horizontal position reaches debug scene params and is clamped to valid range`() {
+		val preset = SCENE_PRESETS.first { it.name == "CLEAR" }
+		val normal = debugSceneParams(preset, DayPhase.DAY, sunHorizontalPosition = 0.25f)
+		val clampedLow = debugSceneParams(preset, DayPhase.DAY, sunHorizontalPosition = -0.5f)
+		val clampedHigh = debugSceneParams(preset, DayPhase.DAY, sunHorizontalPosition = 1.5f)
+
+		assertEquals(0.25f, normal.sunHorizontalPosition, 0.0001f)
+		assertEquals(0f, clampedLow.sunHorizontalPosition, 0.0001f)
+		assertEquals(1f, clampedHigh.sunHorizontalPosition, 0.0001f)
+	}
+
+	@Test
+	fun `non-finite sun horizontal position restores default in debug scene params`() {
+		val preset = SCENE_PRESETS.first { it.name == "CLEAR" }
+		for (nonFinite in listOf(Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY)) {
+			val params = debugSceneParams(preset, DayPhase.DAY, sunHorizontalPosition = nonFinite)
+			assertEquals(DEFAULT_SUN_HORIZONTAL_POSITION, params.sunHorizontalPosition, 0.0001f)
+		}
 	}
 
 }

@@ -31,6 +31,7 @@ data class AppSettings(
 	val sunVisible: Boolean = true,
 	val moonVisible: Boolean = true,
 	val sunSizeScale: Float = 1f,
+	val sunHorizontalPosition: Float = DEFAULT_SUN_HORIZONTAL_POSITION,
 	val moonSizeScale: Float = 1f,
 	val moonOpacity: Float = 1f,
 	val sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
@@ -117,4 +118,17 @@ fun normalizeRainbowSizeScale(value: Float) = if (value.isFinite()) {
 	value.coerceIn(RAINBOW_SIZE_SCALE_RANGE.start, RAINBOW_SIZE_SCALE_RANGE.endInclusive)
 } else {
 	1f
+}
+
+/** Reset coordinate anchored to the historical fixed 72% Sun horizontal anchor. */
+const val DEFAULT_SUN_HORIZONTAL_POSITION = 0.72f
+
+/** Bounds for Sun horizontal center position as a viewport fraction. */
+val SUN_HORIZONTAL_POSITION_RANGE = 0f..1f
+
+/** Clamps finite values into [SUN_HORIZONTAL_POSITION_RANGE] and restores [DEFAULT_SUN_HORIZONTAL_POSITION] for non-finite values. */
+fun normalizeSunHorizontalPosition(value: Float) = if (value.isFinite()) {
+	value.coerceIn(SUN_HORIZONTAL_POSITION_RANGE.start, SUN_HORIZONTAL_POSITION_RANGE.endInclusive)
+} else {
+	DEFAULT_SUN_HORIZONTAL_POSITION
 }

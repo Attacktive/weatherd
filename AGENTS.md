@@ -94,7 +94,7 @@ Keep category summaries to one or two high-signal settings facts, localized cons
 Category regrouping must not change stored setting keys, defaults, reset scope, preset membership, simulator behavior, or the shared scene-provider path.
 Weather/Wallpaper internals stay in place unless an actual setting move requires touching them; MET Norway attribution belongs with Weather.
 
-Appearance categories are Scenery & photos (backdrops, conditional photo slots, Trees/shape), Sky (palette, brightness/night brightness, saturation, aircraft, birds/interval), Clouds (size/count/opacity/contrast), Sun & moon (visibility, styles, sunbeams, sizes, sun color, optical effects), Weather effects (precipitation, glass droplets, wind), On-screen text (visibility/position/unit), Readability (dimming/status-bar shade), and Presets (save/apply/rename/replace/delete).
+Appearance categories are Scenery & photos (backdrops, conditional photo slots, Trees/shape), Sky (palette, brightness/night brightness, saturation, aircraft, birds/interval), Clouds (size/count/opacity/contrast), Sun & moon (visibility, styles, sunbeams, sizes, Sun horizontal position, sun color, optical effects), Weather effects (precipitation, glass droplets, wind), On-screen text (visibility/position/unit), Readability (dimming/status-bar shade), and Presets (save/apply/rename/replace/delete).
 Weather owns location, providers, and refresh; Wallpaper owns motion/performance; Advanced owns the simulator.
 
 ### System Appearance and Display Compatibility
@@ -103,9 +103,9 @@ The app follows system light/dark appearance without an app-theme preference; th
 Keep icons over the edge-to-edge scene light and opaque navigation bars consistent with system appearance.
 Preview controls avoid system bars and cutouts, including landscape side cutouts and tall top insets, without insetting the weather scene.
 Display settings apply through the shared scene path and are saved in appearance presets.
-Preserve independent resets and missing-field defaults: Classic sun, Through clouds sunbeams, Natural palette, Moon size 100%, Rainbow size 100%, Trees off with Evergreen shape, and readability strengths off.
-Tree shape and bird interval remain selected when their parent toggles hide those controls.
-New preset writes use schema v14; v1–v13 remain readable, while older builds reject the new bank rather than silently dropping appearance settings.
+Preserve independent resets and missing-field defaults: Classic sun, Through clouds sunbeams, Sun horizontal position 72%, Natural palette, Moon size 100%, Rainbow size 100%, Trees off with Evergreen shape, and readability strengths off.
+Tree shape, bird interval, and Sun horizontal position remain selected when their parent toggles hide those controls.
+New preset writes use schema v16; v1–v15 remain readable, while older builds reject the new bank rather than silently dropping appearance settings.
 
 ### On-Screen Text Position
 

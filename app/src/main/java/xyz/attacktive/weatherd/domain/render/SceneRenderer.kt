@@ -308,7 +308,9 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		val w = width.toFloat()
 		val h = height.toFloat()
 		val fogDensity = effectiveFogDensity(params)
-		val celestialCenterX = w * CELESTIAL_X_FRACTION
+		val sunCenterX = w * params.sunHorizontalPosition
+		val moonCenterX = w * CELESTIAL_X_FRACTION
+		val celestialCenterX = if (params.dayPhase == DayPhase.NIGHT) moonCenterX else sunCenterX
 		val celestialCenterY = h * celestialHeightFraction(params.dayPhase, params.celestialProgress)
 		val precipKey = params.precipitation?.let { "${it.kind}-${(it.severity * 100f).toInt()}" } ?: "dry"
 
@@ -320,7 +322,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 			tilesKey = key
 		}
 
-		prepareMoonOcclusion(w, h, celestialCenterX, celestialCenterY, params, timeSeconds)
+		prepareMoonOcclusion(w, h, moonCenterX, celestialCenterY, params, timeSeconds)
 
 		if (params.dayPhase == DayPhase.NIGHT && showsCelestialBody(params)) {
 			drawStars(canvas, w, h, timeSeconds)
@@ -349,7 +351,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		}
 
 		if (showsOvercastSunTransmission(params)) {
-			drawOvercastSunTransmission(canvas, w, h, celestialCenterX, celestialCenterY, params, timeSeconds)
+			drawOvercastSunTransmission(canvas, w, h, sunCenterX, celestialCenterY, params, timeSeconds)
 		}
 
 		// The scenery draws after the celestial body and clouds (they belong to the sky behind it) but before fog, rain, and lightning (weather happens in front of the horizon).
@@ -510,7 +512,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		val horizonGlowAlpha = warmHorizonGlowAlpha(params.dayPhase, params.celestialProgress)
 		if (horizonGlowAlpha > 0 && showsCelestialBody(params)) {
 			val glow = sunColor(params.dayPhase, SunColorPreset.NATURAL)
-			val centerX = width * CELESTIAL_X_FRACTION
+			val centerX = width * params.sunHorizontalPosition
 			val centerY = height * celestialHeightFraction(params.dayPhase, params.celestialProgress)
 			val radius = min(width, height) * TWILIGHT_SKY_GLOW_RADIUS
 
@@ -1414,6 +1416,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 			width != previousSunShaftWidth || height != previousSunShaftHeight ||
 			params.dayPhase != previous.dayPhase || abs(params.celestialProgress - previous.celestialProgress) > 0.01f ||
 			(timeSeconds == previousSunShaftTime && params.celestialProgress != previous.celestialProgress) ||
+			params.sunHorizontalPosition != previous.sunHorizontalPosition ||
 			params.cloudiness != previous.cloudiness || params.cloudLayers != previous.cloudLayers ||
 			params.cloudScale != previous.cloudScale || params.cloudSizeScale != previous.cloudSizeScale || params.cloudCountScale != previous.cloudCountScale ||
 			params.windFactor != previous.windFactor || params.windScale != previous.windScale ||
@@ -1757,7 +1760,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		}
 
 		val wing = width * 0.011f
-		val sunX = width * CELESTIAL_X_FRACTION
+		val sunX = width * params.sunHorizontalPosition
 		val lowerY = (height * sunHeight + radius + wing).coerceAtMost(height * 0.88f)
 		paint.style = Paint.Style.STROKE
 		paint.strokeCap = Paint.Cap.ROUND
@@ -1947,7 +1950,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		blitSprite(
 			canvas,
 			atmosphere,
-			width * CELESTIAL_X_FRACTION,
+			width * params.sunHorizontalPosition,
 			height * celestialHeightFraction(params.dayPhase, params.celestialProgress),
 			min(width, height) * SUN_RADIUS_FRACTION * params.sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive) * SUN_CUMULUS_VEIL_REACH,
 			veilAlpha
@@ -2016,7 +2019,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		return CloudLayer.CumulusShadow(
 			lower = lower,
 			upper = upper,
-			sourceOffsetX = width * (CELESTIAL_X_FRACTION - 0.5f) * CUMULUS_CAST_SHADOW_HORIZONTAL_PROJECTION,
+			sourceOffsetX = width * (params.sunHorizontalPosition - 0.5f) * CUMULUS_CAST_SHADOW_HORIZONTAL_PROJECTION,
 			sourceOffsetY = cumulusCastShadowOffsetY(width, height),
 			strength = strength
 		)

@@ -80,6 +80,9 @@
 	<string name="label_rainbow_size">Tamaño del arcoíris · %1$d%%</string>
 	<string name="sun_size_small">Más pequeño</string>
 	<string name="sun_size_large">Más grande</string>
+	<string name="label_sun_horizontal_position">Posición horizontal del sol · %1$d%%</string>
+	<string name="sun_horizontal_position_left">Izquierda</string>
+	<string name="sun_horizontal_position_right">Derecha</string>
 	<string name="label_sun_color">Color del sol</string>
 	<string name="sun_color_natural">Natural</string>
 	<string name="sun_color_white">Blanco</string>

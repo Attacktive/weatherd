@@ -18,6 +18,8 @@ import xyz.attacktive.weatherd.domain.model.normalizeMoonSizeScale
 import xyz.attacktive.weatherd.domain.model.normalizeMoonOpacity
 import xyz.attacktive.weatherd.domain.model.normalizeRainbowSizeScale
 import xyz.attacktive.weatherd.domain.model.normalizeReadabilityStrength
+import xyz.attacktive.weatherd.domain.model.DEFAULT_SUN_HORIZONTAL_POSITION
+import xyz.attacktive.weatherd.domain.model.normalizeSunHorizontalPosition
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
@@ -94,6 +96,7 @@ fun debugSceneParams(
 	moonVisible: Boolean = true,
 	sunSizeScale: Float = 1f,
 	moonSizeScale: Float = 1f,
+	sunHorizontalPosition: Float = DEFAULT_SUN_HORIZONTAL_POSITION,
 	moonOpacity: Float = 1f,
 	sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
 	sunStyle: SunStyle = SunStyle.CLASSIC,
@@ -134,6 +137,7 @@ fun debugSceneParams(
 	moonVisible = moonVisible,
 	sunSizeScale = sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive),
 	moonSizeScale = normalizeMoonSizeScale(moonSizeScale),
+	sunHorizontalPosition = normalizeSunHorizontalPosition(sunHorizontalPosition),
 	moonOpacity = normalizeMoonOpacity(moonOpacity),
 	sunColorPreset = sunColorPreset,
 	sunStyle = sunStyle,

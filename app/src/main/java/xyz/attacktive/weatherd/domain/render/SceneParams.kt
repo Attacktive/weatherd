@@ -30,6 +30,8 @@ import xyz.attacktive.weatherd.domain.weather.dayPhaseProgressFor
 import xyz.attacktive.weatherd.domain.weather.moonPhaseFor
 import xyz.attacktive.weatherd.domain.weather.precipitationIntensity
 import xyz.attacktive.weatherd.domain.model.normalizeReadabilityStrength
+import xyz.attacktive.weatherd.domain.model.DEFAULT_SUN_HORIZONTAL_POSITION
+import xyz.attacktive.weatherd.domain.model.normalizeSunHorizontalPosition
 
 /**
  * Everything the renderer needs, as orthogonal features rather than a scene taxonomy: lighting phase, continuous cloud cover, fog, what precipitates (if anything), lightning, wind, and the day-quantized synodic moon phase (0 = new, 0.5 = full — the default keeps previews and fallbacks on a full moon).
@@ -48,6 +50,7 @@ import xyz.attacktive.weatherd.domain.model.normalizeReadabilityStrength
  * [skyBrightnessScale], [skySaturationScale] and [skyColorPreset] customize the painted phase gradient before weather grayness and storm darkening are applied.
  * [nightBrightnessScale] dims the completed static night backdrop after weather transforms, so 0 makes the background black without dimming dawn, day, dusk, stars, celestial bodies or animated weather; bitmap mountains and trees also follow this scale, with continuous twilight transitions.
  * [sunVisible], [moonVisible], [sunSizeScale], [moonSizeScale], [moonOpacity], [sunColorPreset] and [sunStyle] customize the celestial bodies without changing the time-of-day lighting.
+ * [sunHorizontalPosition] anchors the Sun's center across scene width without moving the Moon or changing celestial height and timing.
  * [sunbeamMode] controls atmospheric shafts independently of sun artwork and lens flare; partial-cloud openings are the default and clear-sky rays are opt-in.
  * [lensFlareEnabled] is a display preference for camera-style streaks and optical ghosts around the sun; it does not disable the physical corona or atmospheric light shafts.
  * [rainbowSizeScale] scales the destination reach of the procedural prismatic arc when [lensFlareEnabled] is active.
@@ -89,6 +92,7 @@ data class SceneParams(
 	val sunVisible: Boolean = true,
 	val moonVisible: Boolean = true,
 	val sunSizeScale: Float = 1f,
+	val sunHorizontalPosition: Float = DEFAULT_SUN_HORIZONTAL_POSITION,
 	val moonSizeScale: Float = 1f,
 	val moonOpacity: Float = 1f,
 	val sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
@@ -121,15 +125,23 @@ data class OverlayLabels(val weather: String?, val location: String?)
  * Both the wallpaper's backdrop cache and the in-app preview's remembered backdrop key on this, which is what keeps them redrawing on exactly the same changes.
  */
 fun backdropSignature(params: SceneParams, backgroundPhotoAvailable: Boolean = false): SceneParams {
-	val backdropCelestialProgress = if (twilightBackdropUsesProgress(params, backgroundPhotoAvailable)) {
+	val usesTwilightGlow = twilightBackdropUsesProgress(params, backgroundPhotoAvailable)
+	val backdropCelestialProgress = if (usesTwilightGlow) {
 		params.celestialProgress
 	} else {
 		0f
 	}
 
+	val backdropSunHorizontalPosition = if (usesTwilightGlow) {
+		params.sunHorizontalPosition
+	} else {
+		DEFAULT_SUN_HORIZONTAL_POSITION
+	}
+
 	return params.copy(
 		moonPhase = 0f,
 		celestialProgress = backdropCelestialProgress,
+		sunHorizontalPosition = backdropSunHorizontalPosition,
 		overlayLabels = null,
 		weatherNotice = null,
 		labelVerticalPosition = DEFAULT_LABEL_VERTICAL_POSITION,
@@ -233,6 +245,7 @@ fun sceneParamsFor(
 	moonVisible: Boolean = true,
 	sunSizeScale: Float = 1f,
 	moonSizeScale: Float = 1f,
+	sunHorizontalPosition: Float = DEFAULT_SUN_HORIZONTAL_POSITION,
 	moonOpacity: Float = 1f,
 	sunColorPreset: SunColorPreset = SunColorPreset.NATURAL,
 	sunStyle: SunStyle = SunStyle.CLASSIC,
@@ -300,6 +313,7 @@ fun sceneParamsFor(
 		sunSizeScale = sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive),
 		moonSizeScale = normalizeMoonSizeScale(moonSizeScale),
 		moonOpacity = normalizeMoonOpacity(moonOpacity),
+		sunHorizontalPosition = normalizeSunHorizontalPosition(sunHorizontalPosition),
 		sunColorPreset = sunColorPreset,
 		sunStyle = sunStyle,
 		sunbeamMode = sunbeamMode,

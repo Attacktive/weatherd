@@ -87,11 +87,11 @@ class MoonOpacitySettingsRepositoryTest {
 		val presets = AppearancePresetRepository(store)
 		assertTrue(presets.create("Previous", AppSettings().toAppearancePresetSnapshot()).isSuccess)
 		val current = store.data.first()[key]!!
-		val legacy = current.replace("\"schemaVersion\":15", "\"schemaVersion\":14")
+		val legacy = current.replace("\"schemaVersion\":16", "\"schemaVersion\":14")
 		store.edit { it[key] = legacy }
 		val imported = (AppearancePresetRepository(store).state.first() as AppearancePresetStorageState.Ready).presets.single()
 		assertEquals(1f, imported.snapshot.moonOpacity, 0.0001f)
 		assertTrue(AppearancePresetRepository(store).rename(imported.id, "Migrated").isSuccess)
-		assertTrue(store.data.first()[key]!!.contains("\"schemaVersion\":15"))
+		assertTrue(store.data.first()[key]!!.contains("\"schemaVersion\":16"))
 	}
 }

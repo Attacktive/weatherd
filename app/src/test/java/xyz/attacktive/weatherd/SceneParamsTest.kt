@@ -384,7 +384,8 @@ class SceneParamsTest {
 				celestialProgress = params.celestialProgress,
 				overlayLabels = params.overlayLabels,
 				cloudContrastScale = params.cloudContrastScale,
-				rainbowSizeScale = params.rainbowSizeScale
+				rainbowSizeScale = params.rainbowSizeScale,
+				sunHorizontalPosition = params.sunHorizontalPosition
 			)
 		)
 	}
@@ -506,6 +507,49 @@ class SceneParamsTest {
 		val morning = sunrise.copy(celestialProgress = 0.75f)
 
 		assertNotEquals(backdropSignature(sunrise), backdropSignature(morning))
+	}
+
+	@Test
+	fun `sun horizontal position invalidates a procedural twilight backdrop`() {
+		val early = fullyPopulatedParams().copy(
+			dayPhase = DayPhase.DUSK,
+			backdropScene = BackdropScene.NONE,
+			sunHorizontalPosition = 0.25f
+		)
+		val later = early.copy(sunHorizontalPosition = 0.72f)
+
+		assertNotEquals(backdropSignature(early), backdropSignature(later))
+	}
+
+	@Test
+	fun `sun horizontal position stays foreground-only when a photo actually resolves`() {
+		val early = fullyPopulatedParams().copy(
+			dayPhase = DayPhase.DUSK,
+			backdropScene = BackdropScene.PHOTO,
+			sunHorizontalPosition = 0.25f
+		)
+		val later = early.copy(sunHorizontalPosition = 0.72f)
+
+		assertEquals(
+			backdropSignature(early, backgroundPhotoAvailable = true),
+			backdropSignature(later, backgroundPhotoAvailable = true)
+		)
+	}
+
+	@Test
+	fun `sun horizontal position does not invalidate night backdrop`() {
+		val p1 = fullyPopulatedParams().copy(dayPhase = DayPhase.NIGHT, sunHorizontalPosition = 0.25f)
+		val p2 = p1.copy(sunHorizontalPosition = 0.90f)
+
+		assertEquals(backdropSignature(p1), backdropSignature(p2))
+	}
+
+	@Test
+	fun `sun horizontal position does not invalidate daytime backdrop`() {
+		val p1 = fullyPopulatedParams().copy(dayPhase = DayPhase.DAY, sunHorizontalPosition = 0.25f)
+		val p2 = p1.copy(sunHorizontalPosition = 0.90f)
+
+		assertEquals(backdropSignature(p1), backdropSignature(p2))
 	}
 
 	@Test

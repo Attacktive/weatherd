@@ -69,6 +69,7 @@ import xyz.attacktive.weatherd.domain.model.RAINBOW_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SKY_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SKY_SATURATION_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.SUN_HORIZONTAL_POSITION_RANGE
 import xyz.attacktive.weatherd.domain.model.MOON_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.MOON_OPACITY_RANGE
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
@@ -356,6 +357,8 @@ internal fun SunEffectsSection(settings: AppSettings, defaults: AppSettings, onS
 			Spacer(modifier = Modifier.height(12.dp))
 			SunSizeSlider(settings = settings, defaults = defaults, onSave = onSave)
 			Spacer(modifier = Modifier.height(12.dp))
+			SunHorizontalPositionSlider(settings = settings, defaults = defaults, onSave = onSave)
+			Spacer(modifier = Modifier.height(12.dp))
 			SunColorPicker(settings = settings, defaults = defaults, onSave = onSave)
 			Spacer(modifier = Modifier.height(12.dp))
 
@@ -484,6 +487,17 @@ private fun SunSizeSlider(settings: AppSettings, defaults: AppSettings, onSave: 
 	lowLabel = R.string.sun_size_small,
 	highLabel = R.string.sun_size_large,
 	onCommit = { onSave(settings.copy(sunSizeScale = it)) }
+)
+
+@Composable
+private fun SunHorizontalPositionSlider(settings: AppSettings, defaults: AppSettings, onSave: (AppSettings) -> Unit) = PercentageSlider(
+	label = R.string.label_sun_horizontal_position,
+	value = settings.sunHorizontalPosition,
+	defaultValue = defaults.sunHorizontalPosition,
+	valueRange = SUN_HORIZONTAL_POSITION_RANGE,
+	lowLabel = R.string.sun_horizontal_position_left,
+	highLabel = R.string.sun_horizontal_position_right,
+	onCommit = { onSave(settings.copy(sunHorizontalPosition = it)) }
 )
 
 @Composable

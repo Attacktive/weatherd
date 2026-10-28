@@ -80,6 +80,9 @@
 	<string name="label_rainbow_size">Gökkuşağı boyutu · %1$d%%</string>
 	<string name="sun_size_small">Daha küçük</string>
 	<string name="sun_size_large">Daha büyük</string>
+	<string name="label_sun_horizontal_position">Güneş yatay konumu · %1$d%%</string>
+	<string name="sun_horizontal_position_left">Sol</string>
+	<string name="sun_horizontal_position_right">Sağ</string>
 	<string name="label_sun_color">Güneş rengi</string>
 	<string name="sun_color_natural">Doğal</string>
 	<string name="sun_color_white">Beyaz</string>

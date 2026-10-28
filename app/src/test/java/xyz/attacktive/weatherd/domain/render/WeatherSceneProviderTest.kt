@@ -1492,6 +1492,46 @@ class WeatherSceneProviderTest {
 		assertEquals(0.15f, params.statusBarShadeStrength, 0.0001f)
 	}
 
+	@Test
+	fun `sun horizontal position reaches fallback scene params`() = runTest {
+		persistedSettings.value = AppSettings(
+			useDeviceLocation = false,
+			sunHorizontalPosition = 0.25f
+		)
+
+		val params = provider.paramsFor(1_000_000L)
+		assertEquals(0.25f, params.sunHorizontalPosition, 0.0001f)
+	}
+
+	@Test
+	fun `sun horizontal position reaches live scene params even when refresh is throttled`() = runTest {
+		val device = AppSettings(useDeviceLocation = true, sunHorizontalPosition = 0.72f)
+		persistedSettings.value = device
+		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
+		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 0))
+
+		provider.refresh(1_000_000L)
+		assertEquals(0.72f, provider.paramsFor(1_000_030L).sunHorizontalPosition, 0.0001f)
+
+		persistedSettings.value = device.copy(sunHorizontalPosition = 0.90f)
+		provider.refresh(1_000_060L)
+
+		assertEquals(0.90f, provider.paramsFor(1_000_090L).sunHorizontalPosition, 0.0001f)
+	}
+
+	@Test
+	fun `sun horizontal position reaches simulated scene params`() = runTest {
+		persistedSettings.value = AppSettings(
+			useDeviceLocation = false,
+			sceneSimulatorEnabled = true,
+			sceneSimulatorActive = true,
+			sunHorizontalPosition = 0.35f
+		)
+
+		val params = provider.paramsFor(1_000_000L)
+		assertEquals(0.35f, params.sunHorizontalPosition, 0.0001f)
+	}
+
 	private suspend fun assertSettingsLocationStatus(settings: AppSettings) {
 		persistedSettings.value = settings
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(37.57, 126.98)

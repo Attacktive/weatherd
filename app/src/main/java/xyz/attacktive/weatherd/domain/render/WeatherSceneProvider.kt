@@ -30,6 +30,7 @@ import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
 import xyz.attacktive.weatherd.domain.model.WeatherSource
 import xyz.attacktive.weatherd.domain.model.normalizeRainbowSizeScale
+import xyz.attacktive.weatherd.domain.model.normalizeSunHorizontalPosition
 import xyz.attacktive.weatherd.domain.repository.CachedWeather
 import xyz.attacktive.weatherd.domain.repository.WeatherCacheRepository
 import xyz.attacktive.weatherd.domain.repository.LocationRepository
@@ -239,6 +240,7 @@ class WeatherSceneProvider @Inject constructor(
 			sunSizeScale = sunSizeScale,
 			moonSizeScale = moonSizeScale,
 			moonOpacity = moonOpacity,
+			sunHorizontalPosition = sunHorizontalPosition,
 			sunColorPreset = sunColorPreset,
 			sunStyle = sunStyle,
 			sunbeamMode = sunbeamMode,
@@ -530,6 +532,7 @@ class WeatherSceneProvider @Inject constructor(
 			moonSizeScale = moonSizeScale,
 			moonOpacity = moonOpacity,
 			sunColorPreset = sunColorPreset,
+			sunHorizontalPosition = sunHorizontalPosition,
 			sunStyle = sunStyle,
 			sunbeamMode = sunbeamMode,
 			lensFlareEnabled = lensFlareEnabled,
@@ -780,6 +783,7 @@ class WeatherSceneProvider @Inject constructor(
 			sunSizeScale = sunSizeScale,
 			moonSizeScale = moonSizeScale,
 			moonOpacity = moonOpacity,
+			sunHorizontalPosition = normalizeSunHorizontalPosition(sunHorizontalPosition),
 			sunColorPreset = sunColorPreset,
 			sunStyle = sunStyle,
 			sunbeamMode = sunbeamMode,
