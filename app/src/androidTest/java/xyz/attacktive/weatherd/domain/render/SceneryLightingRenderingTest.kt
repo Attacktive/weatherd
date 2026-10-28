@@ -19,6 +19,7 @@ import xyz.attacktive.weatherd.domain.model.TreeStyle
 @RunWith(AndroidJUnit4::class)
 class SceneryLightingRenderingTest {
 	private val resources = InstrumentationRegistry.getInstrumentation().targetContext.resources
+
 	private val clear = SceneParams(
 		dayPhase = DayPhase.DAY,
 		cloudiness = 0f,
@@ -34,8 +35,10 @@ class SceneryLightingRenderingTest {
 	fun overcastDesaturatesMountainArtworkInsteadOfOnlyDarkeningIt() {
 		val layer = CloudMountainLayer(resources)
 		layer.prewarm()
+
 		val day = render { layer.draw(it, WIDTH.toFloat(), HEIGHT.toFloat(), clear, 0f) }
 		val overcast = render { layer.draw(it, WIDTH.toFloat(), HEIGHT.toFloat(), clear.copy(cloudiness = 1f), 0f) }
+
 		try {
 			assertTrue("Overcast must visibly gray the blue artwork", saturation(overcast) < saturation(day) * 0.6)
 			assertSameAlpha(day, overcast)
@@ -49,13 +52,17 @@ class SceneryLightingRenderingTest {
 	fun twilightMountainArtworkHasWarmHighlightsAndCoolShadows() {
 		val layer = CloudMountainLayer(resources)
 		layer.prewarm()
+
 		val day = render { layer.draw(it, WIDTH.toFloat(), HEIGHT.toFloat(), clear, 0f) }
+
 		try {
 			for (phase in listOf(DayPhase.DAWN, DayPhase.DUSK)) {
 				val twilight = render { layer.draw(it, WIDTH.toFloat(), HEIGHT.toFloat(), clear.copy(dayPhase = phase, celestialProgress = 0.5f), 0f) }
+
 				try {
 					var highlightWarmth = 0L
 					var shadowWarmth = 0L
+
 					for (y in 0 until HEIGHT) {
 						for (x in 0 until WIDTH) {
 							val source = day.getPixel(x, y)
@@ -89,12 +96,15 @@ class SceneryLightingRenderingTest {
 	@Test
 	fun bothTreeStylesRespectNightBrightnessWithoutChangingTheirSilhouette() {
 		val layer = ForegroundTreeLayer(resources)
+
 		for (style in TreeStyle.entries) {
 			layer.prewarm(style)
+
 			val night = clear.copy(dayPhase = DayPhase.NIGHT, treeStyle = style)
 			val normal = render { layer.draw(it, WIDTH.toFloat(), HEIGHT.toFloat(), night) }
 			val dimmed = render { layer.draw(it, WIDTH.toFloat(), HEIGHT.toFloat(), night.copy(nightBrightnessScale = 0.2f)) }
 			val black = render { layer.draw(it, WIDTH.toFloat(), HEIGHT.toFloat(), night.copy(nightBrightnessScale = 0f)) }
+
 			try {
 				assertTrue("Night brightness must dim $style foliage", brightness(dimmed) < brightness(normal) * 0.35)
 				assertEquals("Zero night brightness must remove emitted scenery light", 0.0, brightness(black), 0.0)
@@ -112,6 +122,7 @@ class SceneryLightingRenderingTest {
 	fun weatherAndPhaseChangesPreserveArtworkAlphaAndRestoreCachedDaylight() {
 		val mountain = CloudMountainLayer(resources)
 		mountain.prewarm()
+
 		val trees = ForegroundTreeLayer(resources)
 		val scenes = listOf(
 			clear.copy(dayPhase = DayPhase.DAWN),
@@ -126,6 +137,7 @@ class SceneryLightingRenderingTest {
 		val draws = mutableListOf<(Canvas, SceneParams) -> Unit>(
 			{ canvas, params -> mountain.draw(canvas, WIDTH.toFloat(), HEIGHT.toFloat(), params, 0f) }
 		)
+
 		for (style in TreeStyle.entries) {
 			trees.prewarm(style)
 			draws.add { canvas, params -> trees.draw(canvas, WIDTH.toFloat(), HEIGHT.toFloat(), params.copy(treeStyle = style)) }
@@ -133,6 +145,7 @@ class SceneryLightingRenderingTest {
 
 		for (draw in draws) {
 			val original = render { draw(it, clear) }
+
 			try {
 				for (scene in scenes) {
 					val changed = render { draw(it, scene) }
@@ -144,6 +157,7 @@ class SceneryLightingRenderingTest {
 				}
 
 				val restored = render { draw(it, clear.copy()) }
+
 				try {
 					assertTrue("Returning to daylight must discard the previous lighting", original.sameAs(restored))
 				} finally {
@@ -173,6 +187,7 @@ class SceneryLightingRenderingTest {
 	private fun saturation(bitmap: Bitmap): Double {
 		var chroma = 0.0
 		var weight = 0.0
+
 		for (y in 0 until HEIGHT) {
 			for (x in 0 until WIDTH) {
 				val color = bitmap.getPixel(x, y)
@@ -189,6 +204,7 @@ class SceneryLightingRenderingTest {
 
 	private fun brightness(bitmap: Bitmap): Double {
 		var sum = 0.0
+
 		for (y in 0 until HEIGHT) {
 			for (x in 0 until WIDTH) {
 				val color = bitmap.getPixel(x, y)

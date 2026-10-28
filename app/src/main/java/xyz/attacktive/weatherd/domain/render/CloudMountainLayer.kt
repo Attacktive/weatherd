@@ -13,6 +13,7 @@ import kotlin.math.sin
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
+import androidx.core.graphics.withTranslation
 
 /**
  * The submitted cloud-mountain artwork anchors the horizon under the live sky and weather.
@@ -97,6 +98,7 @@ internal class CloudMountainLayer(private val resources: Resources) {
 
 		mistPaint.alpha = alpha
 		mistPaint.colorFilter = paint.colorFilter
+
 		val drift = sin(timeSeconds * 0.035f) * 0.015f
 		drawMistBand(canvas, 0.32f + drift, 0.47f, 0.20f, 0.035f)
 		drawMistBand(canvas, 0.62f - drift * 0.6f, 0.365f, 0.17f, 0.025f)
@@ -135,15 +137,14 @@ internal class CloudMountainLayer(private val resources: Resources) {
 		val radius = destination.width() * 0.0036f
 		var index = 0
 		while (index < LIGHT_ANCHORS.size) {
-			val checkpoint = canvas.save()
-			canvas.translate(
-				destination.left + destination.width() * LIGHT_ANCHORS[index],
-				destination.top + destination.height() * LIGHT_ANCHORS[index + 1]
-			)
+			val x = destination.left + destination.width() * LIGHT_ANCHORS[index]
+			val y = destination.top + destination.height() * LIGHT_ANCHORS[index + 1]
 
-			canvas.scale(radius, radius)
-			canvas.drawCircle(0f, 0f, 1f, lightPaint)
-			canvas.restoreToCount(checkpoint)
+			canvas.withTranslation(x, y) {
+				canvas.scale(radius, radius)
+				canvas.drawCircle(0f, 0f, 1f, lightPaint)
+			}
+
 			index += 2
 		}
 	}

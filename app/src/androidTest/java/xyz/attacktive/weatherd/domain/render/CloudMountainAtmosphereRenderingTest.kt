@@ -22,6 +22,7 @@ import xyz.attacktive.weatherd.domain.model.DayPhase
 @RunWith(AndroidJUnit4::class)
 class CloudMountainAtmosphereRenderingTest {
 	private val resources = InstrumentationRegistry.getInstrumentation().targetContext.resources
+
 	private val clear = SceneParams(
 		dayPhase = DayPhase.DAY,
 		cloudiness = 0f,
@@ -41,12 +42,15 @@ class CloudMountainAtmosphereRenderingTest {
 		for (phase in listOf(DayPhase.DAWN, DayPhase.DUSK)) {
 			val renderer = SceneRenderer(resources)
 			renderer.prewarmSceneryTexture(BackdropScene.CLOUD_MOUNTAINS)
+
 			val params = clear.copy(dayPhase = phase)
 			val first = render(renderer, params, 0f)
 			val later = render(renderer, params, 70f)
 			val unmodified = artwork(params)
+
 			try {
 				var valleyDifference = 0L
+
 				for (y in 0 until HEIGHT) {
 					for (x in 0 until WIDTH) {
 						val difference = channelDifference(first.getPixel(x, y), later.getPixel(x, y))
@@ -63,6 +67,7 @@ class CloudMountainAtmosphereRenderingTest {
 						}
 
 						assertTrue("Mist must preserve mountain detail at $x,$y", difference <= 18)
+
 						valleyDifference += difference
 					}
 				}
@@ -80,9 +85,11 @@ class CloudMountainAtmosphereRenderingTest {
 	fun daylightAndTwilightBoundariesPreserveTheUndecoratedArtwork() {
 		val renderer = SceneRenderer(resources)
 		renderer.prewarmSceneryTexture(BackdropScene.CLOUD_MOUNTAINS)
+
 		for (params in listOf(clear, clear.copy(dayPhase = DayPhase.DAWN, celestialProgress = 1f), clear.copy(dayPhase = DayPhase.DUSK, celestialProgress = 0f))) {
 			val expected = artwork(params)
 			val actual = render(renderer, params, 70f)
+
 			try {
 				assertTrue("${params.dayPhase} must retain the original lit artwork", expected.sameAs(actual))
 			} finally {
@@ -96,13 +103,17 @@ class CloudMountainAtmosphereRenderingTest {
 	fun nightLightsAreWarmSparseAndFixedOnTerrain() {
 		val renderer = SceneRenderer(resources)
 		renderer.prewarmSceneryTexture(BackdropScene.CLOUD_MOUNTAINS)
+
 		val night = clear.copy(dayPhase = DayPhase.NIGHT)
 		val unlit = artwork(night)
 		val first = render(renderer, night, 0f)
 		val later = render(renderer, night, 70f)
+
 		try {
 			assertOpaqueTerrainEquals(unlit, first, later)
+
 			var litPixels = 0
+
 			for (y in 0 until HEIGHT) {
 				for (x in 0 until WIDTH) {
 					val original = unlit.getPixel(x, y)
@@ -117,6 +128,7 @@ class CloudMountainAtmosphereRenderingTest {
 
 					assertTrue("Lights must stay in the foothills, not the sky", y in 827..902)
 					assertTrue("Distant habitation must add warm light", Color.red(lit) - Color.red(original) > (Color.blue(lit) - Color.blue(original)) * 1.5f)
+
 					litPixels++
 				}
 			}
@@ -133,11 +145,14 @@ class CloudMountainAtmosphereRenderingTest {
 	fun nightTransitionsKeepTheLightsContinuousAndRespectBlackout() {
 		val renderer = SceneRenderer(resources)
 		renderer.prewarmSceneryTexture(BackdropScene.CLOUD_MOUNTAINS)
+
 		val mask = artwork(clear)
 		val night = render(renderer, clear.copy(dayPhase = DayPhase.NIGHT), 0f)
+
 		try {
 			for (params in listOf(clear.copy(dayPhase = DayPhase.DUSK, celestialProgress = 1f), clear.copy(dayPhase = DayPhase.DAWN, celestialProgress = 0f))) {
 				val boundary = render(renderer, params, 0f)
+
 				try {
 					assertOpaqueTerrainEquals(mask, night, boundary)
 				} finally {
@@ -148,6 +163,7 @@ class CloudMountainAtmosphereRenderingTest {
 			val blackout = clear.copy(dayPhase = DayPhase.NIGHT, nightBrightnessScale = 0f)
 			val expected = artwork(blackout)
 			val actual = render(renderer, blackout, 0f)
+
 			try {
 				assertOpaqueTerrainEquals(expected, expected, actual)
 			} finally {
@@ -164,11 +180,13 @@ class CloudMountainAtmosphereRenderingTest {
 	fun realFogSuppressesDecorativeAtmosphereInsteadOfStackingIt() {
 		val layer = CloudMountainLayer(resources)
 		layer.prewarm()
+
 		for (phase in DayPhase.entries) {
 			val params = clear.copy(dayPhase = phase, fogDensity = 1f)
 			val expected = artwork(params)
 			val actual = createBitmap(WIDTH, HEIGHT)
 			layer.draw(Canvas(actual), WIDTH.toFloat(), HEIGHT.toFloat(), params, 70f)
+
 			try {
 				assertTrue("Actual fog must take precedence over decorative mist and lights", expected.sameAs(actual))
 			} finally {
@@ -182,12 +200,15 @@ class CloudMountainAtmosphereRenderingTest {
 	fun mountainDecorationNeverLeaksToOtherBackdrops() {
 		val layer = CloudMountainLayer(resources)
 		layer.prewarm()
+
 		val untouched = createBitmap(WIDTH, HEIGHT)
 		val actual = createBitmap(WIDTH, HEIGHT)
+
 		try {
 			for (scene in BackdropScene.entries.filter { it != BackdropScene.CLOUD_MOUNTAINS }) {
 				for (phase in DayPhase.entries) {
 					layer.draw(Canvas(actual), WIDTH.toFloat(), HEIGHT.toFloat(), clear.copy(backdropScene = scene, dayPhase = phase), 70f)
+
 					assertTrue("$scene must not acquire mountain decoration at $phase", untouched.sameAs(actual))
 				}
 			}
@@ -218,6 +239,7 @@ class CloudMountainAtmosphereRenderingTest {
 		val source = BitmapFactory.decodeResource(resources, R.drawable.cloud_mountains, BitmapFactory.Options().apply { inScaled = false })
 		val bitmap = createBitmap(WIDTH, HEIGHT)
 		val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
+
 		SceneryLighting(SceneryPlane.FAR).applyTo(paint, params)
 		Canvas(bitmap).drawBitmap(source, null, RectF(0f, 662f, 697f, 1092f), paint)
 		source.recycle()
