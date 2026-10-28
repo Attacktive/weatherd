@@ -34,8 +34,8 @@ class SceneryLightingRenderingTest {
 	fun overcastDesaturatesMountainArtworkInsteadOfOnlyDarkeningIt() {
 		val layer = CloudMountainLayer(resources)
 		layer.prewarm()
-		val day = render { layer.draw(it, WIDTH.toFloat(), HEIGHT.toFloat(), clear) }
-		val overcast = render { layer.draw(it, WIDTH.toFloat(), HEIGHT.toFloat(), clear.copy(cloudiness = 1f)) }
+		val day = render { layer.draw(it, WIDTH.toFloat(), HEIGHT.toFloat(), clear, 0f) }
+		val overcast = render { layer.draw(it, WIDTH.toFloat(), HEIGHT.toFloat(), clear.copy(cloudiness = 1f), 0f) }
 		try {
 			assertTrue("Overcast must visibly gray the blue artwork", saturation(overcast) < saturation(day) * 0.6)
 			assertSameAlpha(day, overcast)
@@ -49,10 +49,10 @@ class SceneryLightingRenderingTest {
 	fun twilightMountainArtworkHasWarmHighlightsAndCoolShadows() {
 		val layer = CloudMountainLayer(resources)
 		layer.prewarm()
-		val day = render { layer.draw(it, WIDTH.toFloat(), HEIGHT.toFloat(), clear) }
+		val day = render { layer.draw(it, WIDTH.toFloat(), HEIGHT.toFloat(), clear, 0f) }
 		try {
 			for (phase in listOf(DayPhase.DAWN, DayPhase.DUSK)) {
-				val twilight = render { layer.draw(it, WIDTH.toFloat(), HEIGHT.toFloat(), clear.copy(dayPhase = phase, celestialProgress = 0.5f)) }
+				val twilight = render { layer.draw(it, WIDTH.toFloat(), HEIGHT.toFloat(), clear.copy(dayPhase = phase, celestialProgress = 0.5f), 0f) }
 				try {
 					var highlightWarmth = 0L
 					var shadowWarmth = 0L
@@ -124,7 +124,7 @@ class SceneryLightingRenderingTest {
 		)
 
 		val draws = mutableListOf<(Canvas, SceneParams) -> Unit>(
-			{ canvas, params -> mountain.draw(canvas, WIDTH.toFloat(), HEIGHT.toFloat(), params) }
+			{ canvas, params -> mountain.draw(canvas, WIDTH.toFloat(), HEIGHT.toFloat(), params, 0f) }
 		)
 		for (style in TreeStyle.entries) {
 			trees.prewarm(style)

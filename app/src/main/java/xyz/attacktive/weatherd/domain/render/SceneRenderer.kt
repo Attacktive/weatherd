@@ -359,7 +359,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 			drawScenery(canvas, w, h, params, timeSeconds)
 		}
 
-		cloudMountains.draw(canvas, w, h, params)
+		cloudMountains.draw(canvas, w, h, params, timeSeconds)
 		foregroundTrees.draw(canvas, w, h, params)
 
 		if (fogDensity > 0f) {

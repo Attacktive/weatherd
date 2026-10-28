@@ -295,6 +295,11 @@ Compose that RGB grade before weather/night/fog lighting in the cached color mat
 At night, reduce mountain-blue saturation while retaining ambient foliage detail; night brightness dims both, easing through dawn/dusk without changing alpha or placement.
 Do not per-pixel grade custom photos; retain their weather overlays/night dimming and grade any trees over them normally.
 Fog and precipitation draw in front.
+Cloud mountains adds two faint, slowly drifting valley-local veils at dawn/dusk without changing its source artwork, baked-in atmosphere, summit detail, or daytime rendering.
+Six warm habitation lights form two tiny foothill groups and one farther valley light; they remain fixed in artwork coordinates, emerge through dusk, persist at night, and fade through dawn without blinking.
+Both decorations use the same width-scaled, lifted artwork destination in the shared renderer, behind foreground trees and weather; cache their radial shaders instead of allocating artwork or geometry per frame.
+Existing twilight ramps keep phase boundaries continuous, night brightness dims the lights, and effective weather/humidity fog attenuates the decorations rather than stacking full-strength mist; decorative mist never changes semantic fog or weather classification.
+These effects apply only to Cloud mountains, not photos or legacy procedural scenery; fireflies and scene-brightness/image-clarity changes remain separate work.
 Regenerate first-party sources with `uv run scripts/generate-tree-textures.py` and `uv run scripts/generate-broadleaf-textures.py`; Broadleaf authors separate trunk/branch/canopy structures and supports `--variant hero` or `--variant companion`.
 Decode only the selected style on first use off the frame loop; never copy reference-app or third-party artwork.
 
