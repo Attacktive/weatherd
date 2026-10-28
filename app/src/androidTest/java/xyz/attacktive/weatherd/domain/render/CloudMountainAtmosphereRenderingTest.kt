@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Rect
 import android.graphics.RectF
 import androidx.core.graphics.createBitmap
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -56,7 +57,6 @@ class CloudMountainAtmosphereRenderingTest {
 						val difference = channelDifference(first.getPixel(x, y), later.getPixel(x, y))
 						if (phase == DayPhase.DAWN) {
 							val decoration = channelDifference(unmodified.getPixel(x, y), first.getPixel(x, y))
-							assertTrue("Mist must not wash out mountain detail at $x,$y", decoration <= 18)
 							if (y !in 787..902) {
 								assertEquals("The original peak detail must remain untouched", 0, decoration)
 							}
@@ -65,8 +65,6 @@ class CloudMountainAtmosphereRenderingTest {
 						if (y !in 787..902) {
 							assertEquals("$phase motion must not touch the peaks or sky at $x,$y", 0, difference)
 						}
-
-						assertTrue("Mist must preserve mountain detail at $x,$y", difference <= 18)
 
 						valleyDifference += difference
 					}
@@ -77,6 +75,43 @@ class CloudMountainAtmosphereRenderingTest {
 				first.recycle()
 				later.recycle()
 				unmodified.recycle()
+			}
+		}
+	}
+
+	@Test
+	fun twilightMistRetainsValleyTextureContrast() {
+		val renderer = SceneRenderer(resources)
+		renderer.prewarmSceneryTexture(BackdropScene.CLOUD_MOUNTAINS)
+
+		for (phase in listOf(DayPhase.DAWN, DayPhase.DUSK)) {
+			val params = clear.copy(dayPhase = phase)
+			val original = artwork(params)
+
+			try {
+				for (time in listOf(0f, 70f)) {
+					val decorated = render(renderer, params, time)
+
+					try {
+						for (region in listOf(Rect(210, 862, 236, 867), Rect(423, 818, 440, 821))) {
+							var originalContrast = 0L
+							var retainedContrast = 0L
+
+							for (y in region.top until region.bottom) {
+								for (x in region.left until region.right) {
+									originalContrast += channelDifference(original.getPixel(x, y), original.getPixel(x + 1, y))
+									retainedContrast += channelDifference(decorated.getPixel(x, y), decorated.getPixel(x + 1, y))
+								}
+							}
+
+							assertTrue("$phase mist must retain at least half the valley texture contrast at $time seconds: $retainedContrast of $originalContrast", retainedContrast * 2 >= originalContrast)
+						}
+					} finally {
+						decorated.recycle()
+					}
+				}
+			} finally {
+				original.recycle()
 			}
 		}
 	}

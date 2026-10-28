@@ -26,7 +26,14 @@ internal class CloudMountainLayer(private val resources: Resources) {
 	private var cachedHeight = 0f
 	private val lighting = SceneryLighting(SceneryPlane.FAR)
 	private val mistPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-		shader = RadialGradient(0f, 0f, 1f, 0xFFD5DFEB.toInt(), 0x00D5DFEB, Shader.TileMode.CLAMP)
+		shader = RadialGradient(
+			0f,
+			0f,
+			1f,
+			intArrayOf(0xFFBD9EA2.toInt(), 0xFFBD9EA2.toInt(), 0x00BD9EA2),
+			floatArrayOf(0f, 0.25f, 1f),
+			Shader.TileMode.CLAMP
+		)
 	}
 
 	private val lightPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -35,7 +42,7 @@ internal class CloudMountainLayer(private val resources: Resources) {
 			0f,
 			1f,
 			intArrayOf(0xFFFFD39C.toInt(), 0xD0FFD39C.toInt(), 0x30FFB96F, 0x00FFB96F),
-			floatArrayOf(0f, 0.18f, 0.4f, 1f),
+			floatArrayOf(0f, 0.28f, 0.5f, 1f),
 			Shader.TileMode.CLAMP
 		)
 	}
@@ -83,7 +90,7 @@ internal class CloudMountainLayer(private val resources: Resources) {
 		drawDistantLights(canvas, params)
 	}
 
-	/** Two low-opacity veils stay in the artwork's valleys, away from the detailed summit silhouette. */
+	/** Pale ribbons stay in the artwork's valleys, away from the detailed summit silhouette. */
 	private fun drawValleyMist(canvas: Canvas, params: SceneParams, timeSeconds: Float) {
 		val strength = when (params.dayPhase) {
 			DayPhase.DAWN -> dawnSunriseStrength(params.celestialProgress) * (1f - dawnDaylightStrength(params.celestialProgress))
@@ -91,15 +98,14 @@ internal class CloudMountainLayer(private val resources: Resources) {
 			DayPhase.DAY, DayPhase.NIGHT -> 0f
 		}
 
-		val alpha = (18f * strength * (1f - effectiveFogDensity(params).coerceIn(0f, 1f))).roundToInt()
+		val alpha = (110f * strength * (1f - effectiveFogDensity(params).coerceIn(0f, 1f))).roundToInt()
 		if (alpha <= 0) {
 			return
 		}
 
 		mistPaint.alpha = alpha
-		mistPaint.colorFilter = paint.colorFilter
 
-		val drift = sin(timeSeconds * 0.035f) * 0.015f
+		val drift = sin(timeSeconds * 0.035f) * 0.03f
 		drawMistBand(canvas, 0.32f + drift, 0.47f, 0.20f, 0.035f)
 		drawMistBand(canvas, 0.62f - drift * 0.6f, 0.365f, 0.17f, 0.025f)
 	}
@@ -128,13 +134,13 @@ internal class CloudMountainLayer(private val resources: Resources) {
 		}
 
 		val brightness = 1f - night * (1f - params.nightBrightnessScale.coerceIn(0f, 1f))
-		val alpha = (180f * strength * brightness * (1f - effectiveFogDensity(params).coerceIn(0f, 1f))).roundToInt()
+		val alpha = (235f * strength * brightness * (1f - effectiveFogDensity(params).coerceIn(0f, 1f))).roundToInt()
 		if (alpha <= 0) {
 			return
 		}
 
 		lightPaint.alpha = alpha
-		val radius = destination.width() * 0.0036f
+		val radius = destination.width() * 0.0055f
 		var index = 0
 		while (index < LIGHT_ANCHORS.size) {
 			val x = destination.left + destination.width() * LIGHT_ANCHORS[index]
