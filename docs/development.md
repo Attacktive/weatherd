@@ -285,9 +285,9 @@ Mirror clear-sky placement changes into `scripts/preview-clear-sky.py`; Android 
 ### Nighttime Overcast Lighting
 
 The dedicated overcast banks retain their source artwork, alpha masks, placement, and drift; their RGB tint provides enough ambient night light to distinguish internal shading from the dark sky.
-Sky brightness scales that night tint, including fully overcast scenes where weather grayness overrides the clear-sky gradient; daytime banks retain their established appearance.
-Use the existing sunrise/daylight and sunset/nightfall ramps to join night, dawn, day, and dusk without a bank-color jump, including nondefault brightness.
-Snow lightening and thunder darkening still apply after the phase tint; material grading, cloud opacity, and lunar transmission remain independent.
+Sky brightness scales the weather-gray sky, overcast ceiling, and bank RGB tint in every phase, including fully overcast scenes where weather grayness replaces the clear-sky gradient; 100% preserves the established appearance.
+Apply bank brightness once after the existing sunrise/daylight and sunset/nightfall ramps join night, dawn, day, and dusk; adjacent endpoints must still meet at nondefault brightness.
+Snow lightening and thunder darkening still apply after the phase tint; storm darkening remains after sky brightness. Material grading, cloud opacity, and lunar transmission remain independent, and saturation/palette preferences do not recolor weather grayness.
 This is a lighting correction, not new high-definition artwork or a blur/upscaling pass; affected-device graininess needs a matched comparison rather than an assumed resolution fix.
 The clear-sky desktop preview does not implement the overcast bank stack; inspect Android renderer captures for this path.
 

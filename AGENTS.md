@@ -248,10 +248,10 @@ The corollaries:
 - The far deck is the exception because distance is carried by haze, size, and a dedicated pair of veil sprites; it also thickens with coverage.
 - The hero sprites bake their own sunlit-to-shadow ramp, so `cumulusTint(DayPhase.DAY)` is pure white. Tinting daylight applies the shading twice and grays the crowns.
 - Low-sun cloud lighting uses luminance-aware RGB grading (`CloudColorGrade`) at the `ColorMatrix` boundary during dawn and dusk, providing warm cream/golden highlights and cool slate-blue shadows without altering source or rendered alpha.
-- Day and night use identity material grading; clear-sky base multiply tint smoothly transitions between night blue and daylight white without flat peach/orange overlays. Dedicated overcast banks use the [nighttime lighting contract](docs/development.md#nighttime-overcast-lighting) while preserving source artwork, alpha, and daytime rendering.
+- Day and night use identity material grading; clear-sky base multiply tint smoothly transitions between night blue and daylight white without flat peach/orange overlays. Dedicated overcast banks use the [nighttime lighting contract](docs/development.md#nighttime-overcast-lighting) while preserving source artwork, alpha, and default-brightness rendering.
 - Dry overcast banks receive phase grading, while rainy, snowy, thundery, dense-fog, and cirrus paths preserve identity treatment.
 - Cloud contrast and material grading are RGB-only transforms on cloud artwork. They must preserve the source alpha mask exactly and stay independent of cloud opacity or coverage.
-- Sky palette, brightness, and saturation customize the clear phase gradient before overcast grayness and storm darkening. `NATURAL` at 100% brightness/saturation preserves the established sky gradient; nighttime overcast banks also honor brightness through their separate RGB tint, and stylized palettes must still yield to weather transforms.
+- Sky palette, brightness, and saturation customize the clear phase gradient; brightness also scales weather grayness, the overcast ceiling, and dedicated bank RGB lighting in every phase before weather darkening. `NATURAL` at 100% brightness/saturation preserves the established appearance; stylized palettes and saturation must still yield to weather transforms.
 - A dry sky keeps its full clear-day blue until `OVERCAST_GRAY_FLOOR`, where the overcast ceiling starts drawing. Graying earlier leaves white clouds with nothing to read against.
 
 ### Preview Cloud Work Before Building

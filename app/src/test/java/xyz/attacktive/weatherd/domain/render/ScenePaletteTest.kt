@@ -174,6 +174,19 @@ class ScenePaletteTest {
 	}
 
 	@Test
+	fun `overcast weather gray honors sky brightness in every phase`() {
+		for (phase in DayPhase.entries) {
+			val params = clearParams(phase).copy(cloudiness = 0.9f)
+			val normal = skyGradientFor(params)
+			for (brightness in listOf(0.5f, 1.5f)) {
+				val adjusted = skyGradientFor(params.copy(skyBrightnessScale = brightness))
+				assertEquals("$phase top brightness $brightness", channelSum(normal.topColor) * brightness.toDouble(), channelSum(adjusted.topColor).toDouble(), 3.0)
+				assertEquals("$phase bottom brightness $brightness", channelSum(normal.bottomColor) * brightness.toDouble(), channelSum(adjusted.bottomColor).toDouble(), 3.0)
+			}
+		}
+	}
+
+	@Test
 	fun `clear blue keeps a rich blue zenith and pale horizon with adjustable brightness`() {
 		val params = clearParams(DayPhase.DAY).copy(skyColorPreset = SkyColorPreset.fromName("CLEAR_BLUE"))
 		val natural = skyGradientFor(clearParams(DayPhase.DAY))

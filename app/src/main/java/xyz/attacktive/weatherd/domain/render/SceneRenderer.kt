@@ -1647,7 +1647,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 	}
 
 	private fun drawOvercastCeiling(canvas: Canvas, width: Float, height: Float, params: SceneParams, strength: Float) {
-		val ceiling = overcastCeiling(params.dayPhase)
+		val ceiling = overcastBrightnessTint(overcastCeiling(params.dayPhase), params.skyBrightnessScale)
 		paint.style = Paint.Style.FILL
 		val ceilingAlpha = (190f * strength * params.cloudScale).roundToInt()
 			.coerceIn(0, 255)
@@ -4245,29 +4245,41 @@ private fun cloudTint(dayPhase: DayPhase) = when (dayPhase) {
 	DayPhase.NIGHT -> Color.rgb(64, 72, 90)
 }
 
-/** Keeps the overcast artwork readable at night, with the same phase ramps as the clear-sky clouds. */
-private fun overcastBankTint(params: SceneParams) = when (params.dayPhase) {
-	DayPhase.DAY -> overcastPhaseTint(DayPhase.DAY)
-	DayPhase.NIGHT -> nightOvercastTint(params.skyBrightnessScale)
-	DayPhase.DAWN -> {
-		val sunrise = lerpColor(nightOvercastTint(params.skyBrightnessScale), overcastPhaseTint(DayPhase.DAWN), dawnSunriseStrength(params.celestialProgress))
+/** Keeps overcast lighting brightness-aware across the same phase ramps as the clear-sky clouds. */
+private fun overcastBankTint(params: SceneParams): Int {
+	val color = when (params.dayPhase) {
+		DayPhase.DAY -> overcastPhaseTint(DayPhase.DAY)
+		DayPhase.NIGHT -> overcastPhaseTint(DayPhase.NIGHT)
+		DayPhase.DAWN -> {
+			val sunrise = lerpColor(overcastPhaseTint(DayPhase.NIGHT), overcastPhaseTint(DayPhase.DAWN), dawnSunriseStrength(params.celestialProgress))
 
-		lerpColor(sunrise, overcastPhaseTint(DayPhase.DAY), dawnDaylightStrength(params.celestialProgress))
+			lerpColor(sunrise, overcastPhaseTint(DayPhase.DAY), dawnDaylightStrength(params.celestialProgress))
+		}
+
+		DayPhase.DUSK -> {
+			val sunset = lerpColor(overcastPhaseTint(DayPhase.DAY), overcastPhaseTint(DayPhase.DUSK), duskWarmStrength(params.celestialProgress))
+
+			lerpColor(sunset, overcastPhaseTint(DayPhase.NIGHT), duskNightStrength(params.celestialProgress))
+		}
 	}
 
-	DayPhase.DUSK -> {
-		val sunset = lerpColor(overcastPhaseTint(DayPhase.DAY), overcastPhaseTint(DayPhase.DUSK), duskWarmStrength(params.celestialProgress))
-
-		lerpColor(sunset, nightOvercastTint(params.skyBrightnessScale), duskNightStrength(params.celestialProgress))
-	}
+	return overcastBrightnessTint(color, params.skyBrightnessScale)
 }
 
-private fun overcastPhaseTint(phase: DayPhase) = lerpColor(overcastCeiling(phase), cloudTint(phase), 0.58f)
+private fun overcastPhaseTint(phase: DayPhase) = if (phase == DayPhase.NIGHT) {
+	Color.rgb(68, 77, 99)
+} else {
+	lerpColor(overcastCeiling(phase), cloudTint(phase), 0.58f)
+}
 
-private fun nightOvercastTint(brightnessScale: Float): Int {
+private fun overcastBrightnessTint(color: Int, brightnessScale: Float): Int {
 	val brightness = brightnessScale.coerceIn(SKY_BRIGHTNESS_SCALE_RANGE.start, SKY_BRIGHTNESS_SCALE_RANGE.endInclusive)
 
-	return Color.rgb((68f * brightness).roundToInt(), (77f * brightness).roundToInt(), (99f * brightness).roundToInt())
+	return Color.rgb(
+		(Color.red(color) * brightness).roundToInt().coerceIn(0, 255),
+		(Color.green(color) * brightness).roundToInt().coerceIn(0, 255),
+		(Color.blue(color) * brightness).roundToInt().coerceIn(0, 255)
+	)
 }
 
 

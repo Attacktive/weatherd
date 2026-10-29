@@ -24,11 +24,13 @@ fun skyGradientFor(params: SceneParams): SkyGradient {
 		phaseGray(params.dayPhase)
 	}
 
+	val brightness = params.skyBrightnessScale.coerceIn(SKY_BRIGHTNESS_SCALE_RANGE.start, SKY_BRIGHTNESS_SCALE_RANGE.endInclusive)
+	val weatherGray = adjustSkyColor(gray, brightness, 1f)
 	val overcast = overcastAmount(params)
 	val darken = darkenAmount(params)
 
-	val top = darkenColor(lerpColor(base.topColor, gray, overcast), darken)
-	val bottom = darkenColor(lerpColor(base.bottomColor, gray, overcast), darken)
+	val top = darkenColor(lerpColor(base.topColor, weatherGray, overcast), darken)
+	val bottom = darkenColor(lerpColor(base.bottomColor, weatherGray, overcast), darken)
 
 	return SkyGradient(top, bottom)
 }

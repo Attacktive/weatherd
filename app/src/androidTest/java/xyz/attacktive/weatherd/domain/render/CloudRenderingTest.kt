@@ -206,28 +206,60 @@ class CloudRenderingTest {
 	}
 
 	@Test
-	fun nightOvercastBrightnessChangesLightingWithoutChangingCloudCoverage() {
-		val normal = renderForeground(cloudiness = 0.9f, cloudScale = 1f, dayPhase = DayPhase.NIGHT)
-		val brighter = renderForeground(cloudiness = 0.9f, cloudScale = 1f, dayPhase = DayPhase.NIGHT, skyBrightnessScale = 1.5f)
-		var normalLuminance = 0.0
-		var brighterLuminance = 0.0
-		try {
-			for (y in 0 until HEIGHT) {
-				for (x in 0 until WIDTH) {
-					val before = normal.getPixel(x, y)
-					val after = brighter.getPixel(x, y)
-					assertEquals("Brightness must not change cloud coverage at ($x, $y)", Color.alpha(before), Color.alpha(after))
-					if (Color.alpha(before) >= 96) {
-						normalLuminance += luminance(before)
-						brighterLuminance += luminance(after)
+	fun overcastBrightnessChangesLightingWithoutChangingCloudCoverage() {
+		for (phase in DayPhase.entries) {
+			val normal = renderForeground(cloudiness = 0.9f, cloudScale = 1f, dayPhase = phase)
+			val dimmer = renderForeground(cloudiness = 0.9f, cloudScale = 1f, dayPhase = phase, skyBrightnessScale = 0.5f)
+			var normalLuminance = 0.0
+			var dimmerLuminance = 0.0
+			try {
+				for (y in 0 until HEIGHT) {
+					for (x in 0 until WIDTH) {
+						val before = normal.getPixel(x, y)
+						val after = dimmer.getPixel(x, y)
+						assertEquals("$phase brightness must not change cloud coverage at ($x, $y)", Color.alpha(before), Color.alpha(after))
+						if (Color.alpha(before) >= 96) {
+							normalLuminance += luminance(before)
+							dimmerLuminance += luminance(after)
+						}
 					}
 				}
-			}
 
-			assertTrue("Sky brightness must visibly lift nighttime overcast detail", brighterLuminance > normalLuminance * 1.35)
-		} finally {
-			normal.recycle()
-			brighter.recycle()
+				assertTrue("Sky brightness must visibly dim $phase overcast detail", dimmerLuminance < normalLuminance * 0.6)
+			} finally {
+				normal.recycle()
+				dimmer.recycle()
+			}
+		}
+	}
+
+	@Test
+	fun overcastBrightnessReachesBothTheCeilingAndTheLowerSky() {
+		val renderer = SceneRenderer(resources)
+		for (phase in DayPhase.entries) {
+			val params = SceneParams(
+				dayPhase = phase,
+				cloudiness = 0.9f,
+				fogDensity = 0f,
+				precipitation = null,
+				thunder = false,
+				windFactor = 0f
+			)
+			val normal = createBitmap(WIDTH, HEIGHT)
+			val brighter = createBitmap(WIDTH, HEIGHT)
+			try {
+				renderer.renderBackdrop(Canvas(normal), WIDTH, HEIGHT, params)
+				renderer.renderBackdrop(Canvas(brighter), WIDTH, HEIGHT, params.copy(skyBrightnessScale = 1.5f))
+				for (y in listOf(HEIGHT / 10, HEIGHT * 8 / 10)) {
+					assertTrue(
+						"Sky brightness must lift $phase overcast background at height $y",
+						luminance(brighter.getPixel(WIDTH / 2, y)) > luminance(normal.getPixel(WIDTH / 2, y)) * 1.15
+					)
+				}
+			} finally {
+				normal.recycle()
+				brighter.recycle()
+			}
 		}
 	}
 

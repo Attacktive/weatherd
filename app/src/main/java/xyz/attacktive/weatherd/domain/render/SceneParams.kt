@@ -47,7 +47,7 @@ import xyz.attacktive.weatherd.domain.model.normalizeSunHorizontalPosition
  * [windScale] is the user's preference rather than an observation, so it rides alongside [windFactor] instead of being folded into it: the renderer applies it past its own floors, where it actually moves visible wind effects.
  * [cloudScale] is the user's preference rather than an observation, so it rides alongside [cloudiness] instead of being folded into it: the renderer applies it past its own floors, where it scales cloud opacity.
  * [cloudSizeScale] changes individual fair-weather cloud body geometry, [cloudCountScale] scales rendered cloud coverage, and [cloudContrastScale] changes RGB separation inside cloud artwork without touching its alpha mask.
- * [skyBrightnessScale], [skySaturationScale] and [skyColorPreset] customize the painted phase gradient before weather grayness and storm darkening are applied.
+ * [skyBrightnessScale], [skySaturationScale] and [skyColorPreset] customize the painted phase gradient; brightness also scales weather grayness, the overcast ceiling, and overcast-bank RGB lighting before weather darkening.
  * [nightBrightnessScale] dims the completed static night backdrop after weather transforms, so 0 makes the background black without dimming dawn, day, dusk, stars, celestial bodies or animated weather; bitmap mountains and trees also follow this scale, with continuous twilight transitions.
  * [sunVisible], [moonVisible], [sunSizeScale], [moonSizeScale], [moonOpacity], [sunColorPreset] and [sunStyle] customize the celestial bodies without changing the time-of-day lighting.
  * [sunHorizontalPosition] anchors the Sun's center across scene width without moving the Moon or changing celestial height and timing.
