@@ -210,25 +210,32 @@ class CloudRenderingTest {
 		for (phase in DayPhase.entries) {
 			val normal = renderForeground(cloudiness = 0.9f, cloudScale = 1f, dayPhase = phase)
 			val dimmer = renderForeground(cloudiness = 0.9f, cloudScale = 1f, dayPhase = phase, skyBrightnessScale = 0.5f)
+			val brighter = renderForeground(cloudiness = 0.9f, cloudScale = 1f, dayPhase = phase, skyBrightnessScale = 1.5f)
 			var normalLuminance = 0.0
 			var dimmerLuminance = 0.0
+			var brighterLuminance = 0.0
 			try {
 				for (y in 0 until HEIGHT) {
 					for (x in 0 until WIDTH) {
 						val before = normal.getPixel(x, y)
 						val after = dimmer.getPixel(x, y)
+						val bright = brighter.getPixel(x, y)
 						assertEquals("$phase brightness must not change cloud coverage at ($x, $y)", Color.alpha(before), Color.alpha(after))
+						assertEquals("$phase brightening must not change cloud coverage at ($x, $y)", Color.alpha(before), Color.alpha(bright))
 						if (Color.alpha(before) >= 96) {
 							normalLuminance += luminance(before)
 							dimmerLuminance += luminance(after)
+							brighterLuminance += luminance(bright)
 						}
 					}
 				}
 
 				assertTrue("Sky brightness must visibly dim $phase overcast detail", dimmerLuminance < normalLuminance * 0.6)
+				assertTrue("Sky brightness must visibly lift $phase overcast detail", brighterLuminance > normalLuminance * 1.25)
 			} finally {
 				normal.recycle()
 				dimmer.recycle()
+				brighter.recycle()
 			}
 		}
 	}
@@ -245,6 +252,7 @@ class CloudRenderingTest {
 				thunder = false,
 				windFactor = 0f
 			)
+
 			val normal = createBitmap(WIDTH, HEIGHT)
 			val brighter = createBitmap(WIDTH, HEIGHT)
 			try {
@@ -258,6 +266,39 @@ class CloudRenderingTest {
 				}
 			} finally {
 				normal.recycle()
+				brighter.recycle()
+			}
+		}
+	}
+
+	@Test
+	fun overcastHorizonHazeHonorsBrightnessInBothDirections() {
+		val renderer = SceneRenderer(resources)
+		for (phase in listOf(DayPhase.DAY, DayPhase.NIGHT)) {
+			val params = SceneParams(
+				dayPhase = phase,
+				cloudiness = 0.9f,
+				fogDensity = 0f,
+				precipitation = null,
+				thunder = false,
+				windFactor = 0f
+			)
+
+			val normal = createBitmap(WIDTH, HEIGHT)
+			val dimmer = createBitmap(WIDTH, HEIGHT)
+			val brighter = createBitmap(WIDTH, HEIGHT)
+			try {
+				renderer.renderBackdrop(Canvas(normal), WIDTH, HEIGHT, params)
+				renderer.renderBackdrop(Canvas(dimmer), WIDTH, HEIGHT, params.copy(skyBrightnessScale = 0.5f))
+				renderer.renderBackdrop(Canvas(brighter), WIDTH, HEIGHT, params.copy(skyBrightnessScale = 1.5f))
+				for (y in listOf(HEIGHT * 8 / 10, HEIGHT * 95 / 100)) {
+					val normalLuminance = luminance(normal.getPixel(WIDTH / 2, y))
+					assertTrue("$phase horizon haze must not wash out dimming at height $y", luminance(dimmer.getPixel(WIDTH / 2, y)) < normalLuminance * 0.55)
+					assertTrue("$phase horizon haze must brighten with the sky at height $y", luminance(brighter.getPixel(WIDTH / 2, y)) > normalLuminance * 1.3)
+				}
+			} finally {
+				normal.recycle()
+				dimmer.recycle()
 				brighter.recycle()
 			}
 		}

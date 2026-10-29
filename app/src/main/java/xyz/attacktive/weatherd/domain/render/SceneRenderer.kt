@@ -2671,7 +2671,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 	}
 
 	private fun drawHaze(canvas: Canvas, width: Float, height: Float, params: SceneParams) {
-		val haze = hazeColorFor(params.dayPhase)
+		val haze = overcastBrightnessTint(hazeColorFor(params.dayPhase), params.skyBrightnessScale)
 		paint.style = Paint.Style.FILL
 		paint.shader = LinearGradient(0f, height * 0.55f, 0f, height, withAlpha(haze, 0), withAlpha(haze, 120), Shader.TileMode.CLAMP)
 		canvas.drawRect(0f, height * 0.55f, width, height, paint)

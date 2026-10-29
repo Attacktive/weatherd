@@ -251,7 +251,7 @@ The corollaries:
 - Day and night use identity material grading; clear-sky base multiply tint smoothly transitions between night blue and daylight white without flat peach/orange overlays. Dedicated overcast banks use the [nighttime lighting contract](docs/development.md#nighttime-overcast-lighting) while preserving source artwork, alpha, and default-brightness rendering.
 - Dry overcast banks receive phase grading, while rainy, snowy, thundery, dense-fog, and cirrus paths preserve identity treatment.
 - Cloud contrast and material grading are RGB-only transforms on cloud artwork. They must preserve the source alpha mask exactly and stay independent of cloud opacity or coverage.
-- Sky palette, brightness, and saturation customize the clear phase gradient; brightness also scales weather grayness, the overcast ceiling, and dedicated bank RGB lighting in every phase before weather darkening. `NATURAL` at 100% brightness/saturation preserves the established appearance; stylized palettes and saturation must still yield to weather transforms.
+- Sky palette, brightness, and saturation customize the clear phase gradient; brightness also scales weather grayness, the overcast ceiling, and dedicated bank RGB lighting in every phase before weather darkening. Horizon haze also follows sky brightness without changing opacity. `NATURAL` at 100% brightness/saturation preserves the established appearance; stylized palettes and saturation must still yield to weather transforms.
 - A dry sky keeps its full clear-day blue until `OVERCAST_GRAY_FLOOR`, where the overcast ceiling starts drawing. Graying earlier leaves white clouds with nothing to read against.
 
 ### Preview Cloud Work Before Building
