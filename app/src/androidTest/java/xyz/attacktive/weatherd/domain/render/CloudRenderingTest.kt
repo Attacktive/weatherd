@@ -205,15 +205,67 @@ class CloudRenderingTest {
 		)
 	}
 
+	@Test
+	fun nightOvercastBrightnessChangesLightingWithoutChangingCloudCoverage() {
+		val normal = renderForeground(cloudiness = 0.9f, cloudScale = 1f, dayPhase = DayPhase.NIGHT)
+		val brighter = renderForeground(cloudiness = 0.9f, cloudScale = 1f, dayPhase = DayPhase.NIGHT, skyBrightnessScale = 1.5f)
+		var normalLuminance = 0.0
+		var brighterLuminance = 0.0
+		try {
+			for (y in 0 until HEIGHT) {
+				for (x in 0 until WIDTH) {
+					val before = normal.getPixel(x, y)
+					val after = brighter.getPixel(x, y)
+					assertEquals("Brightness must not change cloud coverage at ($x, $y)", Color.alpha(before), Color.alpha(after))
+					if (Color.alpha(before) >= 96) {
+						normalLuminance += luminance(before)
+						brighterLuminance += luminance(after)
+					}
+				}
+			}
+
+			assertTrue("Sky brightness must visibly lift nighttime overcast detail", brighterLuminance > normalLuminance * 1.35)
+		} finally {
+			normal.recycle()
+			brighter.recycle()
+		}
+	}
+
+	@Test
+	fun overcastLightingJoinsNeighboringPhasesWithoutAColorJump() {
+		for (brightness in listOf(0.5f, 1f, 1.5f)) {
+			for ((phase, progress, neighbor) in listOf(
+				Triple(DayPhase.DAWN, 0f, DayPhase.NIGHT),
+				Triple(DayPhase.DAWN, 1f, DayPhase.DAY),
+				Triple(DayPhase.DUSK, 0f, DayPhase.DAY),
+				Triple(DayPhase.DUSK, 1f, DayPhase.NIGHT)
+			)) {
+				val boundary = renderForeground(cloudiness = 0.9f, cloudScale = 1f, dayPhase = phase, celestialProgress = progress, skyBrightnessScale = brightness)
+				val adjacent = renderForeground(cloudiness = 0.9f, cloudScale = 1f, dayPhase = neighbor, skyBrightnessScale = brightness)
+				try {
+					assertTrue("$phase at $progress must meet $neighbor at brightness $brightness", boundary.sameAs(adjacent))
+				} finally {
+					boundary.recycle()
+					adjacent.recycle()
+				}
+			}
+		}
+	}
+
+	private fun luminance(color: Int) = Color.red(color) * 0.2126 + Color.green(color) * 0.7152 + Color.blue(color) * 0.0722
+
 	private fun renderForeground(
 		cloudiness: Float,
 		cloudScale: Float,
 		cloudLayers: SceneCloudLayers? = null,
-		cloudContrastScale: Float = 1f
+		cloudContrastScale: Float = 1f,
+		dayPhase: DayPhase = DayPhase.DAY,
+		celestialProgress: Float = 0.5f,
+		skyBrightnessScale: Float = 1f
 	): Bitmap {
 		val bitmap = createBitmap(WIDTH, HEIGHT)
 		val params = SceneParams(
-			dayPhase = DayPhase.DAY,
+			dayPhase = dayPhase,
 			cloudiness = cloudiness,
 			fogDensity = 0f,
 			precipitation = null,
@@ -222,6 +274,8 @@ class CloudRenderingTest {
 			cloudLayers = cloudLayers,
 			cloudScale = cloudScale,
 			cloudContrastScale = cloudContrastScale,
+			celestialProgress = celestialProgress,
+			skyBrightnessScale = skyBrightnessScale,
 			sunVisible = false,
 			distantAircraftEnabled = false,
 			birdFlockSize = BirdFlockSize.OFF

@@ -38,6 +38,7 @@ import xyz.attacktive.weatherd.domain.model.LABEL_VERTICAL_POSITION_RANGE
 import xyz.attacktive.weatherd.domain.model.NIGHT_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
+import xyz.attacktive.weatherd.domain.model.SKY_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
@@ -1675,7 +1676,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 			return
 		}
 
-		val base = lerpColor(overcastCeiling(params.dayPhase), cloudTint(params.dayPhase), 0.58f)
+		val base = overcastBankTint(params)
 		val color = when {
 			params.thunder -> darken(base, 0.72f)
 			params.precipitation?.kind == PrecipitationKind.SNOW -> lighten(base, 0.12f)
@@ -4242,6 +4243,31 @@ private fun cloudTint(dayPhase: DayPhase) = when (dayPhase) {
 	DayPhase.DAWN -> Color.rgb(226, 206, 214)
 	DayPhase.DUSK -> Color.rgb(198, 176, 184)
 	DayPhase.NIGHT -> Color.rgb(64, 72, 90)
+}
+
+/** Keeps the overcast artwork readable at night, with the same phase ramps as the clear-sky clouds. */
+private fun overcastBankTint(params: SceneParams) = when (params.dayPhase) {
+	DayPhase.DAY -> overcastPhaseTint(DayPhase.DAY)
+	DayPhase.NIGHT -> nightOvercastTint(params.skyBrightnessScale)
+	DayPhase.DAWN -> {
+		val sunrise = lerpColor(nightOvercastTint(params.skyBrightnessScale), overcastPhaseTint(DayPhase.DAWN), dawnSunriseStrength(params.celestialProgress))
+
+		lerpColor(sunrise, overcastPhaseTint(DayPhase.DAY), dawnDaylightStrength(params.celestialProgress))
+	}
+
+	DayPhase.DUSK -> {
+		val sunset = lerpColor(overcastPhaseTint(DayPhase.DAY), overcastPhaseTint(DayPhase.DUSK), duskWarmStrength(params.celestialProgress))
+
+		lerpColor(sunset, nightOvercastTint(params.skyBrightnessScale), duskNightStrength(params.celestialProgress))
+	}
+}
+
+private fun overcastPhaseTint(phase: DayPhase) = lerpColor(overcastCeiling(phase), cloudTint(phase), 0.58f)
+
+private fun nightOvercastTint(brightnessScale: Float): Int {
+	val brightness = brightnessScale.coerceIn(SKY_BRIGHTNESS_SCALE_RANGE.start, SKY_BRIGHTNESS_SCALE_RANGE.endInclusive)
+
+	return Color.rgb((68f * brightness).roundToInt(), (77f * brightness).roundToInt(), (99f * brightness).roundToInt())
 }
 
 
