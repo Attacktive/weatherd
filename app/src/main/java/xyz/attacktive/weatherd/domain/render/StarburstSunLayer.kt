@@ -36,7 +36,7 @@ internal class StarburstSunLayer(private val resources: Resources) {
 						}
 					)
 				)
-				.also(::encodeCoreWhiteningMask)
+				.also(::prepareCoreLight)
 			}
 		}
 	}
@@ -56,10 +56,10 @@ internal class StarburstSunLayer(private val resources: Resources) {
 	}
 
 	/**
-	 * Encode a smooth white-core weight in RGB while leaving every source alpha untouched.
-	 * This one-time prewarm keeps the existing texture silhouette and avoids an extra frame draw.
+	 * Prepare a white core and a restrained inner glow once, without changing the outer artwork.
+	 * Keeping the lift inside the source alpha lets the single draw honor user opacity and sunset fade.
 	 */
-	private fun encodeCoreWhiteningMask(bitmap: Bitmap) {
+	private fun prepareCoreLight(bitmap: Bitmap) {
 		val width = bitmap.width
 		val height = bitmap.height
 		val pixels = IntArray(width * height)
@@ -71,6 +71,8 @@ internal class StarburstSunLayer(private val resources: Resources) {
 		val outerRadius = width * CORE_OUTER_RADIUS_FRACTION
 		val innerRadiusSquared = innerRadius * innerRadius
 		val outerRadiusSquared = outerRadius * outerRadius
+		val glowRadius = width * INNER_GLOW_RADIUS_FRACTION
+		val glowRadiusSquared = glowRadius * glowRadius
 
 		for (y in 0 until height) {
 			val dy = y - centerY
@@ -81,7 +83,13 @@ internal class StarburstSunLayer(private val resources: Resources) {
 				val smoothWeight = weight * weight * (3f - 2f * weight)
 				val white = (smoothWeight * 255f).roundToInt()
 				val index = y * width + x
-				pixels[index] = (pixels[index] and 0xFF000000.toInt()) or (white * 0x010101)
+				val originalAlpha = Color.alpha(pixels[index])
+				val glowWeight = (1f - distanceSquared / glowRadiusSquared).coerceIn(0f, 1f)
+				val smoothGlowWeight = glowWeight * glowWeight * (3f - 2f * glowWeight)
+				// Lift translucent inner light, not the saturated core; zero alpha and the outer rays stay unchanged.
+				val glowLift = originalAlpha * (1f - originalAlpha / 255f) * INNER_GLOW_STRENGTH * smoothGlowWeight
+				val alpha = (originalAlpha + glowLift).roundToInt().coerceIn(0, 255)
+				pixels[index] = (alpha shl 24) or (white * 0x010101)
 			}
 		}
 
@@ -108,6 +116,8 @@ internal class StarburstSunLayer(private val resources: Resources) {
 		// The source artwork spans 800 reference units; the existing bright core is about 40.
 		const val CORE_INNER_RADIUS_FRACTION = 20f / 800f
 		const val CORE_OUTER_RADIUS_FRACTION = 52f / 800f
+		const val INNER_GLOW_RADIUS_FRACTION = 110f / 800f
+		const val INNER_GLOW_STRENGTH = 0.5f
 
 		@Volatile
 		var source: Bitmap? = null

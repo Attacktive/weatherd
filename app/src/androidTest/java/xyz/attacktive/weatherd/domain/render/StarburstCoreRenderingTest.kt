@@ -1,6 +1,10 @@
 package xyz.attacktive.weatherd.domain.render
 
+import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.roundToInt
+import kotlin.math.sin
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
@@ -19,75 +23,100 @@ import xyz.attacktive.weatherd.R
 @RunWith(AndroidJUnit4::class)
 class StarburstCoreRenderingTest {
 	@Test
-	fun coreWhiteningKeepsSourceOpacityAndEveryOuterPixel() {
+	fun innerGlowStaysLocalAndHonorsRequestedOpacity() {
 		val resources = InstrumentationRegistry.getInstrumentation().targetContext.resources
-		val source = checkNotNull(BitmapFactory.decodeResource(
-			resources,
-			R.drawable.sun_starburst,
-			BitmapFactory.Options().apply { inScaled = false }
-		))
+		val source = checkNotNull(
+			BitmapFactory.decodeResource(
+				resources,
+				R.drawable.sun_starburst,
+				BitmapFactory.Options().apply { inScaled = false }
+			)
+		)
 
 		val layer = StarburstSunLayer(resources)
 		layer.prewarm()
-
-		val width = source.width
-		val height = source.height
-		val centerX = width * 0.5f
-		val centerY = height * 0.5f
-		val discRadius = width * 0.1f
-		val outerGuardRadiusSquared = (width * 56f / 800f).let { it * it }
-
 		try {
-			val tintAndAlphaCases = listOf(
-				Color.rgb(255, 228, 150) to 255,
-				Color.rgb(255, 231, 202) to 128,
-				Color.WHITE to 255
-			)
-
-			for ((tint, alpha) in tintAndAlphaCases) {
-				val before = createBitmap(width, height)
-				val after = createBitmap(width, height)
-				try {
-					val oldTint = paleBaselineTint(tint)
-					val oldPaint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG).apply {
-						colorFilter = LightingColorFilter(oldTint, 0)
-						this.alpha = alpha
-					}
-
-					Canvas(before).drawBitmap(source, null, RectF(0f, 0f, width.toFloat(), height.toFloat()), oldPaint)
-					layer.draw(Canvas(after), centerX, centerY, discRadius, tint, alpha)
-
-					for (y in 0 until height) {
-						val dy = y + 0.5f - centerY
-						for (x in 0 until width) {
-							val original = before.getPixel(x, y)
-							val changed = after.getPixel(x, y)
-							if (Color.alpha(original) != Color.alpha(changed)) {
-								assertEquals("Core adjustment must preserve source opacity", Color.alpha(original), Color.alpha(changed))
-							}
-
-							val dx = x + 0.5f - centerX
-							if (dx * dx + dy * dy >= outerGuardRadiusSquared && original != changed) {
-								assertEquals("The outer glow and rays must remain pixel-identical", original, changed)
-							}
-						}
-					}
-
-					val beforeCore = before.getPixel(width / 2, height / 2)
-					val afterCore = after.getPixel(width / 2, height / 2)
-					if (tint == Color.WHITE) {
-						assertTrue("An already-white source must not change", before.sameAs(after))
-					} else {
-						assertTrue("Warm Starburst cores must become visibly whiter", Color.blue(afterCore) > Color.blue(beforeCore))
-						assertEquals("The compact core must reach pure white", 255, Color.blue(afterCore))
-					}
-				} finally {
-					before.recycle()
-					after.recycle()
-				}
+			for ((tint, alpha) in listOf(Color.WHITE to 255, Color.rgb(255, 228, 150) to 255, Color.rgb(255, 231, 202) to 128, Color.WHITE to 64, Color.WHITE to 0)) {
+				assertLocalizedGlow(source, layer, tint, alpha)
 			}
 		} finally {
 			source.recycle()
+		}
+	}
+
+	@Test
+	fun innerGlowFallsAwayWithoutABrightRing() {
+		val layer = StarburstSunLayer(InstrumentationRegistry.getInstrumentation().targetContext.resources)
+		layer.prewarm()
+		for (alpha in listOf(128, 255)) {
+			val bitmap = createBitmap(512, 512)
+			try {
+				layer.draw(Canvas(bitmap), 256f, 256f, 51.2f, Color.WHITE, alpha)
+				for (direction in 0 until 32) {
+					val angle = direction * 2.0 * PI / 32
+					var previous = Color.alpha(bitmap.getPixel(256, 256))
+					for (radius in 1..72) {
+						val x = (255.5 + cos(angle) * radius).roundToInt()
+						val y = (255.5 + sin(angle) * radius).roundToInt()
+						val current = Color.alpha(bitmap.getPixel(x, y))
+						assertTrue("The inner glow must fade outward without a bright ring at $x,$y: $previous -> $current", current <= previous + 2)
+						previous = current
+					}
+				}
+			} finally {
+				bitmap.recycle()
+			}
+		}
+	}
+
+	private fun assertLocalizedGlow(source: Bitmap, layer: StarburstSunLayer, tint: Int, alpha: Int) {
+		val width = source.width
+		val height = source.height
+		val before = createBitmap(width, height)
+		val after = createBitmap(width, height)
+		try {
+			val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG).apply {
+				colorFilter = LightingColorFilter(paleBaselineTint(tint), 0)
+				this.alpha = alpha
+			}
+
+			Canvas(before).drawBitmap(source, null, RectF(0f, 0f, width.toFloat(), height.toFloat()), paint)
+			layer.draw(Canvas(after), width * 0.5f, height * 0.5f, width * 0.1f, tint, alpha)
+			val outerGuard = width * 112f / 800f
+			val shoulderInner = width * 48f / 800f
+			val shoulderOuter = width * 88f / 800f
+			var shoulderLift = 0L
+			var shoulderPixels = 0
+			for (y in 0 until height) {
+				val dy = y + 0.5f - height * 0.5f
+				for (x in 0 until width) {
+					val dx = x + 0.5f - width * 0.5f
+					val distanceSquared = dx * dx + dy * dy
+					val original = before.getPixel(x, y)
+					val changed = after.getPixel(x, y)
+					val changedAlpha = Color.alpha(changed)
+					assertTrue("The single-pass glow must respect requested opacity $alpha at $x,$y", changedAlpha <= alpha)
+					assertTrue("The core and existing light must not be dimmed", changedAlpha >= Color.alpha(original))
+					if (distanceSquared >= outerGuard * outerGuard) {
+						assertEquals("Outer halo and rays must remain pixel-identical at $x,$y", original, changed)
+					}
+
+					if (distanceSquared in shoulderInner * shoulderInner..shoulderOuter * shoulderOuter) {
+						shoulderLift += changedAlpha - Color.alpha(original)
+						shoulderPixels++
+					}
+				}
+			}
+
+			assertEquals("The solar center must retain its original opacity", Color.alpha(before.getPixel(width / 2, height / 2)), Color.alpha(after.getPixel(width / 2, height / 2)))
+			if (alpha > 0) {
+				assertTrue("The inner glow must become perceptibly stronger, including for white light; average alpha lift was ${shoulderLift.toFloat() / shoulderPixels}", shoulderLift.toFloat() / shoulderPixels >= alpha * 0.02f)
+				val core = after.getPixel(width / 2, height / 2)
+				assertTrue("The core must remain white rather than yellow", Color.red(core) >= 253 && Color.green(core) >= 253 && Color.blue(core) >= 253)
+			}
+		} finally {
+			before.recycle()
+			after.recycle()
 		}
 	}
 
