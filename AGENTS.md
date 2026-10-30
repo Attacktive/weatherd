@@ -25,6 +25,7 @@ Before working on a topic below, read its linked section in [docs/development.md
 ## Tools and Environment
 
 Agents use standard file inspection, editing tools, and Gradle tasks (`./gradlew check`).
+- Every GitHub mutation must use Gremlin, including remote branches/commits, pull requests, issues, comments, and reviews; GitHub CLI and `git push` are not mutation routes.
 - In the current setup, `connectedDebugAndroidTest` removes the target Weatherd installation during teardown (observed on Pixel); use it only on a disposable device or emulator.
 - Ordinary instrumentation must select one device and must never use the reserved provider-evaluation AVD; follow the [development reference](docs/development.md#local-checks-and-instrumentation) for the Gradle preflight and ordinary-suite exclusion.
 - To preserve an existing installation, build the app and test APKs, install both with `adb install -r -t`, and use the reference's direct instrumentation command with an explicit serial and capture-test exclusion.
