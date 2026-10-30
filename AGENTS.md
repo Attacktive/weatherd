@@ -2,7 +2,7 @@
 
 Instructions and architectural invariants for agents working in the Weatherd codebase.
 
-- Version: 1.6.22 (2026-10-25)
+- Version: 1.6.23 (2026-10-30)
 - Persona: Coding assistant pair-programming with the user on Weatherd.
 
 ## Documentation Scope
@@ -20,6 +20,7 @@ Before working on a topic below, read its linked section in [docs/development.md
 - [Scenery and tree artwork](docs/development.md#scenery-and-tree-artwork)
 - [Sun, Moon, and optical effects](docs/development.md#sun-moon-and-optical-effects)
 - [Birds and aircraft](docs/development.md#sky-wildlife-and-aircraft)
+- [Seasonal celebrations](docs/development.md#seasonal-sky-celebrations)
 - [Rendering performance and motion sensors](docs/development.md#rendering-performance-and-motion-sensors)
 
 ## Tools and Environment
@@ -95,7 +96,7 @@ Keep category summaries to one or two high-signal settings facts, localized cons
 Category regrouping must not change stored setting keys, defaults, reset scope, preset membership, simulator behavior, or the shared scene-provider path.
 Weather/Wallpaper internals stay in place unless an actual setting move requires touching them; MET Norway attribution belongs with Weather.
 
-Appearance categories are Scenery & photos (backdrops, conditional photo slots, Trees/shape), Sky (palette, brightness/night brightness, saturation, aircraft, birds/interval), Clouds (size/count/opacity/contrast), Sun & moon (visibility, styles, sunbeams, sizes, Sun horizontal position, sun color, optical effects), Weather effects (precipitation, glass droplets, wind), On-screen text (visibility/position/unit), Readability (dimming/status-bar shade), and Presets (save/apply/rename/replace/delete).
+Appearance categories are Scenery & photos (backdrops, conditional photo slots, Trees/shape), Sky (palette, brightness/night brightness, saturation, aircraft, birds/interval, seasonal celebrations), Clouds (size/count/opacity/contrast), Sun & moon (visibility, styles, sunbeams, sizes, Sun horizontal position, sun color, optical effects), Weather effects (precipitation, glass droplets, wind), On-screen text (visibility/position/unit), Readability (dimming/status-bar shade), and Presets (save/apply/rename/replace/delete).
 Weather owns location, providers, and refresh; Wallpaper owns motion/performance; Advanced owns the simulator.
 
 ### System Appearance and Display Compatibility
@@ -106,7 +107,14 @@ Preview controls avoid system bars and cutouts, including landscape side cutouts
 Display settings apply through the shared scene path and are saved in appearance presets.
 Preserve independent resets and missing-field defaults: Classic sun, Through clouds sunbeams, Sun horizontal position 72%, Natural palette, Moon size 100%, Rainbow size 100%, Trees off with Evergreen shape, and readability strengths off.
 Tree shape, bird interval, and Sun horizontal position remain selected when their parent toggles hide those controls.
-New preset writes use schema v16; v1–v15 remain readable, while older builds reject the new bank rather than silently dropping appearance settings.
+New preset writes use schema v17; v1–v16 remain readable with seasonal celebrations enabled when missing, while older builds reject the new bank rather than silently dropping appearance settings.
+
+### Seasonal Celebrations Stay Night-Only
+
+Halloween, Christmas, and New Year's use annual fixed UTC eligibility windows, separate from effective NIGHT visibility and deterministic foreground scheduling.
+Keep the default-on Sky opt-out in appearance presets; the Advanced force checkbox and its consumption are debug-build-only and never bypass the night gate.
+Preserve shared scene inputs, stable backdrops, weather layering, and existing idle/visibility policies; settled frames must still expire at calendar boundaries.
+See [seasonal celebrations](docs/development.md#seasonal-sky-celebrations) for dates, artwork, and validation.
 
 ### On-Screen Text Position
 

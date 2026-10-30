@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -39,6 +40,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -70,6 +74,7 @@ import xyz.attacktive.weatherd.domain.model.AnimationIdleTimeout
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
 import xyz.attacktive.weatherd.domain.model.GeoPlace
+import xyz.attacktive.weatherd.domain.model.HolidayCelebration
 import xyz.attacktive.weatherd.domain.model.WeatherFallbackReason
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.WeatherSource
@@ -273,6 +278,11 @@ private fun AdvancedSettingsTab(viewModel: SettingsViewModel, scrollState: Scrol
 
 	SettingsTabContent(scrollState) {
 		SceneSimulatorSection(settings = settings, onSave = onSave)
+
+		if (BuildConfig.DEBUG) {
+			Spacer(modifier = Modifier.height(24.dp))
+			SeasonalCelebrationDebugSection(settings = settings, onSave = onSave)
+		}
 
 		Spacer(modifier = Modifier.height(24.dp))
 
@@ -592,6 +602,71 @@ private fun SceneSimulatorSection(settings: AppSettings, onSave: (AppSettings) -
 			onSave(settings.copy(sceneSimulatorEnabled = it, sceneSimulatorActive = settings.sceneSimulatorActive && it))
 		}
 	)
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SeasonalCelebrationDebugSection(settings: AppSettings, onSave: (AppSettings) -> Unit) {
+	SectionLabel(stringResource(R.string.section_seasonal_celebrations))
+
+	Row(
+		modifier = Modifier
+			.fillMaxWidth()
+			.clickable { onSave(settings.copy(forceHolidayCelebration = !settings.forceHolidayCelebration)) }
+			.padding(vertical = 4.dp),
+		verticalAlignment = Alignment.CenterVertically
+	) {
+		Checkbox(
+			checked = settings.forceHolidayCelebration,
+			onCheckedChange = { onSave(settings.copy(forceHolidayCelebration = it)) }
+		)
+
+		Spacer(modifier = Modifier.width(8.dp))
+
+		Text(
+			text = stringResource(R.string.label_force_holiday_celebration),
+			style = MaterialTheme.typography.bodyMedium
+		)
+	}
+
+	if (settings.forceHolidayCelebration) {
+		Spacer(modifier = Modifier.height(8.dp))
+
+		val celebrations = listOf(
+			HolidayCelebration.HALLOWEEN,
+			HolidayCelebration.CHRISTMAS,
+			HolidayCelebration.NEW_YEAR
+		)
+
+		SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+			celebrations.forEachIndexed { index, celebration ->
+				SegmentedButton(
+					selected = settings.forcedHolidayCelebration == celebration,
+					onClick = {
+						if (celebration != settings.forcedHolidayCelebration) {
+							onSave(settings.copy(forcedHolidayCelebration = celebration))
+						}
+					},
+					shape = SegmentedButtonDefaults.itemShape(index = index, count = celebrations.size)
+				) {
+					Text(
+						text = formatHolidayCelebration(celebration),
+						maxLines = 1
+					)
+				}
+			}
+		}
+	}
+
+	HintText(stringResource(R.string.hint_force_holiday_celebration))
+}
+
+@Composable
+internal fun formatHolidayCelebration(celebration: HolidayCelebration) = when (celebration) {
+	HolidayCelebration.NONE -> stringResource(R.string.holiday_celebration_none)
+	HolidayCelebration.HALLOWEEN -> stringResource(R.string.holiday_celebration_halloween)
+	HolidayCelebration.CHRISTMAS -> stringResource(R.string.holiday_celebration_christmas)
+	HolidayCelebration.NEW_YEAR -> stringResource(R.string.holiday_celebration_new_year)
 }
 
 @Composable

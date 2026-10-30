@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="label_seasonal_celebrations">시즌 이벤트 표시</string>
+	<string name="subtitle_seasonal_celebrations">할로윈, 크리스마스, 새해 밤하늘에 가끔 나타나는 깜짝 연출</string>
+	<string name="section_seasonal_celebrations">시즌 이벤트</string>
+	<string name="label_force_holiday_celebration">테스트용 축제 강제 활성화</string>
+	<string name="hint_force_holiday_celebration">테스트를 위해 달력 날짜를 무시합니다. 연출은 밤에만 나타납니다.</string>
+	<string name="holiday_celebration_none">없음</string>
+	<string name="holiday_celebration_halloween">할로윈</string>
+	<string name="holiday_celebration_christmas">크리스마스</string>
+	<string name="holiday_celebration_new_year">새해</string>
+</resources>

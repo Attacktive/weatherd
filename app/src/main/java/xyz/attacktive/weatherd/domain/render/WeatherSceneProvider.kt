@@ -18,11 +18,13 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
+import xyz.attacktive.weatherd.BuildConfig
 import xyz.attacktive.weatherd.debugToolsEnabled
 import xyz.attacktive.weatherd.di.ApplicationScope
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
+import xyz.attacktive.weatherd.domain.model.HolidayCelebration
 import xyz.attacktive.weatherd.domain.model.GeoLocation
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
@@ -39,6 +41,7 @@ import xyz.attacktive.weatherd.domain.repository.ReverseGeocodingRepository
 import xyz.attacktive.weatherd.domain.repository.SettingsRepository
 import xyz.attacktive.weatherd.domain.repository.WeatherRepository
 import xyz.attacktive.weatherd.domain.weather.LocalSolarTimesCache
+import xyz.attacktive.weatherd.domain.weather.LocalSolarTimes
 import xyz.attacktive.weatherd.domain.weather.dayPhaseFor
 import xyz.attacktive.weatherd.domain.weather.dayPhaseProgressFor
 import xyz.attacktive.weatherd.domain.weather.moonPhaseFor
@@ -212,16 +215,25 @@ class WeatherSceneProvider @Inject constructor(
 
 	/** The scene to draw at [nowEpochSeconds]; a clock-lit clear sky until the first weather fetch lands. */
 	fun paramsFor(nowEpochSeconds: Long, state: WeatherSceneState = sceneState.value, debugToolsAvailable: Boolean = debugToolsEnabled): SceneParams = with(state.settings) {
+		val holiday = resolvedHolidayCelebration(
+			now = Instant.ofEpochSecond(nowEpochSeconds),
+			enabled = seasonalCelebrationsEnabled,
+			force = forceHolidayCelebration,
+			forced = forcedHolidayCelebration,
+			debugBuild = BuildConfig.DEBUG
+		)
+
 		if (sceneSimulatorOverridesWeather(sceneSimulatorActive, sceneSimulatorEnabled, debugToolsAvailable)) {
-			return@with simulatorParams(nowEpochSeconds, state)
+			return@with simulatorParams(nowEpochSeconds, state, holiday)
 		}
 
-		val snapshot = state.snapshot ?: return@with fallbackParams(nowEpochSeconds, state)
+		val snapshot = state.snapshot ?: return@with fallbackParams(nowEpochSeconds, state, holiday)
 
 		sceneParamsFor(
 			weatherNotice = state.weatherNotice.takeUnless { hideStaleWeatherWarning },
 			snapshot = snapshot,
 			nowEpochSeconds = nowEpochSeconds,
+			holidayCelebration = holiday,
 			backdropScene = backdropScene,
 			photoRevision = state.photoRevision,
 			overlayLabels = overlayLabels(snapshot, state),
@@ -509,12 +521,13 @@ class WeatherSceneProvider @Inject constructor(
 
 
 	/** The persisted simulator scene, carrying the same display preferences as live weather while replacing its meteorological fields. */
-	private fun simulatorParams(nowEpochSeconds: Long, state: WeatherSceneState) = with(state.settings) {
+	private fun simulatorParams(nowEpochSeconds: Long, state: WeatherSceneState, holiday: HolidayCelebration) = with(state.settings) {
 		val preset = SCENE_PRESETS[sceneSimulatorPresetIndex.coerceIn(0, SCENE_PRESETS.lastIndex)]
 
 		debugSceneParams(
 			preset = preset,
 			dayPhase = sceneSimulatorDayPhase,
+			holidayCelebration = holiday,
 			precipitationScale = precipitationIntensityScale,
 			windScale = windIntensityScale,
 			cloudScale = cloudIntensityScale,
@@ -733,8 +746,19 @@ class WeatherSceneProvider @Inject constructor(
 	/** A cheap signature of the effective location source; changing device↔manual or choosing a new city triggers a refetch even mid-interval. */
 	private fun locationKey(settings: AppSettings) = selectedManualLocation(settings)?.let(::locationFixKey) ?: "device"
 
+	private fun fallbackDayPhase(nowEpochSeconds: Long, solarTimes: LocalSolarTimes?) = if (solarTimes != null) {
+		dayPhaseFor(nowEpochSeconds, solarTimes.sunriseEpochSeconds, solarTimes.sunsetEpochSeconds, solarTimes.isDay)
+	} else {
+		when (Instant.ofEpochSecond(nowEpochSeconds).atZone(ZoneId.systemDefault()).hour) {
+			in DAWN_HOUR until DAY_HOUR -> DayPhase.DAWN
+			in DAY_HOUR until DUSK_HOUR -> DayPhase.DAY
+			in DUSK_HOUR until NIGHT_HOUR -> DayPhase.DUSK
+			else -> DayPhase.NIGHT
+		}
+	}
+
 	/** Derives offline lighting from the captured location; only an unknown location needs a coarse local-clock approximation. */
-	private fun fallbackParams(nowEpochSeconds: Long, state: WeatherSceneState): SceneParams = with(state.settings) {
+	private fun fallbackParams(nowEpochSeconds: Long, state: WeatherSceneState, holiday: HolidayCelebration): SceneParams = with(state.settings) {
 		val usesDeviceLocation = WeatherSceneTarget.selectsDeviceLocation(state.settings)
 		val latitude = if (usesDeviceLocation) state.deviceLocation?.latitude else manualLatitude
 		val longitude = if (usesDeviceLocation) state.deviceLocation?.longitude else manualLongitude
@@ -745,20 +769,12 @@ class WeatherSceneProvider @Inject constructor(
 			null
 		}
 
-		val phase = if (solarTimes != null) {
-			dayPhaseFor(nowEpochSeconds, solarTimes.sunriseEpochSeconds, solarTimes.sunsetEpochSeconds, solarTimes.isDay)
-		} else {
-			when (Instant.ofEpochSecond(nowEpochSeconds).atZone(ZoneId.systemDefault()).hour) {
-				in DAWN_HOUR until DAY_HOUR -> DayPhase.DAWN
-				in DAY_HOUR until DUSK_HOUR -> DayPhase.DAY
-				in DUSK_HOUR until NIGHT_HOUR -> DayPhase.DUSK
-				else -> DayPhase.NIGHT
-			}
-		}
+		val phase = fallbackDayPhase(nowEpochSeconds, solarTimes)
 
 		SceneParams(
 			weatherNotice = WeatherNotice.UNAVAILABLE.takeUnless { hideStaleWeatherWarning },
 			dayPhase = phase,
+			holidayCelebration = visibleHolidayCelebration(phase, holiday),
 			cloudiness = 0.05f,
 			fogDensity = 0f,
 			precipitation = null,

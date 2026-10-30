@@ -4,6 +4,7 @@ import kotlin.math.pow
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.BirdAppearanceInterval
 import xyz.attacktive.weatherd.domain.model.BirdFlockSize
+import xyz.attacktive.weatherd.domain.model.HolidayCelebration
 import xyz.attacktive.weatherd.domain.model.CLOUD_CONTRAST_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_COUNT_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_SIZE_SCALE_RANGE
@@ -110,7 +111,8 @@ data class SceneParams(
 	val wallpaperDimmingStrength: Float = 0f,
 	val statusBarShadeStrength: Float = 0f,
 	val birdFlockSize: BirdFlockSize = BirdFlockSize.SMALL,
-	val birdAppearanceInterval: BirdAppearanceInterval = BirdAppearanceInterval.NATURAL
+	val birdAppearanceInterval: BirdAppearanceInterval = BirdAppearanceInterval.NATURAL,
+	val holidayCelebration: HolidayCelebration = HolidayCelebration.NONE
 )
 
 /** The two overlay text lines — the current weather ("Rain · 10°") and the place name — each omissible on its own. */
@@ -165,7 +167,8 @@ fun backdropSignature(params: SceneParams, backgroundPhotoAvailable: Boolean = f
 		wallpaperDimmingStrength = 0f,
 		statusBarShadeStrength = 0f,
 		birdFlockSize = BirdFlockSize.SMALL,
-		birdAppearanceInterval = BirdAppearanceInterval.NATURAL
+		birdAppearanceInterval = BirdAppearanceInterval.NATURAL,
+		holidayCelebration = HolidayCelebration.NONE
 	)
 }
 
@@ -261,7 +264,8 @@ fun sceneParamsFor(
 	wallpaperDimmingStrength: Float = 0f,
 	statusBarShadeStrength: Float = 0f,
 	birdFlockSize: BirdFlockSize = BirdFlockSize.SMALL,
-	birdAppearanceInterval: BirdAppearanceInterval = BirdAppearanceInterval.NATURAL
+	birdAppearanceInterval: BirdAppearanceInterval = BirdAppearanceInterval.NATURAL,
+	holidayCelebration: HolidayCelebration = HolidayCelebration.NONE
 ): SceneParams {
 	val observation = snapshot.observation
 	val condition = observation.condition
@@ -335,7 +339,8 @@ fun sceneParamsFor(
 		wallpaperDimmingStrength = normalizeReadabilityStrength(wallpaperDimmingStrength),
 		statusBarShadeStrength = normalizeReadabilityStrength(statusBarShadeStrength),
 		birdFlockSize = birdFlockSize,
-		birdAppearanceInterval = birdAppearanceInterval
+		birdAppearanceInterval = birdAppearanceInterval,
+		holidayCelebration = visibleHolidayCelebration(dayPhase, holidayCelebration)
 	)
 }
 

@@ -40,7 +40,8 @@ data class AppearancePresetSnapshot(
 	val treeStyle: TreeStyle = TreeStyle.EVERGREEN,
 	val labelVerticalPosition: Float = DEFAULT_LABEL_VERTICAL_POSITION,
 	val wallpaperDimmingStrength: Float = 0f,
-	val statusBarShadeStrength: Float = 0f
+	val statusBarShadeStrength: Float = 0f,
+	val seasonalCelebrationsEnabled: Boolean = true
 )
 
 fun AppSettings.toAppearancePresetSnapshot() = AppearancePresetSnapshot(
@@ -77,7 +78,8 @@ fun AppSettings.toAppearancePresetSnapshot() = AppearancePresetSnapshot(
 	treeStyle = treeStyle,
 	labelVerticalPosition = labelVerticalPosition,
 	wallpaperDimmingStrength = normalizeReadabilityStrength(wallpaperDimmingStrength),
-	statusBarShadeStrength = normalizeReadabilityStrength(statusBarShadeStrength)
+	statusBarShadeStrength = normalizeReadabilityStrength(statusBarShadeStrength),
+	seasonalCelebrationsEnabled = seasonalCelebrationsEnabled
 )
 
 fun AppearancePresetSnapshot.appliedTo(settings: AppSettings) = settings.copy(
@@ -114,5 +116,6 @@ fun AppearancePresetSnapshot.appliedTo(settings: AppSettings) = settings.copy(
 	treeStyle = treeStyle,
 	labelVerticalPosition = labelVerticalPosition,
 	wallpaperDimmingStrength = normalizeReadabilityStrength(wallpaperDimmingStrength),
-	statusBarShadeStrength = normalizeReadabilityStrength(statusBarShadeStrength)
+	statusBarShadeStrength = normalizeReadabilityStrength(statusBarShadeStrength),
+	seasonalCelebrationsEnabled = seasonalCelebrationsEnabled
 )

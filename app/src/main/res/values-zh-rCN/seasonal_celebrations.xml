@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="label_seasonal_celebrations">显示节日庆祝效果</string>
+	<string name="subtitle_seasonal_celebrations">万圣节、圣诞节和跨年夜空偶尔出现的访客</string>
+	<string name="section_seasonal_celebrations">节日庆祝</string>
+	<string name="label_force_holiday_celebration">测试用强制启用节日庆祝</string>
+	<string name="hint_force_holiday_celebration">测试时跳过日历时间限制。庆祝效果仍仅在夜间出现。</string>
+	<string name="holiday_celebration_none">无</string>
+	<string name="holiday_celebration_halloween">万圣节</string>
+	<string name="holiday_celebration_christmas">圣诞节</string>
+	<string name="holiday_celebration_new_year">新年</string>
+</resources>

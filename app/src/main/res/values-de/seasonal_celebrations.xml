@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="label_seasonal_celebrations">Saisonale Feierlichkeiten anzeigen</string>
+	<string name="subtitle_seasonal_celebrations">Gelegentliche Nachthimmel-Besucher an Halloween, Weihnachten und Neujahr</string>
+	<string name="section_seasonal_celebrations">Saisonale Feierlichkeiten</string>
+	<string name="label_force_holiday_celebration">Feiertagseffekt zum Testen erzwingen</string>
+	<string name="hint_force_holiday_celebration">Umgeht das Kalenderfenster zu Testzwecken. Effekte erscheinen weiterhin nur nachts.</string>
+	<string name="holiday_celebration_none">Keine</string>
+	<string name="holiday_celebration_halloween">Halloween</string>
+	<string name="holiday_celebration_christmas">Weihnachten</string>
+	<string name="holiday_celebration_new_year">Neujahr</string>
+</resources>

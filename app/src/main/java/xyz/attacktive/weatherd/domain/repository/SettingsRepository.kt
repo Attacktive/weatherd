@@ -24,6 +24,7 @@ import xyz.attacktive.weatherd.domain.model.CLOUD_CONTRAST_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
+import xyz.attacktive.weatherd.domain.model.HolidayCelebration
 import xyz.attacktive.weatherd.domain.model.LABEL_VERTICAL_POSITION_RANGE
 import xyz.attacktive.weatherd.domain.model.READABILITY_STRENGTH_RANGE
 import xyz.attacktive.weatherd.domain.model.normalizeReadabilityStrength
@@ -97,6 +98,9 @@ sealed interface SettingsMutation {
 	data class LabelVerticalPosition(val value: Float): SettingsMutation
 	data class WallpaperDimmingStrength(val value: Float): SettingsMutation
 	data class StatusBarShadeStrength(val value: Float): SettingsMutation
+	data class SeasonalCelebrationsEnabled(val enabled: Boolean): SettingsMutation
+	data class ForceHolidayCelebration(val enabled: Boolean): SettingsMutation
+	data class ForcedHolidayCelebration(val value: HolidayCelebration): SettingsMutation
 }
 
 
@@ -151,6 +155,9 @@ internal fun settingsMutationsBetween(previous: AppSettings, updated: AppSetting
 		addIfChanged(previous.labelVerticalPosition, updated.labelVerticalPosition, SettingsMutation::LabelVerticalPosition)
 		addIfChanged(previous.wallpaperDimmingStrength, updated.wallpaperDimmingStrength, SettingsMutation::WallpaperDimmingStrength)
 		addIfChanged(previous.statusBarShadeStrength, updated.statusBarShadeStrength, SettingsMutation::StatusBarShadeStrength)
+		addIfChanged(previous.seasonalCelebrationsEnabled, updated.seasonalCelebrationsEnabled, SettingsMutation::SeasonalCelebrationsEnabled)
+		addIfChanged(previous.forceHolidayCelebration, updated.forceHolidayCelebration, SettingsMutation::ForceHolidayCelebration)
+		addIfChanged(previous.forcedHolidayCelebration, updated.forcedHolidayCelebration, SettingsMutation::ForcedHolidayCelebration)
 	}
 
 	val replayed = mutations.fold(previous) { settings, mutation ->
@@ -239,6 +246,9 @@ private fun SettingsMutation.appliedTo(settings: AppSettings) = when (this) {
 	is SettingsMutation.LabelVerticalPosition -> settings.copy(labelVerticalPosition = value.coerceIn(LABEL_VERTICAL_POSITION_RANGE.start, LABEL_VERTICAL_POSITION_RANGE.endInclusive))
 	is SettingsMutation.WallpaperDimmingStrength -> settings.copy(wallpaperDimmingStrength = normalizeReadabilityStrength(value))
 	is SettingsMutation.StatusBarShadeStrength -> settings.copy(statusBarShadeStrength = normalizeReadabilityStrength(value))
+	is SettingsMutation.SeasonalCelebrationsEnabled -> settings.copy(seasonalCelebrationsEnabled = enabled)
+	is SettingsMutation.ForceHolidayCelebration -> settings.copy(forceHolidayCelebration = enabled)
+	is SettingsMutation.ForcedHolidayCelebration -> settings.copy(forcedHolidayCelebration = value)
 }
 
 /** Persists [AppSettings] to a DataStore; defaults are resolved once when the repository is created and reused for absent keys. */
@@ -298,6 +308,9 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		val LABEL_VERTICAL_POSITION = floatPreferencesKey("label_vertical_position")
 		val WALLPAPER_DIMMING_STRENGTH = floatPreferencesKey("wallpaper_dimming_strength")
 		val STATUS_BAR_SHADE_STRENGTH = floatPreferencesKey("status_bar_shade_strength")
+		val SEASONAL_CELEBRATIONS_ENABLED = booleanPreferencesKey("seasonal_celebrations_enabled")
+		val FORCE_HOLIDAY_CELEBRATION = booleanPreferencesKey("force_holiday_celebration")
+		val FORCED_HOLIDAY_CELEBRATION = stringPreferencesKey("forced_holiday_celebration")
 	}
 
 	val settings: Flow<AppSettings> = dataStore.data.map { preferences ->
@@ -352,7 +365,10 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			sceneSimulatorCelestialProgress = (preferences[Keys.SCENE_SIMULATOR_CELESTIAL_PROGRESS] ?: defaults.sceneSimulatorCelestialProgress).coerceIn(0f, 1f),
 			labelVerticalPosition = (preferences[Keys.LABEL_VERTICAL_POSITION] ?: defaults.labelVerticalPosition).coerceIn(LABEL_VERTICAL_POSITION_RANGE.start, LABEL_VERTICAL_POSITION_RANGE.endInclusive),
 			wallpaperDimmingStrength = normalizeReadabilityStrength(preferences[Keys.WALLPAPER_DIMMING_STRENGTH] ?: defaults.wallpaperDimmingStrength),
-			statusBarShadeStrength = normalizeReadabilityStrength(preferences[Keys.STATUS_BAR_SHADE_STRENGTH] ?: defaults.statusBarShadeStrength)
+			statusBarShadeStrength = normalizeReadabilityStrength(preferences[Keys.STATUS_BAR_SHADE_STRENGTH] ?: defaults.statusBarShadeStrength),
+			seasonalCelebrationsEnabled = preferences[Keys.SEASONAL_CELEBRATIONS_ENABLED] ?: defaults.seasonalCelebrationsEnabled,
+			forceHolidayCelebration = preferences[Keys.FORCE_HOLIDAY_CELEBRATION] ?: defaults.forceHolidayCelebration,
+			forcedHolidayCelebration = enumOrDefault(preferences[Keys.FORCED_HOLIDAY_CELEBRATION], HolidayCelebration.entries, defaults.forcedHolidayCelebration)
 		)
 	}
 
@@ -428,6 +444,9 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			preferences[Keys.LABEL_VERTICAL_POSITION] = settings.labelVerticalPosition.coerceIn(LABEL_VERTICAL_POSITION_RANGE.start, LABEL_VERTICAL_POSITION_RANGE.endInclusive)
 			preferences[Keys.WALLPAPER_DIMMING_STRENGTH] = normalizeReadabilityStrength(settings.wallpaperDimmingStrength)
 			preferences[Keys.STATUS_BAR_SHADE_STRENGTH] = normalizeReadabilityStrength(settings.statusBarShadeStrength)
+			preferences[Keys.SEASONAL_CELEBRATIONS_ENABLED] = settings.seasonalCelebrationsEnabled
+			preferences[Keys.FORCE_HOLIDAY_CELEBRATION] = settings.forceHolidayCelebration
+			preferences[Keys.FORCED_HOLIDAY_CELEBRATION] = settings.forcedHolidayCelebration.name
 		}
 	}
 
@@ -497,6 +516,9 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			is SettingsMutation.LabelVerticalPosition -> this[Keys.LABEL_VERTICAL_POSITION] = mutation.value.coerceIn(LABEL_VERTICAL_POSITION_RANGE.start, LABEL_VERTICAL_POSITION_RANGE.endInclusive)
 			is SettingsMutation.WallpaperDimmingStrength -> this[Keys.WALLPAPER_DIMMING_STRENGTH] = normalizeReadabilityStrength(mutation.value)
 			is SettingsMutation.StatusBarShadeStrength -> this[Keys.STATUS_BAR_SHADE_STRENGTH] = normalizeReadabilityStrength(mutation.value)
+			is SettingsMutation.SeasonalCelebrationsEnabled -> this[Keys.SEASONAL_CELEBRATIONS_ENABLED] = mutation.enabled
+			is SettingsMutation.ForceHolidayCelebration -> this[Keys.FORCE_HOLIDAY_CELEBRATION] = mutation.enabled
+			is SettingsMutation.ForcedHolidayCelebration -> this[Keys.FORCED_HOLIDAY_CELEBRATION] = mutation.value.name
 		}
 	}
 
@@ -535,6 +557,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		this[Keys.LABEL_VERTICAL_POSITION] = snapshot.labelVerticalPosition.coerceIn(LABEL_VERTICAL_POSITION_RANGE.start, LABEL_VERTICAL_POSITION_RANGE.endInclusive)
 		this[Keys.WALLPAPER_DIMMING_STRENGTH] = normalizeReadabilityStrength(snapshot.wallpaperDimmingStrength)
 		this[Keys.STATUS_BAR_SHADE_STRENGTH] = normalizeReadabilityStrength(snapshot.statusBarShadeStrength)
+		this[Keys.SEASONAL_CELEBRATIONS_ENABLED] = snapshot.seasonalCelebrationsEnabled
 	}
 
 }

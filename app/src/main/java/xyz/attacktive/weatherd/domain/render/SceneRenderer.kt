@@ -34,6 +34,7 @@ import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.CLOUD_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.DEFAULT_LABEL_VERTICAL_POSITION
 import xyz.attacktive.weatherd.domain.model.DayPhase
+import xyz.attacktive.weatherd.domain.model.HolidayCelebration
 import xyz.attacktive.weatherd.domain.model.LABEL_VERTICAL_POSITION_RANGE
 import xyz.attacktive.weatherd.domain.model.NIGHT_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.Precipitation
@@ -68,6 +69,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 	private val cloudMountains = CloudMountainLayer(resources)
 	private val foregroundTrees = ForegroundTreeLayer(resources)
 	private val distantAircraft = DistantAircraftLayer()
+	private val seasonalCelebration by lazy(LazyThreadSafetyMode.NONE) { SeasonalCelebrationLayer() }
 	private val radiantSun = RadiantSunLayer(resources)
 	private val starburstSun = StarburstSunLayer(resources)
 	private val sunGlare by lazy(LazyThreadSafetyMode.NONE) { SunGlareLayer(resources) }
@@ -218,9 +220,16 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 	 */
 	var backgroundPhoto: Bitmap? = null
 
-	fun render(canvas: Canvas, width: Int, height: Int, params: SceneParams, timeSeconds: Float) {
+	fun render(
+		canvas: Canvas,
+		width: Int,
+		height: Int,
+		params: SceneParams,
+		timeSeconds: Float,
+		celebrationEpochMillis: Long = System.currentTimeMillis()
+	) {
 		renderBackdrop(canvas, width, height, params)
-		renderForeground(canvas, width, height, params, timeSeconds)
+		renderForeground(canvas, width, height, params, timeSeconds, celebrationEpochMillis = celebrationEpochMillis)
 	}
 
 	/**
@@ -297,7 +306,15 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 	}
 
 	/** The animated layers (stars, sun/moon glow, horizon scenery, drifting clouds/overcast/mist, precipitation, lightning). */
-	fun renderForeground(canvas: Canvas, width: Int, height: Int, params: SceneParams, timeSeconds: Float, includeOverlayLabels: Boolean = true) {
+	fun renderForeground(
+		canvas: Canvas,
+		width: Int,
+		height: Int,
+		params: SceneParams,
+		timeSeconds: Float,
+		includeOverlayLabels: Boolean = true,
+		celebrationEpochMillis: Long = System.currentTimeMillis()
+	) {
 		prepareSunShaftFrame(width, height, params, timeSeconds)
 
 		if (params.dayPhase != previousGradePhase || params.celestialProgress != previousGradeProgress) {
@@ -336,6 +353,9 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 
 		// Aircraft cross in front of the sun, while the cloud layers below can still obscure them.
 		distantAircraft.draw(canvas, w, h, params, timeSeconds)
+		if (params.dayPhase == DayPhase.NIGHT && params.holidayCelebration != HolidayCelebration.NONE) {
+			seasonalCelebration.draw(canvas, w, h, params, celebrationEpochMillis)
+		}
 
 		drawCirrus(canvas, w, h, params, timeSeconds)
 

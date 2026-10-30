@@ -4,6 +4,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
@@ -86,12 +88,24 @@ class MoonOpacitySettingsRepositoryTest {
 		val key = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)
 		val presets = AppearancePresetRepository(store)
 		assertTrue(presets.create("Previous", AppSettings().toAppearancePresetSnapshot()).isSuccess)
+
 		val current = store.data.first()[key]!!
-		val legacy = current.replace("\"schemaVersion\":16", "\"schemaVersion\":14")
+		val parsed = Json.parseToJsonElement(current).jsonObject
+		val v14Presets = parsed["presets"]!!.toString().replace(Regex(""""moonOpacity":\s*[\d.]+,?"""), "")
+		val legacy = """{"schemaVersion":14,"presets":$v14Presets}"""
 		store.edit { it[key] = legacy }
+
 		val imported = (AppearancePresetRepository(store).state.first() as AppearancePresetStorageState.Ready).presets.single()
 		assertEquals(1f, imported.snapshot.moonOpacity, 0.0001f)
+
+		val settings = SettingsRepository(store)
+		settings.save(AppSettings(moonOpacity = 0.5f))
+		settings.applyAppearancePreset(imported.snapshot)
+		assertEquals(1f, settings.settings.first().moonOpacity, 0.0001f)
+
 		assertTrue(AppearancePresetRepository(store).rename(imported.id, "Migrated").isSuccess)
-		assertTrue(store.data.first()[key]!!.contains("\"schemaVersion\":16"))
+		val migrated = (AppearancePresetRepository(store).state.first() as AppearancePresetStorageState.Ready).presets.single()
+		assertEquals("Migrated", migrated.name)
+		assertEquals(1f, migrated.snapshot.moonOpacity, 0.0001f)
 	}
 }

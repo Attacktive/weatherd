@@ -378,4 +378,43 @@ class AppearancePresetRepositoryTest {
 		assertTrue(repository.create("Ignored", AppSettings().toAppearancePresetSnapshot()).isFailure)
 		assertEquals(raw, dataStore.data.first()[key])
 	}
+
+	@Test
+	fun `version sixteen presets missing seasonal celebrations default to true and retain all other fields`() = runTest {
+		val store = dataStore("preset-settings-v16.preferences_pb")
+		val key = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)
+		val raw = """{"schemaVersion":16,"presets":[{"id":"legacy-16","name":"Legacy 16","snapshot":{"backdropScene":"NONE","showWeatherLabel":true,"showLocationLabel":true,"precipitationIntensityScale":1.0,"glassDropletsEnabled":true,"windIntensityScale":1.0,"cloudIntensityScale":1.0,"cloudSizeScale":1.0,"cloudCountScale":1.0,"cloudContrastScale":1.0,"skyBrightnessScale":1.0,"nightBrightnessScale":1.0,"skySaturationScale":1.0,"skyColorPreset":"NATURAL","sunVisible":true,"moonVisible":true,"sunSizeScale":1.0,"sunHorizontalPosition":0.72,"moonSizeScale":1.0,"moonOpacity":1.0,"sunColorPreset":"NATURAL","sunStyle":"CLASSIC","sunbeamMode":"THROUGH_CLOUDS","lensFlareEnabled":true,"rainbowSizeScale":1.0,"lensFlareMotionEnabled":false,"distantAircraftEnabled":true,"birdFlockSize":"SMALL","birdAppearanceInterval":"NATURAL","treesEnabled":false,"treeStyle":"EVERGREEN","labelVerticalPosition":0.09,"wallpaperDimmingStrength":0.0,"statusBarShadeStrength":0.0}}]}"""
+		store.edit { preferences ->
+			preferences[key] = raw
+		}
+
+		val repository = AppearancePresetRepository(store)
+		val snapshot = (repository.state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot
+		assertTrue(snapshot.seasonalCelebrationsEnabled)
+		assertTrue(snapshot.distantAircraftEnabled)
+
+		val rewritten = store.data.first()[key]!!
+		assertEquals(raw, rewritten)
+
+		assertTrue(repository.rename("legacy-16", "Migrated 16").isSuccess)
+		val updatedRaw = store.data.first()[key]!!
+		assertEquals(APPEARANCE_PRESET_SCHEMA_VERSION, Json.parseToJsonElement(updatedRaw).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+		val migrated = (AppearancePresetRepository(store).state.first() as AppearancePresetStorageState.Ready).presets.single()
+		assertTrue(migrated.snapshot.seasonalCelebrationsEnabled)
+	}
+
+	@Test
+	fun `seasonal celebrations disabled presets roundtrip through save and reload without losing preference`() = runTest {
+		val store = dataStore("preset-settings-seasonal-disabled.preferences_pb")
+		val repository = AppearancePresetRepository(store)
+		val snapshot = AppSettings(seasonalCelebrationsEnabled = false).toAppearancePresetSnapshot()
+		assertTrue(repository.create("Disabled celebrations", snapshot).isSuccess)
+
+		val reopened = AppearancePresetRepository(store)
+		val restored = (reopened.state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot
+		assertFalse(restored.seasonalCelebrationsEnabled)
+
+		val raw = store.data.first()[stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)]!!
+		assertEquals(APPEARANCE_PRESET_SCHEMA_VERSION, Json.parseToJsonElement(raw).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+	}
 }

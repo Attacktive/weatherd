@@ -112,7 +112,15 @@ class SunHorizontalPositionSettingsRepositoryTest {
 		val imported = (AppearancePresetRepository(store).state.first() as AppearancePresetStorageState.Ready).presets.single()
 
 		assertEquals(DEFAULT_SUN_HORIZONTAL_POSITION, imported.snapshot.sunHorizontalPosition, 0.0001f)
+
+		val settings = SettingsRepository(store)
+		settings.save(AppSettings(sunHorizontalPosition = 0.25f))
+		settings.applyAppearancePreset(imported.snapshot)
+		assertEquals(DEFAULT_SUN_HORIZONTAL_POSITION, settings.settings.first().sunHorizontalPosition, 0.0001f)
+
 		assertTrue(AppearancePresetRepository(store).rename(imported.id, "Migrated").isSuccess)
-		assertTrue(store.data.first()[key]!!.contains("\"schemaVersion\":16"))
+		val migrated = (AppearancePresetRepository(store).state.first() as AppearancePresetStorageState.Ready).presets.single()
+		assertEquals("Migrated", migrated.name)
+		assertEquals(DEFAULT_SUN_HORIZONTAL_POSITION, migrated.snapshot.sunHorizontalPosition, 0.0001f)
 	}
 }

@@ -7,6 +7,7 @@ import org.junit.Test
 import xyz.attacktive.weatherd.domain.model.BirdAppearanceInterval
 import xyz.attacktive.weatherd.domain.model.BirdFlockSize
 import xyz.attacktive.weatherd.domain.model.DayPhase
+import xyz.attacktive.weatherd.domain.model.HolidayCelebration
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
@@ -15,6 +16,17 @@ import xyz.attacktive.weatherd.domain.model.TreeStyle
 import xyz.attacktive.weatherd.domain.model.DEFAULT_SUN_HORIZONTAL_POSITION
 
 class SceneDebugPresetsTest {
+	@Test
+	fun `holiday visitors leave simulated weather and cached backdrop unchanged`() {
+		val preset = SCENE_PRESETS.first { it.name == "SNOW" }
+		val ordinary = debugSceneParams(preset, DayPhase.NIGHT)
+		val christmas = debugSceneParams(preset, DayPhase.NIGHT, holidayCelebration = HolidayCelebration.CHRISTMAS)
+
+		assertEquals(HolidayCelebration.CHRISTMAS, christmas.holidayCelebration)
+		assertEquals(ordinary.precipitation, christmas.precipitation)
+		assertEquals(backdropSignature(ordinary), backdropSignature(christmas))
+	}
+
 	@Test
 	fun `defaults preserve declared wind factor and default scales across every preset`() {
 		for (preset in SCENE_PRESETS) {

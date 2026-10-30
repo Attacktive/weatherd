@@ -89,6 +89,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	val motionSensor = viewModel.lensFlareMotionSensor
 	val motionOwner = remember { Any() }
 	var timeSeconds by remember { mutableFloatStateOf(0f) }
+	var celebrationEpochMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
 	val sceneState by viewModel.sceneState.collectAsStateWithLifecycle()
 	val settings = sceneState.settings
 	var sceneryTextureReady by remember(renderer, settings.backdropScene) { mutableStateOf(renderer.isSceneryTextureReady(settings.backdropScene)) }
@@ -216,6 +217,12 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 				if (active) {
 					motionSensor.advance(frameNanos)
 					timeSeconds = sceneAnimationTimeSeconds(frameNanos)
+					val nowMillis = System.currentTimeMillis()
+					celebrationEpochMillis = nowMillis
+					val currentSecond = nowMillis / 1000L
+					if (clockSeconds != currentSecond) {
+						clockSeconds = currentSecond
+					}
 				}
 
 				active
@@ -241,8 +248,10 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 
 	LaunchedEffect(viewModel) {
 		while (true) {
-			clockSeconds = System.currentTimeMillis() / 1000L
-			delay(1000.milliseconds)
+			val now = System.currentTimeMillis()
+			clockSeconds = now / 1000L
+			val nextSecondDelayMillis = 1000L - (now % 1000L)
+			delay(nextSecondDelayMillis.milliseconds)
 		}
 	}
 
@@ -290,7 +299,15 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 					canvas.nativeCanvas.drawBitmap(backdrop, 0f, 0f, null)
 					renderer.lensFlareOffsetX = motionSensor.offsetX
 					renderer.lensFlareOffsetY = motionSensor.offsetY
-					renderer.renderForeground(canvas.nativeCanvas, widthPx, heightPx, params, timeSeconds, includeOverlayLabels = false)
+					renderer.renderForeground(
+						canvas.nativeCanvas,
+						widthPx,
+						heightPx,
+						params,
+						timeSeconds,
+						includeOverlayLabels = false,
+						celebrationEpochMillis = celebrationEpochMillis
+					)
 					screenEffects.render(canvas.nativeCanvas, widthPx, heightPx, params, timeSeconds, noticeEpochSeconds)
 				}
 			}

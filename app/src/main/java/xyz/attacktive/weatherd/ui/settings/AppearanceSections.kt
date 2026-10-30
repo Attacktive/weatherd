@@ -167,6 +167,15 @@ internal fun SkyDetailsSection(settings: AppSettings, defaults: AppSettings, onS
 	)
 
 	Spacer(modifier = Modifier.height(16.dp))
+
+	ToggleSetting(
+		label = stringResource(R.string.label_seasonal_celebrations),
+		subtitle = stringResource(R.string.subtitle_seasonal_celebrations),
+		checked = settings.seasonalCelebrationsEnabled,
+		onToggle = { onSave(settings.copy(seasonalCelebrationsEnabled = it)) }
+	)
+
+	Spacer(modifier = Modifier.height(16.dp))
 	BirdSettings(settings = settings, defaults = defaults, onSave = onSave)
 }
 

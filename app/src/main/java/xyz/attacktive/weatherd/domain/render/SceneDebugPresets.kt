@@ -7,6 +7,7 @@ import xyz.attacktive.weatherd.domain.model.CLOUD_COUNT_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.DEFAULT_LABEL_VERTICAL_POSITION
 import xyz.attacktive.weatherd.domain.model.DayPhase
+import xyz.attacktive.weatherd.domain.model.HolidayCelebration
 import xyz.attacktive.weatherd.domain.model.LABEL_VERTICAL_POSITION_RANGE
 import xyz.attacktive.weatherd.domain.model.NIGHT_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.Precipitation
@@ -113,7 +114,8 @@ fun debugSceneParams(
 	wallpaperDimmingStrength: Float = 0f,
 	statusBarShadeStrength: Float = 0f,
 	birdFlockSize: BirdFlockSize = BirdFlockSize.SMALL,
-	birdAppearanceInterval: BirdAppearanceInterval = BirdAppearanceInterval.NATURAL
+	birdAppearanceInterval: BirdAppearanceInterval = BirdAppearanceInterval.NATURAL,
+	holidayCelebration: HolidayCelebration = HolidayCelebration.NONE
 ) = SceneParams(
 	dayPhase = dayPhase,
 	cloudiness = preset.cloudiness,
@@ -149,6 +151,7 @@ fun debugSceneParams(
 	distantAircraftEnabled = distantAircraftEnabled,
 	birdFlockSize = birdFlockSize,
 	birdAppearanceInterval = birdAppearanceInterval,
+	holidayCelebration = visibleHolidayCelebration(dayPhase, holidayCelebration),
 	glassDropletsEnabled = glassDropletsEnabled,
 	treesEnabled = treesEnabled,
 	treeStyle = treeStyle,

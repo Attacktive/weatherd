@@ -22,6 +22,7 @@ import xyz.attacktive.weatherd.domain.model.AppearancePresetSnapshot
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
+import xyz.attacktive.weatherd.domain.model.HolidayCelebration
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
@@ -100,7 +101,10 @@ class SettingsRepositoryTest {
 			sceneSimulatorDayPhase = DayPhase.DUSK,
 			sceneSimulatorCelestialProgress = 0.73f,
 			wallpaperDimmingStrength = 0.4f,
-			statusBarShadeStrength = 0.25f
+			statusBarShadeStrength = 0.25f,
+			seasonalCelebrationsEnabled = false,
+			forceHolidayCelebration = true,
+			forcedHolidayCelebration = HolidayCelebration.CHRISTMAS
 		)
 
 		repository.save(updated)

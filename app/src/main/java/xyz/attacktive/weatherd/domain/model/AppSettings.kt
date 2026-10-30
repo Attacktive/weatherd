@@ -53,7 +53,10 @@ data class AppSettings(
 	val treeStyle: TreeStyle = TreeStyle.EVERGREEN,
 	val labelVerticalPosition: Float = DEFAULT_LABEL_VERTICAL_POSITION,
 	val wallpaperDimmingStrength: Float = 0f,
-	val statusBarShadeStrength: Float = 0f
+	val statusBarShadeStrength: Float = 0f,
+	val seasonalCelebrationsEnabled: Boolean = true,
+	val forceHolidayCelebration: Boolean = false,
+	val forcedHolidayCelebration: HolidayCelebration = HolidayCelebration.HALLOWEEN
 )
 
 /** Fresh-install settings, with region-sensitive choices resolved before persistence supplies any overrides. */

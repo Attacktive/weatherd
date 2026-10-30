@@ -36,6 +36,7 @@ Settings navigation tests wake the device, dismiss a nonsecure keyguard, and ret
 Navigation timeouts include activity state, the active accessibility tree, and window-manager diagnostics; assert the saved anchor remains visible with the first section off-screen, not exact pixel coordinates.
 Resolve related accessibility nodes and their bounds from the same fresh root on every poll; label coordinates captured before recreation/scroll settling can no longer identify the visible slider.
 Sunbeam fixtures pin the UTC cloud-placement day and compare rays over the same unobscured pixels each frame so foreground cloud occlusion is not mistaken for a ray-field discontinuity.
+Instrumentation can leave the system wallpaper picker's existing preview activity holding a `CR DEAD` binding to the force-stopped app; launch preview-only validation with `FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_CLEAR_TASK` to obtain a fresh engine without replacing the selected wallpaper.
 
 ### Test Workflow Profiling
 
@@ -318,7 +319,7 @@ Decode only the selected style on first use off the frame loop; never copy refer
 
 - Classic is procedural; Radiant uses the [unchanged submitted PNG](https://github.com/user-attachments/assets/68a92bcf-016d-4276-bc35-4c1e38ae6b78) credited in the [README](../README.md#artwork-credits); Starburst is first-party artwork inspired by [#291](https://github.com/Attacktive/weatherd/issues/291), not sampled from its iOS reference.
 - All sun styles honor visibility, size, color, weather veiling, and sunset fade; natural daylight uses a white source, while low sun and explicit colors retain their tint.
-- Sun horizontal position places the Sun's center at 0–100% of scene width; default/reset 72% preserves the historical anchor, and endpoints deliberately clip the disc at the scene edge. The resettable slider under Appearance → Sun & moon commits on release and retains its selection while the Sun is hidden. Sun artwork, twilight glow, beams, lens effects, cloud solar sampling/shadows, and bird avoidance share that position; Moon placement, celestial height, and solar timing remain unchanged. Only procedural twilight glow makes the position backdrop-relevant, and changing position resets beam smoothing even when animation is paused. Appearance presets write schema v16, read v1–v15 with the 72% missing-field default, and older builds reject v16 rather than silently dropping the setting.
+- Sun horizontal position places the Sun's center at 0–100% of scene width; default/reset 72% preserves the historical anchor, and endpoints deliberately clip the disc at the scene edge. The resettable slider under Appearance → Sun & moon commits on release and retains its selection while the Sun is hidden. Sun artwork, twilight glow, beams, lens effects, cloud solar sampling/shadows, and bird avoidance share that position; Moon placement, celestial height, and solar timing remain unchanged. Only procedural twilight glow makes the position backdrop-relevant, and changing position resets beam smoothing even when animation is paused. Sun horizontal position entered presets in schema v16; older snapshots use the 72% missing-field default.
 - Orange uses a pale peach-orange source inspired by [#308](https://github.com/Attacktive/weatherd/issues/308); Classic and Radiant retain their existing color treatment. Classic retains that tint through its core and shoulder rather than bleaching a white ring around a warmer center. Select Orange under Appearance → Sun & moon → Sun color; the reference's rainbow remains the independent Lens flare effect from #290.
 - Prepare Radiant's immutable softened texture once on first use off the frame loop, preserving its bright core/short rays but fading outer haze and distant baked reflections before the boundary; keep extra wide halos restrained.
 - Generate Starburst with `uv run scripts/generate-starburst-sun.py`: broad overlapping luminous lobes and faint uneven streaks, not a pointed star; fade before the texture boundary and decode only when selected, off the frame loop.
@@ -352,6 +353,43 @@ Birds remain fair-daylight only, suppressed by rain, fog, opaque cover, or night
 Distant aircraft/contrails cross in front of every sun style; clouds can obscure the body and lights together.
 The Distant aircraft toggle also enables fair-weather night flights: faint silhouette, red port/green starboard navigation lights that follow heading, white tail light, red beacon, brief white strobe, compact core halos, and no night contrail.
 Subdue lights at dawn/dusk and omit them in daylight without changing flight paths, timing, weather restrictions, or daytime appearance.
+
+### Seasonal Sky Celebrations
+
+**Show seasonal celebrations** in Appearance → Sky defaults on and independently controls small Halloween witch flybys, Christmas sleigh/reindeer flybys, and New Year's fireworks.
+All three are strictly NIGHT-only using the existing rendered phase, including simulation and offline/fallback scenes; dawn, day, and dusk never show them.
+Eligibility is global rather than device-local, with inclusive UTC starts and exclusive ends:
+
+| Celebration | Named dates worldwide | UTC window |
+| --- | --- | --- |
+| Halloween | October 30–31 | October 29 10:00 → November 1 12:00 |
+| Christmas | December 24–25 | December 23 10:00 → December 26 12:00 |
+| New Year's | December 31–January 1 | December 30 10:00 → January 2 12:00 |
+
+Each annual window is 74 hours; January checks the immediately preceding December cycle.
+No time-zone change, provider request, background job, or notification shifts these windows.
+`WeatherSceneProvider` resolves the calendar/preference inputs through `SceneParams`, `sceneParamsFor`, and `debugSceneParams`; foreground mode changes are excluded from `backdropSignature`.
+
+Original reusable Canvas paths draw the witch and sleigh; bounded spark arrays draw restrained fireworks without full-screen flashes or per-frame bitmap generation.
+Witch and sleigh flybys use one-third of their original linear scale, including in compact viewports; fireworks retain their independent size.
+Flyby artwork favors readable silhouettes at display scale: a curved seated witch and tapered broom, a rounded sleigh with open curled runners, and a filled reindeer body with separate branching antlers; muted accents preserve the night scene.
+The witch uses cached, separately colored vector shapes for her hat, face, cape, bent leg, and broom, with a muted palette approved at display size; retain the small flyby envelope without adding a glow. Parse path data only when the layer is constructed.
+Absolute-time slots give both surfaces the same event identity and progress, independent of restarts and frame caps.
+The whole flyby envelope, or rocket ascent and burst, fits an open sky interval away from the label block and Moon; compact viewports may reduce artwork size rather than overlap those features.
+Clouds, scenery, fog, precipitation, and lightning draw afterward; the normal screen-effects pass retains label/readability ordering.
+Night brightness attenuates the decorations, and animation time freezes under the existing idle policy.
+The settled wallpaper's existing callback wakes sooner at a calendar boundary, while the preview keeps its existing UTC-second clock current.
+No additional animation lifecycle is created, and the optional local-midnight density boost is not implemented.
+
+Debug builds alone expose **Settings → Advanced → Force holiday celebration for testing**, initially off, with a conditional Halloween / Christmas / New Year's selector.
+Forcing bypasses the date and production opt-out, never NIGHT visibility; select NIGHT with the existing simulator for daytime-clock inspection.
+Both UI handling and provider consumption enforce the debug artifact gate, so retained debug preferences are ignored by release code.
+Appearance preset schema v17 stores only the production opt-out; v1–v16 remain readable with a missing-field value of enabled, and debug force preferences stay independent of resets/presets.
+
+Validation includes exact UTC boundaries, leap years/rollover, arbitrary default time zones, debug/release precedence, retained captured scene state, preset migration/reset isolation, and deterministic motion.
+`SeasonalCelebrationRenderingTest` exercises both orientations, full 200% Moon and actual label-mask protection, ascent/burst dimming, and prepared scene assets across clear/cloudy/rainy/foggy/metropolis captures.
+Pass `-e seasonalCelebrationEvidence true` to direct instrumentation to write optional renderer evidence under the target app's external-files `seasonal_captures` directory; retain the explicit device and provider-capture exclusion from the instrumentation procedure.
+For real-time captures, calculate the next event's midpoint from the deterministic slot rather than treating the slot period as the maximum gap between passes; variable within-slot offsets can place successive starts farther apart than one period.
 
 ### Rendering Performance and Motion Sensors
 

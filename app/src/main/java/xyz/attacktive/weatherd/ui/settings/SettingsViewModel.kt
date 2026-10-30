@@ -30,6 +30,7 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import xyz.attacktive.weatherd.BuildConfig
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.di.ApplicationScope
 import xyz.attacktive.weatherd.domain.model.AppSettings
@@ -179,7 +180,16 @@ class SettingsViewModel @Inject constructor(
 	}
 
 	fun applySettingsChange(previous: AppSettings, updated: AppSettings) {
-		val mutations = settingsMutationsBetween(previous, updated)
+		val effectiveUpdated = if (!BuildConfig.DEBUG) {
+			updated.copy(
+				forceHolidayCelebration = previous.forceHolidayCelebration,
+				forcedHolidayCelebration = previous.forcedHolidayCelebration
+			)
+		} else {
+			updated
+		}
+
+		val mutations = settingsMutationsBetween(previous, effectiveUpdated)
 		if (mutations.isEmpty()) {
 			return
 		}

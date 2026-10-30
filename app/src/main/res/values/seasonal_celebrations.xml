@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="label_seasonal_celebrations">Show seasonal celebrations</string>
+	<string name="subtitle_seasonal_celebrations">Occasional night-sky visitors on Halloween, Christmas, and New Year\'s</string>
+	<string name="section_seasonal_celebrations">Seasonal celebrations</string>
+	<string name="label_force_holiday_celebration">Force holiday celebration for testing</string>
+	<string name="hint_force_holiday_celebration">Bypasses the calendar window for testing. Celebrations still appear only at night.</string>
+	<string name="holiday_celebration_none">None</string>
+	<string name="holiday_celebration_halloween">Halloween</string>
+	<string name="holiday_celebration_christmas">Christmas</string>
+	<string name="holiday_celebration_new_year">New Year\'s</string>
+</resources>

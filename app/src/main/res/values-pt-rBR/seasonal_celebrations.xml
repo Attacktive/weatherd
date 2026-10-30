@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="label_seasonal_celebrations">Mostrar celebrações sazonais</string>
+	<string name="subtitle_seasonal_celebrations">Visitantes ocasionais no céu noturno no Halloween, Natal e Ano Novo</string>
+	<string name="section_seasonal_celebrations">Celebrações sazonais</string>
+	<string name="label_force_holiday_celebration">Forçar celebração de feriado para testes</string>
+	<string name="hint_force_holiday_celebration">Ignora o período do calendário para testes. As celebrações só aparecem à noite.</string>
+	<string name="holiday_celebration_none">Nenhum</string>
+	<string name="holiday_celebration_halloween">Halloween</string>
+	<string name="holiday_celebration_christmas">Natal</string>
+	<string name="holiday_celebration_new_year">Ano Novo</string>
+</resources>

@@ -38,6 +38,8 @@ import xyz.attacktive.weatherd.MainActivity
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.data.provider.ProviderEvaluationEntryPoint
 import xyz.attacktive.weatherd.domain.repository.SettingsMutation
+import xyz.attacktive.weatherd.domain.model.DayPhase
+import xyz.attacktive.weatherd.domain.model.HolidayCelebration
 
 @RunWith(AndroidJUnit4::class)
 class SettingsNavigationTest {
@@ -512,6 +514,19 @@ class SettingsNavigationTest {
 		waitUntil("Sky detail") { !isVisible(R.string.settings_tab_weather) }
 	}
 
+	private fun openAdvanced() {
+		waitUntil("Advanced tab reachable") {
+			if (isVisible(R.string.settings_tab_advanced)) {
+				true
+			} else {
+				swipeTabStrip(forward = true)
+				false
+			}
+		}
+		clickText(R.string.settings_tab_advanced)
+		waitUntil("Advanced tab selected") { isVisible(R.string.section_preview_tools) }
+	}
+
 	private fun assertTopLevelTabsPresent() {
 		listOf(
 			R.string.settings_tab_appearance,
@@ -711,4 +726,69 @@ class SettingsNavigationTest {
 
 		return null
 	}
+
+	@Test
+	fun seasonalCelebrationsToggleAndDebugControlsFunctionWithNightSimulator() = runBlocking {
+		val repository = EntryPointAccessors.fromApplication(
+			instrumentation.targetContext.applicationContext,
+			ProviderEvaluationEntryPoint::class.java
+		).settingsRepository()
+
+		val original = repository.settings.first()
+
+		try {
+			openSky()
+			scrollTo(R.string.label_seasonal_celebrations)
+			assertVisible(R.string.label_seasonal_celebrations)
+			assertTrue(repository.settings.first().seasonalCelebrationsEnabled)
+
+			clickSettingSwitch(R.string.label_seasonal_celebrations)
+			waitUntil("Seasonal celebrations disabled") { runBlocking { !repository.settings.first().seasonalCelebrationsEnabled } }
+
+			clickSettingSwitch(R.string.label_seasonal_celebrations)
+			waitUntil("Seasonal celebrations restored") { runBlocking { repository.settings.first().seasonalCelebrationsEnabled } }
+
+			clickDescription(R.string.content_description_back)
+			waitUntil("Hub visible") { isVisible(R.string.appearance_category_sky) }
+
+			repository.update(
+				listOf(
+					SettingsMutation.SceneSimulatorEnabled(true),
+					SettingsMutation.SceneSimulatorActive(true),
+					SettingsMutation.SceneSimulatorDayPhase(DayPhase.NIGHT),
+					SettingsMutation.ForceHolidayCelebration(false),
+					SettingsMutation.ForcedHolidayCelebration(HolidayCelebration.HALLOWEEN)
+				)
+			)
+
+			openAdvanced()
+			scrollTo(R.string.label_force_holiday_celebration)
+			assertVisible(R.string.label_force_holiday_celebration)
+
+			assertAbsent(R.string.holiday_celebration_halloween)
+			assertAbsent(R.string.holiday_celebration_christmas)
+			assertAbsent(R.string.holiday_celebration_new_year)
+
+			clickText(R.string.label_force_holiday_celebration)
+			waitUntil("Force celebration enabled") { runBlocking { repository.settings.first().forceHolidayCelebration } }
+
+			waitUntil("Halloween option visible") { isVisible(R.string.holiday_celebration_halloween) }
+			assertVisible(R.string.holiday_celebration_christmas)
+			assertVisible(R.string.holiday_celebration_new_year)
+
+			clickText(R.string.holiday_celebration_christmas)
+			waitUntil("Christmas persisted") { runBlocking { repository.settings.first().forcedHolidayCelebration == HolidayCelebration.CHRISTMAS } }
+
+			clickText(R.string.holiday_celebration_new_year)
+			waitUntil("New Year persisted") { runBlocking { repository.settings.first().forcedHolidayCelebration == HolidayCelebration.NEW_YEAR } }
+
+			clickText(R.string.label_force_holiday_celebration)
+			waitUntil("Force celebration disabled") { runBlocking { !repository.settings.first().forceHolidayCelebration } }
+
+			waitUntil("Halloween option hidden") { !isVisible(R.string.holiday_celebration_halloween) }
+		} finally {
+			repository.save(original)
+		}
+	}
+
 }

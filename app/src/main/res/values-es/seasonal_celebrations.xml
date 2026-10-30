@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="label_seasonal_celebrations">Mostrar celebraciones estacionales</string>
+	<string name="subtitle_seasonal_celebrations">Visitantes nocturnos ocasionales en Halloween, Navidad y Año Nuevo</string>
+	<string name="section_seasonal_celebrations">Celebraciones estacionales</string>
+	<string name="label_force_holiday_celebration">Forzar celebración festiva para pruebas</string>
+	<string name="hint_force_holiday_celebration">Omite la ventana del calendario para pruebas. Las celebraciones solo aparecen de noche.</string>
+	<string name="holiday_celebration_none">Ninguno</string>
+	<string name="holiday_celebration_halloween">Halloween</string>
+	<string name="holiday_celebration_christmas">Navidad</string>
+	<string name="holiday_celebration_new_year">Año Nuevo</string>
+</resources>

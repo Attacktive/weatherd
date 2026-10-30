@@ -26,6 +26,7 @@ import xyz.attacktive.weatherd.domain.render.SceneScreenEffects
 import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
 import xyz.attacktive.weatherd.domain.render.WeatherSceneState
 import xyz.attacktive.weatherd.domain.render.backdropSignature
+import xyz.attacktive.weatherd.domain.render.holidayCalendarRefreshDelayMillis
 import xyz.attacktive.weatherd.domain.render.lensFlareMotionActive
 import xyz.attacktive.weatherd.domain.render.renderImmutableBitmap
 import xyz.attacktive.weatherd.domain.render.refreshWhileVisible
@@ -74,6 +75,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 		private var reflectionMotionActive = false
 		private var motionStartedAtNanos = 0L
 		private var frozenAnimationTimeSeconds: Float? = null
+		private var frozenCelebrationEpochMillis: Long? = null
 		@Volatile private var visible = false
 		@Volatile private var frameRateCap = FrameRateCap.UNCAPPED
 		@Volatile private var animationIdleTimeout = AnimationIdleTimeout.NEVER
@@ -150,6 +152,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			choreographer.removeFrameCallback(this)
 			if (!visible) {
 				frozenAnimationTimeSeconds = null
+				frozenCelebrationEpochMillis = null
 				updateReflectionMotion(false)
 
 				return
@@ -198,6 +201,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 				return
 			}
 
+			val calendarEpochMillis = System.currentTimeMillis()
 			val motionActive = wallpaperAnimationActive(animationIdleTimeout, motionStartedAtNanos, frameTimeNanos)
 			val timeSeconds = if (motionActive) {
 				frozenAnimationTimeSeconds = null
@@ -205,10 +209,16 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			} else {
 				frozenAnimationTimeSeconds ?: sceneAnimationTimeSeconds(frameTimeNanos).also { frozenAnimationTimeSeconds = it }
 			}
+			val celebrationEpochMillis = if (motionActive) {
+				frozenCelebrationEpochMillis = null
+				calendarEpochMillis
+			} else {
+				frozenCelebrationEpochMillis ?: calendarEpochMillis.also { frozenCelebrationEpochMillis = it }
+			}
 
 			// Use the shared monotonic frame clock while motion is active, then hold its final phase while the wallpaper is settled.
-			drawFrame(frameTimeNanos, timeSeconds, motionActive)
-			scheduleNextFrame(motionActive, frameTimeNanos)
+			drawFrame(frameTimeNanos, timeSeconds, celebrationEpochMillis, motionActive)
+			scheduleNextFrame(motionActive, frameTimeNanos, calendarEpochMillis)
 		}
 
 		private fun requestImmediateFrame() {
@@ -227,6 +237,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 
 			motionStartedAtNanos = System.nanoTime()
 			frozenAnimationTimeSeconds = null
+			frozenCelebrationEpochMillis = null
 			requestImmediateFrame()
 		}
 
@@ -256,9 +267,12 @@ class WeatherLiveWallpaperService: WallpaperService() {
 		}
 
 		/** Asks for the next animation frame at the configured cap, or only a low-frequency clock refresh after motion settles. */
-		private fun scheduleNextFrame(motionActive: Boolean, frameTimeNanos: Long) {
+		private fun scheduleNextFrame(motionActive: Boolean, frameTimeNanos: Long, calendarEpochMillis: Long) {
 			if (!motionActive) {
-				choreographer.postFrameCallbackDelayed(this, SETTLED_SCENE_REFRESH_MILLIS)
+				val elapsedDrawWallMillis = System.currentTimeMillis() - calendarEpochMillis
+				val targetDelay = holidayCalendarRefreshDelayMillis(calendarEpochMillis, SETTLED_SCENE_REFRESH_MILLIS)
+				val delayMillis = (targetDelay - elapsedDrawWallMillis).coerceAtLeast(0L)
+				choreographer.postFrameCallbackDelayed(this, delayMillis)
 
 				return
 			}
@@ -271,7 +285,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			}
 		}
 
-		private fun drawFrame(frameTimeNanos: Long, timeSeconds: Float, motionActive: Boolean) {
+		private fun drawFrame(frameTimeNanos: Long, timeSeconds: Float, celebrationEpochMillis: Long, motionActive: Boolean) {
 			if (width == 0 || height == 0) {
 				return
 			}
@@ -297,7 +311,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 				canvas = runCatching { holder.lockHardwareCanvas() }.getOrNull() ?: holder.lockCanvas()
 				if (canvas != null) {
 					val viewportLeft = wallpaperViewportLeft(width, current.width, wallpaperOffsetX, wallpaperScrollingEnabled)
-					drawScene(canvas, current, params, timeSeconds, viewportLeft)
+					drawScene(canvas, current, params, timeSeconds, celebrationEpochMillis, viewportLeft)
 				}
 			} finally {
 				if (canvas != null) {
@@ -337,12 +351,12 @@ class WeatherLiveWallpaperService: WallpaperService() {
 		}
 
 		/** Draws the scene, crossfading only world-space content before the screen-anchored effects are composited once at full strength. */
-		private fun drawScene(canvas: Canvas, backdrop: Bitmap, params: SceneParams, timeSeconds: Float, viewportLeft: Float) {
+		private fun drawScene(canvas: Canvas, backdrop: Bitmap, params: SceneParams, timeSeconds: Float, celebrationEpochMillis: Long, viewportLeft: Float) {
 			val outgoing = previousBackdrop
 			val elapsed = timeSeconds - fadeStartSeconds
 			if (outgoing == null || elapsed < 0f || elapsed >= SCENE_FADE_SECONDS) {
 				previousBackdrop = null
-				drawWorldViewport(canvas, backdrop, params, timeSeconds, viewportLeft)
+				drawWorldViewport(canvas, backdrop, params, timeSeconds, celebrationEpochMillis, viewportLeft)
 			} else {
 				/*
 				 * A smoothstepped layer alpha eases the incoming scene in over the outgoing backdrop.
@@ -355,7 +369,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 
 				val alpha = (eased * 255f).roundToInt().coerceIn(0, 255)
 				val saved = canvas.saveLayerAlpha(0f, 0f, width.toFloat(), height.toFloat(), alpha)
-				drawWorldViewport(canvas, backdrop, params, timeSeconds, viewportLeft)
+				drawWorldViewport(canvas, backdrop, params, timeSeconds, celebrationEpochMillis, viewportLeft)
 				canvas.restoreToCount(saved)
 			}
 
@@ -363,14 +377,22 @@ class WeatherLiveWallpaperService: WallpaperService() {
 		}
 
 		/** Draws one world-space viewport into the wider virtual wallpaper scene without scaling it, so launcher offsets reveal real off-screen content instead of stretching the current frame. */
-		private fun drawWorldViewport(canvas: Canvas, backdrop: Bitmap, params: SceneParams, timeSeconds: Float, viewportLeft: Float) {
+		private fun drawWorldViewport(canvas: Canvas, backdrop: Bitmap, params: SceneParams, timeSeconds: Float, celebrationEpochMillis: Long, viewportLeft: Float) {
 			canvas.drawBitmap(backdrop, -viewportLeft, 0f, null)
 
 			val saved = canvas.save()
 			canvas.translate(-viewportLeft, 0f)
 			renderer.lensFlareOffsetX = lensFlareMotionSensor.offsetX
 			renderer.lensFlareOffsetY = lensFlareMotionSensor.offsetY
-			renderer.renderForeground(canvas, backdrop.width, height, params, timeSeconds, includeOverlayLabels = false)
+			renderer.renderForeground(
+				canvas,
+				backdrop.width,
+				height,
+				params,
+				timeSeconds,
+				includeOverlayLabels = false,
+				celebrationEpochMillis = celebrationEpochMillis
+			)
 			canvas.restoreToCount(saved)
 		}
 

@@ -1,5 +1,6 @@
 package xyz.attacktive.weatherd.domain.render
 
+import java.time.Instant
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -21,12 +22,14 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import xyz.attacktive.weatherd.BuildConfig
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.BirdAppearanceInterval
 import xyz.attacktive.weatherd.domain.model.BirdFlockSize
 import xyz.attacktive.weatherd.domain.model.DayPhase
+import xyz.attacktive.weatherd.domain.model.HolidayCelebration
 import xyz.attacktive.weatherd.domain.model.GeoLocation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
@@ -52,6 +55,94 @@ import xyz.attacktive.weatherd.util.AppLogger
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class WeatherSceneProviderTest {
+	@Test
+	fun `seasonal celebrations share live simulated and offline eligibility without refreshing weather`() = runTest {
+		val moments = listOf(
+			"2026-10-31T22:00:00Z" to HolidayCelebration.HALLOWEEN,
+			"2026-12-24T22:00:00Z" to HolidayCelebration.CHRISTMAS,
+			"2027-01-01T22:00:00Z" to HolidayCelebration.NEW_YEAR
+		)
+
+		for ((instant, holiday) in moments) {
+			val now = Instant.parse(instant).epochSecond
+			val settings = AppSettings(useDeviceLocation = false, manualLatitude = 0.0, manualLongitude = 0.0)
+			val fallback = WeatherSceneState(settings)
+			val live = fallback.copy(
+				snapshot = snapshotWith(weatherCode = 0, isDay = false).copy(
+					observedAtEpochSeconds = now,
+					sunriseEpochSeconds = now - 16 * 3600,
+					sunsetEpochSeconds = now - 4 * 3600
+				)
+			)
+
+			for (state in listOf(fallback, live)) {
+				val params = provider.paramsFor(now, state)
+				val disabled = provider.paramsFor(now, state.copy(settings = settings.copy(seasonalCelebrationsEnabled = false)))
+				assertEquals(DayPhase.NIGHT, params.dayPhase)
+				assertEquals(holiday, params.holidayCelebration)
+				assertEquals(HolidayCelebration.NONE, disabled.holidayCelebration)
+				assertEquals(backdropSignature(params), backdropSignature(disabled))
+			}
+
+			for (phase in DayPhase.entries) {
+				val simulated = fallback.copy(
+					settings = settings.copy(sceneSimulatorEnabled = true, sceneSimulatorActive = true, sceneSimulatorDayPhase = phase)
+				)
+
+				assertEquals(
+					if (phase == DayPhase.NIGHT) {
+						holiday
+					} else {
+						HolidayCelebration.NONE
+					},
+					provider.paramsFor(now, simulated, debugToolsAvailable = false).holidayCelebration
+				)
+			}
+		}
+
+		coVerify(exactly = 0) { weatherRepository.current(any(), any()) }
+	}
+
+	@Test
+	fun `holiday opt out changes both consumers without rewriting a captured state`() {
+		val now = Instant.parse("2026-10-31T22:00:00Z").epochSecond
+		persistedSettings.value = AppSettings(sceneSimulatorEnabled = true, sceneSimulatorActive = true, sceneSimulatorDayPhase = DayPhase.NIGHT)
+		val captured = provider.sceneState.value
+		assertEquals(HolidayCelebration.HALLOWEEN, provider.paramsFor(now, captured).holidayCelebration)
+		persistedSettings.value = persistedSettings.value.copy(seasonalCelebrationsEnabled = false)
+		assertEquals(HolidayCelebration.NONE, provider.paramsFor(now).holidayCelebration)
+		assertEquals(HolidayCelebration.HALLOWEEN, provider.paramsFor(now, captured).holidayCelebration)
+		assertEquals(HolidayCelebration.NONE, provider.paramsFor(Instant.parse("2026-11-01T12:00:00Z").epochSecond, captured).holidayCelebration)
+	}
+
+	@Test
+	fun `forced holiday uses artifact gate rather than public simulator availability`() {
+		val outsideWindow = Instant.parse("2026-07-04T22:00:00Z").epochSecond
+		for (holiday in HolidayCelebration.entries.filter { it != HolidayCelebration.NONE }) {
+			for (phase in DayPhase.entries) {
+				persistedSettings.value = AppSettings(
+					sceneSimulatorEnabled = true,
+					sceneSimulatorActive = true,
+					sceneSimulatorDayPhase = phase,
+					seasonalCelebrationsEnabled = false,
+					forceHolidayCelebration = true,
+					forcedHolidayCelebration = holiday
+				)
+
+				val expected = if (BuildConfig.DEBUG && phase == DayPhase.NIGHT) {
+					holiday
+				} else {
+					HolidayCelebration.NONE
+				}
+
+				assertEquals(expected, provider.paramsFor(outsideWindow, debugToolsAvailable = false).holidayCelebration)
+			}
+		}
+
+		persistedSettings.value = persistedSettings.value.copy(forceHolidayCelebration = false)
+		assertEquals(HolidayCelebration.NONE, provider.paramsFor(outsideWindow, debugToolsAvailable = false).holidayCelebration)
+	}
+
 	@Test
 	fun `scene simulator override requires available controls`() {
 		assertFalse(
@@ -306,7 +397,7 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `pending response retains its own place name after simulator location changes`() = runTest {
-		persistedSettings.value = AppSettings(useDeviceLocation = true, showLocationLabel = true)
+		persistedSettings.value = AppSettings(useDeviceLocation = true, showLocationLabel = true, sceneSimulatorEnabled = true)
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40) andThen GeoLocation(48.14, 11.58)
 		coEvery { reverseGeocodingRepository.placeName(52.52, 13.40) } returns "Berlin"
 		coEvery { reverseGeocodingRepository.placeName(48.14, 11.58) } returns "Munich"
@@ -358,6 +449,7 @@ class WeatherSceneProviderTest {
 			sunStyle = SunStyle.RADIANT,
 			sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO,
 			lensFlareEnabled = false,
+			sceneSimulatorEnabled = true,
 			sceneSimulatorActive = true,
 			sceneSimulatorPresetIndex = presetIndex,
 			sceneSimulatorDayPhase = DayPhase.DUSK,
@@ -404,6 +496,7 @@ class WeatherSceneProviderTest {
 			useDeviceLocation = true,
 			showWeatherLabel = true,
 			showLocationLabel = true,
+			sceneSimulatorEnabled = true,
 			sceneSimulatorActive = true
 		)
 
@@ -423,6 +516,7 @@ class WeatherSceneProviderTest {
 			manualLocationLabel = "Rome",
 			showWeatherLabel = true,
 			showLocationLabel = true,
+			sceneSimulatorEnabled = true,
 			sceneSimulatorActive = true,
 			sceneSimulatorPresetIndex = 0,
 			labelVerticalPosition = 0.65f
@@ -451,6 +545,7 @@ class WeatherSceneProviderTest {
 	fun `scene simulator adopts the real calendar lunar phase at the evaluated moment`() = runTest {
 		persistedSettings.value = AppSettings(
 			useDeviceLocation = true,
+			sceneSimulatorEnabled = true,
 			sceneSimulatorActive = true,
 			sceneSimulatorPresetIndex = 0,
 			sceneSimulatorDayPhase = DayPhase.NIGHT
@@ -467,7 +562,7 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `disabling scene simulator returns to cached live weather`() = runTest {
-		val live = AppSettings(useDeviceLocation = true)
+		val live = AppSettings(useDeviceLocation = true, sceneSimulatorEnabled = true)
 		persistedSettings.value = live
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 3))
@@ -488,7 +583,7 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `simulator selection changes while a live weather request remains pending`() = runTest {
-		val settings = MutableStateFlow(AppSettings(useDeviceLocation = true, backdropScene = BackdropScene.BEACH))
+		val settings = MutableStateFlow(AppSettings(useDeviceLocation = true, backdropScene = BackdropScene.BEACH, sceneSimulatorEnabled = true))
 		every { settingsRepository.settings } returns settings
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
 		coEvery { weatherRepository.current(any(), any()) } returns Result.success(snapshotWith(weatherCode = 63))
@@ -530,7 +625,7 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `first launch can leave simulation while location remains pending`() = runTest {
-		val settings = MutableStateFlow(AppSettings(useDeviceLocation = true))
+		val settings = MutableStateFlow(AppSettings(useDeviceLocation = true, sceneSimulatorEnabled = true))
 		every { settingsRepository.settings } returns settings
 		val location = CompletableDeferred<GeoLocation?>()
 		coEvery { locationRepository.currentLocation() } coAnswers { location.await() }
@@ -1288,7 +1383,7 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `leaving simulation after a city change retains original weather until matching weather arrives`() = runTest {
-		val berlin = AppSettings(useDeviceLocation = false, manualLatitude = 52.52, manualLongitude = 13.40, manualLocationLabel = "Berlin", showWeatherLabel = true, showLocationLabel = true)
+		val berlin = AppSettings(useDeviceLocation = false, manualLatitude = 52.52, manualLongitude = 13.40, manualLocationLabel = "Berlin", showWeatherLabel = true, showLocationLabel = true, sceneSimulatorEnabled = true)
 		persistedSettings.value = berlin
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 63))
 		provider.refresh(1_000_000L)
@@ -1327,7 +1422,7 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `leaving simulation after a provider change accepts weather from its configured fallback`() = runTest {
-		val berlin = AppSettings(useDeviceLocation = false, manualLatitude = 52.52, manualLongitude = 13.40)
+		val berlin = AppSettings(useDeviceLocation = false, manualLatitude = 52.52, manualLongitude = 13.40, sceneSimulatorEnabled = true)
 		persistedSettings.value = berlin
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 63))
 		provider.refresh(1_000_000L)
@@ -1344,7 +1439,7 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `changing only the fallback provider marks retained weather stale on simulator exit`() = runTest {
-		val berlin = AppSettings(useDeviceLocation = false, manualLatitude = 52.52, manualLongitude = 13.40)
+		val berlin = AppSettings(useDeviceLocation = false, manualLatitude = 52.52, manualLongitude = 13.40, sceneSimulatorEnabled = true)
 		persistedSettings.value = berlin
 		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 63))
 		provider.refresh(1_000_000L)
@@ -1387,7 +1482,7 @@ class WeatherSceneProviderTest {
 
 	@Test
 	fun `a known device location change during simulation retains weather without throttling its replacement`() = runTest {
-		persistedSettings.value = AppSettings(useDeviceLocation = true, showWeatherLabel = true, showLocationLabel = true)
+		persistedSettings.value = AppSettings(useDeviceLocation = true, showWeatherLabel = true, showLocationLabel = true, sceneSimulatorEnabled = true)
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40) andThen GeoLocation(48.14, 11.58)
 		coEvery { reverseGeocodingRepository.placeName(52.52, 13.40) } returns "Berlin"
 		coEvery { reverseGeocodingRepository.placeName(48.14, 11.58) } returns "Munich"

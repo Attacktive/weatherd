@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="label_seasonal_celebrations">季節のイベントを表示</string>
+	<string name="subtitle_seasonal_celebrations">ハロウィン、クリスマス、新年の夜空に時折現れる訪問者</string>
+	<string name="section_seasonal_celebrations">季節のイベント</string>
+	<string name="label_force_holiday_celebration">テスト用にイベントを強制</string>
+	<string name="hint_force_holiday_celebration">テスト用にカレンダー期間を無視します。夜間のみ表示されます。</string>
+	<string name="holiday_celebration_none">なし</string>
+	<string name="holiday_celebration_halloween">ハロウィン</string>
+	<string name="holiday_celebration_christmas">クリスマス</string>
+	<string name="holiday_celebration_new_year">新年</string>
+</resources>
