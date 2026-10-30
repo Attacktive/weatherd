@@ -239,18 +239,29 @@ class SettingsNavigationTest {
 	private fun setRainbowProgress(value: Float, currentPercent: Int) = setSliderProgress(rainbowSizeText(currentPercent), value)
 
 	private fun setSliderProgress(labelText: String, value: Float) {
-		val label = waitForNode(labelText) { matchesText(it, labelText) }
-		val labelBounds = Rect().also { label.getBoundsInScreen(it) }
-		val slider = waitForNode("$labelText slider") {
-			val bounds = Rect().also { rect -> it.getBoundsInScreen(rect) }
-			it.rangeInfo != null && bounds.top >= labelBounds.bottom
+		var slider: AccessibilityNodeInfo? = null
+		waitUntil("$labelText slider") {
+			val root = automation.rootInActiveWindow
+			val label = findNode(root) { it.isVisibleToUser && matchesText(it, labelText) }
+			val labelBounds = Rect()
+			label?.getBoundsInScreen(labelBounds)
+			slider = if (label == null) {
+				null
+			} else {
+				findNode(root) {
+					val bounds = Rect().also { rect -> it.getBoundsInScreen(rect) }
+					it.isVisibleToUser && it.rangeInfo != null && bounds.top >= labelBounds.bottom
+				}
+			}
+
+			slider != null
 		}
 
 		val arguments = Bundle().apply {
 			putFloat(AccessibilityNodeInfo.ACTION_ARGUMENT_PROGRESS_VALUE, value)
 		}
 
-		assertTrue("$labelText slider accepts $value", slider.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_PROGRESS.id, arguments))
+		assertTrue("$labelText slider accepts $value", checkNotNull(slider).performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_PROGRESS.id, arguments))
 	}
 
 	private fun clickLensFlareSwitch() = clickSettingSwitch(R.string.label_lens_flare)

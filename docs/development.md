@@ -34,6 +34,7 @@ Direct `adb` invocation bypasses Gradle's preflight and default filter: keep the
 The provider-evaluation harness below remains the explicit opt-in capture path; do not set `providerEvaluation=true` merely to silence an ordinary test report.
 Settings navigation tests wake the device, dismiss a nonsecure keyguard, and retain a bounded 320×640 dp activity window through recreation so large displays exercise scroll restoration rather than skip it.
 Navigation timeouts include activity state, the active accessibility tree, and window-manager diagnostics; assert the saved anchor remains visible with the first section off-screen, not exact pixel coordinates.
+Resolve related accessibility nodes and their bounds from the same fresh root on every poll; label coordinates captured before recreation/scroll settling can no longer identify the visible slider.
 Sunbeam fixtures pin the UTC cloud-placement day and compare rays over the same unobscured pixels each frame so foreground cloud occlusion is not mistaken for a ray-field discontinuity.
 
 ### Test Workflow Profiling
