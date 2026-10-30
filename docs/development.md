@@ -9,6 +9,7 @@ Run commands from the repository root.
 ### Local Checks and Instrumentation
 
 Run the pull-request checks with `./gradlew test :app:lint :app:detekt`.
+Local Gradle uses Detekt 2.x with `detekt.yaml`; Codacy uses Detekt 1.x with `detekt.yml`. Keep their LongMethod limits aligned at 150 lines and retain the Composable exemption; the separate files preserve config validation despite incompatible option names.
 The existing CI Test gate builds the debug app and instrumentation APKs alongside unit tests, lint, and Detekt while the emulator starts; instrumentation remains required after that gate succeeds.
 Ordinary connected tests exclude the opt-in `ProviderEvaluationCaptureTest` and require exactly one device selected with `ANDROID_SERIAL`.
 Task-level `--serial` is rejected: the pinned AGP version mutates its immutable CLI-serial list when a device matches, throwing `UnsupportedOperationException`; environment-based selection avoids that broken path.

@@ -120,7 +120,7 @@ kotlin {
 }
 
 detekt {
-	config.setFrom(rootProject.file("detekt.yml"))
+	config.setFrom(rootProject.file("detekt.yaml"))
 }
 
 dependencies {

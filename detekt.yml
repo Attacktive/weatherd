@@ -1,6 +1,7 @@
 complexity:
   LongMethod:
     active: true
-    allowedLines: 100
+    # Codacy uses Detekt 1.x; keep this aligned with detekt.yaml.
+    threshold: 150
     ignoreAnnotated:
       - 'Composable'

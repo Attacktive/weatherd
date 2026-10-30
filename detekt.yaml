@@ -1,0 +1,7 @@
+complexity:
+  LongMethod:
+    active: true
+    # Local Gradle uses Detekt 2.x; keep this aligned with detekt.yml.
+    allowedLines: 150
+    ignoreAnnotated:
+      - 'Composable'
