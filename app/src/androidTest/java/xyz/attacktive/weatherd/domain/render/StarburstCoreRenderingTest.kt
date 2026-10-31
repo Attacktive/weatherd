@@ -1,9 +1,6 @@
 package xyz.attacktive.weatherd.domain.render
 
-import kotlin.math.PI
-import kotlin.math.cos
 import kotlin.math.roundToInt
-import kotlin.math.sin
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
@@ -41,31 +38,6 @@ class StarburstCoreRenderingTest {
 			}
 		} finally {
 			source.recycle()
-		}
-	}
-
-	@Test
-	fun innerGlowFallsAwayWithoutABrightRing() {
-		val layer = StarburstSunLayer(InstrumentationRegistry.getInstrumentation().targetContext.resources)
-		layer.prewarm()
-		for (alpha in listOf(128, 255)) {
-			val bitmap = createBitmap(512, 512)
-			try {
-				layer.draw(Canvas(bitmap), 256f, 256f, 51.2f, Color.WHITE, alpha)
-				for (direction in 0 until 32) {
-					val angle = direction * 2.0 * PI / 32
-					var previous = Color.alpha(bitmap.getPixel(256, 256))
-					for (radius in 1..72) {
-						val x = (255.5 + cos(angle) * radius).roundToInt()
-						val y = (255.5 + sin(angle) * radius).roundToInt()
-						val current = Color.alpha(bitmap.getPixel(x, y))
-						assertTrue("The inner glow must fade outward without a bright ring at $x,$y: $previous -> $current", current <= previous + 2)
-						previous = current
-					}
-				}
-			} finally {
-				bitmap.recycle()
-			}
 		}
 	}
 

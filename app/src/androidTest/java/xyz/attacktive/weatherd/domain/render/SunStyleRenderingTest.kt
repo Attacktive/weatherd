@@ -114,11 +114,14 @@ class SunStyleRenderingTest {
 	@Test
 	fun imageSunStylesRespectSizeWithoutMovingTheCore() {
 		for (style in listOf(SunStyle.RADIANT, SunStyle.STARBURST)) {
-			val params = clearParams().copy(sunStyle = style, sunColorPreset = SunColorPreset.WHITE)
+			// Warm rays distinguish Starburst's centered whitening mask from its asymmetric ray silhouette.
+			val color = if (style == SunStyle.STARBURST) SunColorPreset.GOLDEN else SunColorPreset.WHITE
+			val minimumColor = if (style == SunStyle.STARBURST) Color.rgb(253, 253, 253) else Color.rgb(245, 245, 240)
+			val params = clearParams().copy(sunStyle = style, sunColorPreset = color)
 			val small = render(params.copy(sunSizeScale = 0.5f))
 			val large = render(params.copy(sunSizeScale = 1.5f))
-			val smallCore = whiteCoreBounds(small)
-			val largeCore = whiteCoreBounds(large)
+			val smallCore = whiteCoreBounds(small, minimumColor)
+			val largeCore = whiteCoreBounds(large, minimumColor)
 
 			assertTrue("A larger sun size must enlarge the $style core", largeCore.width > smallCore.width * 2)
 			assertTrue("Resizing must keep the core anchored horizontally", abs(largeCore.centerX - smallCore.centerX) <= 2f)
@@ -337,7 +340,7 @@ class SunStyleRenderingTest {
 		return bitmap
 	}
 
-	private fun whiteCoreBounds(bitmap: Bitmap): CoreBounds {
+	private fun whiteCoreBounds(bitmap: Bitmap, minimumColor: Int = Color.rgb(245, 245, 240)): CoreBounds {
 		var left = bitmap.width
 		var right = -1
 		var top = bitmap.height
@@ -345,7 +348,7 @@ class SunStyleRenderingTest {
 		for (y in 0 until bitmap.height) {
 			for (x in 0 until bitmap.width) {
 				val pixel = bitmap.getPixel(x, y)
-				if (Color.alpha(pixel) >= 245 && Color.red(pixel) >= 245 && Color.green(pixel) >= 245 && Color.blue(pixel) >= 240) {
+				if (Color.alpha(pixel) >= 245 && Color.red(pixel) >= Color.red(minimumColor) && Color.green(pixel) >= Color.green(minimumColor) && Color.blue(pixel) >= Color.blue(minimumColor)) {
 					left = minOf(left, x)
 					right = maxOf(right, x)
 					top = minOf(top, y)
