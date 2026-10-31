@@ -10,11 +10,37 @@ Android live wallpaper that turns real weather into an animated procedural scene
 
 Requires **Android 8.0 (API 26)** or later.
 
+## Screenshots
+
+These are actual Weatherd **3.9.20** preview captures using simulated weather and time of day, with the simulator controls hidden. The preview and live wallpaper share the same scene renderer. Select a screenshot to see it at full resolution.
+
+<p align="center">
+	<a href="store/screenshot-phone-1080x1920.png"><img src="store/screenshot-phone-preview.png" alt="Mostly clear daytime sky above mountain scenery" width="175"></a>
+	<a href="store/screenshot-phone-rain-1080x1920.png"><img src="store/screenshot-phone-rain-preview.png" alt="Rain falling over a mountain landscape" width="175"></a>
+	<a href="store/screenshot-phone-dusk-1080x1920.png"><img src="store/screenshot-phone-dusk-1080x1920.png" alt="Mountain scenery in the light of dusk" width="175"></a>
+	<a href="store/screenshot-phone-clouds-1080x1920.png"><img src="store/screenshot-phone-clouds-1080x1920.png" alt="Partly cloudy sky above trees" width="175"></a>
+</p>
+
+<details>
+<summary>Tablet screenshots</summary>
+
+<p align="center">
+	<a href="store/screenshot-tablet-clear.png"><img src="store/screenshot-tablet-clear.png" alt="Mostly clear mountain scene on a landscape tablet" width="380"></a>
+	<a href="store/screenshot-tablet-rain.png"><img src="store/screenshot-tablet-rain.png" alt="Rain falling over trees on a landscape tablet" width="380"></a>
+	<a href="store/screenshot-tablet-dusk.png"><img src="store/screenshot-tablet-dusk.png" alt="Mountain scenery at dusk on a landscape tablet" width="380"></a>
+	<a href="store/screenshot-tablet-clouds.png"><img src="store/screenshot-tablet-clouds.png" alt="Partly cloudy sky and trees on a landscape tablet" width="380"></a>
+</p>
+
+</details>
+
+[See all screenshot assets and capture notes](store/README.md).
+
 ## Features
 
 - Live weather from device location or a manually searched city, with selectable providers and a global fallback for regional models.
 - Weather-driven clouds, precipitation, fog, humidity haze, lightning, and day/night lighting.
 - Customizable sky palettes, sun styles, lunar phases, birds, and distant aircraft.
+- Optional Halloween, Christmas, and New Year's night-sky celebrations, with a setting to turn them off.
 - Scenery, personal photo backgrounds, and optional Evergreen or Broadleaf trees.
 - Appearance presets, weather/location labels, and readability shading behind launcher icons.
 - A scene simulator that changes both the preview and live wallpaper without replacing cached real weather.
