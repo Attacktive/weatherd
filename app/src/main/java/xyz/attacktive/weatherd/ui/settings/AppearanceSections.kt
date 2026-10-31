@@ -32,6 +32,7 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -45,6 +46,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -184,6 +186,7 @@ internal fun SkyDetailsSection(settings: AppSettings, defaults: AppSettings, onS
 @Composable
 private fun SkyColorPicker(settings: AppSettings, defaults: AppSettings, onSave: (AppSettings) -> Unit) {
 	var expanded by remember { mutableStateOf(false) }
+	var editorOpen by rememberSaveable { mutableStateOf(false) }
 
 	ResettableSectionLabel(
 		text = stringResource(R.string.section_sky_palette),
@@ -216,6 +219,34 @@ private fun SkyColorPicker(settings: AppSettings, defaults: AppSettings, onSave:
 				)
 			}
 		}
+	}
+
+	if (settings.skyColorPreset == SkyColorPreset.CUSTOM) {
+		Spacer(modifier = Modifier.height(8.dp))
+
+		OutlinedButton(
+			onClick = { editorOpen = true },
+			modifier = Modifier.fillMaxWidth()
+		) {
+			Text(stringResource(R.string.edit_custom_sky_gradient))
+		}
+	}
+
+	if (editorOpen) {
+		CustomSkyGradientEditor(
+			initialGradient = settings.customSkyGradient,
+			defaultGradient = defaults.customSkyGradient,
+			onApply = { gradient ->
+				onSave(
+					settings.copy(
+						customSkyGradient = gradient.normalized(),
+						skyColorPreset = SkyColorPreset.CUSTOM
+					)
+				)
+				editorOpen = false
+			},
+			onCancel = { editorOpen = false }
+		)
 	}
 }
 
@@ -923,6 +954,7 @@ internal fun formatSkyColor(preset: SkyColorPreset) = when (preset) {
 	SkyColorPreset.PASTEL -> stringResource(R.string.sky_color_pastel)
 	SkyColorPreset.CYBERPUNK -> stringResource(R.string.sky_color_cyberpunk)
 	SkyColorPreset.CLEAR_BLUE -> stringResource(R.string.sky_color_clear_blue)
+	SkyColorPreset.CUSTOM -> stringResource(R.string.sky_color_custom)
 }
 
 @Composable

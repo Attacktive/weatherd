@@ -276,6 +276,43 @@ Verification covers a changed device fix during a pending failed request, travel
 
 ## Rendering and Artwork
 
+### Scene-Parameter Wiring
+
+New render settings must follow the shared live/simulator/fallback wiring rules in [AGENTS.md](../AGENTS.md#scene-simulator-overrides-live-weather). For example:
+
+```kotlin
+// In SceneDebugPresets.kt
+fun debugSceneParams(
+	preset: ScenePreset,
+	dayPhase: DayPhase,
+	precipitationScale: Float = 1f,
+	windScale: Float = 1f,
+	cloudScale: Float = 1f
+) = SceneParams(
+	dayPhase = dayPhase,
+	cloudiness = preset.cloudiness,
+	fogDensity = preset.fogDensity,
+	precipitation = preset.precipitation,
+	thunder = preset.thunder,
+	windFactor = preset.windFactor,
+	precipitationScale = precipitationScale,
+	windScale = windScale,
+	cloudScale = cloudScale
+)
+```
+
+### Custom Sky Gradients
+
+**Settings → Appearance → Sky → Sky palette → Custom** adds a user-defined gradient alongside Natural, Warm, Pastel, Cyberpunk, and Clear Blue. Existing selections and defaults are unchanged. **Edit gradient** opens a full-screen editor with a raw-gradient preview; it does not simulate the current weather in that preview.
+
+Choose two or three opaque colors with RGB sliders or a six-digit RGB hex value, adjust ordered stop positions by dragging handles, sliders, or numeric percentage entry, and select vertical, horizontal, or top-left-to-bottom-right diagonal direction. Reverse colors swaps endpoint colors without moving the stops. Two-color mode retains the hidden middle color and position; enabling three colors fits that stop between the current endpoints.
+
+The editor owns a saveable draft. Picker confirmation updates only the draft, Reset restores only the draft's default gradient, and Cancel, toolbar Back, or system Back discards unapplied edits. Apply persists the complete gradient atomically through the ordinary settings-mutation path. Changing to a built-in palette hides the editor entry without erasing the last applied custom gradient.
+
+Selected colors define the clear daytime base before existing brightness and saturation tuning. Dawn blends Natural dawn into the custom gradient with the existing daylight ramp; dusk transitions from custom daylight through Natural dusk into Natural night. Weather grayness and storm darkening affect every active color stop. Night brightness, readability controls, and photo-background precedence remain independent. The full gradient stays in the shared scene parameters for live weather, simulator, and fallback; backdrop invalidation observes active gradient changes but ignores inactive custom edits under a built-in palette.
+
+Preferences store the gradient as one normalized JSON value. Appearance preset schema v19 stores its colors, positions, direction, and two/three-color mode even when a built-in palette is selected; v1–v18 remain readable with an inactive default gradient. Invalid or future preset banks remain unreadable rather than being silently rewritten. Shader arrays are built in the cached-backdrop path, and the renderer reuses its computed palette while palette inputs are unchanged.
+
 ### Cloud Formation Placement
 
 Near and distant cumulus, the partly-cloudy support bank, and the overcast bank stack share a vertical lift of 12% of the viewport height in portrait and 4% in landscape.
