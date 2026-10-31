@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="section_tree_season">Tree season</string>
+	<string name="tree_season_auto">Auto</string>
+	<string name="tree_season_spring">Spring</string>
+	<string name="tree_season_summer">Summer</string>
+	<string name="tree_season_autumn">Autumn</string>
+	<string name="tree_season_winter">Winter</string>
+</resources>

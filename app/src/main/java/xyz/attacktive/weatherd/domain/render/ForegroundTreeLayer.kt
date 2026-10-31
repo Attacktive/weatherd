@@ -7,7 +7,9 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
 import xyz.attacktive.weatherd.R
+import xyz.attacktive.weatherd.domain.model.TreeSeason
 import xyz.attacktive.weatherd.domain.model.TreeStyle
+import xyz.attacktive.weatherd.domain.model.usesSpringArtwork
 
 /** Fixed foreground composition using shared, immutable first-party tree sprites decoded outside the frame loop. */
 internal class ForegroundTreeLayer(private val resources: Resources) {
@@ -18,15 +20,19 @@ internal class ForegroundTreeLayer(private val resources: Resources) {
 	private var cachedStyle: TreeStyle? = null
 	private val lighting = SceneryLighting(SceneryPlane.NEAR)
 
-	fun isTextureReady(style: TreeStyle) = spritesFor(style) != null
+	fun isTextureReady(style: TreeStyle, season: TreeSeason = TreeSeason.SPRING) = spritesFor(style, season) != null
 
-	fun prewarm(style: TreeStyle) {
-		if (isTextureReady(style)) {
+	fun prewarm(style: TreeStyle, season: TreeSeason = TreeSeason.SPRING) {
+		if (isTextureReady(style, season)) {
 			return
 		}
 
 		synchronized(ForegroundTreeLayer::class.java) {
-			if (!isTextureReady(style)) {
+			if (isTextureReady(style, season)) {
+				return
+			}
+
+			if (spritesFor(style, TreeSeason.SPRING) == null) {
 				val options = BitmapFactory.Options().apply { inScaled = false }
 
 				when (style) {
@@ -41,7 +47,31 @@ internal class ForegroundTreeLayer(private val resources: Resources) {
 					)
 				}
 			}
+
+			if (!season.usesSpringArtwork) {
+				val originals = checkNotNull(spritesFor(style, TreeSeason.SPRING))
+				val tinted = Array(originals.size) { index -> recolor(originals[index], season) }
+				// Publish an immutable snapshot so an older worker cannot evict another season.
+				when (style) {
+					TreeStyle.EVERGREEN -> evergreenVariants = evergreenVariants + (season to tinted)
+					TreeStyle.BROADLEAF -> broadleafVariants = broadleafVariants + (season to tinted)
+				}
+			}
 		}
+	}
+
+	/** Recolors the selected foliage once in the background while retaining the source alpha and tree geometry. */
+	private fun recolor(source: Bitmap, season: TreeSeason): Bitmap {
+		val pixels = IntArray(source.width * source.height)
+		source.getPixels(pixels, 0, source.width, 0, 0, source.width, source.height)
+		for (index in pixels.indices) {
+			pixels[index] = seasonalTreeFoliagePixel(pixels[index], season)
+		}
+
+		val result = Bitmap.createBitmap(source.width, source.height, Bitmap.Config.ARGB_8888)
+		result.setPixels(pixels, 0, source.width, 0, 0, source.width, source.height)
+
+		return result
 	}
 
 	fun draw(canvas: Canvas, width: Float, height: Float, params: SceneParams) {
@@ -49,7 +79,10 @@ internal class ForegroundTreeLayer(private val resources: Resources) {
 			return
 		}
 
-		val sources = spritesFor(params.treeStyle) ?: return
+		// Keep the original foliage visible while the requested season is prepared off the frame thread.
+		val sources = spritesFor(params.treeStyle, params.treeSeason)
+			?: spritesFor(params.treeStyle, TreeSeason.SPRING)
+			?: return
 		val placements = placementsFor(params.treeStyle)
 		if (width != cachedWidth || height != cachedHeight || params.treeStyle != cachedStyle) {
 			for (index in placements.indices) {
@@ -87,9 +120,18 @@ internal class ForegroundTreeLayer(private val resources: Resources) {
 		}
 	}
 
-	private fun spritesFor(style: TreeStyle) = when (style) {
-		TreeStyle.EVERGREEN -> evergreenSprites
-		TreeStyle.BROADLEAF -> broadleafSprites
+	private fun spritesFor(style: TreeStyle, season: TreeSeason): Array<Bitmap>? {
+		if (season.usesSpringArtwork) {
+			return when (style) {
+				TreeStyle.EVERGREEN -> evergreenSprites
+				TreeStyle.BROADLEAF -> broadleafSprites
+			}
+		}
+
+		return when (style) {
+			TreeStyle.EVERGREEN -> evergreenVariants[season]
+			TreeStyle.BROADLEAF -> broadleafVariants[season]
+		}
 	}
 
 	private fun placementsFor(style: TreeStyle) = when (style) {
@@ -103,6 +145,12 @@ internal class ForegroundTreeLayer(private val resources: Resources) {
 
 		@Volatile
 		var broadleafSprites: Array<Bitmap>? = null
+
+		@Volatile
+		var evergreenVariants: Map<TreeSeason, Array<Bitmap>> = emptyMap()
+
+		@Volatile
+		var broadleafVariants: Map<TreeSeason, Array<Bitmap>> = emptyMap()
 	}
 }
 

@@ -20,11 +20,37 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.toAppearancePresetSnapshot
+import xyz.attacktive.weatherd.domain.model.TreeSeason
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TreeStylePresetStorageTest {
 	@get:Rule
 	val temporaryFolder = TemporaryFolder()
+
+	@Test
+	fun `version seventeen presets without tree season remain readable and upgrade on edit`() = runTest {
+		val store = PreferenceDataStoreFactory.create(scope = backgroundScope) {
+			temporaryFolder.newFile("tree-season-legacy.preferences_pb")
+		}
+
+		val repository = AppearancePresetRepository(store)
+		assertTrue(repository.create("Summer", AppSettings(treeSeason = TreeSeason.SUMMER).toAppearancePresetSnapshot()).isSuccess)
+		val key = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)
+		val bank = Json.parseToJsonElement(checkNotNull(store.data.first()[key])).jsonObject
+		val preset = bank.getValue("presets").jsonArray.single().jsonObject
+		val snapshot = JsonObject(preset.getValue("snapshot").jsonObject - "treeSeason")
+		val legacyPreset = JsonObject(preset + ("snapshot" to snapshot))
+		val legacyBank = JsonObject(bank + ("schemaVersion" to JsonPrimitive(17)) + ("presets" to JsonArray(listOf(legacyPreset))))
+		store.edit { it[key] = legacyBank.toString() }
+
+		val loaded = (repository.state.first() as AppearancePresetStorageState.Ready).presets.single()
+		assertEquals(TreeSeason.SPRING, loaded.snapshot.treeSeason)
+		assertTrue(repository.replace(loaded.id, "Winter", loaded.snapshot.copy(treeSeason = TreeSeason.WINTER)).isSuccess)
+
+		val upgraded = Json.parseToJsonElement(checkNotNull(store.data.first()[key])).jsonObject
+		assertEquals(APPEARANCE_PRESET_SCHEMA_VERSION.toString(), upgraded.getValue("schemaVersion").jsonPrimitive.content)
+		assertEquals(TreeSeason.WINTER, (repository.state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot.treeSeason)
+	}
 
 	@Test
 	fun `renaming a broadleaf preset preserves its stored tree style`() = runTest {

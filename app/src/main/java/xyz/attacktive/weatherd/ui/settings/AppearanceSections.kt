@@ -78,6 +78,7 @@ import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.SunbeamMode
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.TreeStyle
+import xyz.attacktive.weatherd.domain.model.TreeSeason
 import xyz.attacktive.weatherd.domain.model.availableBackdropScenes
 import xyz.attacktive.weatherd.domain.model.drawsScenery
 import xyz.attacktive.weatherd.platform.lensFlareMotionSupported
@@ -736,6 +737,8 @@ internal fun TreesSection(
 		Column {
 			Spacer(modifier = Modifier.height(16.dp))
 			TreeStylePicker(settings = settings, defaults = defaults, onSave = onSave)
+			Spacer(modifier = Modifier.height(16.dp))
+			TreeSeasonPicker(settings = settings, defaults = defaults, onSave = onSave)
 		}
 	}
 }
@@ -769,6 +772,45 @@ private fun TreeStylePicker(settings: AppSettings, defaults: AppSettings, onSave
 					onClick = {
 						if (style != settings.treeStyle) {
 							onSave(settings.copy(treeStyle = style))
+						}
+
+						expanded = false
+					}
+				)
+			}
+		}
+	}
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TreeSeasonPicker(settings: AppSettings, defaults: AppSettings, onSave: (AppSettings) -> Unit) {
+	var expanded by remember { mutableStateOf(false) }
+
+	ResettableSectionLabel(
+		text = stringResource(R.string.section_tree_season),
+		isDefault = settings.treeSeason == defaults.treeSeason,
+		onReset = { onSave(settings.copy(treeSeason = defaults.treeSeason)) }
+	)
+
+	ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+		OutlinedTextField(
+			value = formatTreeSeason(settings.treeSeason),
+			onValueChange = {},
+			readOnly = true,
+			trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+			modifier = Modifier
+				.fillMaxWidth()
+				.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+		)
+
+		ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+			TreeSeason.entries.forEach { season ->
+				DropdownMenuItem(
+					text = { Text(formatTreeSeason(season)) },
+					onClick = {
+						if (season != settings.treeSeason) {
+							onSave(settings.copy(treeSeason = season))
 						}
 
 						expanded = false
@@ -888,6 +930,15 @@ internal fun formatSunStyle(style: SunStyle) = when (style) {
 	SunStyle.CLASSIC -> stringResource(R.string.sun_style_classic)
 	SunStyle.RADIANT -> stringResource(R.string.sun_style_radiant)
 	SunStyle.STARBURST -> stringResource(R.string.sun_style_starburst)
+}
+
+@Composable
+internal fun formatTreeSeason(season: TreeSeason) = when (season) {
+	TreeSeason.AUTO -> stringResource(R.string.tree_season_auto)
+	TreeSeason.SPRING -> stringResource(R.string.tree_season_spring)
+	TreeSeason.SUMMER -> stringResource(R.string.tree_season_summer)
+	TreeSeason.AUTUMN -> stringResource(R.string.tree_season_autumn)
+	TreeSeason.WINTER -> stringResource(R.string.tree_season_winter)
 }
 
 @Composable

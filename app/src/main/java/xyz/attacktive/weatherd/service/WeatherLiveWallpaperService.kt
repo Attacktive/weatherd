@@ -19,6 +19,8 @@ import dagger.hilt.android.AndroidEntryPoint
 import xyz.attacktive.weatherd.domain.model.AnimationIdleTimeout
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
+import xyz.attacktive.weatherd.domain.model.TreeSeason
+import xyz.attacktive.weatherd.domain.model.TreeStyle
 import xyz.attacktive.weatherd.domain.render.SceneAnimationRestartController
 import xyz.attacktive.weatherd.domain.render.SceneParams
 import xyz.attacktive.weatherd.domain.render.SceneRenderer
@@ -62,6 +64,9 @@ class WeatherLiveWallpaperService: WallpaperService() {
 		private var weatherRefreshJob: Job? = null
 		private var moonPreparationJob: Job? = null
 		private var requestedMoonPhase: Float? = null
+		private var treePreparationJob: Job? = null
+		private var requestedTreeStyle: TreeStyle? = null
+		private var requestedTreeSeason: TreeSeason? = null
 
 		private var backdrop: Bitmap? = null
 		private var renderedParams: SceneParams? = null
@@ -100,14 +105,6 @@ class WeatherLiveWallpaperService: WallpaperService() {
 					if (!renderer.isSceneryTextureReady(it.backdropScene)) {
 						withContext(Dispatchers.Default) {
 							renderer.prewarmSceneryTexture(it.backdropScene)
-						}
-
-						requestImmediateFrame()
-					}
-
-					if (it.treesEnabled && !renderer.isTreeTextureReady(it.treeStyle)) {
-						withContext(Dispatchers.Default) {
-							renderer.prewarmTreeTextures(it.treeStyle)
 						}
 
 						requestImmediateFrame()
@@ -241,6 +238,27 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			requestImmediateFrame()
 		}
 
+		/** Prewarm the resolved season after location or calendar changes, not the stored Auto selection. */
+		private fun prepareTrees(params: SceneParams) {
+			if (!params.treesEnabled || renderer.isTreeTextureReady(params.treeStyle, params.treeSeason)) {
+				return
+			}
+
+			if (requestedTreeStyle == params.treeStyle && requestedTreeSeason == params.treeSeason && treePreparationJob?.isActive == true) {
+				return
+			}
+
+			requestedTreeStyle = params.treeStyle
+			requestedTreeSeason = params.treeSeason
+			treePreparationJob?.cancel()
+			treePreparationJob = scope.launch(Dispatchers.Default) {
+				renderer.prewarmTreeTextures(params.treeStyle, params.treeSeason)
+				withContext(Dispatchers.Main.immediate) {
+					requestImmediateFrame()
+				}
+			}
+		}
+
 		/** A missing phase queues background work once; the frame itself only reads prepared sprites. */
 		private fun prepareMoonPhase(params: SceneParams) {
 			if (params.dayPhase != DayPhase.NIGHT || !params.moonVisible) {
@@ -291,6 +309,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			}
 
 			val params = currentParams()
+			prepareTrees(params)
 			prepareMoonPhase(params)
 			updateAnimatedMotion(params, frameTimeNanos, motionActive)
 

@@ -26,7 +26,7 @@ Before working on a topic below, read its linked section in [docs/development.md
 ## Tools and Environment
 
 Agents use standard file inspection, editing tools, and Gradle tasks (`./gradlew check`).
-- Every GitHub mutation must use Gremlin, including remote branches/commits, pull requests, issues, comments, and reviews; GitHub CLI and `git push` are not mutation routes.
+- Every GitHub mutation uses Gremlin by default, including remote branches/commits, pull requests, issues, comments, and reviews; neither `gh` nor `git push` is a silent fallback. Only when the user explicitly instructs the agent to bypass Gremlin for specific mutation(s), use `gh` without Gremlin for those authorized mutations alone. Do not infer permission from ordinary commit/push/merge requests, carry it over to later operations, or use `git push` unless separately explicitly authorized.
 - In the current setup, `connectedDebugAndroidTest` removes the target Weatherd installation during teardown (observed on Pixel); use it only on a disposable device or emulator.
 - Ordinary instrumentation must select one device and must never use the reserved provider-evaluation AVD; follow the [development reference](docs/development.md#local-checks-and-instrumentation) for the Gradle preflight and ordinary-suite exclusion.
 - To preserve an existing installation, build the app and test APKs, install both with `adb install -r -t`, and use the reference's direct instrumentation command with an explicit serial and capture-test exclusion.
@@ -96,7 +96,7 @@ Keep category summaries to one or two high-signal settings facts, localized cons
 Category regrouping must not change stored setting keys, defaults, reset scope, preset membership, simulator behavior, or the shared scene-provider path.
 Weather/Wallpaper internals stay in place unless an actual setting move requires touching them; MET Norway attribution belongs with Weather.
 
-Appearance categories are Scenery & photos (backdrops, conditional photo slots, Trees/shape), Sky (palette, brightness/night brightness, saturation, aircraft, birds/interval, seasonal celebrations), Clouds (size/count/opacity/contrast), Sun & moon (visibility, styles, sunbeams, sizes, Sun horizontal position, sun color, optical effects), Weather effects (precipitation, glass droplets, wind), On-screen text (visibility/position/unit), Readability (dimming/status-bar shade), and Presets (save/apply/rename/replace/delete).
+Appearance categories are Scenery & photos (backdrops, conditional photo slots, Trees/shape/season), Sky (palette, brightness/night brightness, saturation, aircraft, birds/interval, seasonal celebrations), Clouds (size/count/opacity/contrast), Sun & moon (visibility, styles, sunbeams, sizes, Sun horizontal position, sun color, optical effects), Weather effects (precipitation, glass droplets, wind), On-screen text (visibility/position/unit), Readability (dimming/status-bar shade), and Presets (save/apply/rename/replace/delete).
 Weather owns location, providers, and refresh; Wallpaper owns motion/performance; Advanced owns the simulator.
 
 ### System Appearance and Display Compatibility
@@ -105,9 +105,9 @@ The app follows system light/dark appearance without an app-theme preference; th
 Keep icons over the edge-to-edge scene light and opaque navigation bars consistent with system appearance.
 Preview controls avoid system bars and cutouts, including landscape side cutouts and tall top insets, without insetting the weather scene.
 Display settings apply through the shared scene path and are saved in appearance presets.
-Preserve independent resets and missing-field defaults: Classic sun, Through clouds sunbeams, Sun horizontal position 72%, Natural palette, Moon size 100%, Rainbow size 100%, Trees off with Evergreen shape, and readability strengths off.
-Tree shape, bird interval, and Sun horizontal position remain selected when their parent toggles hide those controls.
-New preset writes use schema v17; v1–v16 remain readable with seasonal celebrations enabled when missing, while older builds reject the new bank rather than silently dropping appearance settings.
+Preserve independent resets and missing-field defaults: Classic sun, Through clouds sunbeams, Sun horizontal position 72%, Natural palette, Moon size 100%, Rainbow size 100%, Trees off with Evergreen shape, Auto season on a clean install or Spring for saved settings from older releases, and readability strengths off.
+Tree shape, tree season, bird interval, and Sun horizontal position remain selected when their parent toggles hide those controls. Tree season choices are Auto, Spring, Summer, Autumn, and Winter: Spring preserves the existing tree textures; Auto resolves to the UTC meteorological season in the selected location's hemisphere, falling back to Spring if location is unknown, invalid, or within 15 degrees of the equator. DataStore migration must pin the clean-install Auto or legacy Spring default before any other store writer, including saving a first preset. Only concrete seasons reach the renderer; date/location changes must prewarm the resolved texture without network requests or frame-loop decoding.
+New preset writes use schema v18; v1–v17 remain readable, defaulting missing seasonal celebrations to enabled and missing tree season to Spring. Presets save the user's Auto choice rather than the currently resolved season. Older builds reject the new bank rather than silently dropping appearance settings.
 
 ### Seasonal Celebrations Stay Night-Only
 

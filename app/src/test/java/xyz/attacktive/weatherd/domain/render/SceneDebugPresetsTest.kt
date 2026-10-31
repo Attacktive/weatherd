@@ -13,9 +13,22 @@ import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.SunbeamMode
 import xyz.attacktive.weatherd.domain.model.TreeStyle
+import xyz.attacktive.weatherd.domain.model.TreeSeason
 import xyz.attacktive.weatherd.domain.model.DEFAULT_SUN_HORIZONTAL_POSITION
 
 class SceneDebugPresetsTest {
+	@Test
+	fun `tree seasons preserve simulator weather and backdrop signature`() {
+		val preset = SCENE_PRESETS.first { it.name == "OVERCAST" }
+		val original = debugSceneParams(preset, DayPhase.DUSK, treesEnabled = true, treeSeason = TreeSeason.SPRING)
+		for (season in TreeSeason.entries) {
+			val candidate = debugSceneParams(preset, DayPhase.DUSK, treesEnabled = true, treeSeason = season)
+			assertEquals(season, candidate.treeSeason)
+			assertEquals(original.copy(treeSeason = season), candidate)
+			assertEquals(backdropSignature(original), backdropSignature(candidate))
+		}
+	}
+
 	@Test
 	fun `holiday visitors leave simulated weather and cached backdrop unchanged`() {
 		val preset = SCENE_PRESETS.first { it.name == "SNOW" }

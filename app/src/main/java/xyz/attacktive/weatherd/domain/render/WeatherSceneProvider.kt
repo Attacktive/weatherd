@@ -27,6 +27,8 @@ import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.HolidayCelebration
 import xyz.attacktive.weatherd.domain.model.GeoLocation
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
+import xyz.attacktive.weatherd.domain.model.TreeSeason
+import xyz.attacktive.weatherd.domain.model.resolvedTreeSeason
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
@@ -215,6 +217,13 @@ class WeatherSceneProvider @Inject constructor(
 
 	/** The scene to draw at [nowEpochSeconds]; a clock-lit clear sky until the first weather fetch lands. */
 	fun paramsFor(nowEpochSeconds: Long, state: WeatherSceneState = sceneState.value, debugToolsAvailable: Boolean = debugToolsEnabled): SceneParams = with(state.settings) {
+		val latitude = if (WeatherSceneTarget.selectsDeviceLocation(state.settings)) {
+			state.deviceLocation?.latitude
+		} else {
+			manualLatitude
+		}
+		val effectiveTreeSeason = resolvedTreeSeason(treeSeason, nowEpochSeconds, latitude)
+
 		val holiday = resolvedHolidayCelebration(
 			now = Instant.ofEpochSecond(nowEpochSeconds),
 			enabled = seasonalCelebrationsEnabled,
@@ -224,10 +233,10 @@ class WeatherSceneProvider @Inject constructor(
 		)
 
 		if (sceneSimulatorOverridesWeather(sceneSimulatorActive, sceneSimulatorEnabled, debugToolsAvailable)) {
-			return@with simulatorParams(nowEpochSeconds, state, holiday)
+			return@with simulatorParams(nowEpochSeconds, state, holiday, effectiveTreeSeason)
 		}
 
-		val snapshot = state.snapshot ?: return@with fallbackParams(nowEpochSeconds, state, holiday)
+		val snapshot = state.snapshot ?: return@with fallbackParams(nowEpochSeconds, state, holiday, effectiveTreeSeason)
 
 		sceneParamsFor(
 			weatherNotice = state.weatherNotice.takeUnless { hideStaleWeatherWarning },
@@ -265,6 +274,7 @@ class WeatherSceneProvider @Inject constructor(
 			glassDropletsEnabled = glassDropletsEnabled,
 			treesEnabled = treesEnabled,
 			treeStyle = treeStyle,
+			treeSeason = effectiveTreeSeason,
 			labelVerticalPosition = labelVerticalPosition,
 			wallpaperDimmingStrength = wallpaperDimmingStrength,
 			statusBarShadeStrength = statusBarShadeStrength
@@ -521,7 +531,7 @@ class WeatherSceneProvider @Inject constructor(
 
 
 	/** The persisted simulator scene, carrying the same display preferences as live weather while replacing its meteorological fields. */
-	private fun simulatorParams(nowEpochSeconds: Long, state: WeatherSceneState, holiday: HolidayCelebration) = with(state.settings) {
+	private fun simulatorParams(nowEpochSeconds: Long, state: WeatherSceneState, holiday: HolidayCelebration, season: TreeSeason) = with(state.settings) {
 		val preset = SCENE_PRESETS[sceneSimulatorPresetIndex.coerceIn(0, SCENE_PRESETS.lastIndex)]
 
 		debugSceneParams(
@@ -558,6 +568,7 @@ class WeatherSceneProvider @Inject constructor(
 			glassDropletsEnabled = glassDropletsEnabled,
 			treesEnabled = treesEnabled,
 			treeStyle = treeStyle,
+			treeSeason = season,
 			labelVerticalPosition = labelVerticalPosition,
 			wallpaperDimmingStrength = wallpaperDimmingStrength,
 			statusBarShadeStrength = statusBarShadeStrength
@@ -758,7 +769,7 @@ class WeatherSceneProvider @Inject constructor(
 	}
 
 	/** Derives offline lighting from the captured location; only an unknown location needs a coarse local-clock approximation. */
-	private fun fallbackParams(nowEpochSeconds: Long, state: WeatherSceneState, holiday: HolidayCelebration): SceneParams = with(state.settings) {
+	private fun fallbackParams(nowEpochSeconds: Long, state: WeatherSceneState, holiday: HolidayCelebration, season: TreeSeason): SceneParams = with(state.settings) {
 		val usesDeviceLocation = WeatherSceneTarget.selectsDeviceLocation(state.settings)
 		val latitude = if (usesDeviceLocation) state.deviceLocation?.latitude else manualLatitude
 		val longitude = if (usesDeviceLocation) state.deviceLocation?.longitude else manualLongitude
@@ -812,6 +823,7 @@ class WeatherSceneProvider @Inject constructor(
 			glassDropletsEnabled = glassDropletsEnabled,
 			treesEnabled = treesEnabled,
 			treeStyle = treeStyle,
+			treeSeason = season,
 			labelVerticalPosition = labelVerticalPosition,
 			wallpaperDimmingStrength = wallpaperDimmingStrength,
 			statusBarShadeStrength = statusBarShadeStrength,

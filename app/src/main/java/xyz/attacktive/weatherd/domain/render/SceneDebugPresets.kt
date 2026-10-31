@@ -26,6 +26,7 @@ import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.SunbeamMode
 import xyz.attacktive.weatherd.domain.model.TreeStyle
+import xyz.attacktive.weatherd.domain.model.TreeSeason
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_DRIZZLE
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_HEAVY
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_STEADY
@@ -110,6 +111,7 @@ fun debugSceneParams(
 	glassDropletsEnabled: Boolean = false,
 	treesEnabled: Boolean = false,
 	treeStyle: TreeStyle = TreeStyle.EVERGREEN,
+	treeSeason: TreeSeason = TreeSeason.SPRING,
 	labelVerticalPosition: Float = DEFAULT_LABEL_VERTICAL_POSITION,
 	wallpaperDimmingStrength: Float = 0f,
 	statusBarShadeStrength: Float = 0f,
@@ -155,6 +157,7 @@ fun debugSceneParams(
 	glassDropletsEnabled = glassDropletsEnabled,
 	treesEnabled = treesEnabled,
 	treeStyle = treeStyle,
+	treeSeason = treeSeason,
 	labelVerticalPosition = labelVerticalPosition.coerceIn(LABEL_VERTICAL_POSITION_RANGE.start, LABEL_VERTICAL_POSITION_RANGE.endInclusive),
 	wallpaperDimmingStrength = normalizeReadabilityStrength(wallpaperDimmingStrength),
 	statusBarShadeStrength = normalizeReadabilityStrength(statusBarShadeStrength),

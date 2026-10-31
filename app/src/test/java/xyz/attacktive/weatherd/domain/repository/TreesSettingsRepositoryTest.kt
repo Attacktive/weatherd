@@ -18,6 +18,7 @@ import org.junit.rules.TemporaryFolder
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.TreeStyle
+import xyz.attacktive.weatherd.domain.model.TreeSeason
 import xyz.attacktive.weatherd.domain.model.toAppearancePresetSnapshot
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -27,6 +28,78 @@ class TreesSettingsRepositoryTest {
 
 	private fun TestScope.dataStore(): DataStore<Preferences> = PreferenceDataStoreFactory.create(scope = backgroundScope) {
 		temporaryFolder.newFile("trees-settings.preferences_pb")
+	}
+
+	@Test
+	fun `fresh tree season defaults to auto and survives toggles and reopen`() = runTest {
+		val dataStore = dataStore()
+		val repository = SettingsRepository(dataStore)
+		assertEquals(TreeSeason.AUTO, repository.settings.first().treeSeason)
+
+		repository.update(listOf(SettingsMutation.TreeSeason(TreeSeason.AUTUMN)))
+		assertEquals(TreeSeason.AUTUMN, SettingsRepository(dataStore).settings.first().treeSeason)
+		repository.update(listOf(SettingsMutation.TreesEnabled(false)))
+
+		val persisted = SettingsRepository(dataStore).settings.first()
+		assertFalse(persisted.treesEnabled)
+		assertEquals(TreeSeason.AUTUMN, persisted.treeSeason)
+	}
+
+	@Test
+	fun `fresh auto choice survives the first unrelated settings edit`() = runTest {
+		val dataStore = dataStore()
+		val repository = SettingsRepository(dataStore)
+		assertEquals(TreeSeason.AUTO, repository.settings.first().treeSeason)
+		repository.update(listOf(SettingsMutation.TreesEnabled(true)))
+
+		val loaded = SettingsRepository(dataStore).settings.first()
+		assertTrue(loaded.treesEnabled)
+		assertEquals(TreeSeason.AUTO, loaded.treeSeason)
+	}
+
+	@Test
+	fun `legacy saved settings keep spring when season preference is absent`() = runTest {
+		val dataStore = dataStore()
+		dataStore.edit { preferences ->
+			preferences[booleanPreferencesKey("trees_enabled")] = true
+		}
+
+		val repository = SettingsRepository(dataStore)
+		assertEquals(TreeSeason.SPRING, repository.settings.first().treeSeason)
+		repository.update(listOf(SettingsMutation.TreeStyle(TreeStyle.BROADLEAF)))
+		assertEquals(TreeSeason.SPRING, SettingsRepository(dataStore).settings.first().treeSeason)
+
+		repository.update(listOf(SettingsMutation.TreeSeason(TreeSeason.AUTO)))
+		assertEquals(TreeSeason.AUTO, SettingsRepository(dataStore).settings.first().treeSeason)
+	}
+
+	@Test
+	fun `stale tree season changes preserve newer tree style and scenery`() = runTest {
+		val repository = SettingsRepository(dataStore())
+		val stale = repository.settings.first()
+		repository.update(listOf(SettingsMutation.Backdrop(BackdropScene.PHOTO), SettingsMutation.TreeStyle(TreeStyle.BROADLEAF)))
+		repository.update(settingsMutationsBetween(stale, stale.copy(treeSeason = TreeSeason.WINTER)))
+
+		val persisted = repository.settings.first()
+		assertEquals(BackdropScene.PHOTO, persisted.backdropScene)
+		assertEquals(TreeStyle.BROADLEAF, persisted.treeStyle)
+		assertEquals(TreeSeason.WINTER, persisted.treeSeason)
+	}
+
+	@Test
+	fun `appearance presets restore tree seasons and leave weather preferences untouched`() = runTest {
+		val dataStore = dataStore()
+		val presets = AppearancePresetRepository(dataStore)
+		assertTrue(presets.create("Winter", AppSettings(treeSeason = TreeSeason.WINTER, treesEnabled = false).toAppearancePresetSnapshot()).isSuccess)
+		val snapshot = (AppearancePresetRepository(dataStore).state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot
+		assertEquals(TreeSeason.WINTER, snapshot.treeSeason)
+
+		val settings = SettingsRepository(dataStore)
+		settings.save(AppSettings(treeSeason = TreeSeason.SUMMER, updateIntervalMinutes = 180))
+		settings.applyAppearancePreset(snapshot)
+
+		assertEquals(TreeSeason.WINTER, settings.settings.first().treeSeason)
+		assertEquals(180, settings.settings.first().updateIntervalMinutes)
 	}
 
 	@Test
@@ -98,6 +171,7 @@ class TreesSettingsRepositoryTest {
 		val settings = SettingsRepository(dataStore).settings.first()
 		assertTrue(settings.treesEnabled)
 		assertEquals(TreeStyle.EVERGREEN, settings.treeStyle)
+		assertEquals(TreeSeason.SPRING, settings.treeSeason)
 	}
 
 	@Test

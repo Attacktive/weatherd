@@ -5,13 +5,17 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
+import xyz.attacktive.weatherd.domain.repository.TreeSeasonDefaultsMigration
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 
-private val Context.dataStore by preferencesDataStore(name = "weatherd_settings")
+private val Context.dataStore by preferencesDataStore(
+	name = "weatherd_settings",
+	produceMigrations = { listOf(TreeSeasonDefaultsMigration()) }
+)
 
 @Module
 @InstallIn(SingletonComponent::class)

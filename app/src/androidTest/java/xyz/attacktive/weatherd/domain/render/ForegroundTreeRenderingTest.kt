@@ -7,6 +7,7 @@ import androidx.core.graphics.createBitmap
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -15,12 +16,79 @@ import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 import xyz.attacktive.weatherd.domain.model.TreeStyle
+import xyz.attacktive.weatherd.domain.model.TreeSeason
 import xyz.attacktive.weatherd.service.wallpaperSceneWidth
 import xyz.attacktive.weatherd.service.wallpaperViewportLeft
 
 @RunWith(AndroidJUnit4::class)
 class ForegroundTreeRenderingTest {
 	private val resources = InstrumentationRegistry.getInstrumentation().targetContext.resources
+
+	@Test
+	fun seasonalFoliagePreservesTreeGeometryAndOriginalRendering() {
+		val layer = ForegroundTreeLayer(resources)
+		for (style in TreeStyle.entries) {
+			layer.prewarm(style)
+			val original = renderTrees(layer, clearParams(style))
+			val defaultParams = clearParams(style).copy(treeSeason = TreeSeason.SPRING)
+			val defaultRender = renderTrees(ForegroundTreeLayer(resources), defaultParams)
+			assertTrue("The Spring $style artwork must match the original bitmaps", original.sameAs(defaultRender))
+			defaultRender.recycle()
+
+			for (season in TreeSeason.entries.filter { it != TreeSeason.SPRING && it != TreeSeason.AUTO }) {
+				layer.prewarm(style, season)
+				val variant = renderTrees(layer, clearParams(style).copy(treeSeason = season))
+				var changedPixels = 0
+				for (y in 0 until HEIGHT) {
+					for (x in 0 until WIDTH) {
+						val before = original.getPixel(x, y)
+						val after = variant.getPixel(x, y)
+						assertEquals("Season $season must preserve $style alpha at ($x, $y)", Color.alpha(before), Color.alpha(after))
+						if (before != after) {
+							changedPixels++
+						}
+					}
+				}
+
+				assertTrue("$style $season must visibly change foliage", changedPixels > WIDTH * HEIGHT / 500)
+				variant.recycle()
+			}
+
+			val restored = renderTrees(layer, clearParams(style))
+			assertTrue("Switching back must restore original $style pixels", original.sameAs(restored))
+			original.recycle()
+			restored.recycle()
+		}
+	}
+
+	@Test
+	fun lateObsoletePrewarmCannotEvictSelectedSeason() {
+		val selectedLayer = ForegroundTreeLayer(resources)
+		val obsoleteWorker = ForegroundTreeLayer(resources)
+
+		for (style in TreeStyle.entries) {
+			selectedLayer.prewarm(style)
+			val original = renderTrees(selectedLayer, clearParams(style))
+			selectedLayer.prewarm(style, TreeSeason.WINTER)
+			val selected = clearParams(style).copy(treeSeason = TreeSeason.WINTER)
+			val expected = renderTrees(selectedLayer, selected)
+			assertFalse("Winter $style must differ from Spring", original.sameAs(expected))
+
+			// Simulate an older preview request resuming after the active wallpaper season is ready.
+			obsoleteWorker.prewarm(style, TreeSeason.AUTUMN)
+			obsoleteWorker.prewarm(style, TreeSeason.SUMMER)
+
+			for (season in TreeSeason.entries) {
+				assertTrue("$style $season must remain ready after obsolete prewarms", selectedLayer.isTextureReady(style, season))
+			}
+
+			val actual = renderTrees(selectedLayer, selected)
+			assertTrue("Obsolete prewarms must not revert $style from Winter to Spring", expected.sameAs(actual))
+			original.recycle()
+			expected.recycle()
+			actual.recycle()
+		}
+	}
 
 	@Test
 	fun treesLeaveTheUpperSkyUntouchedAndDisableCleanlyWithEveryBackdrop() {

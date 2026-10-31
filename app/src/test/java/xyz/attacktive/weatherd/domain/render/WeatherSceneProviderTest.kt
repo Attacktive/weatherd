@@ -38,6 +38,7 @@ import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.SunbeamMode
 import xyz.attacktive.weatherd.domain.model.TemperatureUnit
 import xyz.attacktive.weatherd.domain.model.TreeStyle
+import xyz.attacktive.weatherd.domain.model.TreeSeason
 import xyz.attacktive.weatherd.domain.model.CloudCover
 import xyz.attacktive.weatherd.domain.model.WeatherObservation
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
@@ -55,6 +56,34 @@ import xyz.attacktive.weatherd.util.AppLogger
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class WeatherSceneProviderTest {
+	@Test
+	fun `auto foliage follows selected latitude in live simulated and offline scenes`() {
+		val now = Instant.parse("2026-10-31T12:00:00Z").epochSecond
+		val settings = AppSettings(
+			treesEnabled = true,
+			treeSeason = TreeSeason.AUTO,
+			useDeviceLocation = false,
+			manualLatitude = 37.57,
+			manualLongitude = 126.98
+		)
+		val fallback = WeatherSceneState(settings)
+		val live = fallback.copy(snapshot = snapshotWith(weatherCode = 0))
+		val simulated = fallback.copy(settings = settings.copy(sceneSimulatorEnabled = true, sceneSimulatorActive = true))
+		for (scene in listOf(fallback, live, simulated)) {
+			val north = provider.paramsFor(now, scene)
+			assertEquals(TreeSeason.AUTUMN, north.treeSeason)
+			val south = provider.paramsFor(now, scene.copy(settings = scene.settings.copy(manualLatitude = -33.9, manualLongitude = 151.2)))
+			assertEquals(TreeSeason.SPRING, south.treeSeason)
+			assertEquals(backdropSignature(north), backdropSignature(north.copy(treeSeason = south.treeSeason)))
+		}
+
+		val device = fallback.copy(settings = settings.copy(useDeviceLocation = true), deviceLocation = GeoLocation(-33.9, 151.2))
+		assertEquals(TreeSeason.SPRING, provider.paramsFor(now, device).treeSeason)
+		assertEquals(TreeSeason.SPRING, provider.paramsFor(now, device.copy(deviceLocation = null)).treeSeason)
+		val winterOverride = device.copy(settings = device.settings.copy(treeSeason = TreeSeason.WINTER))
+		assertEquals(TreeSeason.WINTER, provider.paramsFor(now, winterOverride).treeSeason)
+	}
+
 	@Test
 	fun `seasonal celebrations share live simulated and offline eligibility without refreshing weather`() = runTest {
 		val moments = listOf(

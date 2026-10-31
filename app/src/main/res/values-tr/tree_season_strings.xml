@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="section_tree_season">Ağaç mevsimi</string>
+	<string name="tree_season_auto">Otomatik</string>
+	<string name="tree_season_spring">İlkbahar</string>
+	<string name="tree_season_summer">Yaz</string>
+	<string name="tree_season_autumn">Sonbahar</string>
+	<string name="tree_season_winter">Kış</string>
+</resources>

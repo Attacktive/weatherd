@@ -26,7 +26,7 @@ These are actual Weatherd **3.9.20** preview captures using simulated weather an
 - Weather-driven clouds, precipitation, fog, humidity haze, lightning, and day/night lighting.
 - Customizable sky palettes, sun styles, lunar phases, birds, and distant aircraft.
 - Optional Halloween, Christmas, and New Year's night-sky celebrations, with a setting to turn them off.
-- Scenery, personal photo backgrounds, and optional Evergreen or Broadleaf trees.
+- Scenery, personal photo backgrounds, and optional Evergreen or Broadleaf trees with Spring, Summer, Autumn, Winter, or location-aware Auto foliage.
 - Appearance presets, weather/location labels, and readability shading behind launcher icons.
 - A scene simulator that changes both the preview and live wallpaper without replacing cached real weather.
 - A home-screen weather refresh widget and configurable motion/performance controls.

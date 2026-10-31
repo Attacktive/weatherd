@@ -45,6 +45,7 @@ import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.SunbeamMode
 import xyz.attacktive.weatherd.domain.model.TreeStyle
+import xyz.attacktive.weatherd.domain.model.TreeSeason
 import xyz.attacktive.weatherd.domain.model.drawsScenery
 import xyz.attacktive.weatherd.domain.model.normalizeMoonOpacity
 import xyz.attacktive.weatherd.domain.model.normalizeMoonSizeScale
@@ -252,10 +253,10 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		}
 	}
 
-	fun isTreeTextureReady(style: TreeStyle) = foregroundTrees.isTextureReady(style)
+	fun isTreeTextureReady(style: TreeStyle, season: TreeSeason = TreeSeason.SPRING) = foregroundTrees.isTextureReady(style, season)
 
 	/** Decodes only the selected tree style off the render thread after the user opts in. */
-	fun prewarmTreeTextures(style: TreeStyle) = foregroundTrees.prewarm(style)
+	fun prewarmTreeTextures(style: TreeStyle, season: TreeSeason = TreeSeason.SPRING) = foregroundTrees.prewarm(style, season)
 
 	fun isMoonPhaseReady(moonPhase: Float) = moonLayer.isPhaseReady(moonPhase)
 

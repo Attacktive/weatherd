@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="section_tree_season">나무 계절</string>
+	<string name="tree_season_auto">자동</string>
+	<string name="tree_season_spring">봄</string>
+	<string name="tree_season_summer">여름</string>
+	<string name="tree_season_autumn">가을</string>
+	<string name="tree_season_winter">겨울</string>
+</resources>

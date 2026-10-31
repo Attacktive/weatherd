@@ -93,7 +93,6 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	val sceneState by viewModel.sceneState.collectAsStateWithLifecycle()
 	val settings = sceneState.settings
 	var sceneryTextureReady by remember(renderer, settings.backdropScene) { mutableStateOf(renderer.isSceneryTextureReady(settings.backdropScene)) }
-	var treeTexturesReady by remember(renderer, settings.treeStyle) { mutableStateOf(renderer.isTreeTextureReady(settings.treeStyle)) }
 	var sunTextureReady by remember(renderer, settings.sunStyle) { mutableStateOf(renderer.isSunTextureReady(settings.sunStyle)) }
 	val debugEnabled = sceneState.simulatorActive
 	val debugSceneIndex = settings.sceneSimulatorPresetIndex.coerceIn(0, SCENE_PRESETS.lastIndex)
@@ -122,6 +121,10 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 		} else {
 			sharedParams
 		}
+	}
+
+	var treeTexturesReady by remember(renderer, params.treeStyle, params.treeSeason) {
+		mutableStateOf(renderer.isTreeTextureReady(params.treeStyle, params.treeSeason))
 	}
 
 	// Keep relative warning age ticking after animation settles, without invalidating the backdrop.
@@ -183,10 +186,10 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 		}
 	}
 
-	LaunchedEffect(renderer, params.treesEnabled, params.treeStyle) {
+	LaunchedEffect(renderer, params.treesEnabled, params.treeStyle, params.treeSeason) {
 		if (params.treesEnabled) {
 			withContext(Dispatchers.Default) {
-				renderer.prewarmTreeTextures(params.treeStyle)
+				renderer.prewarmTreeTextures(params.treeStyle, params.treeSeason)
 			}
 
 			treeTexturesReady = true
