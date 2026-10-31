@@ -36,13 +36,22 @@ Weatherd is a wallpaper — not a forecast app. It does not show hourly charts o
 
 ## Graphics
 
-| File                                  | Size        | Use                  |
-|---------------------------------------|-------------|----------------------|
-| `icon.png`                            | 512 × 512   | High-res icon        |
-| `feature-graphic.png`                 | 1024 × 500  | Feature graphic      |
-| `screenshot-phone-1080x1920.png`      | 1080 × 1920 | Phone #1 — clear day |
-| `screenshot-phone-rain-1080x1920.png` | 1080 × 1920 | Phone #2 — rain      |
-| `screenshot-tablet-clear.png`         | 2560 × 1600 | 7″ / 10″ tablet #1   |
-| `screenshot-tablet-rain.png`          | 2560 × 1600 | 7″ / 10″ tablet #2   |
+| File                                    | Size        | Use                                  |
+|-----------------------------------------|-------------|--------------------------------------|
+| `icon.png`                              | 512 × 512   | High-res icon                        |
+| `feature-graphic.png`                   | 1024 × 500  | Feature graphic                      |
+| `screenshot-phone-1080x1920.png`        | 1080 × 1920 | Phone #1 — mostly clear, mountains   |
+| `screenshot-phone-rain-1080x1920.png`   | 1080 × 1920 | Phone #2 — rain, mountains           |
+| `screenshot-phone-dusk-1080x1920.png`   | 1080 × 1920 | Phone #3 — dusk, mountains           |
+| `screenshot-phone-clouds-1080x1920.png` | 1080 × 1920 | Phone #4 — partly cloudy, trees       |
+| `screenshot-tablet-clear.png`           | 2560 × 1440 | Tablet #1 — mostly clear, mountains  |
+| `screenshot-tablet-rain.png`            | 2560 × 1440 | Tablet #2 — rain, trees              |
+| `screenshot-tablet-dusk.png`            | 2560 × 1440 | Tablet #3 — dusk, mountains          |
+| `screenshot-tablet-clouds.png`          | 2560 × 1440 | Tablet #4 — partly cloudy, trees     |
 
-Preview-size phone captures (`*-preview.png`) are the raw 720 × 1280 sources; upload the 1080 × 1920 versions.
+The screenshots are native-resolution captures of the Weatherd 3.9.20 release preview, using the scene simulator with its controls hidden.
+The phone captures use a 1080 × 1920 emulator viewport; the tablet captures use a 2560 × 1440 landscape viewport.
+Upload images are opaque 24-bit PNGs, exported from the captures without resizing.
+No location permission or personal account is needed.
+The 720 × 1280 `*-preview.png` phone images are reduced-size copies, not upload assets.
+To refresh the set, capture the current shipped release at the target viewport sizes, hide simulator controls, and check the images for private information, visual quality, and thumbnail legibility before replacing the upload assets.
