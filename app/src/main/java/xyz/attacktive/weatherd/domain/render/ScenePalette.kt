@@ -189,7 +189,11 @@ private fun baseCustomGradient(
 		DayPhase.DAY -> {
 			top = custom.startColor
 			bottom = custom.endColor
-			middle = if (custom.threeColors) custom.middleColor else null
+			middle = if (custom.threeColors) {
+				custom.middleColor
+			} else {
+				null
+			}
 		}
 
 		DayPhase.DAWN -> {

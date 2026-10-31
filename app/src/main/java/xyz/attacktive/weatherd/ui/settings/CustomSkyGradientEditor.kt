@@ -287,13 +287,17 @@ internal fun CustomSkyGradientEditor(
 
 				Spacer(modifier = Modifier.height(16.dp))
 
-				val startMax = if (draft.threeColors) draft.middlePosition else draft.endPosition
+				val startMax = if (draft.threeColors) {
+					draft.middlePosition
+				} else {
+					draft.endPosition
+				}
+
 				ColorRow(
 					label = stringResource(R.string.custom_sky_gradient_start_color),
 					colorInt = draft.startColor,
 					position = draft.startPosition,
-					minBound = 0f,
-					maxBound = startMax,
+					positionRange = 0f..startMax,
 					positionLabel = stringResource(R.string.custom_sky_gradient_start_position),
 					onPositionChange = {
 						draft = draft.copy(startPosition = it.coerceIn(0f, startMax))
@@ -308,8 +312,7 @@ internal fun CustomSkyGradientEditor(
 						label = stringResource(R.string.custom_sky_gradient_middle_color),
 						colorInt = draft.middleColor,
 						position = draft.middlePosition,
-						minBound = draft.startPosition,
-						maxBound = draft.endPosition,
+						positionRange = draft.startPosition..draft.endPosition,
 						positionLabel = stringResource(R.string.custom_sky_gradient_middle_position),
 						onPositionChange = {
 							draft = draft.copy(middlePosition = it.coerceIn(draft.startPosition, draft.endPosition))
@@ -320,13 +323,17 @@ internal fun CustomSkyGradientEditor(
 
 				Spacer(modifier = Modifier.height(8.dp))
 
-				val endMin = if (draft.threeColors) draft.middlePosition else draft.startPosition
+				val endMin = if (draft.threeColors) {
+					draft.middlePosition
+				} else {
+					draft.startPosition
+				}
+
 				ColorRow(
 					label = stringResource(R.string.custom_sky_gradient_end_color),
 					colorInt = draft.endColor,
 					position = draft.endPosition,
-					minBound = endMin,
-					maxBound = 1f,
+					positionRange = endMin..1f,
 					positionLabel = stringResource(R.string.custom_sky_gradient_end_position),
 					onPositionChange = {
 						draft = draft.copy(endPosition = it.coerceIn(endMin, 1f))
@@ -467,7 +474,12 @@ private fun GradientPreviewWithHandles(
 			onClick = { onOpenColorPicker(ColorStopIndex.START) },
 			onDrag = { dragAmount ->
 				val deltaT = projectDelta(dragAmount)
-				val maxBound = if (draft.threeColors) draft.middlePosition else draft.endPosition
+				val maxBound = if (draft.threeColors) {
+					draft.middlePosition
+				} else {
+					draft.endPosition
+				}
+
 				val newPosition = (draft.startPosition + deltaT).coerceIn(0f, maxBound)
 				onDraftChange(draft.copy(startPosition = newPosition))
 			},
@@ -502,13 +514,22 @@ private fun GradientPreviewWithHandles(
 		val endTopDp = with(density) { (endCenter.y - handleSizePx / 2f).coerceIn(0f, heightPx - handleSizePx).toDp() }
 
 		StopHandle(
-			label = if (draft.threeColors) "3" else "2",
+			label = if (draft.threeColors) {
+				"3"
+			} else {
+				"2"
+			},
 			color = endColor,
 			contentDescription = stringResource(R.string.custom_sky_gradient_preview_handle_end),
 			onClick = { onOpenColorPicker(ColorStopIndex.END) },
 			onDrag = { dragAmount ->
 				val deltaT = projectDelta(dragAmount)
-				val minBound = if (draft.threeColors) draft.middlePosition else draft.startPosition
+				val minBound = if (draft.threeColors) {
+					draft.middlePosition
+				} else {
+					draft.startPosition
+				}
+
 				val newPosition = (draft.endPosition + deltaT).coerceIn(minBound, 1f)
 				onDraftChange(draft.copy(endPosition = newPosition))
 			},
@@ -530,7 +551,11 @@ private fun StopHandle(
 ) {
 	val currentOnDrag by rememberUpdatedState(onDrag)
 	val currentOnClick by rememberUpdatedState(onClick)
-	val textColor = if (color.luminance() > 0.5f) Color.Black else Color.White
+	val textColor = if (color.luminance() > 0.5f) {
+		Color.Black
+	} else {
+		Color.White
+	}
 
 	Box(
 		contentAlignment = Alignment.Center,
@@ -561,8 +586,7 @@ private fun ColorRow(
 	label: String,
 	colorInt: Int,
 	position: Float,
-	minBound: Float,
-	maxBound: Float,
+	positionRange: ClosedFloatingPointRange<Float>,
 	positionLabel: String,
 	onPositionChange: (Float) -> Unit,
 	onEditClick: () -> Unit,
@@ -632,7 +656,7 @@ private fun ColorRow(
 
 		Slider(
 			value = position,
-			onValueChange = { onPositionChange(it.coerceIn(minBound, maxBound)) },
+			onValueChange = { onPositionChange(it.coerceIn(positionRange)) },
 			valueRange = 0f..1f,
 			modifier = Modifier
 				.fillMaxWidth()
@@ -644,8 +668,7 @@ private fun ColorRow(
 		PositionPercentDialog(
 			title = positionLabel,
 			currentPosition = position,
-			minBound = minBound,
-			maxBound = maxBound,
+			positionRange = positionRange,
 			onConfirm = {
 				onPositionChange(it)
 				showPositionDialog = false
@@ -659,15 +682,14 @@ private fun ColorRow(
 private fun PositionPercentDialog(
 	title: String,
 	currentPosition: Float,
-	minBound: Float,
-	maxBound: Float,
+	positionRange: ClosedFloatingPointRange<Float>,
 	onConfirm: (Float) -> Unit,
 	onDismiss: () -> Unit
 ) {
 	val currentPercent = (currentPosition * 100).roundToInt()
 	var textValue by rememberSaveable { mutableStateOf(currentPercent.toString()) }
-	val minPercent = (minBound * 100).roundToInt()
-	val maxPercent = (maxBound * 100).roundToInt()
+	val minPercent = (positionRange.start * 100).roundToInt()
+	val maxPercent = (positionRange.endInclusive * 100).roundToInt()
 
 	val parsed = textValue.trim().toIntOrNull()
 	val isValid = parsed != null && parsed in minPercent..maxPercent && parsed in 0..100
@@ -694,7 +716,7 @@ private fun PositionPercentDialog(
 			TextButton(
 				onClick = {
 					if (isValid) {
-						onConfirm((parsed / 100f).coerceIn(minBound, maxBound))
+						onConfirm((parsed / 100f).coerceIn(positionRange))
 					}
 				},
 				enabled = isValid

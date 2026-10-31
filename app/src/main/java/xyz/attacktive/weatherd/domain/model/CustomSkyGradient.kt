@@ -20,37 +20,21 @@ data class CustomSkyGradient(
 	val direction: SkyGradientDirection = SkyGradientDirection.VERTICAL
 ) {
 	fun normalized(): CustomSkyGradient {
-		val normalizedStart = if (startPosition.isFinite()) {
-			startPosition.coerceIn(0f, 1f)
+		val normalizedStart = normalizePosition(startPosition, 0f, 0f)
+		val middleFloor = if (threeColors) {
+			normalizedStart
 		} else {
 			0f
 		}
 
-		val normalizedMiddle = if (threeColors) {
-			if (middlePosition.isFinite()) {
-				middlePosition.coerceIn(normalizedStart, 1f)
-			} else {
-				0.5f.coerceIn(normalizedStart, 1f)
-			}
-		} else {
-			if (middlePosition.isFinite()) {
-				middlePosition.coerceIn(0f, 1f)
-			} else {
-				0.5f
-			}
-		}
-
+		val normalizedMiddle = normalizePosition(middlePosition, middleFloor, 0.5f)
 		val endFloor = if (threeColors) {
 			normalizedMiddle
 		} else {
 			normalizedStart
 		}
 
-		val normalizedEnd = if (endPosition.isFinite()) {
-			endPosition.coerceIn(endFloor, 1f)
-		} else {
-			1f.coerceAtLeast(endFloor)
-		}
+		val normalizedEnd = normalizePosition(endPosition, endFloor, 1f)
 
 		val opaqueStart = forceOpaque(startColor)
 		val opaqueMiddle = forceOpaque(middleColor)
@@ -70,6 +54,16 @@ data class CustomSkyGradient(
 	}
 
 	fun reversed() = copy(startColor = endColor, endColor = startColor)
+}
+
+private fun normalizePosition(position: Float, floor: Float, fallback: Float): Float {
+	val resolved = if (position.isFinite()) {
+		position
+	} else {
+		fallback
+	}
+
+	return resolved.coerceIn(floor, 1f)
 }
 
 private fun forceOpaque(color: Int) = (0xFF shl 24) or (color and 0x00FFFFFF)

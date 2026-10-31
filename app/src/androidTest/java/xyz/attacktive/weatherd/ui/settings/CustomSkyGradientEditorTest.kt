@@ -661,20 +661,11 @@ class CustomSkyGradientEditorTest {
 		var result: AccessibilityNodeInfo? = null
 		var searchForward = false
 		waitUntil(description) {
-			result = findNode(automation.rootInActiveWindow) {
-				it.packageName == instrumentation.targetContext.packageName && it.isVisibleToUser && predicate(it)
-			}
-
+			result = findMatchingNode(predicate)
 			if (result == null && scroll) {
-				val scroller = findNode(automation.rootInActiveWindow) { it.isScrollable && it.className == "android.widget.ScrollView" }
+				val scroller = findScrollView()
 				if (scroller != null) {
-					val preferred = if (searchForward) AccessibilityNodeInfo.ACTION_SCROLL_FORWARD else AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
-					if (scroller.actionList.none { it.id == preferred }) {
-						searchForward = !searchForward
-					}
-
-					val action = if (searchForward) AccessibilityNodeInfo.ACTION_SCROLL_FORWARD else AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
-					scroller.performAction(action)
+					searchForward = performScroll(scroller, searchForward)
 				}
 			}
 
@@ -682,6 +673,32 @@ class CustomSkyGradientEditorTest {
 		}
 
 		return checkNotNull(result)
+	}
+
+	private fun findMatchingNode(predicate: (AccessibilityNodeInfo) -> Boolean) = findNode(automation.rootInActiveWindow) {
+		it.packageName == instrumentation.targetContext.packageName && it.isVisibleToUser && predicate(it)
+	}
+
+	private fun findScrollView() = findNode(automation.rootInActiveWindow) {
+		it.isScrollable && it.className == "android.widget.ScrollView"
+	}
+
+	private fun performScroll(scroller: AccessibilityNodeInfo, searchForward: Boolean): Boolean {
+		val preferred = scrollAction(searchForward)
+		val direction = if (scroller.actionList.none { it.id == preferred }) {
+			!searchForward
+		} else {
+			searchForward
+		}
+
+		scroller.performAction(scrollAction(direction))
+		return direction
+	}
+
+	private fun scrollAction(forward: Boolean) = if (forward) {
+		AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
+	} else {
+		AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
 	}
 
 	private fun waitUntil(description: String, condition: () -> Boolean) {

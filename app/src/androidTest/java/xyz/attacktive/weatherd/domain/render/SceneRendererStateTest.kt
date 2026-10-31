@@ -123,11 +123,16 @@ class SceneRendererStateTest {
 	@Test
 	fun customSkyGradientRendersVerticalHorizontalAndDiagonalWithStopInterpolation() {
 		val renderer = SceneRenderer(resources)
+		assertThreeColorCustomSkyGradients(renderer)
+		assertTwoColorCustomSkyGradients(renderer)
+	}
+
+	private fun assertThreeColorCustomSkyGradients(renderer: SceneRenderer) {
 		val colorStart = 0xFFFF0000.toInt()
 		val colorMiddle = 0xFF00FF00.toInt()
 		val colorEnd = 0xFF0000FF.toInt()
 
-		val threeColorParams = SceneParams(
+		val baseParams = SceneParams(
 			dayPhase = DayPhase.DAY,
 			cloudiness = 0f,
 			fogDensity = 0f,
@@ -147,50 +152,58 @@ class SceneRendererStateTest {
 			)
 		)
 
-		val verticalBitmap = createBitmap(WIDTH, HEIGHT)
-		renderer.renderBackdrop(Canvas(verticalBitmap), WIDTH, HEIGHT, threeColorParams)
-		saveCapture(verticalBitmap, "custom-sky-3-color-vertical.png")
+		val verticalBitmap = renderSky(renderer, baseParams, "custom-sky-3-color-vertical.png")
 		val topPixel = verticalBitmap.getPixel(WIDTH / 2, 2)
 		val midPixel = verticalBitmap.getPixel(WIDTH / 2, HEIGHT / 2)
 		val bottomPixel = verticalBitmap.getPixel(WIDTH / 2, HEIGHT - 3)
 
 		assertEquals(255, Color.alpha(topPixel))
-		assertTrue("Top pixel should be dominated by red", Color.red(topPixel) > 180 && Color.green(topPixel) < 60 && Color.blue(topPixel) < 60)
-		assertTrue("Mid pixel should be dominated by green", Color.green(midPixel) > 180 && Color.red(midPixel) < 60 && Color.blue(midPixel) < 60)
-		assertTrue("Bottom pixel should be dominated by blue", Color.blue(bottomPixel) > 180 && Color.red(bottomPixel) < 60 && Color.green(bottomPixel) < 60)
+		assertRedDominated("Top pixel should be dominated by red", topPixel)
+		assertGreenDominated("Mid pixel should be dominated by green", midPixel)
+		assertBlueDominated("Bottom pixel should be dominated by blue", bottomPixel)
 		verticalBitmap.recycle()
 
-		val horizontalParams = threeColorParams.copy(
-			customSkyGradient = threeColorParams.customSkyGradient.copy(direction = SkyGradientDirection.HORIZONTAL)
+		val horizontalParams = baseParams.copy(
+			customSkyGradient = baseParams.customSkyGradient.copy(direction = SkyGradientDirection.HORIZONTAL)
 		)
-		val horizontalBitmap = createBitmap(WIDTH, HEIGHT)
-		renderer.renderBackdrop(Canvas(horizontalBitmap), WIDTH, HEIGHT, horizontalParams)
-		saveCapture(horizontalBitmap, "custom-sky-3-color-horizontal.png")
+
+		val horizontalBitmap = renderSky(renderer, horizontalParams, "custom-sky-3-color-horizontal.png")
 		val leftPixel = horizontalBitmap.getPixel(2, HEIGHT / 2)
 		val centerPixel = horizontalBitmap.getPixel(WIDTH / 2, HEIGHT / 2)
 		val rightPixel = horizontalBitmap.getPixel(WIDTH - 3, HEIGHT / 2)
 
-		assertTrue("Left pixel should be dominated by red", Color.red(leftPixel) > 180 && Color.green(leftPixel) < 60 && Color.blue(leftPixel) < 60)
-		assertTrue("Center pixel should be dominated by green", Color.green(centerPixel) > 180 && Color.red(centerPixel) < 60 && Color.blue(centerPixel) < 60)
-		assertTrue("Right pixel should be dominated by blue", Color.blue(rightPixel) > 180 && Color.red(rightPixel) < 60 && Color.green(rightPixel) < 60)
+		assertRedDominated("Left pixel should be dominated by red", leftPixel)
+		assertGreenDominated("Center pixel should be dominated by green", centerPixel)
+		assertBlueDominated("Right pixel should be dominated by blue", rightPixel)
 		horizontalBitmap.recycle()
 
-		val diagonalParams = threeColorParams.copy(
-			customSkyGradient = threeColorParams.customSkyGradient.copy(direction = SkyGradientDirection.DIAGONAL)
+		val diagonalParams = baseParams.copy(
+			customSkyGradient = baseParams.customSkyGradient.copy(direction = SkyGradientDirection.DIAGONAL)
 		)
-		val diagonalBitmap = createBitmap(WIDTH, HEIGHT)
-		renderer.renderBackdrop(Canvas(diagonalBitmap), WIDTH, HEIGHT, diagonalParams)
-		saveCapture(diagonalBitmap, "custom-sky-3-color-diagonal.png")
+
+		val diagonalBitmap = renderSky(renderer, diagonalParams, "custom-sky-3-color-diagonal.png")
 		val topLeftPixel = diagonalBitmap.getPixel(2, 2)
 		val diagCenterPixel = diagonalBitmap.getPixel(WIDTH / 2, HEIGHT / 2)
 		val bottomRightPixel = diagonalBitmap.getPixel(WIDTH - 3, HEIGHT - 3)
 
-		assertTrue("Top-left pixel should be dominated by red", Color.red(topLeftPixel) > 180 && Color.green(topLeftPixel) < 60 && Color.blue(topLeftPixel) < 60)
-		assertTrue("Diag center pixel should be dominated by green", Color.green(diagCenterPixel) > 180 && Color.red(diagCenterPixel) < 60 && Color.blue(diagCenterPixel) < 60)
-		assertTrue("Bottom-right pixel should be dominated by blue", Color.blue(bottomRightPixel) > 180 && Color.red(bottomRightPixel) < 60 && Color.green(bottomRightPixel) < 60)
+		assertRedDominated("Top-left pixel should be dominated by red", topLeftPixel)
+		assertGreenDominated("Diag center pixel should be dominated by green", diagCenterPixel)
+		assertBlueDominated("Bottom-right pixel should be dominated by blue", bottomRightPixel)
 		diagonalBitmap.recycle()
+	}
 
-		val twoColorParams = threeColorParams.copy(
+	private fun assertTwoColorCustomSkyGradients(renderer: SceneRenderer) {
+		val colorStart = 0xFFFF0000.toInt()
+		val colorEnd = 0xFF0000FF.toInt()
+
+		val baseParams = SceneParams(
+			dayPhase = DayPhase.DAY,
+			cloudiness = 0f,
+			fogDensity = 0f,
+			precipitation = null,
+			thunder = false,
+			windFactor = 0f,
+			skyColorPreset = SkyColorPreset.CUSTOM,
 			customSkyGradient = CustomSkyGradient(
 				startColor = colorStart,
 				endColor = colorEnd,
@@ -200,32 +213,73 @@ class SceneRendererStateTest {
 				direction = SkyGradientDirection.VERTICAL
 			)
 		)
-		val twoColorVerticalBitmap = createBitmap(WIDTH, HEIGHT)
-		renderer.renderBackdrop(Canvas(twoColorVerticalBitmap), WIDTH, HEIGHT, twoColorParams)
-		saveCapture(twoColorVerticalBitmap, "custom-sky-2-color-vertical.png")
-		val twoTopPixel = twoColorVerticalBitmap.getPixel(WIDTH / 2, 2)
-		val twoBottomPixel = twoColorVerticalBitmap.getPixel(WIDTH / 2, HEIGHT - 3)
-		assertTrue("2-color vertical top should be red", Color.red(twoTopPixel) > 180 && Color.blue(twoTopPixel) < 60)
-		assertTrue("2-color vertical bottom should be blue", Color.blue(twoBottomPixel) > 180 && Color.red(twoBottomPixel) < 60)
-		twoColorVerticalBitmap.recycle()
 
-		val twoColorHorizontalBitmap = createBitmap(WIDTH, HEIGHT)
-		renderer.renderBackdrop(Canvas(twoColorHorizontalBitmap), WIDTH, HEIGHT, twoColorParams.copy(customSkyGradient = twoColorParams.customSkyGradient.copy(direction = SkyGradientDirection.HORIZONTAL)))
-		saveCapture(twoColorHorizontalBitmap, "custom-sky-2-color-horizontal.png")
-		val twoLeftPixel = twoColorHorizontalBitmap.getPixel(2, HEIGHT / 2)
-		val twoRightPixel = twoColorHorizontalBitmap.getPixel(WIDTH - 3, HEIGHT / 2)
-		assertTrue("2-color horizontal left should be red", Color.red(twoLeftPixel) > 180 && Color.blue(twoLeftPixel) < 60)
-		assertTrue("2-color horizontal right should be blue", Color.blue(twoRightPixel) > 180 && Color.red(twoRightPixel) < 60)
-		twoColorHorizontalBitmap.recycle()
+		val verticalBitmap = renderSky(renderer, baseParams, "custom-sky-2-color-vertical.png")
+		val twoTopPixel = verticalBitmap.getPixel(WIDTH / 2, 2)
+		val twoBottomPixel = verticalBitmap.getPixel(WIDTH / 2, HEIGHT - 3)
 
-		val twoColorDiagonalBitmap = createBitmap(WIDTH, HEIGHT)
-		renderer.renderBackdrop(Canvas(twoColorDiagonalBitmap), WIDTH, HEIGHT, twoColorParams.copy(customSkyGradient = twoColorParams.customSkyGradient.copy(direction = SkyGradientDirection.DIAGONAL)))
-		saveCapture(twoColorDiagonalBitmap, "custom-sky-2-color-diagonal.png")
-		val twoTopLeftPixel = twoColorDiagonalBitmap.getPixel(2, 2)
-		val twoBottomRightPixel = twoColorDiagonalBitmap.getPixel(WIDTH - 3, HEIGHT - 3)
-		assertTrue("2-color diagonal top-left should be red", Color.red(twoTopLeftPixel) > 180 && Color.blue(twoTopLeftPixel) < 60)
-		assertTrue("2-color diagonal bottom-right should be blue", Color.blue(twoBottomRightPixel) > 180 && Color.red(twoBottomRightPixel) < 60)
-		twoColorDiagonalBitmap.recycle()
+		assertTwoColorRed("2-color vertical top should be red", twoTopPixel)
+		assertTwoColorBlue("2-color vertical bottom should be blue", twoBottomPixel)
+		verticalBitmap.recycle()
+
+		val horizontalParams = baseParams.copy(
+			customSkyGradient = baseParams.customSkyGradient.copy(direction = SkyGradientDirection.HORIZONTAL)
+		)
+
+		val horizontalBitmap = renderSky(renderer, horizontalParams, "custom-sky-2-color-horizontal.png")
+		val twoLeftPixel = horizontalBitmap.getPixel(2, HEIGHT / 2)
+		val twoRightPixel = horizontalBitmap.getPixel(WIDTH - 3, HEIGHT / 2)
+
+		assertTwoColorRed("2-color horizontal left should be red", twoLeftPixel)
+		assertTwoColorBlue("2-color horizontal right should be blue", twoRightPixel)
+		horizontalBitmap.recycle()
+
+		val diagonalParams = baseParams.copy(
+			customSkyGradient = baseParams.customSkyGradient.copy(direction = SkyGradientDirection.DIAGONAL)
+		)
+
+		val diagonalBitmap = renderSky(renderer, diagonalParams, "custom-sky-2-color-diagonal.png")
+		val twoTopLeftPixel = diagonalBitmap.getPixel(2, 2)
+		val twoBottomRightPixel = diagonalBitmap.getPixel(WIDTH - 3, HEIGHT - 3)
+
+		assertTwoColorRed("2-color diagonal top-left should be red", twoTopLeftPixel)
+		assertTwoColorBlue("2-color diagonal bottom-right should be blue", twoBottomRightPixel)
+		diagonalBitmap.recycle()
+	}
+
+	private fun renderSky(renderer: SceneRenderer, params: SceneParams, filename: String): Bitmap {
+		val bitmap = createBitmap(WIDTH, HEIGHT)
+		renderer.renderBackdrop(Canvas(bitmap), WIDTH, HEIGHT, params)
+		saveCapture(bitmap, filename)
+		return bitmap
+	}
+
+	private fun assertRedDominated(message: String, pixel: Int) {
+		assertTrue(message, Color.red(pixel) > 180)
+		assertTrue(message, Color.green(pixel) < 60)
+		assertTrue(message, Color.blue(pixel) < 60)
+	}
+
+	private fun assertGreenDominated(message: String, pixel: Int) {
+		assertTrue(message, Color.green(pixel) > 180)
+		assertTrue(message, Color.red(pixel) < 60)
+		assertTrue(message, Color.blue(pixel) < 60)
+	}
+
+	private fun assertBlueDominated(message: String, pixel: Int) {
+		assertTrue(message, Color.blue(pixel) > 180)
+		assertTrue(message, Color.red(pixel) < 60)
+		assertTrue(message, Color.green(pixel) < 60)
+	}
+
+	private fun assertTwoColorRed(message: String, pixel: Int) {
+		assertTrue(message, Color.red(pixel) > 180)
+		assertTrue(message, Color.blue(pixel) < 60)
+	}
+
+	private fun assertTwoColorBlue(message: String, pixel: Int) {
+		assertTrue(message, Color.blue(pixel) > 180)
+		assertTrue(message, Color.red(pixel) < 60)
 	}
 
 	@Test
