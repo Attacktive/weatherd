@@ -4,6 +4,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
@@ -16,6 +18,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import xyz.attacktive.weatherd.domain.model.AnimationIdleTimeout
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.AppearancePresetSnapshot
+import xyz.attacktive.weatherd.domain.model.CustomSkyGradient
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.BirdAppearanceInterval
 import xyz.attacktive.weatherd.domain.model.BirdFlockSize
@@ -77,6 +80,7 @@ sealed interface SettingsMutation {
 	data class NightBrightness(val value: Float): SettingsMutation
 	data class SkySaturation(val value: Float): SettingsMutation
 	data class SkyColor(val value: SkyColorPreset): SettingsMutation
+	data class CustomSky(val value: CustomSkyGradient): SettingsMutation
 	data class SunVisible(val visible: Boolean): SettingsMutation
 	data class MoonVisible(val visible: Boolean): SettingsMutation
 	data class SunSize(val value: Float): SettingsMutation
@@ -135,6 +139,7 @@ internal fun settingsMutationsBetween(previous: AppSettings, updated: AppSetting
 		addIfChanged(previous.nightBrightnessScale, updated.nightBrightnessScale, SettingsMutation::NightBrightness)
 		addIfChanged(previous.skySaturationScale, updated.skySaturationScale, SettingsMutation::SkySaturation)
 		addIfChanged(previous.skyColorPreset, updated.skyColorPreset, SettingsMutation::SkyColor)
+		addIfChanged(previous.customSkyGradient, updated.customSkyGradient, SettingsMutation::CustomSky)
 		addIfChanged(previous.sunVisible, updated.sunVisible, SettingsMutation::SunVisible)
 		addIfChanged(previous.moonVisible, updated.moonVisible, SettingsMutation::MoonVisible)
 		addIfChanged(previous.sunSizeScale, updated.sunSizeScale, SettingsMutation::SunSize)
@@ -227,6 +232,7 @@ private fun SettingsMutation.appliedTo(settings: AppSettings) = when (this) {
 	is SettingsMutation.NightBrightness -> settings.copy(nightBrightnessScale = value)
 	is SettingsMutation.SkySaturation -> settings.copy(skySaturationScale = value)
 	is SettingsMutation.SkyColor -> settings.copy(skyColorPreset = value)
+	is SettingsMutation.CustomSky -> settings.copy(customSkyGradient = value.normalized())
 	is SettingsMutation.SunVisible -> settings.copy(sunVisible = visible)
 	is SettingsMutation.MoonVisible -> settings.copy(moonVisible = visible)
 	is SettingsMutation.SunSize -> settings.copy(sunSizeScale = value)
@@ -259,6 +265,20 @@ private fun SettingsMutation.appliedTo(settings: AppSettings) = when (this) {
 @Singleton
 class SettingsRepository @Inject constructor(private val dataStore: DataStore<Preferences>) {
 	val defaults = defaultAppSettings()
+	private val json = Json { ignoreUnknownKeys = true }
+
+	private fun storedCustomSkyGradient(preferences: Preferences): CustomSkyGradient {
+		val raw = preferences[Keys.CUSTOM_SKY_GRADIENT]
+		if (raw == null) {
+			return defaults.customSkyGradient
+		}
+
+		return try {
+			json.decodeFromString<CustomSkyGradient>(raw).normalized()
+		} catch (_: Exception) {
+			defaults.customSkyGradient
+		}
+	}
 
 	private object Keys {
 		val WEATHER_PROVIDER = stringPreferencesKey("weather_provider")
@@ -290,6 +310,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		val NIGHT_BRIGHTNESS_SCALE = floatPreferencesKey("night_brightness_scale")
 		val SKY_SATURATION_SCALE = floatPreferencesKey("sky_saturation_scale")
 		val SKY_COLOR_PRESET = stringPreferencesKey("sky_color_preset")
+		val CUSTOM_SKY_GRADIENT = stringPreferencesKey("custom_sky_gradient")
 		val SUN_VISIBLE = booleanPreferencesKey("sun_visible")
 		val MOON_VISIBLE = booleanPreferencesKey("moon_visible")
 		val SUN_SIZE_SCALE = floatPreferencesKey("sun_size_scale")
@@ -349,6 +370,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			nightBrightnessScale = (preferences[Keys.NIGHT_BRIGHTNESS_SCALE] ?: defaults.nightBrightnessScale).coerceIn(NIGHT_BRIGHTNESS_SCALE_RANGE.start, NIGHT_BRIGHTNESS_SCALE_RANGE.endInclusive),
 			skySaturationScale = (preferences[Keys.SKY_SATURATION_SCALE] ?: defaults.skySaturationScale).coerceIn(SKY_SATURATION_SCALE_RANGE.start, SKY_SATURATION_SCALE_RANGE.endInclusive),
 			skyColorPreset = enumOrDefault(preferences[Keys.SKY_COLOR_PRESET], SkyColorPreset.entries, defaults.skyColorPreset),
+			customSkyGradient = storedCustomSkyGradient(preferences),
 			sunVisible = preferences[Keys.SUN_VISIBLE] ?: defaults.sunVisible,
 			moonVisible = preferences[Keys.MOON_VISIBLE] ?: defaults.moonVisible,
 			sunSizeScale = (preferences[Keys.SUN_SIZE_SCALE] ?: defaults.sunSizeScale).coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive),
@@ -433,6 +455,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			preferences[Keys.NIGHT_BRIGHTNESS_SCALE] = settings.nightBrightnessScale.coerceIn(NIGHT_BRIGHTNESS_SCALE_RANGE.start, NIGHT_BRIGHTNESS_SCALE_RANGE.endInclusive)
 			preferences[Keys.SKY_SATURATION_SCALE] = settings.skySaturationScale.coerceIn(SKY_SATURATION_SCALE_RANGE.start, SKY_SATURATION_SCALE_RANGE.endInclusive)
 			preferences[Keys.SKY_COLOR_PRESET] = settings.skyColorPreset.name
+			preferences[Keys.CUSTOM_SKY_GRADIENT] = json.encodeToString(settings.customSkyGradient.normalized())
 			preferences[Keys.SUN_VISIBLE] = settings.sunVisible
 			preferences[Keys.MOON_VISIBLE] = settings.moonVisible
 			preferences[Keys.SUN_SIZE_SCALE] = settings.sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive)
@@ -501,6 +524,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			is SettingsMutation.NightBrightness -> this[Keys.NIGHT_BRIGHTNESS_SCALE] = mutation.value.coerceIn(NIGHT_BRIGHTNESS_SCALE_RANGE.start, NIGHT_BRIGHTNESS_SCALE_RANGE.endInclusive)
 			is SettingsMutation.SkySaturation -> this[Keys.SKY_SATURATION_SCALE] = mutation.value.coerceIn(SKY_SATURATION_SCALE_RANGE.start, SKY_SATURATION_SCALE_RANGE.endInclusive)
 			is SettingsMutation.SkyColor -> this[Keys.SKY_COLOR_PRESET] = mutation.value.name
+			is SettingsMutation.CustomSky -> this[Keys.CUSTOM_SKY_GRADIENT] = json.encodeToString(mutation.value.normalized())
 			is SettingsMutation.SunVisible -> this[Keys.SUN_VISIBLE] = mutation.visible
 			is SettingsMutation.MoonVisible -> this[Keys.MOON_VISIBLE] = mutation.visible
 			is SettingsMutation.SunSize -> this[Keys.SUN_SIZE_SCALE] = mutation.value.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive)
@@ -553,6 +577,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		this[Keys.NIGHT_BRIGHTNESS_SCALE] = snapshot.nightBrightnessScale.coerceIn(NIGHT_BRIGHTNESS_SCALE_RANGE.start, NIGHT_BRIGHTNESS_SCALE_RANGE.endInclusive)
 		this[Keys.SKY_SATURATION_SCALE] = snapshot.skySaturationScale.coerceIn(SKY_SATURATION_SCALE_RANGE.start, SKY_SATURATION_SCALE_RANGE.endInclusive)
 		this[Keys.SKY_COLOR_PRESET] = snapshot.skyColorPreset.name
+		this[Keys.CUSTOM_SKY_GRADIENT] = json.encodeToString(snapshot.customSkyGradient.normalized())
 		this[Keys.SUN_VISIBLE] = snapshot.sunVisible
 		this[Keys.MOON_VISIBLE] = snapshot.moonVisible
 		this[Keys.SUN_SIZE_SCALE] = snapshot.sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive)

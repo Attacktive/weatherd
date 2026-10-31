@@ -28,6 +28,7 @@ data class AppSettings(
 	val nightBrightnessScale: Float = 1f,
 	val skySaturationScale: Float = 1f,
 	val skyColorPreset: SkyColorPreset = SkyColorPreset.NATURAL,
+	val customSkyGradient: CustomSkyGradient = CustomSkyGradient(),
 	val sunVisible: Boolean = true,
 	val moonVisible: Boolean = true,
 	val sunSizeScale: Float = 1f,

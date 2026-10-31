@@ -1,5 +1,7 @@
 package xyz.attacktive.weatherd.domain.render
 
+import xyz.attacktive.weatherd.domain.model.CustomSkyGradient
+import xyz.attacktive.weatherd.domain.model.SkyGradientDirection
 import kotlin.math.roundToInt
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
@@ -9,15 +11,23 @@ import xyz.attacktive.weatherd.domain.model.SKY_SATURATION_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_STEADY
 
-/** A vertical sky gradient as two ARGB colors. */
-data class SkyGradient(val topColor: Int, val bottomColor: Int)
+/** A sky gradient with optional middle color, positions, and direction. */
+data class SkyGradient(
+	val topColor: Int,
+	val bottomColor: Int,
+	val middleColor: Int? = null,
+	val startPosition: Float = 0f,
+	val middlePosition: Float = 0.5f,
+	val endPosition: Float = 1f,
+	val direction: SkyGradientDirection = SkyGradientDirection.VERTICAL
+)
 
 /**
  * The sky gradient for a scene: a clear base for the phase, blended toward gray by how overcast the features make it, then darkened for storms.
  * Pure ARGB maths so it unit-tests without Android.
  */
 fun skyGradientFor(params: SceneParams): SkyGradient {
-	val base = tuneSkyGradient(basePhaseGradient(params.dayPhase, params.skyColorPreset, params.celestialProgress), params.skyBrightnessScale, params.skySaturationScale)
+	val base = tuneSkyGradient(basePhaseGradient(params), params.skyBrightnessScale, params.skySaturationScale)
 	val gray = if (params.precipitation?.kind == PrecipitationKind.SNOW) {
 		snowGray(params.dayPhase)
 	} else {
@@ -31,8 +41,19 @@ fun skyGradientFor(params: SceneParams): SkyGradient {
 
 	val top = darkenColor(lerpColor(base.topColor, weatherGray, overcast), darken)
 	val bottom = darkenColor(lerpColor(base.bottomColor, weatherGray, overcast), darken)
+	val middle = base.middleColor?.let {
+		darkenColor(lerpColor(it, weatherGray, overcast), darken)
+	}
 
-	return SkyGradient(top, bottom)
+	return SkyGradient(
+		topColor = top,
+		bottomColor = bottom,
+		middleColor = middle,
+		startPosition = base.startPosition,
+		middlePosition = base.middlePosition,
+		endPosition = base.endPosition,
+		direction = base.direction
+	)
 }
 
 /**
@@ -109,7 +130,15 @@ private fun atmosphereAmount(params: SceneParams, plane: SceneryPlane): Float {
 	return lerp((base + depth).coerceAtMost(1f), 1f, weather)
 }
 
-private fun basePhaseGradient(dayPhase: DayPhase, preset: SkyColorPreset, celestialProgress: Float): SkyGradient {
+private fun basePhaseGradient(params: SceneParams): SkyGradient {
+	val dayPhase = params.dayPhase
+	val preset = params.skyColorPreset
+	val celestialProgress = params.celestialProgress
+
+	if (preset == SkyColorPreset.CUSTOM) {
+		return baseCustomGradient(params.customSkyGradient.normalized(), dayPhase, celestialProgress)
+	}
+
 	val phase = phaseGradient(dayPhase, preset)
 
 	return when (dayPhase) {
@@ -143,6 +172,80 @@ private fun basePhaseGradient(dayPhase: DayPhase, preset: SkyColorPreset, celest
 	}
 }
 
+private fun baseCustomGradient(
+	custom: CustomSkyGradient,
+	dayPhase: DayPhase,
+	celestialProgress: Float
+): SkyGradient {
+	val naturalDawn = CUSTOM_NATURAL_DAWN
+	val naturalDusk = CUSTOM_NATURAL_DUSK
+	val naturalNight = CUSTOM_NATURAL_NIGHT
+
+	val top: Int
+	val bottom: Int
+	val middle: Int?
+
+	when (dayPhase) {
+		DayPhase.DAY -> {
+			top = custom.startColor
+			bottom = custom.endColor
+			middle = if (custom.threeColors) custom.middleColor else null
+		}
+
+		DayPhase.DAWN -> {
+			val daylight = dawnDaylightStrength(celestialProgress)
+			top = lerpColor(naturalDawn.topColor, custom.startColor, daylight)
+			bottom = lerpColor(naturalDawn.bottomColor, custom.endColor, daylight)
+			middle = if (custom.threeColors) {
+				val naturalDawnMiddle = lerpColor(naturalDawn.topColor, naturalDawn.bottomColor, custom.middlePosition)
+				lerpColor(naturalDawnMiddle, custom.middleColor, daylight)
+			} else {
+				null
+			}
+		}
+
+		DayPhase.DUSK -> {
+			val warmth = duskWarmStrength(celestialProgress)
+			val nightfall = duskNightStrength(celestialProgress)
+
+			val sunsetTop = lerpColor(custom.startColor, naturalDusk.topColor, warmth)
+			val sunsetBottom = lerpColor(custom.endColor, naturalDusk.bottomColor, warmth)
+
+			top = lerpColor(sunsetTop, naturalNight.topColor, nightfall)
+			bottom = lerpColor(sunsetBottom, naturalNight.bottomColor, nightfall)
+
+			middle = if (custom.threeColors) {
+				val naturalDuskMiddle = lerpColor(naturalDusk.topColor, naturalDusk.bottomColor, custom.middlePosition)
+				val naturalNightMiddle = lerpColor(naturalNight.topColor, naturalNight.bottomColor, custom.middlePosition)
+				val sunsetMiddle = lerpColor(custom.middleColor, naturalDuskMiddle, warmth)
+				lerpColor(sunsetMiddle, naturalNightMiddle, nightfall)
+			} else {
+				null
+			}
+		}
+
+		DayPhase.NIGHT -> {
+			top = naturalNight.topColor
+			bottom = naturalNight.bottomColor
+			middle = if (custom.threeColors) {
+				lerpColor(naturalNight.topColor, naturalNight.bottomColor, custom.middlePosition)
+			} else {
+				null
+			}
+		}
+	}
+
+	return SkyGradient(
+		topColor = top,
+		bottomColor = bottom,
+		middleColor = middle,
+		startPosition = custom.startPosition,
+		middlePosition = custom.middlePosition,
+		endPosition = custom.endPosition,
+		direction = custom.direction
+	)
+}
+
 internal fun dawnSunriseStrength(celestialProgress: Float) = smoothStep(DAWN_SUNRISE_START, DAWN_SUNRISE_FULL, celestialProgress)
 
 internal fun dawnDaylightStrength(celestialProgress: Float) = smoothStep(DAWN_DAYLIGHT_START, DAWN_DAYLIGHT_FULL, celestialProgress)
@@ -157,7 +260,7 @@ private fun smoothStep(from: Float, to: Float, value: Float): Float {
 	return raw * raw * (3f - 2f * raw)
 }
 
-private fun phaseGradient(dayPhase: DayPhase, preset: SkyColorPreset) = when (preset) {
+private fun phaseGradient(dayPhase: DayPhase, preset: SkyColorPreset): SkyGradient = when (preset) {
 	SkyColorPreset.NATURAL, SkyColorPreset.CLEAR_BLUE -> when (dayPhase) {
 		DayPhase.DAY -> if (preset == SkyColorPreset.CLEAR_BLUE) {
 			SkyGradient(rgb(4, 98, 221), rgb(209, 239, 253))
@@ -187,6 +290,7 @@ private fun phaseGradient(dayPhase: DayPhase, preset: SkyColorPreset) = when (pr
 		DayPhase.DUSK -> SkyGradient(rgb(36, 30, 89), rgb(249, 74, 154))
 		DayPhase.NIGHT -> SkyGradient(rgb(8, 10, 35), rgb(51, 27, 99))
 	}
+	SkyColorPreset.CUSTOM -> phaseGradient(dayPhase, SkyColorPreset.NATURAL)
 }
 
 private fun tuneSkyGradient(gradient: SkyGradient, brightnessScale: Float, saturationScale: Float): SkyGradient {
@@ -197,8 +301,13 @@ private fun tuneSkyGradient(gradient: SkyGradient, brightnessScale: Float, satur
 	}
 
 	return SkyGradient(
-		adjustSkyColor(gradient.topColor, brightness, saturation),
-		adjustSkyColor(gradient.bottomColor, brightness, saturation)
+		topColor = adjustSkyColor(gradient.topColor, brightness, saturation),
+		bottomColor = adjustSkyColor(gradient.bottomColor, brightness, saturation),
+		middleColor = gradient.middleColor?.let { adjustSkyColor(it, brightness, saturation) },
+		startPosition = gradient.startPosition,
+		middlePosition = gradient.middlePosition,
+		endPosition = gradient.endPosition,
+		direction = gradient.direction
 	)
 }
 
@@ -305,3 +414,7 @@ private fun lerpChannel(from: Int, to: Int, fraction: Float) = (from + (to - fro
 private fun rgb(red: Int, green: Int, blue: Int) = (0xFF shl 24) or (red shl 16) or (green shl 8) or blue
 
 private val BLACK = rgb(0, 0, 0)
+
+private val CUSTOM_NATURAL_DAWN = phaseGradient(DayPhase.DAWN, SkyColorPreset.NATURAL)
+private val CUSTOM_NATURAL_DUSK = phaseGradient(DayPhase.DUSK, SkyColorPreset.NATURAL)
+private val CUSTOM_NATURAL_NIGHT = phaseGradient(DayPhase.NIGHT, SkyColorPreset.NATURAL)
