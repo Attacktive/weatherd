@@ -4,9 +4,7 @@
 
 Android live wallpaper that turns real weather into an animated procedural scene, with a matching in-app preview.
 
-<a href="https://play.google.com/store/apps/details?id=xyz.attacktive.weatherd">
-	<img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" width="200">
-</a>
+[Get Weatherd on Google Play](https://play.google.com/store/apps/details?id=xyz.attacktive.weatherd)
 
 Requires **Android 8.0 (API 26)** or later.
 
@@ -14,24 +12,11 @@ Requires **Android 8.0 (API 26)** or later.
 
 These are actual Weatherd **3.9.20** preview captures using simulated weather and time of day, with the simulator controls hidden. The preview and live wallpaper share the same scene renderer. Select a screenshot to see it at full resolution.
 
-<p align="center">
-	<a href="store/screenshot-phone-1080x1920.png"><img src="store/screenshot-phone-preview.png" alt="Mostly clear daytime sky above mountain scenery" width="175"></a>
-	<a href="store/screenshot-phone-rain-1080x1920.png"><img src="store/screenshot-phone-rain-preview.png" alt="Rain falling over a mountain landscape" width="175"></a>
-	<a href="store/screenshot-phone-dusk-1080x1920.png"><img src="store/screenshot-phone-dusk-1080x1920.png" alt="Mountain scenery in the light of dusk" width="175"></a>
-	<a href="store/screenshot-phone-clouds-1080x1920.png"><img src="store/screenshot-phone-clouds-1080x1920.png" alt="Partly cloudy sky above trees" width="175"></a>
-</p>
+| Clear sky | Rain | Dusk | Clouds & trees |
+| --- | --- | --- | --- |
+| [![Mostly clear daytime sky above mountain scenery](store/screenshot-phone-preview.png)](store/screenshot-phone-1080x1920.png) | [![Rain falling over a mountain landscape](store/screenshot-phone-rain-preview.png)](store/screenshot-phone-rain-1080x1920.png) | [![Mountain scenery in the light of dusk](store/screenshot-phone-dusk-1080x1920.png)](store/screenshot-phone-dusk-1080x1920.png) | [![Partly cloudy sky above trees](store/screenshot-phone-clouds-1080x1920.png)](store/screenshot-phone-clouds-1080x1920.png) |
 
-<details>
-<summary>Tablet screenshots</summary>
-
-<p align="center">
-	<a href="store/screenshot-tablet-clear.png"><img src="store/screenshot-tablet-clear.png" alt="Mostly clear mountain scene on a landscape tablet" width="380"></a>
-	<a href="store/screenshot-tablet-rain.png"><img src="store/screenshot-tablet-rain.png" alt="Rain falling over trees on a landscape tablet" width="380"></a>
-	<a href="store/screenshot-tablet-dusk.png"><img src="store/screenshot-tablet-dusk.png" alt="Mountain scenery at dusk on a landscape tablet" width="380"></a>
-	<a href="store/screenshot-tablet-clouds.png"><img src="store/screenshot-tablet-clouds.png" alt="Partly cloudy sky and trees on a landscape tablet" width="380"></a>
-</p>
-
-</details>
+**Tablet screenshots:** [Clear sky](store/screenshot-tablet-clear.png) · [Rain](store/screenshot-tablet-rain.png) · [Dusk](store/screenshot-tablet-dusk.png) · [Clouds & trees](store/screenshot-tablet-clouds.png).
 
 [See all screenshot assets and capture notes](store/README.md).
 
