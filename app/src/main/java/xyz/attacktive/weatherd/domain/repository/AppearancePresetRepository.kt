@@ -19,6 +19,8 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import xyz.attacktive.weatherd.domain.model.AppearancePresetSnapshot
+import xyz.attacktive.weatherd.domain.model.CustomSkyGradient
+import xyz.attacktive.weatherd.domain.model.SkyGradientDirection
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.BirdAppearanceInterval
 import xyz.attacktive.weatherd.domain.model.BirdFlockSize
@@ -220,7 +222,8 @@ private data class StoredSnapshot(
 	val labelVerticalPosition: Float = DEFAULT_LABEL_VERTICAL_POSITION,
 	val wallpaperDimmingStrength: Float = 0f,
 	val statusBarShadeStrength: Float = 0f,
-	val seasonalCelebrationsEnabled: Boolean = true
+	val seasonalCelebrationsEnabled: Boolean = true,
+	val customSkyGradient: StoredCustomSkyGradient = StoredCustomSkyGradient(),
 ) {
 	fun toDomain() = AppearancePresetSnapshot(
 		backdropScene = enumValue(backdropScene, BackdropScene.entries),
@@ -237,6 +240,7 @@ private data class StoredSnapshot(
 		nightBrightnessScale = nightBrightnessScale,
 		skySaturationScale = skySaturationScale,
 		skyColorPreset = enumValue(skyColorPreset, SkyColorPreset.entries),
+		customSkyGradient = customSkyGradient.toDomain(),
 		sunVisible = sunVisible,
 		moonVisible = moonVisible,
 		sunSizeScale = sunSizeScale,
@@ -283,6 +287,7 @@ private fun AppearancePresetSnapshot.toStored() = StoredSnapshot(
 	nightBrightnessScale = nightBrightnessScale,
 	skySaturationScale = skySaturationScale,
 	skyColorPreset = skyColorPreset.name,
+	customSkyGradient = customSkyGradient.toStored(),
 	sunVisible = sunVisible,
 	moonVisible = moonVisible,
 	sunSizeScale = sunSizeScale,
@@ -307,13 +312,47 @@ private fun AppearancePresetSnapshot.toStored() = StoredSnapshot(
 	seasonalCelebrationsEnabled = seasonalCelebrationsEnabled
 )
 
+@Serializable
+private data class StoredCustomSkyGradient(
+	val startColor: Int = 0xFF32C5F4.toInt(),
+	val middleColor: Int = 0xFFABEBFA.toInt(),
+	val endColor: Int = 0xFFFFFFFF.toInt(),
+	val threeColors: Boolean = false,
+	val startPosition: Float = 0f,
+	val middlePosition: Float = 0.5f,
+	val endPosition: Float = 1f,
+	val direction: String = SkyGradientDirection.VERTICAL.name
+) {
+	fun toDomain() = CustomSkyGradient(
+		startColor = startColor,
+		middleColor = middleColor,
+		endColor = endColor,
+		threeColors = threeColors,
+		startPosition = startPosition,
+		middlePosition = middlePosition,
+		endPosition = endPosition,
+		direction = enumValue(direction, SkyGradientDirection.entries)
+	).normalized()
+}
+
+private fun CustomSkyGradient.toStored() = StoredCustomSkyGradient(
+	startColor = startColor,
+	middleColor = middleColor,
+	endColor = endColor,
+	threeColors = threeColors,
+	startPosition = startPosition,
+	middlePosition = middlePosition,
+	endPosition = endPosition,
+	direction = direction.name
+)
+
 private fun <T : Enum<T>> enumValue(name: String, values: Iterable<T>) = values.firstOrNull { it.name == name } ?: throw IllegalArgumentException("Unknown enum value")
 
 internal fun appearancePresetNameKey(name: String) = Normalizer.normalize(name.trim().lowercase(Locale.ROOT), Normalizer.Form.NFC)
 
 /** Bump whenever persisted preset snapshot fields are added, removed, renamed, or change meaning. */
-internal const val APPEARANCE_PRESET_SCHEMA_VERSION = 18
+internal const val APPEARANCE_PRESET_SCHEMA_VERSION = 19
 internal const val APPEARANCE_PRESET_NAME_MAX_LENGTH = 40
 internal const val APPEARANCE_PRESETS_KEY_NAME = "appearance_presets_json"
-private val SUPPORTED_APPEARANCE_PRESET_SCHEMA_VERSIONS = setOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, APPEARANCE_PRESET_SCHEMA_VERSION)
+private val SUPPORTED_APPEARANCE_PRESET_SCHEMA_VERSIONS = setOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, APPEARANCE_PRESET_SCHEMA_VERSION)
 private val PRESETS_KEY = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)

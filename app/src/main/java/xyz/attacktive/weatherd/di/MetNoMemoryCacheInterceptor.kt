@@ -71,7 +71,7 @@ internal class MetNoMemoryCacheInterceptor : Interceptor {
 			expiresAtMillis = expiryFor(network, now) ?: (now + REVALIDATION_RETRY_MILLIS),
 			lastModified = network.header("Last-Modified") ?: previous.lastModified
 		)
-		network.body?.close()
+		network.body.close()
 		store(key, updated)
 		return updated.responseFor(request)
 	}
@@ -82,7 +82,7 @@ internal class MetNoMemoryCacheInterceptor : Interceptor {
 		}
 
 		val expiry = expiryFor(network, now) ?: return network
-		val body = network.body ?: return network
+		val body = network.body
 		val contentType = body.contentType()
 		val bytes = body.bytes()
 		val replayable = network.newBuilder().body(bytes.toResponseBody(contentType)).build()

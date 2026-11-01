@@ -4,6 +4,10 @@ import kotlin.math.abs
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import xyz.attacktive.weatherd.domain.model.CustomSkyGradient
+import xyz.attacktive.weatherd.domain.model.SkyGradientDirection
 import org.junit.Test
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
@@ -290,6 +294,332 @@ class ScenePaletteTest {
 
 		// Both ends have reached the same gray, so the gradient has no blue left to lose.
 		assertEquals("a fully overcast sky should flatten to the phase gray", overcast.topColor, overcast.bottomColor)
+	}
+
+	@Test
+	fun `custom sky gradient in day phase uses exact normalized two-stop colors and carries direction and positions`() {
+		val custom = CustomSkyGradient(
+			startColor = 0xFF112233.toInt(),
+			endColor = 0xFF445566.toInt(),
+			threeColors = false,
+			startPosition = 0.1f,
+			endPosition = 0.9f,
+			direction = SkyGradientDirection.HORIZONTAL
+		)
+		val params = clearParams(DayPhase.DAY).copy(
+			skyColorPreset = SkyColorPreset.CUSTOM,
+			customSkyGradient = custom
+		)
+		val result = skyGradientFor(params)
+
+		assertEquals(0xFF112233.toInt(), result.topColor)
+		assertEquals(0xFF445566.toInt(), result.bottomColor)
+		assertNull(result.middleColor)
+		assertEquals(0.1f, result.startPosition, 0.0001f)
+		assertEquals(0.9f, result.endPosition, 0.0001f)
+		assertEquals(SkyGradientDirection.HORIZONTAL, result.direction)
+	}
+
+	@Test
+	fun `custom sky gradient in day phase preserves middle color for three-stop mode`() {
+		val custom = CustomSkyGradient(
+			startColor = 0xFF102030.toInt(),
+			middleColor = 0xFF405060.toInt(),
+			endColor = 0xFF708090.toInt(),
+			threeColors = true,
+			startPosition = 0.05f,
+			middlePosition = 0.45f,
+			endPosition = 0.95f,
+			direction = SkyGradientDirection.DIAGONAL
+		)
+		val params = clearParams(DayPhase.DAY).copy(
+			skyColorPreset = SkyColorPreset.CUSTOM,
+			customSkyGradient = custom
+		)
+		val result = skyGradientFor(params)
+
+		assertEquals(0xFF102030.toInt(), result.topColor)
+		assertEquals(0xFF405060.toInt(), result.middleColor)
+		assertEquals(0xFF708090.toInt(), result.bottomColor)
+		assertEquals(0.05f, result.startPosition, 0.0001f)
+		assertEquals(0.45f, result.middlePosition, 0.0001f)
+		assertEquals(0.95f, result.endPosition, 0.0001f)
+		assertEquals(SkyGradientDirection.DIAGONAL, result.direction)
+	}
+
+	@Test
+	fun `custom sky gradient at dawn blends natural dawn toward custom daylight`() {
+		val custom = CustomSkyGradient(
+			startColor = 0xFF00AAFF.toInt(),
+			middleColor = 0xFF88EEFF.toInt(),
+			endColor = 0xFFFFFFFF.toInt(),
+			threeColors = true,
+			middlePosition = 0.4f
+		)
+		val dawnStartParams = clearParams(DayPhase.DAWN).copy(
+			skyColorPreset = SkyColorPreset.CUSTOM,
+			customSkyGradient = custom,
+			celestialProgress = 0f
+		)
+		val naturalDawnParams = clearParams(DayPhase.DAWN).copy(
+			skyColorPreset = SkyColorPreset.NATURAL,
+			celestialProgress = 0f
+		)
+		val atDawnStart = skyGradientFor(dawnStartParams)
+		val naturalDawn = skyGradientFor(naturalDawnParams)
+
+		assertEquals(naturalDawn.topColor, atDawnStart.topColor)
+		assertEquals(naturalDawn.bottomColor, atDawnStart.bottomColor)
+
+		val dawnEndParams = clearParams(DayPhase.DAWN).copy(
+			skyColorPreset = SkyColorPreset.CUSTOM,
+			customSkyGradient = custom,
+			celestialProgress = 1f
+		)
+		val atDawnEnd = skyGradientFor(dawnEndParams)
+
+		assertEquals(custom.startColor, atDawnEnd.topColor)
+		assertEquals(custom.middleColor, atDawnEnd.middleColor)
+		assertEquals(custom.endColor, atDawnEnd.bottomColor)
+
+		val midDawnParams = clearParams(DayPhase.DAWN).copy(
+			skyColorPreset = SkyColorPreset.CUSTOM,
+			customSkyGradient = custom,
+			celestialProgress = 0.7f
+		)
+		val midDawn = skyGradientFor(midDawnParams)
+
+		assertTrue(channelDistance(midDawn.topColor, naturalDawn.topColor) > 0)
+		assertTrue(channelDistance(midDawn.topColor, custom.startColor) > 0)
+	}
+
+	@Test
+	fun `custom sky gradient at dusk transitions from custom day through natural dusk to natural night`() {
+		val custom = CustomSkyGradient(
+			startColor = 0xFF224488.toInt(),
+			middleColor = 0xFF6688CC.toInt(),
+			endColor = 0xFFAACCFF.toInt(),
+			threeColors = true,
+			middlePosition = 0.5f
+		)
+		val duskStartParams = clearParams(DayPhase.DUSK).copy(
+			skyColorPreset = SkyColorPreset.CUSTOM,
+			customSkyGradient = custom,
+			celestialProgress = 0f
+		)
+		val atDuskStart = skyGradientFor(duskStartParams)
+
+		assertEquals(custom.startColor, atDuskStart.topColor)
+		assertEquals(custom.middleColor, atDuskStart.middleColor)
+		assertEquals(custom.endColor, atDuskStart.bottomColor)
+
+		val duskMidParams = clearParams(DayPhase.DUSK).copy(
+			skyColorPreset = SkyColorPreset.CUSTOM,
+			customSkyGradient = custom,
+			celestialProgress = 0.5f
+		)
+		val naturalDuskParams = clearParams(DayPhase.DUSK).copy(
+			skyColorPreset = SkyColorPreset.NATURAL,
+			celestialProgress = 0.5f
+		)
+		val atDuskMid = skyGradientFor(duskMidParams)
+		val naturalDusk = skyGradientFor(naturalDuskParams)
+
+		assertEquals(naturalDusk.topColor, atDuskMid.topColor)
+		assertEquals(naturalDusk.bottomColor, atDuskMid.bottomColor)
+
+		val duskEndParams = clearParams(DayPhase.DUSK).copy(
+			skyColorPreset = SkyColorPreset.CUSTOM,
+			customSkyGradient = custom,
+			celestialProgress = 1f
+		)
+		val naturalNightParams = clearParams(DayPhase.NIGHT).copy(
+			skyColorPreset = SkyColorPreset.NATURAL
+		)
+		val atDuskEnd = skyGradientFor(duskEndParams)
+		val naturalNight = skyGradientFor(naturalNightParams)
+
+		assertEquals(naturalNight.topColor, atDuskEnd.topColor)
+		assertEquals(naturalNight.bottomColor, atDuskEnd.bottomColor)
+	}
+
+	@Test
+	fun `custom sky gradient at night uses natural night colors avoiding blue midnight`() {
+		val custom = CustomSkyGradient(
+			startColor = 0xFF00FF00.toInt(),
+			middleColor = 0xFFFFFF00.toInt(),
+			endColor = 0xFFFF0000.toInt(),
+			threeColors = true,
+			middlePosition = 0.6f
+		)
+		val customNight = skyGradientFor(
+			clearParams(DayPhase.NIGHT).copy(
+				skyColorPreset = SkyColorPreset.CUSTOM,
+				customSkyGradient = custom
+			)
+		)
+		val naturalNight = skyGradientFor(
+			clearParams(DayPhase.NIGHT).copy(
+				skyColorPreset = SkyColorPreset.NATURAL
+			)
+		)
+
+		assertEquals("Night top should match Natural night", naturalNight.topColor, customNight.topColor)
+		assertEquals("Night bottom should match Natural night", naturalNight.bottomColor, customNight.bottomColor)
+	}
+
+	@Test
+	fun `custom sky gradient full overcast converges all stops to weather gray`() {
+		val custom = CustomSkyGradient(
+			startColor = 0xFF001155.toInt(),
+			middleColor = 0xFF882200.toInt(),
+			endColor = 0xFFEEFF00.toInt(),
+			threeColors = true,
+			middlePosition = 0.4f
+		)
+		val overcast = skyGradientFor(
+			clearParams(DayPhase.DAY).copy(
+				skyColorPreset = SkyColorPreset.CUSTOM,
+				customSkyGradient = custom,
+				cloudiness = 0.85f
+			)
+		)
+
+		assertEquals("top and bottom must converge on full overcast", overcast.topColor, overcast.bottomColor)
+		assertEquals("middle must converge to the same gray", overcast.topColor, overcast.middleColor)
+	}
+
+	@Test
+	fun `custom geometry yields to the complete natural gradient without daylight influence`() {
+		for (direction in listOf(SkyGradientDirection.HORIZONTAL, SkyGradientDirection.DIAGONAL)) {
+			for (threeColors in listOf(false, true)) {
+				val custom = CustomSkyGradient(
+					startColor = 0xFFFF2200.toInt(),
+					middleColor = 0xFF00FF88.toInt(),
+					endColor = 0xFF2244FF.toInt(),
+					threeColors = threeColors,
+					startPosition = 0.2f,
+					middlePosition = 0.4f,
+					endPosition = 0.8f,
+					direction = direction
+				)
+
+				for ((phase, progress) in listOf(DayPhase.NIGHT to 0.5f, DayPhase.DAWN to 0f, DayPhase.DAWN to 0.5f, DayPhase.DUSK to 0.5f, DayPhase.DUSK to 1f)) {
+					val natural = clearParams(phase).copy(celestialProgress = progress)
+					val selected = natural.copy(skyColorPreset = SkyColorPreset.CUSTOM, customSkyGradient = custom)
+					assertEquals("$phase at $progress with $direction and threeColors=$threeColors", skyGradientFor(natural), skyGradientFor(selected))
+				}
+			}
+		}
+	}
+
+	@Test
+	fun `custom daylight strength follows smooth activation ramps`() {
+		assertEquals(1f, customDaylightStrength(DayPhase.DAY, 0.5f), 0.0001f)
+		assertEquals(0f, customDaylightStrength(DayPhase.NIGHT, 0.5f), 0.0001f)
+
+		assertEquals(0f, customDaylightStrength(DayPhase.DAWN, 0.25f), 0.0001f)
+		assertEquals(0f, customDaylightStrength(DayPhase.DAWN, 0.5f), 0.0001f)
+		val midDawn = customDaylightStrength(DayPhase.DAWN, 0.675f)
+		assertTrue("mid-dawn daylight strength should be between 0 and 1", midDawn > 0f && midDawn < 1f)
+		assertEquals(1f, customDaylightStrength(DayPhase.DAWN, 0.85f), 0.0001f)
+		assertEquals(1f, customDaylightStrength(DayPhase.DAWN, 1f), 0.0001f)
+
+		assertEquals(1f, customDaylightStrength(DayPhase.DUSK, 0f), 0.0001f)
+		assertEquals(1f, customDaylightStrength(DayPhase.DUSK, 0.15f), 0.0001f)
+		val midDusk = customDaylightStrength(DayPhase.DUSK, 0.325f)
+		assertTrue("mid-dusk daylight strength should be between 0 and 1", midDusk > 0f && midDusk < 1f)
+		assertEquals(0f, customDaylightStrength(DayPhase.DUSK, 0.5f), 0.0001f)
+		assertEquals(0f, customDaylightStrength(DayPhase.DUSK, 1f), 0.0001f)
+	}
+
+	@Test
+	fun `custom sky gradient at zero daylight matches natural gradient under overcast and storm`() {
+		val custom = CustomSkyGradient(
+			startColor = 0xFFFF0055.toInt(),
+			middleColor = 0xFF55FF00.toInt(),
+			endColor = 0xFF0055FF.toInt(),
+			threeColors = true,
+			startPosition = 0.15f,
+			middlePosition = 0.35f,
+			endPosition = 0.85f,
+			direction = SkyGradientDirection.DIAGONAL
+		)
+
+		for ((phase, progress) in listOf(DayPhase.NIGHT to 0.5f, DayPhase.DAWN to 0.25f, DayPhase.DUSK to 0.75f)) {
+			val natural = clearParams(phase).copy(celestialProgress = progress, cloudiness = 0.9f, thunder = true)
+			val selected = natural.copy(skyColorPreset = SkyColorPreset.CUSTOM, customSkyGradient = custom)
+			assertEquals("$phase at $progress under storm", skyGradientFor(natural), skyGradientFor(selected))
+		}
+	}
+
+	@Test
+	fun `custom sky gradient during daylight transition carries custom direction and positions`() {
+		val customHorizontal = CustomSkyGradient(
+			startColor = 0xFF112233.toInt(),
+			middleColor = 0xFF445566.toInt(),
+			endColor = 0xFF778899.toInt(),
+			threeColors = true,
+			startPosition = 0.1f,
+			middlePosition = 0.4f,
+			endPosition = 0.9f,
+			direction = SkyGradientDirection.HORIZONTAL
+		)
+		val dawnParams = clearParams(DayPhase.DAWN).copy(
+			skyColorPreset = SkyColorPreset.CUSTOM,
+			customSkyGradient = customHorizontal,
+			celestialProgress = 0.7f
+		)
+		val dawnGradient = skyGradientFor(dawnParams)
+
+		assertEquals(SkyGradientDirection.HORIZONTAL, dawnGradient.direction)
+		assertEquals(0.1f, dawnGradient.startPosition, 0.0001f)
+		assertEquals(0.4f, dawnGradient.middlePosition, 0.0001f)
+		assertEquals(0.9f, dawnGradient.endPosition, 0.0001f)
+		assertNotNull(dawnGradient.middleColor)
+
+		val customDiagonal = CustomSkyGradient(
+			startColor = 0xFFAABBCC.toInt(),
+			middleColor = 0xFFCCDDEE.toInt(),
+			endColor = 0xFFEEFFFF.toInt(),
+			threeColors = true,
+			startPosition = 0.2f,
+			middlePosition = 0.6f,
+			endPosition = 0.8f,
+			direction = SkyGradientDirection.DIAGONAL
+		)
+		val duskParams = clearParams(DayPhase.DUSK).copy(
+			skyColorPreset = SkyColorPreset.CUSTOM,
+			customSkyGradient = customDiagonal,
+			celestialProgress = 0.3f
+		)
+		val duskGradient = skyGradientFor(duskParams)
+
+		assertEquals(SkyGradientDirection.DIAGONAL, duskGradient.direction)
+		assertEquals(0.2f, duskGradient.startPosition, 0.0001f)
+		assertEquals(0.6f, duskGradient.middlePosition, 0.0001f)
+		assertEquals(0.8f, duskGradient.endPosition, 0.0001f)
+		assertNotNull(duskGradient.middleColor)
+	}
+
+	@Test
+	fun `custom daylight overlay keeps twilight weather gray instead of daytime gray`() {
+		for ((phase, progress) in listOf(DayPhase.DAWN to 0.7f, DayPhase.DUSK to 0.3f)) {
+			val params = clearParams(phase).copy(
+				skyColorPreset = SkyColorPreset.CUSTOM,
+				customSkyGradient = CustomSkyGradient(threeColors = true),
+				celestialProgress = progress,
+				cloudiness = 0.85f,
+				thunder = true,
+				skyBrightnessScale = 1.2f
+			)
+			val natural = naturalSkyGradientFor(params)
+			val custom = customDaylightSkyGradientFor(params)
+
+			assertEquals("$phase start must use current weather lighting", natural.topColor, custom.topColor)
+			assertEquals("$phase middle must use current weather lighting", natural.topColor, custom.middleColor)
+			assertEquals("$phase end must use current weather lighting", natural.bottomColor, custom.bottomColor)
+		}
 	}
 
 	private fun clearParams(dayPhase: DayPhase) = SceneParams(

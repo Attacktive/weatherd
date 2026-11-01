@@ -5,3 +5,7 @@ complexity:
     threshold: 150
     ignoreAnnotated:
       - 'Composable'
+  CyclomaticComplexMethod:
+    active: true
+    threshold: 30
+    ignoreSingleWhenExpression: true

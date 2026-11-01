@@ -5,3 +5,7 @@ complexity:
     allowedLines: 150
     ignoreAnnotated:
       - 'Composable'
+  CyclomaticComplexMethod:
+    active: true
+    allowedComplexity: 30
+    ignoreSingleWhenExpression: true

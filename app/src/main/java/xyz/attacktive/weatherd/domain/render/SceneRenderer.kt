@@ -41,6 +41,8 @@ import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 import xyz.attacktive.weatherd.domain.model.SKY_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.SkyColorPreset
+import xyz.attacktive.weatherd.domain.model.SkyGradientDirection
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.SunbeamMode
@@ -153,6 +155,8 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 	private var cloudGrade = CloudColorGrade.IDENTITY
 	private var previousGradePhase: DayPhase? = null
 	private var previousGradeProgress: Float = -1f
+	private var cachedPaletteParams: SceneParams? = null
+	private var cachedSkyGradient: SkyGradient? = null
 
 	/*
 	 * The clear-sky placement profiles, ordered from fewest masses to most.
@@ -503,31 +507,34 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 			return
 		}
 
-		val gradient = skyGradientFor(params)
+		val gradient = cachedSkyGradient(params)
 		val twilightWarmth = twilightWarmthStrength(params.dayPhase, params.celestialProgress)
 		paint.style = Paint.Style.FILL
-		paint.shader = if ((params.dayPhase == DayPhase.DAWN || params.dayPhase == DayPhase.DUSK) && twilightWarmth > 0f) {
-			val middleBlend = lerp(
-				TWILIGHT_SKY_COLOR_MIDDLE_STOP,
-				TWILIGHT_SKY_COLOR_MIDDLE_BLEND,
-				twilightWarmth
-			)
-			val middleColor = lerpColor(gradient.topColor, gradient.bottomColor, middleBlend)
 
-			LinearGradient(
-				0f,
-				0f,
-				0f,
-				height,
-				intArrayOf(gradient.topColor, middleColor, gradient.bottomColor),
-				floatArrayOf(0f, TWILIGHT_SKY_COLOR_MIDDLE_STOP, 1f),
-				Shader.TileMode.CLAMP
-			)
+		if (params.skyColorPreset == SkyColorPreset.CUSTOM) {
+			val daylight = customDaylightStrength(params.dayPhase, params.celestialProgress)
+			if (daylight <= 0f) {
+				paint.shader = createNaturalSkyShader(height, gradient, params.dayPhase, twilightWarmth)
+				canvas.drawRect(0f, 0f, width, height, paint)
+			} else if (daylight >= 1f) {
+				paint.shader = createCustomSkyShader(width, height, gradient)
+				canvas.drawRect(0f, 0f, width, height, paint)
+			} else {
+				val naturalGradient = naturalSkyGradientFor(params)
+				paint.shader = createNaturalSkyShader(height, naturalGradient, params.dayPhase, twilightWarmth)
+				canvas.drawRect(0f, 0f, width, height, paint)
+
+				val customDayGradient = customDaylightSkyGradientFor(params)
+				paint.alpha = (255f * daylight).roundToInt().coerceIn(0, 255)
+				paint.shader = createCustomSkyShader(width, height, customDayGradient)
+				canvas.drawRect(0f, 0f, width, height, paint)
+				paint.alpha = 255
+			}
 		} else {
-			LinearGradient(0f, 0f, 0f, height, gradient.topColor, gradient.bottomColor, Shader.TileMode.CLAMP)
+			paint.shader = createNaturalSkyShader(height, gradient, params.dayPhase, twilightWarmth)
+			canvas.drawRect(0f, 0f, width, height, paint)
 		}
 
-		canvas.drawRect(0f, 0f, width, height, paint)
 		paint.shader = null
 
 		// Twilight concentrates warm light around the low sun while preserving a cooler upper sky, with a softer spill along the horizon.
@@ -558,6 +565,96 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		}
 	}
 
+	private fun createNaturalSkyShader(
+		height: Float,
+		gradient: SkyGradient,
+		dayPhase: DayPhase,
+		twilightWarmth: Float
+	) = if ((dayPhase == DayPhase.DAWN || dayPhase == DayPhase.DUSK) && twilightWarmth > 0f) {
+		val middleBlend = lerp(
+			TWILIGHT_SKY_COLOR_MIDDLE_STOP,
+			TWILIGHT_SKY_COLOR_MIDDLE_BLEND,
+			twilightWarmth
+		)
+
+		val middleColor = lerpColor(gradient.topColor, gradient.bottomColor, middleBlend)
+
+		LinearGradient(
+			0f,
+			0f,
+			0f,
+			height,
+			intArrayOf(gradient.topColor, middleColor, gradient.bottomColor),
+			floatArrayOf(0f, TWILIGHT_SKY_COLOR_MIDDLE_STOP, 1f),
+			Shader.TileMode.CLAMP
+		)
+	} else {
+		LinearGradient(0f, 0f, 0f, height, gradient.topColor, gradient.bottomColor, Shader.TileMode.CLAMP)
+	}
+
+	private fun createCustomSkyShader(width: Float, height: Float, gradient: SkyGradient): Shader {
+		val x1 = when (gradient.direction) {
+			SkyGradientDirection.VERTICAL -> 0f
+			SkyGradientDirection.HORIZONTAL, SkyGradientDirection.DIAGONAL -> width
+		}
+		val y1 = when (gradient.direction) {
+			SkyGradientDirection.HORIZONTAL -> 0f
+			SkyGradientDirection.VERTICAL, SkyGradientDirection.DIAGONAL -> height
+		}
+
+		val middleColor = gradient.middleColor
+		return if (middleColor != null) {
+			val colors = intArrayOf(gradient.topColor, middleColor, gradient.bottomColor)
+			val positions = floatArrayOf(gradient.startPosition, gradient.middlePosition, gradient.endPosition)
+			LinearGradient(0f, 0f, x1, y1, colors, positions, Shader.TileMode.CLAMP)
+		} else {
+			val colors = intArrayOf(gradient.topColor, gradient.bottomColor)
+			val positions = floatArrayOf(gradient.startPosition, gradient.endPosition)
+			LinearGradient(0f, 0f, x1, y1, colors, positions, Shader.TileMode.CLAMP)
+		}
+	}
+
+	internal fun cachedSkyGradient(params: SceneParams): SkyGradient {
+		val cached = cachedSkyGradient
+		val previous = cachedPaletteParams
+		if (cached != null && previous != null && isPaletteEquivalent(previous, params)) {
+			return cached
+		}
+
+		val fresh = skyGradientFor(params)
+		cachedPaletteParams = params
+		cachedSkyGradient = fresh
+		return fresh
+	}
+
+	private fun isPaletteEquivalent(a: SceneParams, b: SceneParams): Boolean {
+		if (a === b) {
+			return true
+		}
+
+		if (a.dayPhase != b.dayPhase ||
+			a.skyColorPreset != b.skyColorPreset ||
+			a.celestialProgress != b.celestialProgress ||
+			a.skyBrightnessScale != b.skyBrightnessScale ||
+			a.skySaturationScale != b.skySaturationScale ||
+			a.cloudiness != b.cloudiness ||
+			a.cloudCountScale != b.cloudCountScale ||
+			a.fogDensity != b.fogDensity ||
+			a.humidityHazeDensity != b.humidityHazeDensity ||
+			a.thunder != b.thunder ||
+			a.cloudLayers != b.cloudLayers ||
+			a.precipitation != b.precipitation
+		) {
+			return false
+		}
+
+		return if (a.skyColorPreset == SkyColorPreset.CUSTOM) {
+			a.customSkyGradient == b.customSkyGradient
+		} else {
+			true
+		}
+	}
+
 	/**
 	 * The user's chosen horizon silhouettes: two depth planes tinted from the current sky's bottom color, so storm gloom, snow milkiness, and night all carry onto them for free.
 	 * Geometry and fauna anchors rebuild only when the scene or the surface size changes; every frame after that is a handful of cached path fills, optional mist/gulls/sails, and a few cheap accents.
@@ -567,7 +664,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 			return
 		}
 
-		val skyBottom = skyGradientFor(params).bottomColor
+		val skyBottom = cachedSkyGradient(params).bottomColor
 		val nearColor = sceneryPlaneTone(SceneryPlane.NEAR, skyBottom)
 
 		paint.style = Paint.Style.FILL
@@ -2103,7 +2200,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		grade: CloudColorGrade = cloudGradeFor(params)
 	) {
 		val isPortrait = width < height
-		val tint = lerpColor(cumulusTint(params.dayPhase, params.celestialProgress), skyGradientFor(params).topColor, CUMULUS_FAR_HAZE)
+		val tint = lerpColor(cumulusTint(params.dayPhase, params.celestialProgress), cachedSkyGradient(params).topColor, CUMULUS_FAR_HAZE)
 		val farCoverage = coverage * coverage
 		val alpha = ((CUMULUS_FAR_MIN_ALPHA + CUMULUS_FAR_ALPHA_RANGE * farCoverage) * params.cloudScale).roundToInt().coerceIn(0, 255)
 		val drop = if (isPortrait) {
@@ -2146,7 +2243,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		val drift = surge * (0.6f * sin(timeSeconds * 0.19f) + 0.4f * sin(timeSeconds * 0.47f))
 		val offset = wrapOffset(timeSeconds * width * (0.0045f + params.windFactor * 0.009f) * params.windScale + drift * 0.60f - width * PARTLY_BANK_PHASE, period)
 		val bankHeight = overcastBankHeight(width, height, PARTLY_BANK_VIEWPORTS, PARTLY_BANK_HEIGHT_SCALE)
-		val tint = lerpColor(cumulusTint(params.dayPhase, params.celestialProgress), skyGradientFor(params).topColor, PARTLY_BANK_HAZE)
+		val tint = lerpColor(cumulusTint(params.dayPhase, params.celestialProgress), cachedSkyGradient(params).topColor, PARTLY_BANK_HAZE)
 		val alpha = (255f * PARTLY_BANK_ALPHA * weight * params.cloudScale).roundToInt().coerceIn(0, 255)
 
 		heroOvercastBank.draw(

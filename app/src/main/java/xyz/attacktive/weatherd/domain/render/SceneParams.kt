@@ -2,6 +2,7 @@ package xyz.attacktive.weatherd.domain.render
 
 import kotlin.math.pow
 import xyz.attacktive.weatherd.domain.model.BackdropScene
+import xyz.attacktive.weatherd.domain.model.CustomSkyGradient
 import xyz.attacktive.weatherd.domain.model.BirdAppearanceInterval
 import xyz.attacktive.weatherd.domain.model.BirdFlockSize
 import xyz.attacktive.weatherd.domain.model.HolidayCelebration
@@ -34,6 +35,8 @@ import xyz.attacktive.weatherd.domain.weather.precipitationIntensity
 import xyz.attacktive.weatherd.domain.model.normalizeReadabilityStrength
 import xyz.attacktive.weatherd.domain.model.DEFAULT_SUN_HORIZONTAL_POSITION
 import xyz.attacktive.weatherd.domain.model.normalizeSunHorizontalPosition
+
+private val DEFAULT_CUSTOM_SKY_GRADIENT = CustomSkyGradient()
 
 /**
  * Everything the renderer needs, as orthogonal features rather than a scene taxonomy: lighting phase, continuous cloud cover, fog, what precipitates (if anything), lightning, wind, and the day-quantized synodic moon phase (0 = new, 0.5 = full — the default keeps previews and fallbacks on a full moon).
@@ -85,6 +88,7 @@ data class SceneParams(
 	val nightBrightnessScale: Float = 1f,
 	val skySaturationScale: Float = 1f,
 	val skyColorPreset: SkyColorPreset = SkyColorPreset.NATURAL,
+	val customSkyGradient: CustomSkyGradient = CustomSkyGradient(),
 	val moonPhase: Float = 0.5f,
 	val celestialProgress: Float = 0.5f,
 	val backdropScene: BackdropScene = BackdropScene.NONE,
@@ -142,10 +146,17 @@ fun backdropSignature(params: SceneParams, backgroundPhotoAvailable: Boolean = f
 		DEFAULT_SUN_HORIZONTAL_POSITION
 	}
 
+	val backdropCustomSkyGradient = if (params.skyColorPreset == SkyColorPreset.CUSTOM) {
+		params.customSkyGradient.normalized()
+	} else {
+		DEFAULT_CUSTOM_SKY_GRADIENT
+	}
+
 	return params.copy(
 		moonPhase = 0f,
 		celestialProgress = backdropCelestialProgress,
 		sunHorizontalPosition = backdropSunHorizontalPosition,
+		customSkyGradient = backdropCustomSkyGradient,
 		overlayLabels = null,
 		weatherNotice = null,
 		labelVerticalPosition = DEFAULT_LABEL_VERTICAL_POSITION,
@@ -247,6 +258,7 @@ fun sceneParamsFor(
 	nightBrightnessScale: Float = 1f,
 	skySaturationScale: Float = 1f,
 	skyColorPreset: SkyColorPreset = SkyColorPreset.NATURAL,
+	customSkyGradient: CustomSkyGradient = CustomSkyGradient(),
 	sunVisible: Boolean = true,
 	moonVisible: Boolean = true,
 	sunSizeScale: Float = 1f,
@@ -316,6 +328,7 @@ fun sceneParamsFor(
 		nightBrightnessScale = nightBrightnessScale.coerceIn(NIGHT_BRIGHTNESS_SCALE_RANGE.start, NIGHT_BRIGHTNESS_SCALE_RANGE.endInclusive),
 		skySaturationScale = skySaturationScale.coerceIn(SKY_SATURATION_SCALE_RANGE.start, SKY_SATURATION_SCALE_RANGE.endInclusive),
 		skyColorPreset = skyColorPreset,
+		customSkyGradient = customSkyGradient.normalized(),
 		sunVisible = sunVisible,
 		moonVisible = moonVisible,
 		sunSizeScale = sunSizeScale.coerceIn(SUN_SIZE_SCALE_RANGE.start, SUN_SIZE_SCALE_RANGE.endInclusive),

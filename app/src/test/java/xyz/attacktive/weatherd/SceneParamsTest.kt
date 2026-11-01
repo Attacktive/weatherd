@@ -8,6 +8,8 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import xyz.attacktive.weatherd.domain.model.BackdropScene
+import xyz.attacktive.weatherd.domain.model.CustomSkyGradient
+import xyz.attacktive.weatherd.domain.model.SkyGradientDirection
 import xyz.attacktive.weatherd.domain.model.CloudCover
 import xyz.attacktive.weatherd.domain.model.CloudLayers
 import xyz.attacktive.weatherd.domain.model.DayPhase
@@ -661,6 +663,95 @@ class SceneParamsTest {
 		for ((field, mutated) in changed) {
 			assertNotEquals("a changed $field must invalidate the backdrop", backdropSignature(params), backdropSignature(mutated))
 		}
+	}
+
+	@Test
+	fun `backdropSignature preserves normalized customSkyGradient when preset is CUSTOM`() {
+		val custom = CustomSkyGradient(
+			startColor = 0xFF123456.toInt(),
+			endColor = 0xFF654321.toInt(),
+			startPosition = -0.5f,
+			endPosition = 1.5f,
+			direction = SkyGradientDirection.HORIZONTAL
+		)
+		val params = fullyPopulatedParams().copy(
+			skyColorPreset = SkyColorPreset.CUSTOM,
+			customSkyGradient = custom
+		)
+		val signature = backdropSignature(params)
+
+		assertEquals(custom.normalized(), signature.customSkyGradient)
+	}
+
+	@Test
+	fun `backdropSignature resets customSkyGradient to default when preset is not CUSTOM`() {
+		val custom = CustomSkyGradient(
+			startColor = 0xFF123456.toInt(),
+			endColor = 0xFF654321.toInt()
+		)
+		val params = fullyPopulatedParams().copy(
+			skyColorPreset = SkyColorPreset.NATURAL,
+			customSkyGradient = custom
+		)
+		val signature = backdropSignature(params)
+
+		assertEquals(CustomSkyGradient(), signature.customSkyGradient)
+	}
+
+	@Test
+	fun `backdropSignature invalidates cache when customSkyGradient changes under CUSTOM preset`() {
+		val custom1 = CustomSkyGradient(
+			startColor = 0xFF111111.toInt(),
+			endColor = 0xFF222222.toInt()
+		)
+		val custom2 = CustomSkyGradient(
+			startColor = 0xFF333333.toInt(),
+			endColor = 0xFF444444.toInt()
+		)
+		val base = fullyPopulatedParams().copy(skyColorPreset = SkyColorPreset.CUSTOM)
+		val sig1 = backdropSignature(base.copy(customSkyGradient = custom1))
+		val sig2 = backdropSignature(base.copy(customSkyGradient = custom2))
+
+		assertNotEquals(sig1, sig2)
+	}
+
+	@Test
+	fun `backdropSignature ignores customSkyGradient changes under built in presets`() {
+		val custom1 = CustomSkyGradient(
+			startColor = 0xFF111111.toInt(),
+			endColor = 0xFF222222.toInt()
+		)
+		val custom2 = CustomSkyGradient(
+			startColor = 0xFF333333.toInt(),
+			endColor = 0xFF444444.toInt()
+		)
+		val base = fullyPopulatedParams().copy(skyColorPreset = SkyColorPreset.NATURAL)
+		val sig1 = backdropSignature(base.copy(customSkyGradient = custom1))
+		val sig2 = backdropSignature(base.copy(customSkyGradient = custom2))
+
+		assertEquals(sig1, sig2)
+	}
+
+	@Test
+	fun `sceneParamsFor propagates normalized customSkyGradient`() {
+		val snapshot = snapshot(weatherCode = 0, precipitationMillimeters = 0.0, windSpeedKilometersPerHour = 5.0, cloudCoverPercent = 10)
+		val custom = CustomSkyGradient(
+			startColor = 0xFF112233.toInt(),
+			middleColor = 0xFF445566.toInt(),
+			endColor = 0xFF778899.toInt(),
+			threeColors = true,
+			startPosition = -0.2f,
+			middlePosition = 0.5f,
+			endPosition = 1.4f
+		)
+		val params = sceneParamsFor(
+			snapshot = snapshot,
+			nowEpochSeconds = NOW,
+			skyColorPreset = SkyColorPreset.CUSTOM,
+			customSkyGradient = custom
+		)
+
+		assertEquals(custom.normalized(), params.customSkyGradient)
 	}
 
 	/** A scene with every field at a distinctive value, so a signature that dropped one would show up as an equality that should not hold. */

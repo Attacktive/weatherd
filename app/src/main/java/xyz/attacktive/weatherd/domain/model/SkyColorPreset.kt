@@ -5,7 +5,8 @@ enum class SkyColorPreset {
 	WARM,
 	PASTEL,
 	CYBERPUNK,
-	CLEAR_BLUE;
+	CLEAR_BLUE,
+	CUSTOM;
 
 	companion object {
 		fun fromName(value: String?) = entries.firstOrNull { it.name == value } ?: NATURAL

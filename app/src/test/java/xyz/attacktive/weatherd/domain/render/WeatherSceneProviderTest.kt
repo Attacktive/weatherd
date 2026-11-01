@@ -28,6 +28,8 @@ import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.BirdAppearanceInterval
 import xyz.attacktive.weatherd.domain.model.BirdFlockSize
+import xyz.attacktive.weatherd.domain.model.CustomSkyGradient
+import xyz.attacktive.weatherd.domain.model.SkyGradientDirection
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.HolidayCelebration
 import xyz.attacktive.weatherd.domain.model.GeoLocation
@@ -1657,6 +1659,70 @@ class WeatherSceneProviderTest {
 		val params = provider.paramsFor(1_000_000L)
 
 		assertEquals(0.35f, params.sunHorizontalPosition, 0.0001f)
+	}
+
+	@Test
+	fun `custom sky gradient reaches live scene params from app settings`() = runTest {
+		val custom = CustomSkyGradient(
+			startColor = 0xFF123456.toInt(),
+			middleColor = 0xFF789ABC.toInt(),
+			endColor = 0xFFDEF012.toInt(),
+			threeColors = true,
+			startPosition = 0.1f,
+			middlePosition = 0.5f,
+			endPosition = 0.9f,
+			direction = SkyGradientDirection.HORIZONTAL
+		)
+		persistedSettings.value = AppSettings(
+			useDeviceLocation = true,
+			skyColorPreset = SkyColorPreset.CUSTOM,
+			customSkyGradient = custom
+		)
+		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
+		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 0))
+		provider.refresh(1_000_000L)
+
+		val params = provider.paramsFor(1_000_000L)
+		assertEquals(custom, params.customSkyGradient)
+		assertEquals(SkyColorPreset.CUSTOM, params.skyColorPreset)
+	}
+
+	@Test
+	fun `custom sky gradient reaches simulated scene params from app settings`() = runTest {
+		val custom = CustomSkyGradient(
+			startColor = 0xFF112233.toInt(),
+			endColor = 0xFF445566.toInt(),
+			direction = SkyGradientDirection.DIAGONAL
+		)
+		persistedSettings.value = AppSettings(
+			sceneSimulatorEnabled = true,
+			sceneSimulatorActive = true,
+			skyColorPreset = SkyColorPreset.CUSTOM,
+			customSkyGradient = custom
+		)
+
+		val params = provider.paramsFor(1_000_000L)
+		assertEquals(custom, params.customSkyGradient)
+		assertEquals(SkyColorPreset.CUSTOM, params.skyColorPreset)
+	}
+
+	@Test
+	fun `custom sky gradient reaches fallback scene params from app settings`() = runTest {
+		val custom = CustomSkyGradient(
+			startColor = 0xFF223344.toInt(),
+			endColor = 0xFF556677.toInt()
+		)
+		persistedSettings.value = AppSettings(
+			useDeviceLocation = false,
+			manualLatitude = null,
+			manualLongitude = null,
+			skyColorPreset = SkyColorPreset.CUSTOM,
+			customSkyGradient = custom
+		)
+
+		val params = provider.paramsFor(1_000_000L)
+		assertEquals(custom, params.customSkyGradient)
+		assertEquals(SkyColorPreset.CUSTOM, params.skyColorPreset)
 	}
 
 	private suspend fun assertSettingsLocationStatus(settings: AppSettings) {

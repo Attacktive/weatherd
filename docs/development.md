@@ -10,6 +10,8 @@ Run commands from the repository root.
 
 Run the pull-request checks with `./gradlew test :app:lint :app:detekt`.
 Local Gradle uses Detekt 2.x with `detekt.yaml`; Codacy uses Detekt 1.x with `detekt.yml`. Keep their LongMethod limits aligned at 150 lines and retain the Composable exemption; the separate files preserve config validation despite incompatible option names.
+Keep CyclomaticComplexMethod configured at 30 in both versions (`allowedComplexity` locally, `threshold` in Codacy), with `ignoreSingleWhenExpression: true` for exhaustive palette and settings dispatch tables; retain cohesive rendering passes rather than fragmenting them solely to satisfy a metric.
+Codacy's separate Lizard complexity findings are not controlled by these Detekt configuration files.
 The existing CI Test gate builds the debug app and instrumentation APKs alongside unit tests, lint, and Detekt while the emulator starts; instrumentation remains required after that gate succeeds.
 Ordinary connected tests exclude the opt-in `ProviderEvaluationCaptureTest` and require exactly one device selected with `ANDROID_SERIAL`.
 Task-level `--serial` is rejected: the pinned AGP version mutates its immutable CLI-serial list when a device matches, throwing `UnsupportedOperationException`; environment-based selection avoids that broken path.
@@ -275,6 +277,44 @@ Simulator scenes never show live-weather warnings or enter the cache. Existing c
 Verification covers a changed device fix during a pending failed request, travel with original-place attribution, returning to a matching target after another target fails or lacks a fix, provider changes, recovery, offline repository/process recreation, malformed cache records, restart failure backoff, hidden normal labels, the warning toggle, simulator isolation, and Android rendering in both orientations.
 
 ## Rendering and Artwork
+
+### Scene-Parameter Wiring
+
+New render settings must follow the shared live/simulator/fallback wiring rules in [AGENTS.md](../AGENTS.md#scene-simulator-overrides-live-weather). For example:
+
+```kotlin
+// In SceneDebugPresets.kt
+fun debugSceneParams(
+	preset: ScenePreset,
+	dayPhase: DayPhase,
+	precipitationScale: Float = 1f,
+	windScale: Float = 1f,
+	cloudScale: Float = 1f
+) = SceneParams(
+	dayPhase = dayPhase,
+	cloudiness = preset.cloudiness,
+	fogDensity = preset.fogDensity,
+	precipitation = preset.precipitation,
+	thunder = preset.thunder,
+	windFactor = preset.windFactor,
+	precipitationScale = precipitationScale,
+	windScale = windScale,
+	cloudScale = cloudScale
+)
+```
+
+### Custom Sky Gradients
+
+**Settings → Appearance → Sky → Sky palette → Custom** adds a user-defined gradient alongside Natural, Warm, Pastel, Cyberpunk, and Clear Blue. Existing selections and defaults are unchanged. **Edit gradient** opens a full-screen editor with a raw-gradient preview; it does not simulate the current weather in that preview.
+
+Choose two or three opaque colors with RGB sliders or a six-digit RGB hex value, adjust ordered stop positions by dragging handles, sliders, or numeric percentage entry, and select vertical, horizontal, or top-left-to-bottom-right diagonal direction. Reverse colors swaps endpoint colors without moving the stops. Two-color mode retains the hidden middle color and position; enabling three colors fits that stop between the current endpoints.
+
+The editor owns a saveable draft. Picker confirmation updates only the draft, Reset restores only the draft's default gradient, and Cancel, toolbar Back, or system Back discards unapplied edits. Apply persists the complete gradient atomically through the ordinary settings-mutation path. Changing to a built-in palette hides the editor entry without erasing the last applied custom gradient.
+
+Selected colors define the clear daytime base before existing brightness and saturation tuning. Dawn blends Natural dawn into the custom gradient with the existing daylight ramp; dusk transitions from custom daylight through Natural dusk into Natural night. Weather grayness and storm darkening affect every active color stop. Night brightness, readability controls, and photo-background precedence remain independent. The full gradient stays in the shared scene parameters for live weather, simulator, and fallback; backdrop invalidation observes active gradient changes but ignores inactive custom edits under a built-in palette.
+When custom daylight influence is zero, use Natural's complete vertical gradient, including its stop geometry and twilight shaping, regardless of the saved custom direction or stop positions; fade complete gradients during the existing daylight/twilight ramps rather than snapping orientation at a phase boundary.
+
+Preferences store the gradient as one normalized JSON value. Appearance preset schema v19 stores its colors, positions, direction, and two/three-color mode even when a built-in palette is selected; v1–v18 remain readable with an inactive default gradient. Invalid or future preset banks remain unreadable rather than being silently rewritten. Shader arrays are built in the cached-backdrop path, and the renderer reuses its computed palette while palette inputs are unchanged.
 
 ### Cloud Formation Placement
 

@@ -8,6 +8,8 @@ import xyz.attacktive.weatherd.domain.model.BirdAppearanceInterval
 import xyz.attacktive.weatherd.domain.model.BirdFlockSize
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.HolidayCelebration
+import xyz.attacktive.weatherd.domain.model.CustomSkyGradient
+import xyz.attacktive.weatherd.domain.model.SkyGradientDirection
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
@@ -349,6 +351,30 @@ class SceneDebugPresetsTest {
 
 			assertEquals(DEFAULT_SUN_HORIZONTAL_POSITION, params.sunHorizontalPosition, 0.0001f)
 		}
+	}
+
+	@Test
+	fun `custom sky gradient propagates explicit configuration to debug scene params`() {
+		val preset = SCENE_PRESETS.first { it.name == "CLEAR" }
+		val custom = CustomSkyGradient(
+			startColor = 0xFF123456.toInt(),
+			middleColor = 0xFF654321.toInt(),
+			endColor = 0xFFABCDEF.toInt(),
+			threeColors = true,
+			startPosition = 0.1f,
+			middlePosition = 0.4f,
+			endPosition = 0.9f,
+			direction = SkyGradientDirection.DIAGONAL
+		)
+		val params = debugSceneParams(
+			preset = preset,
+			dayPhase = DayPhase.DAY,
+			skyColorPreset = SkyColorPreset.CUSTOM,
+			customSkyGradient = custom
+		)
+
+		assertEquals(custom, params.customSkyGradient)
+		assertEquals(SkyColorPreset.CUSTOM, params.skyColorPreset)
 	}
 
 }

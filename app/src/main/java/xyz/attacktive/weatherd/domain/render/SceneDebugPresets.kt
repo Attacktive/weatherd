@@ -21,6 +21,7 @@ import xyz.attacktive.weatherd.domain.model.normalizeRainbowSizeScale
 import xyz.attacktive.weatherd.domain.model.normalizeReadabilityStrength
 import xyz.attacktive.weatherd.domain.model.DEFAULT_SUN_HORIZONTAL_POSITION
 import xyz.attacktive.weatherd.domain.model.normalizeSunHorizontalPosition
+import xyz.attacktive.weatherd.domain.model.CustomSkyGradient
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
@@ -93,6 +94,7 @@ fun debugSceneParams(
 	nightBrightnessScale: Float = 1f,
 	skySaturationScale: Float = 1f,
 	skyColorPreset: SkyColorPreset = SkyColorPreset.NATURAL,
+	customSkyGradient: CustomSkyGradient = CustomSkyGradient(),
 	moonPhase: Float = 0.5f,
 	sunVisible: Boolean = true,
 	moonVisible: Boolean = true,
@@ -136,6 +138,7 @@ fun debugSceneParams(
 	nightBrightnessScale = nightBrightnessScale.coerceIn(NIGHT_BRIGHTNESS_SCALE_RANGE.start, NIGHT_BRIGHTNESS_SCALE_RANGE.endInclusive),
 	skySaturationScale = skySaturationScale.coerceIn(SKY_SATURATION_SCALE_RANGE.start, SKY_SATURATION_SCALE_RANGE.endInclusive),
 	skyColorPreset = skyColorPreset,
+	customSkyGradient = customSkyGradient,
 	moonPhase = moonPhase,
 	sunVisible = sunVisible,
 	moonVisible = moonVisible,
