@@ -138,17 +138,28 @@ def monitor(directory, serial):
 				logcat.wait()
 
 
-def phase_statistics(directory):
-	markers = {}
-	marker_errors = []
+def phase_plan(include_instrumentation):
 	phases = {
 		"Dependency/cache setup": ("setup-start", "setup-end"),
 		"Gradle static/build gate": ("static-start", "static-end"),
-		"Emulator provisioning/boot": ("emulator-start", "emulator-ready"),
-		"Wait for static/build after boot": ("emulator-ready", "instrumentation-start"),
-		"Connected Gradle invocation": ("instrumentation-start", "instrumentation-end"),
 	}
+	gates = ("static",)
 
+	if include_instrumentation:
+		phases.update({
+			"Emulator provisioning/boot": ("emulator-start", "emulator-ready"),
+			"Wait for static/build after boot": ("emulator-ready", "instrumentation-start"),
+			"Connected Gradle invocation": ("instrumentation-start", "instrumentation-end"),
+		})
+		gates = ("static", "instrumentation")
+
+	return phases, gates
+
+
+def phase_statistics(directory, include_instrumentation=True):
+	markers = {}
+	marker_errors = []
+	phases, gates = phase_plan(include_instrumentation)
 	for name in sorted({endpoint for bounds in phases.values() for endpoint in bounds}):
 		path = directory / f"{name}.json"
 		if not path.exists():
@@ -162,7 +173,7 @@ def phase_statistics(directory):
 	return {
 		"marker_errors": marker_errors,
 		"phases_seconds": {name: elapsed(markers, *bounds) for name, bounds in phases.items()},
-		"gradle": {gate: task_statistics(directory / f"{gate}.log") for gate in ("static", "instrumentation")},
+		"gradle": {gate: task_statistics(directory / f"{gate}.log") for gate in gates},
 	}
 
 
@@ -209,14 +220,20 @@ def android_markdown(tests):
 	return lines
 
 
-def report(directory, results):
-	summary = phase_statistics(directory)
-	tests = android_tests(results)
-	(directory / "android-test-timings.json").write_text(json.dumps(tests, indent=2) + "\n")
-	summary["android_tests"] = {key: value for key, value in tests.items() if key != "tests"}
+def report(directory, results, include_instrumentation=True):
+	summary = phase_statistics(directory, include_instrumentation=include_instrumentation)
+	summary["instrumentation_included"] = include_instrumentation
+	lines = phase_markdown(summary) + gradle_markdown(summary["gradle"])
+	if include_instrumentation:
+		tests = android_tests(results)
+		(directory / "android-test-timings.json").write_text(json.dumps(tests, indent=2) + "\n")
+		summary["android_tests"] = {key: value for key, value in tests.items() if key != "tests"}
+		lines.extend(android_markdown(tests))
+		lines.extend(["", "Artifacts retain Gradle logs/profiles, result XML, runner-tagged logcat, and 15-second numeric host/device samples. A probe timeout diagnoses ADB health only; it never limits the tests. Workflow/job wall time and post-action cache restore/save overhead come from the Actions job/step timestamps.", ""])
+	else:
+		lines.extend(["", "### Android instrumentation", "", "Not run in this workflow. Run the ordinary suite locally before opening a pull request; see AGENTS.md.", "", "Artifacts retain static Gradle logs/profiles, JVM test results, and the phase summary. The workflow does not collect emulator or Android instrumentation evidence.", ""])
+
 	(directory / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
-	lines = phase_markdown(summary) + gradle_markdown(summary["gradle"]) + android_markdown(tests)
-	lines.extend(["", "Artifacts retain Gradle logs/profiles, result XML, runner-tagged logcat, and 15-second numeric host/device samples. A probe timeout diagnoses ADB health only; it never limits the tests. Workflow/job wall time and post-action cache restore/save overhead come from the Actions job/step timestamps.", ""])
 	text = "\n".join(lines)
 	(directory / "summary.md").write_text(text)
 	print(text)
@@ -231,6 +248,7 @@ def main():
 	parser.add_argument("value", nargs="?")
 	parser.add_argument("--directory", type=Path, default=Path(os.environ.get("RUNNER_TEMP", "build")) / "weatherd-ci")
 	parser.add_argument("--results", type=Path, default=Path("app/build/outputs/androidTest-results/connected"))
+	parser.add_argument("--no-instrumentation", action="store_true", help="Report static CI checks without claiming Android instrumentation ran")
 	args = parser.parse_args()
 	args.directory.mkdir(parents=True, exist_ok=True)
 	if args.command in ("mark", "monitor") and not args.value:
@@ -241,7 +259,7 @@ def main():
 	elif args.command == "monitor":
 		monitor(args.directory, args.value)
 	else:
-		report(args.directory, args.results)
+		report(args.directory, args.results, include_instrumentation=not args.no_instrumentation)
 
 
 if __name__ == "__main__":

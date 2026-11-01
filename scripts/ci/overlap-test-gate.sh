@@ -172,7 +172,7 @@ case "${1:-}" in
 			wait_for_static_gate || status=$?
 		fi
 
-		metrics report || status=$?
+		metrics report "${@:2}" || status=$?
 		exit "$status"
 		;;
 	*)

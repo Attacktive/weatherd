@@ -2,7 +2,7 @@
 
 Instructions and architectural invariants for agents working in the Weatherd codebase.
 
-- Version: 1.6.23 (2026-10-30)
+- Version: 1.6.24 (2026-11-01)
 - Persona: Coding assistant pair-programming with the user on Weatherd.
 
 ## Documentation Scope
@@ -27,12 +27,13 @@ Before working on a topic below, read its linked section in [docs/development.md
 
 Agents use standard file inspection, editing tools, and Gradle tasks (`./gradlew check`).
 - Every GitHub mutation uses Gremlin by default, including remote branches/commits, pull requests, issues, comments, and reviews; neither `gh` nor `git push` is a silent fallback. Only when the user explicitly instructs the agent to bypass Gremlin for specific mutation(s), use `gh` without Gremlin for those authorized mutations alone. Do not infer permission from ordinary commit/push/merge requests, carry it over to later operations, or use `git push` unless separately explicitly authorized.
-- In the current setup, `connectedDebugAndroidTest` removes the target Weatherd installation during teardown (observed on Pixel); use it only on a disposable device or emulator.
-- Ordinary instrumentation must select one device and must never use the reserved provider-evaluation AVD; follow the [development reference](docs/development.md#local-checks-and-instrumentation) for the Gradle preflight and ordinary-suite exclusion.
-- To preserve an existing installation, build the app and test APKs, install both with `adb install -r -t`, and use the reference's direct instrumentation command with an explicit serial and capture-test exclusion.
-- Direct instrumentation still force-stops the app and its live-wallpaper service. On the emulator, this left a dead wallpaper binding and a black home screen even though the preview worked; selecting the same Weatherd component was ignored. Run instrumentation before final wallpaper validation, and recover a stranded binding by selecting a different wallpaper before reapplying Weatherd.
-- Back up app data separately from the APK before any test workflow that removes packages; saving the APK does not preserve settings or photos.
-- On API 34+, clear `UiAutomation`'s accessibility cache before polling navigation state. At the 320×640 CI viewport, scrolling visibly revealed a tab while cached nodes still described its old off-screen position; waiting for idle alone did not refresh those nodes.
+- Before opening **any** PR, run ordinary Android instrumentation **locally** on one disposable device or emulator with explicit `ANDROID_SERIAL` (see [checks](docs/development.md#local-checks-and-instrumentation)); record the result in the PR. CI no longer runs it. If local tests cannot run, keep the changes on a branch instead of opening a PR.
+- `connectedDebugAndroidTest` uninstalls Weatherd during teardown; use only disposable devices or emulators.
+- Never use the reserved provider-evaluation AVD for ordinary instrumentation; follow the documented preflight and capture-test exclusion.
+- To preserve an installation, follow the documented two-APK `adb install -r -t` and direct-instrumentation procedure.
+- Direct instrumentation force-stops the live-wallpaper service and can strand the emulator binding. Run it before final wallpaper checks; switch to another wallpaper before reapplying Weatherd.
+- Back up app data, not just the APK, before tests that remove installed packages.
+- On API 34+, clear `UiAutomation`'s accessibility cache before polling navigation; idle waits alone can return stale off-screen node positions.
 
 ### Roadmap Updates
 

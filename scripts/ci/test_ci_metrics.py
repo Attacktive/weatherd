@@ -44,6 +44,29 @@ class CiMetricsTest(unittest.TestCase):
 		self.assertIn("setup-start.json", summary["marker_errors"][0])
 		self.assertEqual(test_timings["tests"][0]["seconds"], 2)
 
+	def test_static_only_report_declares_instrumentation_not_run(self):
+		with tempfile.TemporaryDirectory() as directory:
+			root = Path(directory)
+			(root / "static-start.json").write_text('{"monotonic": 10}')
+			(root / "static-end.json").write_text('{"monotonic": 20}')
+			(root / "static.log").write_text("> Task :app:test\n")
+			results = root / "results"
+			results.mkdir()
+			(results / "test.xml").write_text('<testsuite><testcase name="old-run" time="2"/></testsuite>')
+			with contextlib.redirect_stdout(io.StringIO()), patch.dict("os.environ", {"GITHUB_STEP_SUMMARY": ""}):
+				report(root, results, include_instrumentation=False)
+
+			summary = json.loads((root / "summary.json").read_text())
+			markdown = (root / "summary.md").read_text()
+			self.assertFalse((root / "android-test-timings.json").exists())
+
+		self.assertFalse(summary["instrumentation_included"])
+		self.assertEqual(summary["phases_seconds"], {"Dependency/cache setup": None, "Gradle static/build gate": 10})
+		self.assertEqual(set(summary["gradle"]), {"static"})
+		self.assertNotIn("android_tests", summary)
+		self.assertIn("Not run in this workflow", markdown)
+		self.assertNotIn("old-run", markdown)
+
 	def test_unfinished_or_reversed_interval_is_unknown_not_zero(self):
 		markers = {"start": {"monotonic": 20}, "end": {"monotonic": 10}}
 		self.assertIsNone(elapsed(markers, "start", "missing"))
