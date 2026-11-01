@@ -79,20 +79,50 @@ wait_for_static_gate() {
 	echo "Static gate passed."
 }
 
+capture_timeout_probe() {
+	local serial="$1"
+	local filename="$2"
+	shift 2
+	local output="$diagnostics/$filename"
+	if ! timeout --signal=TERM --kill-after=2s 10s adb -s "$serial" "$@" > "$output" 2>&1; then
+		printf '\nADB diagnostic probe failed or exceeded 10 seconds.\n' >> "$output"
+	fi
+
+	# Failure-only diagnostics are capped, keeping the uploaded artifact bounded.
+	head -c 131072 "$output" > "$output.tmp"
+	mv "$output.tmp" "$output"
+}
+
+capture_instrumentation_timeout() {
+	local serial="$1"
+	local seconds="$2"
+	printf 'Connected instrumentation exceeded its %s-second wall-time budget on %s at %s.\n' "$seconds" "$serial" "$(date -u +%FT%TZ)" | tee "$diagnostics/instrumentation-timeout.txt" >&2
+	# Restrict logcat to system ANR/crash event tags; do not collect general logs, provider data, or user settings.
+	capture_timeout_probe "$serial" "timeout-anr-events.log" logcat -d -b events -v threadtime -t 2000 -s am_anr:I am_crash:I am_kill:I '*:S'
+	capture_timeout_probe "$serial" "timeout-activity-anr.txt" shell dumpsys activity anr
+	capture_timeout_probe "$serial" "timeout-window.txt" shell dumpsys window windows
+	capture_timeout_probe "$serial" "timeout-processes.txt" shell pidof com.google.android.apps.nexuslauncher xyz.attacktive.weatherd xyz.attacktive.weatherd.test
+}
+
 run_instrumentation() {
 	local serial="${ANDROID_SERIAL:-emulator-5554}"
+	local timeout_seconds="${WEATHERD_INSTRUMENTATION_TIMEOUT_SECONDS:-1800}"
 	local status
 	metrics mark instrumentation-start
 	python3 scripts/ci/ci_metrics.py monitor "$serial" > "$diagnostics/monitor.log" 2>&1 &
 	monitor_pid="$!"
 	trap stop_monitor EXIT
-	if ANDROID_SERIAL="$serial" ./gradlew --console=plain --info --profile :app:connectedDebugAndroidTest 2>&1 | tee "$diagnostics/instrumentation.log"; then
+	if timeout --signal=TERM --kill-after=10s "${timeout_seconds}s" env ANDROID_SERIAL="$serial" ./gradlew --console=plain --info --profile :app:connectedDebugAndroidTest 2>&1 | tee "$diagnostics/instrumentation.log"; then
 		status=0
 	else
 		status=$?
 	fi
 
 	metrics mark instrumentation-end
+	if (( status == 124 || status == 137 )); then
+		capture_instrumentation_timeout "$serial" "$timeout_seconds"
+	fi
+
 	stop_monitor
 	trap - EXIT
 	if (( status == 0 )); then

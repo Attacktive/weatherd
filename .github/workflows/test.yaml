@@ -13,6 +13,7 @@ jobs:
   test:
     name: 'Test'
     runs-on: 'ubuntu-latest'
+    timeout-minutes: 45
     steps:
       - name: 'Checkout'
         uses: 'actions/checkout@v7'
@@ -51,6 +52,7 @@ jobs:
       - name: 'Start emulator provisioning timing'
         run: 'python3 scripts/ci/ci_metrics.py mark emulator-start'
       - name: 'Instrumentation tests'
+        timeout-minutes: 40
         uses: 'ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d' # v2.38.0
         with:
           api-level: 35

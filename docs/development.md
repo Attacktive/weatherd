@@ -60,16 +60,16 @@ Outside Actions, generated diagnostics default to the repository's ignored `buil
 Each `test-diagnostics-<attempt>` artifact has a 14-day retention setting on success or failure and contains Gradle logs/profiles, JVM/Android reports and result XML, individual Android test timings, and the phase summary.
 Attempt-specific names identify the evidence but do not guarantee earlier archives remain available after a workflow rerun; download each archive before requesting another attempt.
 During the connected invocation, a separate monitor captures only instrumentation-runner logcat tags and samples numeric runner load/memory and device uptime/load/process presence every 15 seconds.
-Its five-second ADB probe limit bounds diagnostics only; it never limits or cancels tests.
+The five-second ADB probe limit applies only to monitoring; a separate CI-only 30-minute limit bounds the connected Gradle invocation without changing individual test assertions. The Android-emulator action step has a 40-minute outer limit and the Test job a 45-minute limit to catch hangs before the connected script can start.
 Compare test XML durations and runner start/finish timestamps with the connected wall time and device samples to separate slow test bodies, pre/post-test runner overhead, ADB stalls, and host/device contention.
-No general device logcat, bugreport, user settings, or provider/location payload is collected.
+No general device logcat, bugreport, user settings, or provider/location payload is collected. Only on a connected-instrumentation timeout, the harness retains bounded ANR/crash system-event logcat tags, activity ANR/window diagnostics, and related process IDs in the existing CI artifact; each ADB capture has a ten-second deadline and a 128 KiB size cap. Normal success and ordinary test failures keep their existing diagnostics without those extra captures.
 Missing or partial XML and unreached phase endpoints remain explicit in the summary, including emulator failure before the callback.
 
 For a reproducible comparison, rerun the existing workflow at unchanged source and record each run ID **and attempt**, runner image, event/ref, dependency-cache state, task-cache outcomes, phase durations, and workflow/job timestamps; archive each attempt's diagnostics before rerunning it.
 Use several attempts per retained candidate, separate cold from warm cache runs, retain outliers, and report medians plus total runner job-seconds rather than assuming wall-time savings equal billed savings.
 Actions job/step timestamps include setup, post-action cache restore/save, and artifact overhead that the Gradle timers do not; billing data, when unavailable, must remain unknown.
 Change one cache variable per candidate, avoid duplicate ownership of Gradle User Home, and keep a cache change only when the measured end-to-end result or stability improves.
-Do not introduce configuration cache, snapshots, sharding, or a test timeout without evidence.
+Do not introduce configuration cache, snapshots, or sharding without evidence. The 30-minute connected-test timeout is justified by [Test run 41263791854, attempt 2](https://github.com/Attacktive/weatherd/actions/runs/41263791854), which was cancelled after about 53 minutes in the instrumentation step; it still permits the previously observed 24-minute-40-second passing instrumentation outlier.
 
 #### Baseline and Outlier Evidence (#349)
 
