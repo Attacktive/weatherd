@@ -49,7 +49,7 @@ class InstrumentationTimeoutTest(unittest.TestCase):
 			environment = dict(
 				os.environ,
 				RUNNER_TEMP=str(root),
-				PATH=str(binary) + os.pathsep + os.environ["PATH"],
+				PATH=str(binary) + os.pathsep + str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
 				GRADLE_TEST_STATUS=str(exit_status),
 				WEATHERD_INSTRUMENTATION_TIMEOUT_SECONDS=str(timeout_seconds),
 				ANDROID_SERIAL="emulator-5554"
@@ -63,7 +63,7 @@ class InstrumentationTimeoutTest(unittest.TestCase):
 				timeout=15
 			)
 
-			self.assertIn("test process started", result.stdout)
+			self.assertIn("test process started", result.stdout, (result.returncode, result.stdout, result.stderr))
 			self.assertTrue((diagnostics / "instrumentation-end.json").exists())
 			self.assertEqual((diagnostics / "instrumentation.log").read_text().strip(), "test process started")
 
