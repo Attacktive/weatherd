@@ -14,6 +14,7 @@ import android.os.SystemClock
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.annotation.StringRes
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -634,7 +635,7 @@ class CustomSkyGradientEditorTest {
 
 		var target: AccessibilityNodeInfo? = node
 		while (target != null) {
-			if (target.isSelected || target.isChecked) {
+			if (target.isSelected || AccessibilityNodeInfoCompat.wrap(target).checked == AccessibilityNodeInfoCompat.CHECKED_STATE_TRUE) {
 				return true
 			}
 			target = target.parent
