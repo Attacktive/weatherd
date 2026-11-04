@@ -362,12 +362,8 @@ private fun snowGray(dayPhase: DayPhase) = when (dayPhase) {
 }
 
 /**
- * How far the sky blends toward gray. Fog and precipitation force their own grayness; otherwise cloud cover drives it (calibrated so 5% cover reads clear and 85% reads fully overcast).
- */
-/**
- * How far the sky is pulled from its clear color toward gray.
- * A dry sky holds its full blue until the overcast ceiling starts drawing, because scattered cumulus darken a sky by covering it, not by draining the color out of the gaps between them.
- * Graying earlier than that leaves white clouds sitting on a washed-out sky with nothing to read against, which is the opposite of what cloud cover looks like.
+ * Fog and precipitation supply their own grayness; dry skies gray only once the opaque cloud deck starts.
+ * Keep phase colors visible between scattered cumulus until the same 75% coverage boundary that activates the overcast banks.
  */
 internal fun overcastAmount(params: SceneParams): Float = when {
 	params.fogDensity > 0f -> 0.85f
@@ -375,8 +371,14 @@ internal fun overcastAmount(params: SceneParams): Float = when {
 	else -> overcastCeilingStrength(effectiveOpaqueCloudiness(params))
 }
 
-/** Shared cloud-cover ramp for the gray sky blend and cached overcast ceiling, avoiding a hard visual jump at the threshold. */
-internal fun overcastCeilingStrength(cloudiness: Float) = ((cloudiness - OVERCAST_GRAY_FLOOR) / (OVERCAST_GRAY_FULL - OVERCAST_GRAY_FLOOR)).coerceIn(0f, 1f)
+/** Dry opaque-cloud ramp for the gray sky blend and cached ceiling, avoiding a hard visual jump at the deck threshold. */
+internal fun overcastCeilingStrength(cloudiness: Float, floor: Float = OVERCAST_GRAY_FLOOR) = ((cloudiness - floor) / (OVERCAST_GRAY_FULL - floor)).coerceIn(0f, 1f)
+
+/** Wet and foggy scenes keep the earlier ceiling fade; only dry clouds delay the ceiling until the overcast deck. */
+internal fun backdropCeilingStrength(params: SceneParams) = when {
+	params.precipitation != null || params.fogDensity > 0f -> overcastCeilingStrength(effectiveOpaqueCloudiness(params), WET_CEILING_FLOOR)
+	else -> overcastCeilingStrength(effectiveOpaqueCloudiness(params))
+}
 
 /** Progress ranges that shape the procedural dawn and dusk palette transitions. */
 private const val DAWN_SUNRISE_START = 0f
@@ -389,7 +391,10 @@ private const val DUSK_NIGHT_START = 0.65f
 private const val DUSK_NIGHT_FULL = 1f
 
 /** The cloudiness at which a dry sky starts graying, matching where the renderer starts drawing an overcast ceiling. */
-private const val OVERCAST_GRAY_FLOOR = 0.55f
+private const val OVERCAST_GRAY_FLOOR = 0.75f
+
+/** The previous ceiling onset, retained for rain and fog regardless of the new dry-sky gray threshold. */
+private const val WET_CEILING_FLOOR = 0.55f
 
 /** The cloudiness at which a dry sky has given up its blue entirely. */
 private const val OVERCAST_GRAY_FULL = 0.85f

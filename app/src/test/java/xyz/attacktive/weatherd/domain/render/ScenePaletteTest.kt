@@ -261,13 +261,27 @@ class ScenePaletteTest {
 	}
 
 	@Test
-	fun `the sky starts graying where the overcast ceiling starts drawing`() {
+	fun `the sky starts graying only when overcast banks replace scattered clouds`() {
 		val clear = skyGradientFor(clearParams(DayPhase.DAY))
-		val atThreshold = skyGradientFor(clearParams(DayPhase.DAY).copy(cloudiness = 0.55f))
-		val pastThreshold = skyGradientFor(clearParams(DayPhase.DAY).copy(cloudiness = 0.65f))
+		val atThreshold = skyGradientFor(clearParams(DayPhase.DAY).copy(cloudiness = 0.75f))
+		val pastThreshold = skyGradientFor(clearParams(DayPhase.DAY).copy(cloudiness = 0.8f))
 
-		assertEquals("blue must hold right up to the ceiling threshold", clear, atThreshold)
-		assertNotEquals("past the threshold the sky must start graying", clear, pastThreshold)
+		assertEquals("blue must hold through scattered clouds", clear, atThreshold)
+		assertNotEquals("the overcast deck must start graying the sky", clear, pastThreshold)
+	}
+
+	@Test
+	fun `dry partly cloudy gaps retain phase gradients through the scattered cloud range`() {
+		for (phase in listOf(DayPhase.DAY, DayPhase.DAWN, DayPhase.DUSK)) {
+			val clear = clearParams(phase).copy(celestialProgress = 0.5f)
+			for (cloudiness in listOf(0.55f, 0.65f, 0.7f, 0.75f)) {
+				assertEquals(
+					"$phase at $cloudiness coverage must preserve the clear phase gradient between clouds",
+					skyGradientFor(clear),
+					skyGradientFor(clear.copy(cloudiness = cloudiness))
+				)
+			}
+		}
 	}
 
 	@Test
@@ -283,9 +297,22 @@ class ScenePaletteTest {
 
 	@Test
 	fun `the overcast ceiling fades in instead of jumping at the threshold`() {
-		assertEquals(0f, overcastCeilingStrength(0.55f), 0.0001f)
-		assertEquals(1f / 3f, overcastCeilingStrength(0.65f), 0.0001f)
+		assertEquals(0f, overcastCeilingStrength(0.75f), 0.0001f)
+		assertEquals(0.5f, overcastCeilingStrength(0.8f), 0.0001f)
 		assertEquals(1f, overcastCeilingStrength(0.85f), 0.0001f)
+	}
+
+	@Test
+	fun `wet and foggy ceilings retain their original onset and ramp`() {
+		val rain = Precipitation(PrecipitationKind.RAIN, 0.65f, observed = 0.5f)
+		for (cloudiness in listOf(0.55f, 0.65f, 0.72f, 0.8f, 0.85f)) {
+			val dry = clearParams(DayPhase.DAY).copy(cloudiness = cloudiness)
+			val previousStrength = ((cloudiness - 0.55f) / (0.85f - 0.55f)).coerceIn(0f, 1f)
+
+			assertEquals("dry at $cloudiness must keep the later ceiling", overcastCeilingStrength(cloudiness), backdropCeilingStrength(dry), 0.0001f)
+			assertEquals("rain at $cloudiness must retain the earlier ceiling", previousStrength, backdropCeilingStrength(dry.copy(precipitation = rain)), 0.0001f)
+			assertEquals("fog at $cloudiness must retain the earlier ceiling", previousStrength, backdropCeilingStrength(dry.copy(fogDensity = 0.5f)), 0.0001f)
+		}
 	}
 
 	@Test

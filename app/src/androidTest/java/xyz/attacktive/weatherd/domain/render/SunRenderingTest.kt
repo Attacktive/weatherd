@@ -13,9 +13,11 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import xyz.attacktive.weatherd.domain.model.BirdFlockSize
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
@@ -257,18 +259,45 @@ class SunRenderingTest {
 
 	@Test
 	fun cloudsAttenuateTheSunAndAvoidSaturatedYellowSlices() {
+		val params = clearParams(cloudiness = 0.5f, cloudScale = 1.4f)
 		val clear = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams())
-		val cloudy = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams(cloudiness = 0.5f, cloudScale = 1.4f))
+		val cloudy = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, params)
+		val cloudOnly = renderForeground(
+			PORTRAIT_WIDTH,
+			PORTRAIT_HEIGHT,
+			params.copy(sunVisible = false, distantAircraftEnabled = false, birdFlockSize = BirdFlockSize.OFF)
+		)
+		try {
+			val center = celestialCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, DayPhase.DAY)
+			val span = minOf(PORTRAIT_WIDTH, PORTRAIT_HEIGHT)
+			val coreDifference = averageColorDistance(clear, cloudy, center, span * CORE_SAMPLE_RADIUS_FRACTION)
+			val (inducedWarmth, obscuredPixels) = warmestCloudInducedAnnulusPixel(clear, cloudy, cloudOnly, center, span * EDGE_INNER_RADIUS_FRACTION, span * EDGE_OUTER_RADIUS_FRACTION)
+
+			assertTrue("Clouds should visibly attenuate the sun instead of sitting behind it, but the core changed by only $coreDifference", coreDifference >= MIN_CLOUD_ATTENUATION)
+			assertTrue("The solar annulus must contain cloud material to exercise yellow-slice suppression", obscuredPixels > 0)
+			assertTrue("Clouds must not introduce saturated yellow solar slices beyond the naturally warm clear-sun shoulder; excess warmth=$inducedWarmth", inducedWarmth <= MAX_CLOUD_ADDED_EDGE_WARMTH)
+		} finally {
+			clear.recycle()
+			cloudy.recycle()
+			cloudOnly.recycle()
+		}
+	}
+
+	@Test
+	fun dryPartlyCloudyKeepsADirectSunAndLensFlareInBlueGaps() {
 		val center = celestialCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, DayPhase.DAY)
-		val span = minOf(PORTRAIT_WIDTH, PORTRAIT_HEIGHT)
-		val coreDifference = averageColorDistance(clear, cloudy, center, span * CORE_SAMPLE_RADIUS_FRACTION)
-		val edgeWarmth = warmestAnnulusPixel(cloudy, center, span * EDGE_INNER_RADIUS_FRACTION, span * EDGE_OUTER_RADIUS_FRACTION)
-
-		assertTrue("Clouds should visibly attenuate the sun instead of sitting behind it, but the core changed by only $coreDifference", coreDifference >= MIN_CLOUD_ATTENUATION)
-		assertTrue("Thin clouds should not reveal saturated yellow sun slices, but annulus warmth reached $edgeWarmth", edgeWarmth <= MAX_CLOUDED_EDGE_WARMTH)
-
-		clear.recycle()
-		cloudy.recycle()
+		for (cloudiness in listOf(0.55f, 0.70f, 0.75f)) {
+			val params = clearParams(cloudiness = cloudiness, cloudScale = 0f)
+			val enabled = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, params)
+			val disabled = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, params.copy(lensFlareEnabled = false))
+			try {
+				assertTrue("Dry blue sky at $cloudiness must keep an opaque direct sun", Color.alpha(enabled.getPixel(center.x, center.y)) >= 250)
+				assertFalse("Dry blue sky at $cloudiness must retain the independent lens flare", enabled.sameAs(disabled))
+			} finally {
+				enabled.recycle()
+				disabled.recycle()
+			}
+		}
 	}
 
 	@Test
@@ -294,13 +323,13 @@ class SunRenderingTest {
 	}
 
 	@Test
-	fun cloudyDayStronglySoftensTheDirectDisc() {
-		val bitmap = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams(cloudiness = 0.65f, cloudScale = 0f))
+	fun overcastDayStronglySoftensTheDirectDisc() {
+		val bitmap = renderForeground(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, clearParams(cloudiness = 0.85f, cloudScale = 0f))
 		val center = celestialCenter(PORTRAIT_WIDTH, PORTRAIT_HEIGHT, DayPhase.DAY)
 		val radius = minOf(PORTRAIT_WIDTH, PORTRAIT_HEIGHT) * VEILED_SAMPLE_RADIUS_FRACTION
 		val peakAlpha = highestAlpha(bitmap, center, radius)
 
-		assertTrue("Cloudy daylight should reveal diffuse light without an opaque solar disc, but alpha reached $peakAlpha", peakAlpha < OPAQUE_ALPHA_THRESHOLD)
+		assertTrue("Overcast daylight should reveal diffuse light without an opaque solar disc, but alpha reached $peakAlpha", peakAlpha < OPAQUE_ALPHA_THRESHOLD)
 
 		bitmap.recycle()
 	}
@@ -471,27 +500,32 @@ class SunRenderingTest {
 		return total.toFloat() / count.coerceAtLeast(1)
 	}
 
-	private fun warmestAnnulusPixel(bitmap: Bitmap, center: PixelPoint, innerRadius: Float, outerRadius: Float): Int {
+	/** The solar shoulder is naturally warm; only extra warmth introduced where clouds actually overlap is a yellow-slice regression. */
+	private fun warmestCloudInducedAnnulusPixel(clear: Bitmap, cloudy: Bitmap, clouds: Bitmap, center: PixelPoint, innerRadius: Float, outerRadius: Float): Pair<Int, Int> {
 		val innerSquared = innerRadius * innerRadius
 		val outerSquared = outerRadius * outerRadius
-		var warmth = Int.MIN_VALUE
+		var introducedWarmth = Int.MIN_VALUE
+		var obscuredPixels = 0
 
 		for (y in (center.y - outerRadius.toInt())..(center.y + outerRadius.toInt())) {
 			for (x in (center.x - outerRadius.toInt())..(center.x + outerRadius.toInt())) {
 				val dx = x - center.x
 				val dy = y - center.y
 				val distanceSquared = dx * dx + dy * dy
-				if (distanceSquared < innerSquared || distanceSquared > outerSquared) {
+				if (distanceSquared < innerSquared || distanceSquared > outerSquared || Color.alpha(clouds.getPixel(x, y)) < 16) {
 					continue
 				}
 
-				val pixel = bitmap.getPixel(x, y)
-				warmth = maxOf(warmth, Color.red(pixel) - Color.blue(pixel))
+				obscuredPixels++
+				val warmChange = visibleSolarWarmth(cloudy.getPixel(x, y)) - visibleSolarWarmth(clear.getPixel(x, y))
+				introducedWarmth = maxOf(introducedWarmth, warmChange)
 			}
 		}
 
-		return warmth
+		return introducedWarmth to obscuredPixels
 	}
+
+	private fun visibleSolarWarmth(pixel: Int) = ((Color.red(pixel) - Color.blue(pixel)) * (Color.alpha(pixel) / 255f)).roundToInt()
 
 	private fun opaqueBounds(bitmap: Bitmap): PixelBounds {
 		var left = bitmap.width
@@ -694,7 +728,7 @@ class SunRenderingTest {
 		const val MIN_VEILED_DISPLACEMENT = 1.5f
 		const val MIN_VEILED_WARMTH_LIFT = 0.5f
 		const val MIN_ATMOSPHERE_ALPHA_SPREAD = 8
-		const val MAX_CLOUDED_EDGE_WARMTH = 52
+		const val MAX_CLOUD_ADDED_EDGE_WARMTH = 32
 		const val ATMOSPHERE_DIRECTION_COUNT = 12
 		const val TAU = 2.0 * PI
 		const val MOON_RADIUS_FRACTION = 0.1f

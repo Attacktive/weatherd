@@ -293,7 +293,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 
 		drawSky(canvas, w, h, params)
 
-		val ceilingStrength = overcastCeilingStrength(effectiveOpaqueCloudiness(params))
+		val ceilingStrength = backdropCeilingStrength(params)
 		if (ceilingStrength > 0f) {
 			drawOvercastCeiling(canvas, w, h, params, ceilingStrength)
 		}
@@ -1496,8 +1496,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 			null
 		}
 
-		val bankWeight = unlerp(PARTLY_BANK_START_COVERAGE, PARTLY_BANK_FULL_COVERAGE, lowCoverage)
-		val bankAlpha = (255f * PARTLY_BANK_ALPHA * bankWeight * params.cloudScale).roundToInt().coerceIn(0, 255)
+		val bankAlpha = partlyCloudBankAlpha(params)
 		val bankGeometry = if (bankAlpha > 0 && heroOvercastBankDelegate.isInitialized()) {
 			val period = width * PARTLY_BANK_VIEWPORTS
 			val surge = width * 0.004f * params.windFactor * params.windScale
@@ -1569,7 +1568,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 			drawSunLightShafts(canvas, sun, radius, core, cloudSampled)
 		}
 
-		if (drawVeiledSun(canvas, sun, radius, core, atmosphere)) {
+		if (drawVeiledSun(canvas, sun, radius, atmosphere)) {
 			return
 		}
 
@@ -1601,23 +1600,22 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		blitSprite(canvas, disc, sun.centerX, sun.centerY, directRadius / SUN_DISC_MARGIN * SUN_DIRECT_DISC_SCALE, sunAlpha(255f, sun.visibility))
 	}
 
-	private fun drawVeiledSun(canvas: Canvas, sun: SunRenderContext, radius: Float, core: Int, atmosphere: Bitmap): Boolean {
-		if (sun.params.fogDensity <= 0f && effectiveOpaqueCloudiness(sun.params) <= DIRECT_SUN_MAX_CLOUDINESS) {
+	private fun drawVeiledSun(canvas: Canvas, sun: SunRenderContext, radius: Float, atmosphere: Bitmap): Boolean {
+		if (showsDirectSun(sun.params)) {
 			return false
 		}
 
 		val strength = min(veiledCloudStrength(effectiveOpaqueCloudiness(sun.params)), veiledFogStrength(sun.params.fogDensity))
 		blitGlow(canvas, atmosphere, sun.centerX, sun.centerY, radius * (SUN_VEILED_BLOOM_REACH + 0.25f * sun.pulse), sunAlpha(SUN_VEILED_BLOOM_ALPHA * strength, sun.visibility))
-		drawVeiledSunDisc(canvas, sun, radius, core)
 		return true
 	}
 
 	private fun veiledCloudStrength(cloudiness: Float): Float {
-		if (cloudiness <= DIRECT_SUN_MAX_CLOUDINESS) {
+		if (cloudiness <= SUN_VEILED_STRENGTH_START_CLOUDINESS) {
 			return 1f
 		}
 
-		return lerp(SUN_VEILED_MAX_STRENGTH, SUN_VEILED_MIN_STRENGTH, unlerp(DIRECT_SUN_MAX_CLOUDINESS, 1f, cloudiness))
+		return lerp(SUN_VEILED_MAX_STRENGTH, SUN_VEILED_MIN_STRENGTH, unlerp(SUN_VEILED_STRENGTH_START_CLOUDINESS, 1f, cloudiness))
 	}
 
 	private fun veiledFogStrength(fogDensity: Float): Float {
@@ -1626,17 +1624,6 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		}
 
 		return lerp(SUN_VEILED_MAX_STRENGTH, SUN_VEILED_MIN_STRENGTH, fogDensity.coerceIn(0f, 1f))
-	}
-
-	private fun drawVeiledSunDisc(canvas: Canvas, sun: SunRenderContext, radius: Float, core: Int) {
-		if (sun.params.fogDensity > 0f || sun.params.thunder || effectiveOpaqueCloudiness(sun.params) <= DIRECT_SUN_MAX_CLOUDINESS || effectiveOpaqueCloudiness(sun.params) > CLOUD_DECK_THRESHOLD) {
-			return
-		}
-
-		val cover = unlerp(DIRECT_SUN_MAX_CLOUDINESS, CLOUD_DECK_THRESHOLD, effectiveOpaqueCloudiness(sun.params))
-		val discAlpha = sunAlpha(lerp(SUN_VEILED_DISC_MAX_ALPHA, SUN_VEILED_DISC_MIN_ALPHA, cover), sun.visibility)
-		val disc = tile("sunDisc", SUN_SPRITE_SIZE, SUN_SPRITE_SIZE) { buildSunSprite(it, core, sun.params.sunColorPreset) }
-		blitSprite(canvas, disc, sun.centerX, sun.centerY, radius / SUN_DISC_MARGIN * SUN_VEILED_DISC_SCALE, discAlpha)
 	}
 
 	private fun drawOvercastSunTransmission(canvas: Canvas, width: Float, height: Float, centerX: Float, centerY: Float, params: SceneParams, timeSeconds: Float) {
@@ -1699,7 +1686,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		DayPhase.NIGHT -> 0f
 	}
 
-	private fun sunCoronaCloudStrength(cloudiness: Float) = lerp(1f, SUN_CORONA_CLOUD_MIN_STRENGTH, unlerp(0f, DIRECT_SUN_MAX_CLOUDINESS, cloudiness))
+	private fun sunCoronaCloudStrength(cloudiness: Float) = lerp(1f, SUN_CORONA_CLOUD_MIN_STRENGTH, unlerp(SUN_CORONA_FADE_START_CLOUDINESS, DIRECT_SUN_MAX_CLOUDINESS, cloudiness))
 
 	private fun drawSunLensFlare(canvas: Canvas, sun: SunRenderContext, radius: Float, core: Int) {
 		val visibility = sun.visibility * sunOpticalTransmission
@@ -2012,7 +1999,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		}
 
 		if (nearState != null) {
-			drawPartlyCloudBank(canvas, width, height, params, timeSeconds, lowCoverage, grade)
+			drawPartlyCloudBank(canvas, width, height, params, timeSeconds, grade)
 			drawNearCumulus(canvas, width, params, cloudTop, nearState, grade)
 		}
 	}
@@ -2115,7 +2102,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 			return partlyIndex
 		}
 
-		return partlyIndex + unlerp(CUMULUS_BROKEN_BLEND_START, 1f, coverage)
+		return partlyIndex + CUMULUS_BROKEN_MAX_BLEND * unlerp(CUMULUS_BROKEN_BLEND_START, 1f, coverage)
 	}
 
 	/**
@@ -2227,14 +2214,24 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		farCumulusDeck.draw(canvas, geometry, tint, alpha, grade, shadow = castShadow, contrast = params.cloudContrastScale)
 	}
 
-	/** One broad support bank replaces several detached puffs near the partly-cloudy end of the clear-sky range without enabling the overcast ceiling. */
-	internal fun drawPartlyCloudBank(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float, coverage: Float, grade: CloudColorGrade = cloudGradeFor(params)) {
+	/**
+	 * This broad support bank stays faint only in the final 70-75% interval before overcast.
+	 * Distinct textured cumulus carry the visible cloud mass, leaving genuine blue gaps.
+	 * Visible drawing and lunar occlusion must use identical alpha.
+	 */
+	internal fun partlyCloudBankAlpha(params: SceneParams): Int {
+		val weight = unlerp(PARTLY_BANK_START_COVERAGE, PARTLY_BANK_FULL_COVERAGE, effectiveLowCloudiness(params))
+
+		return (255f * PARTLY_BANK_ALPHA * weight * params.cloudScale).roundToInt().coerceIn(0, 255)
+	}
+
+	internal fun drawPartlyCloudBank(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float, grade: CloudColorGrade = cloudGradeFor(params)) {
 		if (!heroOvercastBankDelegate.isInitialized()) {
 			return
 		}
 
-		val weight = unlerp(PARTLY_BANK_START_COVERAGE, PARTLY_BANK_FULL_COVERAGE, coverage)
-		if (weight <= 0f) {
+		val alpha = partlyCloudBankAlpha(params)
+		if (alpha <= 0) {
 			return
 		}
 
@@ -2244,7 +2241,6 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		val offset = wrapOffset(timeSeconds * width * (0.0045f + params.windFactor * 0.009f) * params.windScale + drift * 0.60f - width * PARTLY_BANK_PHASE, period)
 		val bankHeight = overcastBankHeight(width, height, PARTLY_BANK_VIEWPORTS, PARTLY_BANK_HEIGHT_SCALE)
 		val tint = lerpColor(cumulusTint(params.dayPhase, params.celestialProgress), cachedSkyGradient(params).topColor, PARTLY_BANK_HAZE)
-		val alpha = (255f * PARTLY_BANK_ALPHA * weight * params.cloudScale).roundToInt().coerceIn(0, 255)
 
 		heroOvercastBank.draw(
 			canvas,
@@ -2960,11 +2956,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 	/** Weather-dependent crepuscular shafts and opt-in camera-style clear-sky glare. */
 	private fun drawSunLightShafts(canvas: Canvas, sun: SunRenderContext, radius: Float, core: Int, cloudSampled: Boolean) {
 		val opaqueCloudiness = effectiveOpaqueCloudiness(sun.params)
-		val deckFade = if (opaqueCloudiness > DIRECT_SUN_MAX_CLOUDINESS) {
-			unlerp(CLOUD_DECK_THRESHOLD, DIRECT_SUN_MAX_CLOUDINESS, opaqueCloudiness).coerceIn(0f, 1f)
-		} else {
-			1f
-		}
+		val deckFade = sunShaftDeckFade(opaqueCloudiness)
 
 		if (deckFade <= 0f) {
 			return
@@ -2989,7 +2981,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 			val cloudCoverFade = if (opaqueCloudiness <= SCATTERED_CLOUD_FLOOR) {
 				1f
 			} else {
-				(1f - unlerp(SCATTERED_CLOUD_FLOOR, DIRECT_SUN_MAX_CLOUDINESS, opaqueCloudiness)).coerceIn(0f, 1f)
+				(1f - unlerp(SCATTERED_CLOUD_FLOOR, SUN_CLEAR_GLARE_MAX_CLOUDINESS, opaqueCloudiness)).coerceIn(0f, 1f)
 			}
 
 			val obstructionFade = (1f - strongestSunCloudOpacity).coerceIn(0f, 1f)
@@ -3714,18 +3706,21 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		private const val CUMULUS_BLEND_FLOOR = 0.02f
 		private const val CUMULUS_PARTLY_INDEX = 2
 		private const val CUMULUS_BROKEN_BLEND_START = 0.90f
+		/** The last scattered-cloud frame must retain its partly-cloudy population rather than drop it for the new broken layout. */
+		private const val CUMULUS_BROKEN_MAX_BLEND = 0.90f
 
 		private const val CLOUD_FORMATION_PORTRAIT_LIFT = 0.12f
 		private const val CLOUD_FORMATION_LANDSCAPE_LIFT = 0.04f
 
+		/** The raw effective low-cloud range, not the normalized scattered-cumulus population weight. */
 		private const val PARTLY_BANK_START_COVERAGE = 0.70f
-		private const val PARTLY_BANK_FULL_COVERAGE = 0.95f
+		private const val PARTLY_BANK_FULL_COVERAGE = 0.75f
 		private const val PARTLY_BANK_VIEWPORTS = 1.72f
 		private const val PARTLY_BANK_HEIGHT_SCALE = 0.58f
 		private const val PARTLY_BANK_TOP = 0.27f
 		private const val PARTLY_BANK_PHASE = 0.34f
 		private const val PARTLY_BANK_HAZE = 0.34f
-		private const val PARTLY_BANK_ALPHA = 0.28f
+		private const val PARTLY_BANK_ALPHA = 0.055f
 
 		private const val DENSE_FOG_CLOUD_CUTOFF = 0.8f
 		private const val OVERCAST_SOURCE_ASPECT = 3f
@@ -3854,6 +3849,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		private const val SUN_CORONA_TWILIGHT_WARMTH = 0.96f
 		private const val SUN_CORONA_GLOW_REACH = 0.46f
 		private const val SUN_CORONA_CLOUD_MIN_STRENGTH = 0f
+		private const val SUN_CORONA_FADE_START_CLOUDINESS = 0.70f
 		private const val SUN_CORONA_DAWN_SCALE = 0.92f
 		private const val SUN_CORONA_DAWN_ALPHA = 0.70f
 		private const val SUN_CORONA_DUSK_SCALE = 0.78f
@@ -3906,10 +3902,6 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		private const val SUN_VEILED_MIN_STRENGTH = 0.42f
 
 		/** The hidden solar limb only survives the cloudy transition; once the overcast deck takes over, the broad atmospheric glow is the only visible sun cue. */
-		private const val SUN_VEILED_DISC_MAX_ALPHA = 160f
-		private const val SUN_VEILED_DISC_MIN_ALPHA = 28f
-		private const val SUN_VEILED_DISC_SCALE = 1.08f
-
 		/** Broad transmitted daylight drawn after the overcast sheets so the source remains perceptible without restoring a circular disc. */
 		private const val SUN_OVERCAST_TRANSMISSION_REACH = 7.2f
 		private const val SUN_OVERCAST_TRANSMISSION_MAX_ALPHA = 78f
@@ -4177,8 +4169,14 @@ internal fun showsSunVeil(params: SceneParams) = params.sunVisible && params.day
 /** A heavy dry deck still transmits a broad patch of daylight even when the solar limb itself is no longer visible. */
 private fun showsOvercastSunTransmission(params: SceneParams) = params.sunVisible && params.dayPhase != DayPhase.NIGHT && params.precipitation == null && params.fogDensity <= 0f && !params.thunder && effectiveOpaqueCloudiness(params) > CLOUD_DECK_THRESHOLD
 
+/** Blue-sky cloud edges retain their ray strength until the final transition to overcast. */
+internal fun sunShaftDeckFade(cloudiness: Float) = unlerp(CLOUD_DECK_THRESHOLD, SUN_SHAFT_FADE_START_CLOUDINESS, cloudiness).coerceIn(0f, 1f)
+
+/** Dry scattered clouds obscure the direct sun by their silhouettes, not by graying every open gap. */
+internal fun showsDirectSun(params: SceneParams) = params.sunVisible && params.dayPhase != DayPhase.NIGHT && params.precipitation == null && params.fogDensity <= 0f && !params.thunder && effectiveOpaqueCloudiness(params) <= DIRECT_SUN_MAX_CLOUDINESS
+
 /** Prismatic optics require the lens-flare preference and a direct, fair-weather sun. */
-internal fun showsRainbow(params: SceneParams) = params.lensFlareEnabled && params.sunVisible && params.dayPhase != DayPhase.NIGHT && params.precipitation == null && params.fogDensity <= 0f && !params.thunder && effectiveOpaqueCloudiness(params) <= DIRECT_SUN_MAX_CLOUDINESS
+internal fun showsRainbow(params: SceneParams) = params.lensFlareEnabled && showsDirectSun(params)
 
 /**
  * Whether sensor-driven lens flare reflections can currently be drawn.
@@ -4201,7 +4199,10 @@ private fun showsHaze(params: SceneParams) = params.precipitation != null || par
 
 private const val PRECIPITATION_SCALE_EXPONENT = 0.5f
 
-private const val DIRECT_SUN_MAX_CLOUDINESS = 0.55f
+private const val DIRECT_SUN_MAX_CLOUDINESS = 0.75f
+private const val SUN_VEILED_STRENGTH_START_CLOUDINESS = 0.55f
+private const val SUN_SHAFT_FADE_START_CLOUDINESS = 0.70f
+private const val SUN_CLEAR_GLARE_MAX_CLOUDINESS = 0.55f
 private const val SUNSET_FADE_START = 0.15f
 private const val SUNSET_FADE_END = 0.92f
 

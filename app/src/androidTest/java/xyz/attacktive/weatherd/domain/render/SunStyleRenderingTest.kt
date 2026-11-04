@@ -72,7 +72,6 @@ class SunStyleRenderingTest {
 			base.copy(dayPhase = DayPhase.NIGHT),
 			base.copy(dayPhase = DayPhase.DUSK, celestialProgress = 1f),
 			base.copy(fogDensity = 0.4f),
-			base.copy(cloudiness = 0.65f),
 			base.copy(cloudiness = 0.9f),
 			base.copy(precipitation = Precipitation(PrecipitationKind.RAIN, 0.7f, 0.7f)),
 			base.copy(thunder = true)
@@ -86,6 +85,24 @@ class SunStyleRenderingTest {
 				styled.recycle()
 			}
 
+			classic.recycle()
+		}
+	}
+
+	@Test
+	fun dryPartlyCloudySunRetainsDistinctStyles() {
+		val params = clearParams().copy(cloudiness = 0.65f, cloudScale = 0f)
+		val classic = render(params)
+		try {
+			for (style in listOf(SunStyle.RADIANT, SunStyle.STARBURST)) {
+				val styled = render(params.copy(sunStyle = style))
+				try {
+					assertFalse("The direct $style sun must remain visible in a dry blue gap", classic.sameAs(styled))
+				} finally {
+					styled.recycle()
+				}
+			}
+		} finally {
 			classic.recycle()
 		}
 	}

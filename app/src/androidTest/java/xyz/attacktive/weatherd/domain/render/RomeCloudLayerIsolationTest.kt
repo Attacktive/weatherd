@@ -77,8 +77,8 @@ class RomeCloudLayerIsolationTest {
 			"Raising only high clouds must not alter the cached sky gradient",
 			backdrops.getValue("dwd").sameAs(backdrops.getValue("highOnly"))
 		)
-		assertFalse(
-			"Raising only low clouds must change the gradual gray-sky blend",
+		assertTrue(
+			"Low cover below 75% must preserve the blue backdrop while moving clouds change",
 			backdrops.getValue("dwd").sameAs(backdrops.getValue("lowOnly"))
 		)
 		assertFalse("High-cloud-only change must visibly change cirrus", frames.getValue("dwd").sameAs(frames.getValue("highOnly")))

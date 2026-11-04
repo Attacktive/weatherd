@@ -23,6 +23,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import xyz.attacktive.weatherd.R
+import xyz.attacktive.weatherd.domain.model.BirdFlockSize
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
@@ -470,19 +471,74 @@ class MoonRenderingTest {
 	@Test
 	fun partialCloudOverlapPreservesTheUncoveredLunarSurface() {
 		val renderer = SceneRenderer(resources, epochDay = 20_000L)
+		val lunarArtwork = MoonLayer(resources)
 		renderer.prewarmCloudTextures()
 		for (phase in listOf(0.5f, 0.25f)) {
 			val params = isolatedLowCloudParams(moonPhase = phase)
+			val clearParams = params.copy(cloudiness = 0f, cloudLayers = null)
 			renderer.prewarmMoonPhase(phase)
+			lunarArtwork.prewarm(phase)
+			val surface = checkNotNull(lunarArtwork.spriteFor(lunarArtwork.phaseIndexFor(phase)))
 			val cloudy = renderForegroundOnNightSky(540, 960, params, 96f, renderer)
-			val clear = renderForegroundOnNightSky(540, 960, params.copy(cloudiness = 0f, cloudLayers = null), 96f, renderer)
+			val clear = renderForegroundOnNightSky(540, 960, clearParams, 96f, renderer)
+			val cloudOnly = renderCachedForeground(
+				540,
+				960,
+				params.copy(dayPhase = DayPhase.DAY, sunVisible = false, moonVisible = false, distantAircraftEnabled = false, birdFlockSize = BirdFlockSize.OFF),
+				96f,
+				renderer
+			)
 			try {
-				val cloudyBrightness = pixelLuminance(cloudy.getPixel(399, 260))
-				val clearBrightness = pixelLuminance(clear.getPixel(399, 260))
-				assertTrue("The exposed lunar surface must not dim when a cloud crosses elsewhere; phase=$phase cloudy=$cloudyBrightness clear=$clearBrightness", cloudyBrightness >= clearBrightness * 0.97f)
+				val center = celestialCenter(540, 960)
+				val radius = minOf(540, 960) * MOON_RADIUS_FRACTION
+				var unobstructedSamples = 0
+				var obstructedSamples = 0
+				for (y in (center.y - radius.toInt() + 8)..(center.y + radius.toInt() - 8) step 4) {
+					for (x in (center.x - radius.toInt() + 8)..(center.x + radius.toInt() - 8) step 4) {
+						val dx = x - center.x
+						val dy = y - center.y
+						if (dx * dx + dy * dy >= (radius - 8f) * (radius - 8f)) {
+							continue
+						}
+
+						val cloudAlpha = Color.alpha(cloudOnly.getPixel(x, y))
+						if (cloudAlpha >= 16) {
+							obstructedSamples++
+							continue
+						}
+
+						val spriteX = (((dx / (2f * radius)) + 0.5f) * surface.width).toInt().coerceIn(0, surface.width - 1)
+						val spriteY = (((dy / (2f * radius)) + 0.5f) * surface.height).toInt().coerceIn(0, surface.height - 1)
+						if (Color.alpha(surface.getPixel(spriteX, spriteY)) < 245) {
+							continue
+						}
+
+						var neighboringCloud = false
+						for (yOffset in listOf(-4, 0, 4)) {
+							for (xOffset in listOf(-4, 0, 4)) {
+								if (Color.alpha(cloudOnly.getPixel(x + xOffset, y + yOffset)) > 2) {
+									neighboringCloud = true
+								}
+							}
+						}
+
+						if (neighboringCloud) {
+							continue
+						}
+
+						unobstructedSamples++
+						val cloudyBrightness = pixelLuminance(cloudy.getPixel(x, y))
+						val clearBrightness = pixelLuminance(clear.getPixel(x, y))
+						assertTrue("Cloud-alpha-free, opaque lunar surface at ($x, $y) must retain brightness; phase=$phase cloudy=$cloudyBrightness clear=$clearBrightness", cloudyBrightness >= clearBrightness * 0.97f)
+					}
+				}
+
+				assertTrue("This fixture must contain cloud cover crossing the lunar disc; phase=$phase", obstructedSamples > 0)
+				assertTrue("The same disc must expose an opaque, cloud-free illuminated region; phase=$phase", unobstructedSamples >= 5)
 			} finally {
 				cloudy.recycle()
 				clear.recycle()
+				cloudOnly.recycle()
 			}
 		}
 	}

@@ -177,7 +177,7 @@ class SunbeamRenderingTest {
 			val clear = render(params.copy(sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO))
 			try {
 				assertTrue("Distant cloud openings do not generate their own shafts: $style", off.sameAs(through))
-				assertTrue("A mid-only deck veiling the sun must also suppress clear-sky rays: $style", off.sameAs(clear))
+				assertTrue("Mid clouds must suppress source-fixed clear-sky glare without creating their own shafts: $style", off.sameAs(clear))
 			} finally {
 				off.recycle()
 				through.recycle()

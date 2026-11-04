@@ -14,10 +14,76 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import xyz.attacktive.weatherd.domain.model.BirdFlockSize
 import xyz.attacktive.weatherd.domain.model.DayPhase
+import xyz.attacktive.weatherd.domain.model.Precipitation
+import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 
 @RunWith(AndroidJUnit4::class)
 class CloudRenderingTest {
 	private val resources = InstrumentationRegistry.getInstrumentation().targetContext.resources
+
+	@Test
+	fun partlyCloudyBackdropKeepsClearPhaseSkyUntilTheOvercastDeck() {
+		val renderer = SceneRenderer(resources)
+		for (phase in listOf(DayPhase.DAY, DayPhase.DAWN, DayPhase.DUSK)) {
+			val params = SceneParams(
+				dayPhase = phase,
+				cloudiness = 0.72f,
+				fogDensity = 0f,
+				precipitation = null,
+				thunder = false,
+				windFactor = 0f,
+				celestialProgress = 0.5f,
+				sunVisible = false
+			)
+			val clear = createBitmap(WIDTH, HEIGHT)
+			val partly = createBitmap(WIDTH, HEIGHT)
+			val overcast = createBitmap(WIDTH, HEIGHT)
+			try {
+				renderer.renderBackdrop(Canvas(clear), WIDTH, HEIGHT, params.copy(cloudiness = 0.05f))
+				renderer.renderBackdrop(Canvas(partly), WIDTH, HEIGHT, params)
+				renderer.renderBackdrop(Canvas(overcast), WIDTH, HEIGHT, params.copy(cloudiness = 0.9f))
+
+				assertTrue("$phase partly cloudy must retain the clear sky color between clouds", clear.sameAs(partly))
+				assertFalse("$phase overcast must still gray the sky", clear.sameAs(overcast))
+			} finally {
+				clear.recycle()
+				partly.recycle()
+				overcast.recycle()
+			}
+		}
+	}
+
+	@Test
+	fun rainAndFogRetainTheirCachedCeilingAtPartialCoverage() {
+		val renderer = SceneRenderer(resources)
+		val dry = SceneParams(
+			dayPhase = DayPhase.DAY,
+			cloudiness = 0.72f,
+			fogDensity = 0f,
+			precipitation = null,
+			thunder = false,
+			windFactor = 0f,
+			sunVisible = false
+		)
+		val wetScenes = mapOf(
+			"rain" to dry.copy(precipitation = Precipitation(PrecipitationKind.RAIN, 0.65f, observed = 0.5f)),
+			"fog" to dry.copy(fogDensity = 0.5f)
+		)
+
+		for ((kind, params) in wetScenes) {
+			val withoutCeiling = createBitmap(WIDTH, HEIGHT)
+			val withCeiling = createBitmap(WIDTH, HEIGHT)
+			try {
+				renderer.renderBackdrop(Canvas(withoutCeiling), WIDTH, HEIGHT, params.copy(cloudScale = 0f))
+				renderer.renderBackdrop(Canvas(withCeiling), WIDTH, HEIGHT, params)
+
+				assertFalse("$kind at 72% opaque cover must retain the earlier cached ceiling", withoutCeiling.sameAs(withCeiling))
+			} finally {
+				withoutCeiling.recycle()
+				withCeiling.recycle()
+			}
+		}
+	}
 
 	@Test
 	fun mostlyCloudyForegroundRendersMovingTextureClouds() {
@@ -126,6 +192,85 @@ class CloudRenderingTest {
 	}
 
 	@Test
+	fun partlyCloudyAddsTexturedCumulusInsteadOfRelyingOnTheSupportBank() {
+		val scattered = renderForeground(
+			cloudiness = 0.32f,
+			cloudScale = 1f,
+			cloudLayers = SceneCloudLayers(low = 0.32f, mid = 0f, high = 0f)
+		)
+		val partly = renderForeground(
+			cloudiness = 0.70f,
+			cloudScale = 1f,
+			cloudLayers = SceneCloudLayers(low = 0.70f, mid = 0f, high = 0f)
+		)
+		val broken = renderForeground(
+			cloudiness = 0.75f,
+			cloudScale = 1f,
+			cloudLayers = SceneCloudLayers(low = 0.75f, mid = 0f, high = 0f)
+		)
+		try {
+			var scatteredPixels = 0
+			var partlyPixels = 0
+			var brokenPixels = 0
+			for (y in 0 until HEIGHT / 2) {
+				for (x in 0 until WIDTH) {
+					if (Color.alpha(scattered.getPixel(x, y)) >= 128) {
+						scatteredPixels++
+					}
+
+					if (Color.alpha(partly.getPixel(x, y)) >= 128) {
+						partlyPixels++
+					}
+
+					if (Color.alpha(broken.getPixel(x, y)) >= 128) {
+						brokenPixels++
+					}
+				}
+			}
+
+			assertTrue("70% low cover should form substantially more opaque cumulus than 32%, but visible pixels were $scatteredPixels -> $partlyPixels", partlyPixels > scatteredPixels * 1.25f)
+			assertTrue("Broken cover at 75% must retain comparable textured cloud mass, but visible pixels were $partlyPixels -> $brokenPixels", brokenPixels >= partlyPixels * 0.8f)
+		} finally {
+			scattered.recycle()
+			partly.recycle()
+			broken.recycle()
+		}
+	}
+
+	@Test
+	fun partlyCloudyBankStaysFaintInsteadOfCoveringBlueGaps() {
+		val renderer = SceneRenderer(resources)
+		val params = SceneParams(
+			dayPhase = DayPhase.DAY,
+			cloudiness = 0.72f,
+			fogDensity = 0f,
+			precipitation = null,
+			thunder = false,
+			windFactor = 0f,
+			cloudScale = 1f,
+			sunVisible = false
+		)
+
+		assertEquals("The bank must not appear at 65% low cover", 0, renderer.partlyCloudBankAlpha(params.copy(cloudiness = 0.65f)))
+		assertEquals("72% low cover must only have a faint support bank", 6, renderer.partlyCloudBankAlpha(params))
+		assertEquals("The end of the scattered range must remain subtle", 14, renderer.partlyCloudBankAlpha(params.copy(cloudiness = 0.75f)))
+		assertTrue("An explicit cloud opacity preference still controls the bank", renderer.partlyCloudBankAlpha(params.copy(cloudScale = 0.5f)) < renderer.partlyCloudBankAlpha(params))
+
+		renderer.prewarmCloudTextures()
+		val bank = createBitmap(WIDTH, HEIGHT)
+		try {
+			renderer.drawPartlyCloudBank(Canvas(bank), WIDTH.toFloat(), HEIGHT.toFloat(), params, TIME_SECONDS)
+			val pixels = IntArray(WIDTH * HEIGHT)
+			bank.getPixels(pixels, 0, WIDTH, 0, 0, WIDTH, HEIGHT)
+			val strongestAlpha = pixels.maxOf { Color.alpha(it) }
+
+			assertTrue("72% low cover must render a faint rather than full-strength overcast bank", strongestAlpha in 1..6)
+		} finally {
+			bank.recycle()
+		}
+	}
+
+	@Test
 	fun partlyCloudyBankAppliesContrastScale() {
 		val renderer = SceneRenderer(resources)
 		renderer.prewarmCloudTextures()
@@ -134,7 +279,7 @@ class CloudRenderingTest {
 		val hard = createBitmap(WIDTH, HEIGHT)
 		val params = SceneParams(
 			dayPhase = DayPhase.DAY,
-			cloudiness = 0.72f,
+			cloudiness = 0.75f,
 			fogDensity = 0f,
 			precipitation = null,
 			thunder = false,
@@ -143,8 +288,8 @@ class CloudRenderingTest {
 			cloudContrastScale = 0.5f
 		)
 
-		renderer.drawPartlyCloudBank(Canvas(soft), WIDTH.toFloat(), HEIGHT.toFloat(), params, TIME_SECONDS, 0.95f)
-		renderer.drawPartlyCloudBank(Canvas(hard), WIDTH.toFloat(), HEIGHT.toFloat(), params.copy(cloudContrastScale = 1.5f), TIME_SECONDS, 0.95f)
+		renderer.drawPartlyCloudBank(Canvas(soft), WIDTH.toFloat(), HEIGHT.toFloat(), params, TIME_SECONDS)
+		renderer.drawPartlyCloudBank(Canvas(hard), WIDTH.toFloat(), HEIGHT.toFloat(), params.copy(cloudContrastScale = 1.5f), TIME_SECONDS)
 
 		val softPixels = IntArray(WIDTH * HEIGHT)
 		val hardPixels = IntArray(WIDTH * HEIGHT)

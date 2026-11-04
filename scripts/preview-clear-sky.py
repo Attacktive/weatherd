@@ -48,11 +48,11 @@ FAR_ALPHA_SCALE = 1.18 * 1.12
 FAR_RISE = 0.12
 FAR_TINT_LIFT = 0.16
 
-# Mirrors ScenePalette.basePhaseGradient and phaseGray.
+# Mirrors ScenePalette.basePhaseGradient, phaseGray, and the dry OVERCAST_GRAY_FLOOR.
 SKY_TOP = np.array([74, 144, 217], dtype=np.float32)
 SKY_BOTTOM = np.array([169, 214, 245], dtype=np.float32)
 PHASE_GRAY = np.array([150, 160, 170], dtype=np.float32)
-GRAY_FLOOR = 0.55
+GRAY_FLOOR = 0.75
 GRAY_FULL = 0.85
 CUMULUS_TINT = np.array([255, 255, 255], dtype=np.float32)
 CIRRUS_TINT = np.array([249, 251, 255], dtype=np.float32)
@@ -123,15 +123,17 @@ NEAR_SPRITES = (
 )
 FAR_SPRITES = ('cloud_cumulus_far_veil_broad.png', 'cloud_cumulus_far_veil_layered.png')
 PARTLY_BANK_SPRITE = 'cloud_overcast_hero.webp'
+# These thresholds use effective low-cloud cover, not the normalized scattered-cumulus population weight.
 PARTLY_BANK_START_COVERAGE = 0.70
-PARTLY_BANK_FULL_COVERAGE = 0.95
+PARTLY_BANK_FULL_COVERAGE = 0.75
 PARTLY_BANK_VIEWPORTS = 1.72
 PARTLY_BANK_HEIGHT_SCALE = 0.58
 PARTLY_BANK_TOP = 0.27
 PARTLY_BANK_PHASE = 0.34
 PARTLY_BANK_HAZE = 0.34
-PARTLY_BANK_ALPHA = 0.28
+PARTLY_BANK_ALPHA = 0.055
 BROKEN_BLEND_START = 0.90
+BROKEN_MAX_BLEND = 0.90
 
 CIRRUS_SPRITES = ('cloud_cirrus_sparse.webp', 'cloud_cirrus_scattered.webp', 'cloud_cirrus_broken.webp')
 CIRRUS_FLOOR = 0.1
@@ -144,8 +146,8 @@ CIRRUS_ALPHA = 230
 # Runtime cycles through neighboring morphology variants from a daily random offset; these fixed sequences exercise the same vocabulary in a stable preview.
 REPRESENTATIVE_SPARSE_VARIANTS = (0, 1)
 REPRESENTATIVE_SCATTERED_VARIANTS = (2, 3, 4, 5, 6, 0, 1, 2, 3, 4)
-REPRESENTATIVE_PARTLY_VARIANTS = (4, 5, 6, 0, 1, 2, 3, 4)
-REPRESENTATIVE_BROKEN_VARIANTS = (5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6)
+REPRESENTATIVE_PARTLY_VARIANTS = (4, 5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6, 0)
+REPRESENTATIVE_BROKEN_VARIANTS = (5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3)
 
 # Nominal CloudLayer anchors before its small seeded day-to-day jitter.
 SPARSE_ANCHORS = (
@@ -166,28 +168,42 @@ SCATTERED_ANCHORS = (
 )
 PARTLY_ANCHORS = (
 	(0.03, 0.29, 0.88, 0.94),
+	(0.085, 0.65, 0.74, 0.90),
+	(0.125, 0.39, 0.76, 0.92),
 	(0.17, 0.55, 0.92, 1.00),
+	(0.24, 0.31, 0.80, 0.93),
 	(0.31, 0.73, 0.78, 0.86),
+	(0.38, 0.51, 0.76, 0.90),
+	(0.415, 0.21, 0.72, 0.90),
 	(0.46, 0.38, 0.96, 1.00),
+	(0.535, 0.75, 0.72, 0.88),
 	(0.60, 0.64, 0.84, 0.90),
+	(0.665, 0.43, 0.78, 0.92),
 	(0.73, 0.24, 0.80, 0.92),
+	(0.795, 0.63, 0.74, 0.90),
 	(0.86, 0.49, 0.92, 1.00),
+	(0.925, 0.29, 0.77, 0.90),
+	(0.955, 0.55, 0.73, 0.89),
 	(0.985, 0.70, 0.80, 0.88),
 )
 BROKEN_ANCHORS = (
 	(0.02, 0.42, 0.86, 1.00),
 	(0.08, 0.23, 0.68, 0.96),
+	(0.115, 0.64, 0.74, 0.93),
 	(0.15, 0.58, 0.78, 1.00),
 	(0.22, 0.34, 0.92, 1.00),
 	(0.29, 0.18, 0.65, 0.94),
+	(0.325, 0.62, 0.71, 0.92),
 	(0.36, 0.50, 0.82, 1.00),
 	(0.43, 0.29, 0.72, 0.94),
 	(0.50, 0.61, 0.76, 0.90),
 	(0.57, 0.40, 0.88, 1.00),
 	(0.64, 0.25, 0.69, 0.94),
+	(0.675, 0.37, 0.79, 0.94),
 	(0.71, 0.54, 0.80, 1.00),
 	(0.78, 0.17, 0.64, 0.92),
 	(0.85, 0.46, 0.84, 1.00),
+	(0.885, 0.18, 0.70, 0.92),
 	(0.91, 0.31, 0.70, 0.92),
 	(0.96, 0.59, 0.73, 0.90),
 	(0.995, 0.38, 0.77, 0.92),
@@ -298,7 +314,7 @@ def near_cumulus_step(coverage):
 	if coverage <= BROKEN_BLEND_START:
 		return partly_index
 
-	return partly_index + float(np.clip((coverage - BROKEN_BLEND_START) / (1.0 - BROKEN_BLEND_START), 0, 1))
+	return partly_index + BROKEN_MAX_BLEND * float(np.clip((coverage - BROKEN_BLEND_START) / (1.0 - BROKEN_BLEND_START), 0, 1))
 
 
 def sky(cloudiness):
@@ -492,8 +508,8 @@ def draw_preview_far_clouds(destination, mid_cloudiness, cloud_scale, size_scale
 	draw_cumulus(destination, FAR_PROFILE, far_geometry, far_color, far_alpha)
 
 
-def draw_preview_partly_bank(destination, coverage, cloud_scale, top):
-	partly_bank_weight = float(np.clip((coverage - PARTLY_BANK_START_COVERAGE) / (PARTLY_BANK_FULL_COVERAGE - PARTLY_BANK_START_COVERAGE), 0, 1))
+def draw_preview_partly_bank(destination, low_cloudiness, cloud_scale, top):
+	partly_bank_weight = float(np.clip((low_cloudiness - PARTLY_BANK_START_COVERAGE) / (PARTLY_BANK_FULL_COVERAGE - PARTLY_BANK_START_COVERAGE), 0, 1))
 	if partly_bank_weight <= 0:
 		return
 
@@ -542,7 +558,7 @@ def clear_sky(cloudiness, cloud_scale=1.0, cloud_size_scale=1.0, cloud_count_sca
 
 	draw_cirrus(canvas, high, cloud_scale)
 	draw_preview_far_clouds(canvas, mid, cloud_scale, size_scale, far_color, cloud_top)
-	draw_preview_partly_bank(canvas, coverage, cloud_scale, top)
+	draw_preview_partly_bank(canvas, low, cloud_scale, top)
 	lower, blend = draw_preview_near_clouds(canvas, low, coverage, cloud_scale, size_scale, cloud_top)
 
 	luma = 0.2126 * canvas[:, :, 0] + 0.7152 * canvas[:, :, 1] + 0.0722 * canvas[:, :, 2]

@@ -6,6 +6,16 @@ import org.junit.Test
 
 class SunShaftResponseTest {
 	@Test
+	fun `blue-sky cloud shafts fade only as overcast begins`() {
+		for (cloudiness in listOf(0.55f, 0.70f)) {
+			assertEquals("Blue sky at $cloudiness must retain the full cloud-edge shaft response", 1f, sunShaftDeckFade(cloudiness), 0.0001f)
+		}
+
+		assertEquals(0.5f, sunShaftDeckFade(0.725f), 0.0001f)
+		assertEquals(0f, sunShaftDeckFade(0.75f), 0.0001f)
+	}
+
+	@Test
 	fun `new openings brighten gradually and closed openings fade rather than snap off`() {
 		val response = SunShaftResponse(1)
 		response.update(0f)

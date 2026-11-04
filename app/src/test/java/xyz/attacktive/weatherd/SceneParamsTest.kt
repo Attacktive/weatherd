@@ -24,6 +24,7 @@ import xyz.attacktive.weatherd.domain.render.OverlayLabels
 import xyz.attacktive.weatherd.domain.render.SceneParams
 import xyz.attacktive.weatherd.domain.render.backdropSignature
 import xyz.attacktive.weatherd.domain.render.sceneParamsFor
+import xyz.attacktive.weatherd.domain.render.showsDirectSun
 import xyz.attacktive.weatherd.domain.render.showsRainbow
 import xyz.attacktive.weatherd.domain.weather.SEVERITY_DRIZZLE
 import xyz.attacktive.weatherd.domain.weather.conditionForWmoCode
@@ -583,7 +584,7 @@ class SceneParamsTest {
 			windFactor = 0.2f
 		)
 		val partlyCloudyDusk = clearDay.copy(dayPhase = DayPhase.DUSK, cloudiness = 0.55f)
-		val cloudyDay = clearDay.copy(cloudiness = 0.56f)
+		val overcastDay = clearDay.copy(cloudiness = 0.76f)
 		val foggyDay = clearDay.copy(fogDensity = 1f)
 		val rainyDay = clearDay.copy(
 			precipitation = Precipitation(
@@ -594,15 +595,28 @@ class SceneParamsTest {
 		)
 		val night = clearDay.copy(dayPhase = DayPhase.NIGHT)
 
+		for (cloudiness in listOf(0.55f, 0.56f, 0.70f, 0.75f)) {
+			val params = clearDay.copy(cloudiness = cloudiness)
+			assertTrue("Dry blue gaps at $cloudiness must retain a direct sun", showsDirectSun(params))
+			assertTrue("Dry blue gaps at $cloudiness must retain lens flare", showsRainbow(params))
+		}
+
 		assertTrue(showsRainbow(clearDay))
 		assertTrue(showsRainbow(partlyCloudyDusk))
-		assertFalse(showsRainbow(cloudyDay))
-		assertFalse(showsRainbow(foggyDay))
-		assertFalse(showsRainbow(rainyDay))
-		assertFalse(showsRainbow(night))
+		for ((reason, params) in mapOf(
+			"overcast" to overcastDay,
+			"fog" to foggyDay,
+			"rain" to rainyDay,
+			"night" to night,
+			"thunder" to clearDay.copy(thunder = true),
+			"hidden sun" to clearDay.copy(sunVisible = false)
+		)) {
+			assertFalse("$reason must suppress direct sunlight", showsDirectSun(params))
+			assertFalse("$reason must suppress lens flare", showsRainbow(params))
+		}
+
+		assertTrue("Disabling lens flare must not hide the Sun", showsDirectSun(clearDay.copy(lensFlareEnabled = false)))
 		assertFalse(showsRainbow(clearDay.copy(lensFlareEnabled = false)))
-		assertFalse(showsRainbow(clearDay.copy(sunVisible = false)))
-		assertFalse(showsRainbow(clearDay.copy(thunder = true)))
 	}
 
 	@Test
