@@ -189,6 +189,11 @@ fun backdropSignature(params: SceneParams, backgroundPhotoAvailable: Boolean = f
 private fun twilightBackdropUsesProgress(params: SceneParams, backgroundPhotoAvailable: Boolean) =
 	!backgroundPhotoAvailable && (params.dayPhase == DayPhase.DAWN || params.dayPhase == DayPhase.DUSK)
 
+/** Observed opaque cloud coverage, independent of how many clouds the user chooses to draw. */
+internal fun observedOpaqueCloudiness(params: SceneParams) = params.cloudLayers?.let {
+	maxOf(it.low, it.mid)
+} ?: params.cloudiness
+
 /** User-adjusted rendered total cloud coverage while preserving the provider's raw observation in [SceneParams.cloudiness]. */
 internal fun effectiveCloudiness(params: SceneParams) = scaledCloudiness(params, params.cloudiness)
 

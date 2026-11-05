@@ -368,7 +368,7 @@ private fun snowGray(dayPhase: DayPhase) = when (dayPhase) {
 internal fun overcastAmount(params: SceneParams): Float = when {
 	params.fogDensity > 0f -> 0.85f
 	params.precipitation != null -> precipitationGray(params.precipitation)
-	else -> overcastCeilingStrength(effectiveOpaqueCloudiness(params))
+	else -> overcastCeilingStrength(observedOpaqueCloudiness(params))
 }
 
 /** Dry opaque-cloud ramp for the gray sky blend and cached ceiling, avoiding a hard visual jump at the deck threshold. */
@@ -376,8 +376,8 @@ internal fun overcastCeilingStrength(cloudiness: Float, floor: Float = OVERCAST_
 
 /** Wet and foggy scenes keep the earlier ceiling fade; only dry clouds delay the ceiling until the overcast deck. */
 internal fun backdropCeilingStrength(params: SceneParams) = when {
-	params.precipitation != null || params.fogDensity > 0f -> overcastCeilingStrength(effectiveOpaqueCloudiness(params), WET_CEILING_FLOOR)
-	else -> overcastCeilingStrength(effectiveOpaqueCloudiness(params))
+	params.precipitation != null || params.fogDensity > 0f -> overcastCeilingStrength(observedOpaqueCloudiness(params), WET_CEILING_FLOOR)
+	else -> overcastCeilingStrength(observedOpaqueCloudiness(params))
 }
 
 /** Progress ranges that shape the procedural dawn and dusk palette transitions. */
@@ -416,7 +416,7 @@ internal fun darkenAmount(params: SceneParams): Float = when {
 			else -> 0.07f
 		}
 	}
-	params.precipitation == null && effectiveOpaqueCloudiness(params) > 0.75f -> 0.07f
+	params.precipitation == null && observedOpaqueCloudiness(params) > 0.75f -> 0.07f
 	else -> 0f
 }
 

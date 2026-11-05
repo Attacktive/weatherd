@@ -331,6 +331,8 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		val w = width.toFloat()
 		val h = height.toFloat()
 		val fogDensity = effectiveFogDensity(params)
+		val observedCover = observedOpaqueCloudiness(params)
+		val renderedCover = effectiveOpaqueCloudiness(params)
 		val sunCenterX = w * params.sunHorizontalPosition
 		val moonCenterX = w * CELESTIAL_X_FRACTION
 		val celestialCenterX = if (params.dayPhase == DayPhase.NIGHT) moonCenterX else sunCenterX
@@ -368,11 +370,12 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 			drawBirds(canvas, w, h, timeSeconds, params)
 		}
 
-		if (params.precipitation == null && effectiveOpaqueCloudiness(params) > SCATTERED_CLOUD_FLOOR && effectiveOpaqueCloudiness(params) <= CLOUD_DECK_THRESHOLD) {
+		// Higher Cloud Count cannot turn partly cloudy weather into overcast, but a lower count can reveal scattered cumulus within observed overcast.
+		if (params.precipitation == null && renderedCover > SCATTERED_CLOUD_FLOOR && minOf(observedCover, renderedCover) <= CLOUD_DECK_THRESHOLD) {
 			drawScatteredClouds(canvas, w, h, params, timeSeconds)
 		}
 
-		if (shouldDrawOvercastBanks(effectiveOpaqueCloudiness(params), params.fogDensity, params.precipitation != null)) {
+		if (shouldDrawOvercastBanks(minOf(observedCover, renderedCover), params.fogDensity, params.precipitation != null)) {
 			drawCloudDrift(canvas, w, h, params, timeSeconds)
 		}
 
@@ -2951,11 +2954,11 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		params.precipitation == null &&
 		params.fogDensity <= 0f &&
 		!params.thunder &&
-		effectiveOpaqueCloudiness(params) < CLOUD_DECK_THRESHOLD
+		observedOpaqueCloudiness(params) < CLOUD_DECK_THRESHOLD
 
 	/** Weather-dependent crepuscular shafts and opt-in camera-style clear-sky glare. */
 	private fun drawSunLightShafts(canvas: Canvas, sun: SunRenderContext, radius: Float, core: Int, cloudSampled: Boolean) {
-		val opaqueCloudiness = effectiveOpaqueCloudiness(sun.params)
+		val opaqueCloudiness = observedOpaqueCloudiness(sun.params)
 		val deckFade = sunShaftDeckFade(opaqueCloudiness)
 
 		if (deckFade <= 0f) {
@@ -3146,7 +3149,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 	}
 
 	private fun canSampleSunCloudProfile(params: SceneParams) =
-		params.precipitation == null && effectiveLowCloudiness(params) > SCATTERED_CLOUD_FLOOR && effectiveLowCloudiness(params) <= CLOUD_DECK_THRESHOLD && params.cloudScale > 0f
+		params.precipitation == null && effectiveLowCloudiness(params) > SCATTERED_CLOUD_FLOOR && observedOpaqueCloudiness(params) <= CLOUD_DECK_THRESHOLD && params.cloudScale > 0f
 
 	private fun sunCloudUpperAlpha(upperIndex: Int, blend: Float, cloudScale: Float): Int {
 		if (upperIndex >= cumulusSteps.size || blend < CUMULUS_BLEND_FLOOR) {
@@ -4157,7 +4160,7 @@ internal fun moonCloudTransmittance(localOpacity: Float): Float {
 private fun showsCelestialBody(params: SceneParams) = when {
 	params.precipitation != null -> false
 	params.dayPhase != DayPhase.NIGHT -> true
-	else -> params.fogDensity <= 0f && effectiveOpaqueCloudiness(params) <= 0.75f
+	else -> params.fogDensity <= 0f && observedOpaqueCloudiness(params) <= 0.75f
 }
 
 /** Fair-weather cloud geometry scale, clamped defensively for direct [SceneParams] construction in tests and previews. */
@@ -4167,13 +4170,13 @@ private fun cloudSizeScale(params: SceneParams) = params.cloudSizeScale.coerceIn
 internal fun showsSunVeil(params: SceneParams) = params.sunVisible && params.dayPhase != DayPhase.NIGHT
 
 /** A heavy dry deck still transmits a broad patch of daylight even when the solar limb itself is no longer visible. */
-private fun showsOvercastSunTransmission(params: SceneParams) = params.sunVisible && params.dayPhase != DayPhase.NIGHT && params.precipitation == null && params.fogDensity <= 0f && !params.thunder && effectiveOpaqueCloudiness(params) > CLOUD_DECK_THRESHOLD
+private fun showsOvercastSunTransmission(params: SceneParams) = params.sunVisible && params.dayPhase != DayPhase.NIGHT && params.precipitation == null && params.fogDensity <= 0f && !params.thunder && observedOpaqueCloudiness(params) > CLOUD_DECK_THRESHOLD
 
 /** Blue-sky cloud edges retain their ray strength until the final transition to overcast. */
 internal fun sunShaftDeckFade(cloudiness: Float) = unlerp(CLOUD_DECK_THRESHOLD, SUN_SHAFT_FADE_START_CLOUDINESS, cloudiness).coerceIn(0f, 1f)
 
 /** Dry scattered clouds obscure the direct sun by their silhouettes, not by graying every open gap. */
-internal fun showsDirectSun(params: SceneParams) = params.sunVisible && params.dayPhase != DayPhase.NIGHT && params.precipitation == null && params.fogDensity <= 0f && !params.thunder && effectiveOpaqueCloudiness(params) <= DIRECT_SUN_MAX_CLOUDINESS
+internal fun showsDirectSun(params: SceneParams) = params.sunVisible && params.dayPhase != DayPhase.NIGHT && params.precipitation == null && params.fogDensity <= 0f && !params.thunder && observedOpaqueCloudiness(params) <= DIRECT_SUN_MAX_CLOUDINESS
 
 /** Prismatic optics require the lens-flare preference and a direct, fair-weather sun. */
 internal fun showsRainbow(params: SceneParams) = params.lensFlareEnabled && showsDirectSun(params)
@@ -4195,7 +4198,7 @@ private fun birdColor(dayPhase: DayPhase) = when (dayPhase) {
 	else -> Color.argb(140, 26, 26, 38)
 }
 
-private fun showsHaze(params: SceneParams) = params.precipitation != null || params.fogDensity > 0f || effectiveOpaqueCloudiness(params) > 0.75f
+private fun showsHaze(params: SceneParams) = params.precipitation != null || params.fogDensity > 0f || observedOpaqueCloudiness(params) > 0.75f
 
 private const val PRECIPITATION_SCALE_EXPONENT = 0.5f
 

@@ -37,19 +37,133 @@ class CloudRenderingTest {
 			)
 			val clear = createBitmap(WIDTH, HEIGHT)
 			val partly = createBitmap(WIDTH, HEIGHT)
+			val amplified = createBitmap(WIDTH, HEIGHT)
 			val overcast = createBitmap(WIDTH, HEIGHT)
 			try {
 				renderer.renderBackdrop(Canvas(clear), WIDTH, HEIGHT, params.copy(cloudiness = 0.05f))
 				renderer.renderBackdrop(Canvas(partly), WIDTH, HEIGHT, params)
+				renderer.renderBackdrop(Canvas(amplified), WIDTH, HEIGHT, params.copy(cloudCountScale = 2f))
 				renderer.renderBackdrop(Canvas(overcast), WIDTH, HEIGHT, params.copy(cloudiness = 0.9f))
 
 				assertTrue("$phase partly cloudy must retain the clear sky color between clouds", clear.sameAs(partly))
+				assertTrue("$phase Cloud Count must preserve the unobstructed backdrop", clear.sameAs(amplified))
 				assertFalse("$phase overcast must still gray the sky", clear.sameAs(overcast))
 			} finally {
 				clear.recycle()
 				partly.recycle()
+				amplified.recycle()
 				overcast.recycle()
 			}
+		}
+	}
+
+	@Test
+	fun cloudCountRetainsBlueGapsInFullyCompositedPartlyCloudyScene() {
+		val renderer = SceneRenderer(resources, epochDay = 20_000L)
+		renderer.prewarmCloudTextures()
+		val params = SceneParams(
+			dayPhase = DayPhase.DAY,
+			cloudiness = 0.7f,
+			fogDensity = 0f,
+			precipitation = null,
+			thunder = false,
+			windFactor = 0.2f,
+			sunVisible = false,
+			moonVisible = false,
+			distantAircraftEnabled = false,
+			birdFlockSize = BirdFlockSize.OFF
+		)
+		val backdrop = createBitmap(WIDTH, HEIGHT)
+		val normal = createBitmap(WIDTH, HEIGHT)
+		val amplified = createBitmap(WIDTH, HEIGHT)
+		val saturated = createBitmap(WIDTH, HEIGHT)
+		try {
+			renderer.renderBackdrop(Canvas(backdrop), WIDTH, HEIGHT, params)
+			renderer.render(Canvas(normal), WIDTH, HEIGHT, params, TIME_SECONDS)
+			renderer.render(Canvas(amplified), WIDTH, HEIGHT, params.copy(cloudCountScale = 2f), TIME_SECONDS)
+			renderer.render(Canvas(saturated), WIDTH, HEIGHT, params.copy(cloudiness = 0.75f), TIME_SECONDS)
+
+			val backgroundPixels = IntArray(WIDTH * HEIGHT)
+			val normalPixels = IntArray(WIDTH * HEIGHT)
+			val amplifiedPixels = IntArray(WIDTH * HEIGHT)
+			backdrop.getPixels(backgroundPixels, 0, WIDTH, 0, 0, WIDTH, HEIGHT)
+			normal.getPixels(normalPixels, 0, WIDTH, 0, 0, WIDTH, HEIGHT)
+			amplified.getPixels(amplifiedPixels, 0, WIDTH, 0, 0, WIDTH, HEIGHT)
+			var normalCloudPixels = 0
+			var amplifiedCloudPixels = 0
+			var openBluePixels = 0
+			for (y in HEIGHT / 10 until HEIGHT / 2) {
+				for (x in 0 until WIDTH) {
+					val index = y * WIDTH + x
+					if (normalPixels[index] != backgroundPixels[index]) {
+						normalCloudPixels++
+					}
+
+					if (amplifiedPixels[index] != backgroundPixels[index]) {
+						amplifiedCloudPixels++
+					} else if (Color.blue(backgroundPixels[index]) > Color.red(backgroundPixels[index])) {
+						openBluePixels++
+					}
+				}
+			}
+
+			val sampledPixels = WIDTH * (HEIGHT / 2 - HEIGHT / 10)
+			assertTrue("The normal partly cloudy sky must have visible clouds", normalCloudPixels > 0)
+			assertTrue("Higher Cloud Count must keep substantial cumulus, $normalCloudPixels -> $amplifiedCloudPixels", amplifiedCloudPixels >= normalCloudPixels * 0.7f)
+			assertTrue("Higher Cloud Count must leave blue gaps instead of an opaque sheet: $openBluePixels / $sampledPixels", openBluePixels > sampledPixels / 4)
+			assertFalse("Cloud Count must change the visible cloud artwork", normal.sameAs(amplified))
+			assertTrue("High Cloud Count must retain capped cumulus rather than switching to overcast banks", amplified.sameAs(saturated))
+		} finally {
+			backdrop.recycle()
+			normal.recycle()
+			amplified.recycle()
+			saturated.recycle()
+		}
+	}
+
+	@Test
+	fun reducingCloudCountInObservedOvercastChangesArtworkNotBackdrop() {
+		val renderer = SceneRenderer(resources, epochDay = 20_000L)
+		renderer.prewarmCloudTextures()
+		val overcast = SceneParams(
+			dayPhase = DayPhase.DAY,
+			cloudiness = 0.9f,
+			fogDensity = 0f,
+			precipitation = null,
+			thunder = false,
+			windFactor = 0.2f,
+			sunVisible = false,
+			moonVisible = false,
+			distantAircraftEnabled = false,
+			birdFlockSize = BirdFlockSize.OFF
+		)
+		val normal = createBitmap(WIDTH, HEIGHT)
+		val reduced = createBitmap(WIDTH, HEIGHT)
+		val scattered = createBitmap(WIDTH, HEIGHT)
+		val normalBackdrop = createBitmap(WIDTH, HEIGHT)
+		val reducedBackdrop = createBitmap(WIDTH, HEIGHT)
+		try {
+			renderer.renderForeground(Canvas(normal), WIDTH, HEIGHT, overcast, TIME_SECONDS)
+			renderer.renderForeground(Canvas(reduced), WIDTH, HEIGHT, overcast.copy(cloudCountScale = 0.5f), TIME_SECONDS)
+			renderer.renderForeground(Canvas(scattered), WIDTH, HEIGHT, overcast.copy(cloudiness = 0.45f), TIME_SECONDS)
+			renderer.renderBackdrop(Canvas(normalBackdrop), WIDTH, HEIGHT, overcast)
+			renderer.renderBackdrop(Canvas(reducedBackdrop), WIDTH, HEIGHT, overcast.copy(cloudCountScale = 0.5f))
+
+			val reducedPixels = IntArray(WIDTH * HEIGHT)
+			val scatteredPixels = IntArray(WIDTH * HEIGHT)
+			reduced.getPixels(reducedPixels, 0, WIDTH, 0, 0, WIDTH, HEIGHT)
+			scattered.getPixels(scatteredPixels, 0, WIDTH, 0, 0, WIDTH, HEIGHT)
+			val differingAlphaPixels = reducedPixels.indices.count { Color.alpha(reducedPixels[it]) != Color.alpha(scatteredPixels[it]) }
+
+			assertFalse("Reducing Cloud Count must change the overcast cloud artwork", normal.sameAs(reduced))
+			assertEquals("50% Cloud Count at 90% observed cover must use the 45% scattered-cumulus alpha mask", 0, differingAlphaPixels)
+			assertTrue("Observed overcast must retain its gray background regardless of Cloud Count", normalBackdrop.sameAs(reducedBackdrop))
+		} finally {
+			normal.recycle()
+			reduced.recycle()
+			scattered.recycle()
+			normalBackdrop.recycle()
+			reducedBackdrop.recycle()
 		}
 	}
 

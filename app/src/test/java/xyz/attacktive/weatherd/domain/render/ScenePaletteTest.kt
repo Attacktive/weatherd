@@ -285,14 +285,52 @@ class ScenePaletteTest {
 	}
 
 	@Test
-	fun `cloud count drives the same dry palette as equivalent observed coverage`() {
-		val clear = skyGradientFor(clearParams(DayPhase.DAY))
-		val scaled = clearParams(DayPhase.DAY).copy(cloudiness = 0.45f, cloudCountScale = 2f)
-		val equivalent = clearParams(DayPhase.DAY).copy(cloudiness = 0.9f)
+	fun `cloud count changes cloud density without changing dry sky atmosphere`() {
+		for (phase in listOf(DayPhase.DAY, DayPhase.DAWN, DayPhase.DUSK)) {
+			val partly = clearParams(phase).copy(cloudiness = 0.7f, celestialProgress = 0.5f)
+			val baseline = skyGradientFor(partly)
 
-		assertEquals(0.45f, scaled.cloudiness, 0.0001f)
-		assertNotEquals(clear, skyGradientFor(scaled))
-		assertEquals(skyGradientFor(equivalent), skyGradientFor(scaled))
+			for (count in listOf(0.5f, 1f, 1.2f, 2f)) {
+				val scaled = partly.copy(cloudCountScale = count)
+				assertEquals("$phase Cloud Count $count must preserve the sky", baseline, skyGradientFor(scaled))
+				assertEquals(0f, backdropCeilingStrength(scaled), 0.0001f)
+				assertEquals(0f, darkenAmount(scaled), 0.0001f)
+			}
+		}
+
+		val scaled = clearParams(DayPhase.DAY).copy(cloudiness = 0.45f, cloudCountScale = 2f)
+		val overcast = clearParams(DayPhase.DAY).copy(cloudiness = 0.9f)
+
+		assertEquals(skyGradientFor(clearParams(DayPhase.DAY)), skyGradientFor(scaled))
+		assertNotEquals(skyGradientFor(overcast), skyGradientFor(scaled))
+		assertEquals(0.9f, effectiveOpaqueCloudiness(scaled), 0.0001f)
+	}
+
+	@Test
+	fun `observed low and mid cover govern grayness independently of count`() {
+		val partly = clearParams(DayPhase.DAY).copy(
+			cloudiness = 0.9f,
+			cloudLayers = SceneCloudLayers(low = 0.7f, mid = 0.6f, high = 0.95f)
+		)
+		val overcast = partly.copy(cloudLayers = SceneCloudLayers(low = 0.85f, mid = 0.6f, high = 0f))
+
+		assertEquals(skyGradientFor(clearParams(DayPhase.DAY)), skyGradientFor(partly.copy(cloudCountScale = 2f)))
+		assertEquals(0f, backdropCeilingStrength(partly.copy(cloudCountScale = 2f)), 0.0001f)
+		assertEquals(1f, backdropCeilingStrength(overcast.copy(cloudCountScale = 0.5f)), 0.0001f)
+		assertEquals(skyGradientFor(overcast), skyGradientFor(overcast.copy(cloudCountScale = 0.5f)))
+	}
+
+	@Test
+	fun `rain and fog backdrop do not change with cloud count`() {
+		val dry = clearParams(DayPhase.DAY).copy(cloudiness = 0.72f)
+		val rain = dry.copy(precipitation = Precipitation(PrecipitationKind.RAIN, 0.65f, observed = 0.5f))
+		val fog = dry.copy(fogDensity = 0.5f)
+
+		for (scene in listOf(rain, fog)) {
+			assertEquals(backdropCeilingStrength(scene), backdropCeilingStrength(scene.copy(cloudCountScale = 2f)), 0.0001f)
+			assertEquals(backdropCeilingStrength(scene), backdropCeilingStrength(scene.copy(cloudCountScale = 0.5f)), 0.0001f)
+			assertEquals(skyGradientFor(scene), skyGradientFor(scene.copy(cloudCountScale = 2f)))
+		}
 	}
 
 	@Test

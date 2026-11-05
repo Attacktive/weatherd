@@ -35,7 +35,7 @@ class LensFlareMotionEligibilityTest {
 			enabled.copy(dayPhase = DayPhase.DUSK, celestialProgress = 1f),
 			enabled.copy(thunder = true),
 			enabled.copy(cloudiness = 0.9f),
-			enabled.copy(cloudiness = 0.4f, cloudCountScale = 2f),
+			enabled.copy(cloudiness = 0.9f, cloudCountScale = 0.5f),
 			enabled.copy(fogDensity = 1f),
 			enabled.copy(precipitation = Precipitation(PrecipitationKind.RAIN, 1f, 1f))
 		)
@@ -43,6 +43,8 @@ class LensFlareMotionEligibilityTest {
 		for (scene in hiddenScenes) {
 			assertFalse("Hidden reflections must not keep sensors active for $scene", lensFlareMotionActive(scene))
 		}
+
+		assertTrue("Cloud Count must not suppress reflections under observed partly cloudy weather", lensFlareMotionActive(enabled.copy(cloudiness = 0.4f, cloudCountScale = 2f)))
 	}
 
 	@Test

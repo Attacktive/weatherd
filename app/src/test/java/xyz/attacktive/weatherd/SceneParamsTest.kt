@@ -603,6 +603,9 @@ class SceneParamsTest {
 
 		assertTrue(showsRainbow(clearDay))
 		assertTrue(showsRainbow(partlyCloudyDusk))
+		assertTrue("More drawn clouds must not hide the direct sun from a dry partly cloudy sky", showsDirectSun(clearDay.copy(cloudiness = 0.7f, cloudCountScale = 2f)))
+		assertTrue("Blue gaps must retain their lens flare when Cloud Count is raised", showsRainbow(clearDay.copy(cloudiness = 0.7f, cloudCountScale = 2f)))
+		assertFalse("Reducing Cloud Count must not turn observed overcast into direct sunlight", showsDirectSun(overcastDay.copy(cloudCountScale = 0.5f)))
 		for ((reason, params) in mapOf(
 			"overcast" to overcastDay,
 			"fog" to foggyDay,
