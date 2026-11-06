@@ -24,6 +24,8 @@ val localProperties = Properties().apply {
 }
 
 val keystorePassword: String? = System.getenv("KEYSTORE_PASSWORD") ?: localProperties.getProperty("KEYSTORE_PASSWORD")
+val stormCloudDebugEnabled = providers.gradleProperty("stormCloudPrototype").map { it.toBoolean() }.orElse(true)
+val stormCloudReleaseEnabled = providers.gradleProperty("stormCloudRelease").map { it.toBoolean() }.orElse(true)
 
 android {
 	namespace = "xyz.attacktive.weatherd"
@@ -50,10 +52,11 @@ android {
 
 	buildTypes {
 		debug {
-			buildConfigField("boolean", "STORM_CLOUD_PROTOTYPE", providers.gradleProperty("stormCloudPrototype").map { it.toBoolean().toString() }.orElse("false").get())
+			buildConfigField("boolean", "STORM_CLOUD_PROTOTYPE", stormCloudDebugEnabled.get().toString())
 		}
 
 		release {
+			buildConfigField("boolean", "STORM_CLOUD_PROTOTYPE", stormCloudReleaseEnabled.get().toString())
 			signingConfig = signingConfigs.getByName("release")
 			isMinifyEnabled = true
 			isShrinkResources = true
@@ -166,18 +169,90 @@ dependencies {
 	androidTestImplementation(libs.androidx.test.runner)
 }
 
-// Experimental assets are local-only and must be prepared before an opted-in debug build.
+val prepareStormCloudDebugAssets = tasks.register("prepareStormCloudDebugAssets") {
+	onlyIf { stormCloudDebugEnabled.get() }
+	doLast {
+		val preparation = providers.exec {
+			workingDir(rootProject.projectDir)
+			commandLine("python3", rootProject.file("scripts/ensure-storm-cloud-debug-assets.py").absolutePath)
+			isIgnoreExitValue = true
+		}
+
+		check(preparation.result.get().exitValue == 0) {
+			"Could not prepare debug storm-cloud artwork: ${preparation.standardError.asText.get().trim()}"
+		}
+
+		logger.lifecycle(preparation.standardOutput.asText.get().trim())
+	}
+}
+
 val validateStormCloudPrototypeAssets = tasks.register("validateStormCloudPrototypeAssets") {
-	onlyIf { providers.gradleProperty("stormCloudPrototype").orNull?.toBoolean() == true }
+	onlyIf { stormCloudDebugEnabled.get() }
+	dependsOn(prepareStormCloudDebugAssets)
 	doLast {
 		for (layer in listOf("upper", "hero", "distant", "veil")) {
 			check(layout.projectDirectory.file("src/debug/assets/storm-clouds/$layer.png").asFile.isFile) {
-				"Missing #405 $layer artwork. Run scripts/prepare-storm-cloud-prototype.py --download first."
+				"Missing #405 $layer artwork. Check scripts/ensure-storm-cloud-debug-assets.py."
 			}
 		}
 	}
 }
 
-tasks.matching { it.name == "preDebugBuild" }.configureEach {
+tasks.matching { it.name == "preDebugBuild" || it.name == "mergeDebugAssets" }.configureEach {
 	dependsOn(validateStormCloudPrototypeAssets)
+}
+
+/** Blocks release opt-in unless the licensed, high-resolution artwork is bundled. */
+val validateStormCloudReleaseAssets = tasks.register("validateStormCloudReleaseAssets") {
+	doLast {
+		val assets = layout.projectDirectory.dir("src/release/assets/storm-clouds").asFile
+		val minimumWidths = mapOf("upper" to 1200, "hero" to 1500, "distant" to 1200, "veil" to 720)
+		check(stormCloudReleaseEnabled.get() || minimumWidths.keys.none { assets.resolve("$it.png").isFile }) {
+			"Storm-cloud artwork is present but the release renderer is disabled; enabling #405 must be explicit."
+		}
+
+		if (!stormCloudReleaseEnabled.get()) {
+			return@doLast
+		}
+
+		check(assets.resolve("ARTWORK_PERMISSION.md").isFile) {
+			"Cannot ship #405 without documented permission to redistribute its artwork."
+		}
+
+		for ((layer, minimumWidth) in minimumWidths) {
+			val file = assets.resolve("$layer.png")
+			check(file.isFile) {
+				"Missing release storm-cloud artwork: ${file.path}"
+			}
+
+			val image = javax.imageio.ImageIO.read(file)
+			check(image != null && image.width >= minimumWidth && image.colorModel.hasAlpha()) {
+				"Release storm-cloud artwork must be a high-resolution transparent PNG: ${file.path}"
+			}
+		}
+	}
+}
+
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+	dependsOn(validateStormCloudReleaseAssets)
+}
+
+/** Verify the built APK and AAB before a cloud-enabled release can be published. */
+val verifyStormCloudReleasePackage = tasks.register("verifyStormCloudReleasePackage") {
+	onlyIf { stormCloudReleaseEnabled.get() }
+	dependsOn("assembleRelease")
+	doLast {
+		val verification = providers.exec {
+			workingDir(rootProject.projectDir)
+			commandLine("python3", rootProject.file("scripts/verify-storm-cloud-package.py").absolutePath)
+			isIgnoreExitValue = true
+		}.result.get()
+		check(verification.exitValue == 0) {
+			"Release APK/AAB do not contain matching authorized high-resolution storm clouds."
+		}
+	}
+}
+
+tasks.matching { it.name == "bundleRelease" }.configureEach {
+	finalizedBy(verifyStormCloudReleasePackage)
 }

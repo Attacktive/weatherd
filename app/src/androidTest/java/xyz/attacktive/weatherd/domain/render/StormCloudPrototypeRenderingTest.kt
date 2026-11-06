@@ -10,8 +10,10 @@ import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import xyz.attacktive.weatherd.BuildConfig
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
@@ -95,6 +97,23 @@ class StormCloudPrototypeRenderingTest {
 		val night = rainy.copy(dayPhase = DayPhase.NIGHT)
 		val nightSky = naturalSkyGradientFor(night)
 		assertEquals(nightSky, prototypeSkyGradient(night, nightSky, enabled = true))
+	}
+
+	@Test
+	fun optedInBuildDecodesRealPackagedClouds() {
+		assumeTrue(BuildConfig.STORM_CLOUD_PROTOTYPE)
+		val prototype = StormCloudPrototype(resources)
+		val target = createBitmap(480, 1056)
+
+		try {
+			prototype.prewarm()
+			assertTrue(prototype.draw(Canvas(target), 480f, 1056f, rainy, 30f, Color.WHITE, CloudColorGrade.IDENTITY))
+			val pixels = IntArray(480 * 1056)
+			target.getPixels(pixels, 0, 480, 0, 0, 480, 1056)
+			assertTrue(pixels.any { Color.alpha(it) > 0 })
+		} finally {
+			target.recycle()
+		}
 	}
 
 	private fun fixture() = createBitmap(160, 80).apply {

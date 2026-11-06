@@ -4,7 +4,7 @@ import kotlin.math.roundToInt
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 
-/** Prototype-only Natural rain grading, applied to the already brightness-adjusted sky, never to source artwork. */
+/** Natural rain grading, applied to the already brightness-adjusted sky, never to source artwork. */
 internal fun stormCloudSkyGradient(params: SceneParams, gradient: SkyGradient): SkyGradient {
 	if (params.precipitation?.kind != PrecipitationKind.RAIN || params.skyColorPreset != SkyColorPreset.NATURAL) {
 		return gradient

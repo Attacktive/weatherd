@@ -32,6 +32,8 @@ jobs:
       - name: 'Test provider evaluation tools'
         run: |
           PYTHONPATH=scripts python3 -S -m unittest discover -s scripts/provider_evaluation -p 'test_*.py'
+      - name: 'Test storm cloud debug preparation'
+        run: 'python3 -m unittest discover -s scripts/tests -p "test_storm_cloud_debug_assets.py" -v'
       - name: 'Start dependency/cache setup timing'
         run: 'python3 scripts/ci/ci_metrics.py mark setup-start'
       - name: 'Set up JDK'

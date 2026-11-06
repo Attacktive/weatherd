@@ -4,15 +4,17 @@ import kotlin.math.roundToInt
 import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.BitmapShader
 import android.graphics.Canvas
 import android.graphics.ColorMatrixColorFilter
+import android.graphics.Matrix
 import android.graphics.Paint
-import android.graphics.RectF
+import android.graphics.Shader
 import xyz.attacktive.weatherd.BuildConfig
 import xyz.attacktive.weatherd.domain.model.CLOUD_CONTRAST_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 
-/** Opt-in, debug-only #405 experiment; the release source set supplies an inert implementation. */
+/** Shared #405 renderer, enabled only when packaged artwork is available. */
 internal class StormCloudPrototype(
 	private val resources: Resources,
 	private val enabled: Boolean = BuildConfig.STORM_CLOUD_PROTOTYPE,
@@ -36,7 +38,7 @@ internal class StormCloudPrototype(
 			sprites = prepared.toList()
 		} catch (exception: Exception) {
 			prepared.forEach { it.bitmap.recycle() }
-			throw IllegalStateException("Prepare the #405 debug assets with scripts/prepare-storm-cloud-prototype.py before enabling the prototype.", exception)
+			throw IllegalStateException("Prepare the #405 artwork with scripts/prepare-storm-cloud-prototype.py before enabling the renderer.", exception)
 		}
 	}
 
@@ -61,8 +63,9 @@ private fun decodeStormCloud(resources: Resources, plane: StormCloudPlane) = res
 
 private class StormCloudSprite(private val plane: StormCloudPlane, val bitmap: Bitmap) {
 	private val geometry = StormCloudGeometry()
-	private val destination = RectF()
-	private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+	private val cloudShader = BitmapShader(bitmap, Shader.TileMode.REPEAT, Shader.TileMode.CLAMP)
+	private val shaderTransform = Matrix()
+	private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply { shader = cloudShader }
 	private val matrix = FloatArray(20)
 	private var previousTint: Int? = null
 	private var previousContrast = Float.NaN
@@ -98,7 +101,9 @@ private class StormCloudSprite(private val plane: StormCloudPlane, val bitmap: B
 			previousGrade = grade
 		}
 
-		destination.set(geometry.left, geometry.top, geometry.left + geometry.width, geometry.top + geometry.height)
-		canvas.drawBitmap(bitmap, null, destination, paint)
+		shaderTransform.setScale(geometry.width / bitmap.width, geometry.height / bitmap.height)
+		shaderTransform.postTranslate(geometry.left, geometry.top)
+		cloudShader.setLocalMatrix(shaderTransform)
+		canvas.drawRect(0f, geometry.top, width, geometry.top + geometry.height, paint)
 	}
 }

@@ -27,6 +27,12 @@ jobs:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: 'echo "$KEYSTORE_BASE64" | base64 --decode > release.keystore'
 
+      - name: 'Prepare approved storm-cloud artwork'
+        run: |
+          python3 -m venv "$RUNNER_TEMP/storm-cloud-assets"
+          "$RUNNER_TEMP/storm-cloud-assets/bin/python" -m pip install --disable-pip-version-check --only-binary=:all: 'pillow==13.0.0' 'numpy==2.5.4' 'scipy==1.18.1'
+          "$RUNNER_TEMP/storm-cloud-assets/bin/python" scripts/prepare-storm-cloud-prototype.py --download --approved-release --output-dir app/src/release/assets/storm-clouds
+
       - name: 'Build release APK and AAB'
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}

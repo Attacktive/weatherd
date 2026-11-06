@@ -119,5 +119,67 @@ class StormCloudAssetTest(unittest.TestCase):
 		self.assertEqual("https", redirect.type)
 
 
+	def test_repeat_tile_is_seamless_without_reflected_symmetry(self):
+		pixels = np.zeros((64, 160, 4), dtype=np.uint8)
+		pixels[8:54, 20:76] = [100, 115, 130, 220]
+		pixels[15:48, 76:143] = [80, 94, 108, 185]
+		original = pixels.copy()
+
+		result = assets.seamless_repeat(pixels)
+		self.assertTrue(np.array_equal(pixels, original))
+		self.assertEqual(pixels.shape, result.shape)
+		self.assertTrue(np.array_equal(result[:, 0], pixels[:, 80]))
+		self.assertTrue(np.array_equal(result[:, -1], pixels[:, 79]))
+		self.assertGreater(int(result[25, 80, 3]), 0)
+		self.assertFalse(np.array_equal(result, result[:, ::-1]))
+		self.assertTrue(np.array_equal(result, assets.seamless_repeat(pixels)))
+
+	def test_repeat_tile_preserves_opaque_cloud_edges_without_a_hard_join(self):
+		pixels = np.zeros((24, 128, 4), dtype=np.uint8)
+		pixels[4:20, 20:107] = [90, 110, 130, 200]
+		result = assets.seamless_repeat(pixels)
+		self.assertEqual(200, int(result[10, 0, 3]))
+		self.assertEqual(200, int(result[10, -1, 3]))
+		self.assertEqual(200, int(result[10, 64, 3]))
+
+
+	def test_seam_coverage_uses_cloud_detail_instead_of_cutting_a_hole(self):
+		pixels = np.zeros((96, 160, 4), dtype=np.uint8)
+		pixels[14:86, 30:130] = [125, 140, 160, 230]
+		pixels[24:75, 51:110] = [140, 155, 175, 255]
+		original = pixels.copy()
+		rolled = np.roll(pixels, pixels.shape[1] // 2, axis=1)
+		repeated = assets.seamless_repeat(pixels)
+
+		self.assertTrue(np.array_equal(pixels, original))
+		self.assertGreater(float(repeated[30:72, 76:84, 3].mean()), 180)
+		self.assertGreater(float(repeated[30:72, 76:84, 3].mean()), float(rolled[30:72, 76:84, 3].mean()) + 120)
+		self.assertTrue(np.array_equal(repeated[:, 0], pixels[:, 80]))
+		self.assertTrue(np.array_equal(repeated[:, -1], pixels[:, 79]))
+		self.assertTrue(np.array_equal(repeated, assets.seamless_repeat(pixels)))
+
+	def test_seam_fill_keeps_existing_opaque_cloud_detail(self):
+		pixels = np.zeros((24, 128, 4), dtype=np.uint8)
+		pixels[4:20, 20:107] = [90, 110, 130, 200]
+		repeated = assets.seamless_repeat(pixels)
+
+		self.assertTrue(np.array_equal(repeated[10, 64], pixels[10, 64]))
+		self.assertEqual(0, int(repeated[0, 64, 3]))
+
+
+	def test_repeat_tile_preserves_cloud_center_without_symmetric_gap(self):
+		pixels = np.zeros((96, 160, 4), dtype=np.uint8)
+		pixels[12:84, 32:126] = [125, 141, 158, 230]
+		pixels[24:72, 53:110] = [150, 164, 180, 255]
+		original = pixels.copy()
+		repeated = assets.seamless_repeat(pixels)
+		self.assertTrue(np.array_equal(pixels, original))
+		self.assertTrue(np.array_equal(repeated[:, 56:104], original[:, 56:104]))
+		self.assertGreater(float(repeated[30:72, 76:84, 3].mean()), 220)
+		self.assertTrue(np.array_equal(repeated[:, 0], original[:, 80]))
+		self.assertTrue(np.array_equal(repeated[:, -1], original[:, 79]))
+		self.assertFalse(np.array_equal(repeated, repeated[:, ::-1]))
+
+
 if __name__ == "__main__":
 	unittest.main()

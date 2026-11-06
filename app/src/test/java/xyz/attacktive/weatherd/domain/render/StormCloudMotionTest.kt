@@ -44,16 +44,68 @@ class StormCloudMotionTest {
 	}
 
 	@Test
-	fun boundedMotionDoesNotWrapOrJump() {
+	fun wrapsContinuouslyWithoutReversing() {
 		for (plane in StormCloudPlane.entries) {
-			var previous = geometry(plane, 0f).left
-			for (frame in 1..3600) {
-				val current = geometry(plane, frame / 30f)
-				val center = (480f - current.width) / 2f
-				assertTrue(abs(current.left - center) <= 480f * 0.045f + 0.001f)
-				assertTrue(abs(current.left - previous) < 0.1f)
-				previous = current.left
+			val geometry = geometry(plane, 0f, windScale = 2f)
+			var previous = geometry.left
+			var wraps = 0
+			for (frame in 1..54000) {
+				assertTrue(geometry.configure(480f, 1056f, 1600, 800, plane, frame / 30f, 0.5f, 2f, 1f))
+				val step = geometry.left - previous
+				val unwrappedStep = if (step < -1f) {
+					wraps++
+					step + geometry.width
+				} else {
+					step
+				}
+
+				assertTrue("$plane must keep moving with the rain", unwrappedStep >= -0.005f)
+				assertTrue("$plane must not jump at the wrap boundary", unwrappedStep < 0.25f)
+				previous = geometry.left
 			}
+
+			assertTrue("$plane must eventually wrap", wraps > 0)
+		}
+	}
+
+	@Test
+	fun stormCloudsDriftWithTheRainRatherThanAgainstIt() {
+		val slant = rainSlant(0.5f, 2f, 0.65f)
+		val rainStart = precipitationHorizontalPosition(0.5f, 0f, slant, 480f)
+		val rainLater = precipitationHorizontalPosition(0.5f, 10f, slant, 480f)
+		assertTrue("Rain is blown toward positive X", rainLater > rainStart)
+
+		for (plane in StormCloudPlane.entries) {
+			val geometry = geometry(plane, 0f, windScale = 2f)
+			val start = geometry.left
+			assertTrue(geometry.configure(480f, 1056f, 1600, 800, plane, 1f, 0.5f, 2f, 1f))
+			assertTrue("$plane must drift in the same direction as rain", geometry.left > start)
+		}
+	}
+
+	@Test
+	fun maximumWindMakesCloudMotionNoticeablyFaster() {
+		for (plane in StormCloudPlane.entries) {
+			val normalStart = geometry(plane, 0f, windScale = 1f)
+			val normalLater = geometry(plane, 1f, windScale = 1f)
+			val strongStart = geometry(plane, 0f, windScale = 2f)
+			val strongLater = geometry(plane, 1f, windScale = 2f)
+			val normalTravel = abs(normalLater.left - normalStart.left)
+			val strongTravel = abs(strongLater.left - strongStart.left)
+
+			assertTrue("$plane should respond visibly to maximum wind", strongTravel > normalTravel * 4f)
+		}
+	}
+
+	@Test
+	fun changingWindIntensityDoesNotTeleportTheClouds() {
+		for (plane in StormCloudPlane.entries) {
+			val geometry = geometry(plane, 20f)
+			val previous = geometry.left
+			assertTrue(geometry.configure(480f, 1056f, 1600, 800, plane, 20f, 0.5f, 2f, 1f))
+			assertEquals(previous, geometry.left, 0f)
+			assertTrue(geometry.configure(480f, 1056f, 1600, 800, plane, 21f, 0.5f, 2f, 1f))
+			assertTrue("$plane should continue drifting right", geometry.left > previous)
 		}
 	}
 
@@ -108,13 +160,15 @@ class StormCloudMotionTest {
 	}
 
 	@Test
-	fun defaultPlanesCoverScreenWidthThroughoutTheirDrift() {
+	fun seamlessCloudSamplingCoversTheViewportWhileScrolling() {
 		for ((width, height) in listOf(480f to 1056f, 800f to 1280f, 1056f to 480f)) {
 			for (plane in StormCloudPlane.entries) {
-				for (time in listOf(0f, 30f, 120f, 600f)) {
+				val initial = assetGeometry(plane, width, height, 1f).left
+				for (time in listOf(0f, 30f, 120f, 600f, 3600f)) {
 					val geometry = assetGeometry(plane, width, height, 1f, time)
-					assertTrue("$plane left edge exposed", geometry.left <= 0f)
-					assertTrue("$plane right edge exposed", geometry.left + geometry.width >= width)
+					assertTrue("$plane must stay at least a viewport wide", geometry.width >= width)
+					assertTrue("$plane cannot reverse past its initial anchor", geometry.left >= initial - 0.01f)
+					assertTrue("$plane must stay inside the seamless sampling period", geometry.left < initial + geometry.width + 0.01f)
 				}
 			}
 		}
@@ -144,11 +198,17 @@ class StormCloudMotionTest {
 		}
 
 		return StormCloudGeometry().apply {
-			check(configure(width, height, source.first, source.second, plane, time, 0.5f, 1f, size))
+			check(configure(width, height, source.first, source.second, plane, 0f, 0.5f, 1f, size))
+			if (time != 0f) {
+				check(configure(width, height, source.first, source.second, plane, time, 0.5f, 1f, size))
+			}
 		}
 	}
 
 	private fun geometry(plane: StormCloudPlane, timeSeconds: Float, windScale: Float = 1f) = StormCloudGeometry().apply {
-		check(configure(480f, 1056f, 1600, 800, plane, timeSeconds, 0.5f, windScale, 1f))
+		check(configure(480f, 1056f, 1600, 800, plane, 0f, 0.5f, windScale, 1f))
+		if (timeSeconds != 0f) {
+			check(configure(480f, 1056f, 1600, 800, plane, timeSeconds, 0.5f, windScale, 1f))
+		}
 	}
 }

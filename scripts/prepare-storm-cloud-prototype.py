@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare reporter-supplied #405 artwork for local debug evaluation, not distribution.
+"""Prepare hash-pinned #405 artwork for debug evaluation or authorized distribution.
 
 Requires Pillow, NumPy, and SciPy. Fetching is explicit, hash-pinned, and never runs
 at application startup. Originals are retained outside the Android source sets.
@@ -29,6 +29,7 @@ EXPECTED_SHA256 = {
 }
 
 
+PROCESSING_VERSION = 4
 MAX_ASSET_BYTES = 12 * 1024 * 1024
 
 
@@ -142,7 +143,32 @@ def atmospheric_veil(hero: np.ndarray) -> np.ndarray:
 	return result
 
 
-def prepare(source_directory: Path, output_directory: Path) -> dict:
+
+def composite_cloud_patch(base: np.ndarray, donor: np.ndarray, weight: np.ndarray) -> np.ndarray:
+	base_alpha = base[:, :, 3:4].astype(np.float32) / 255.0
+	donor_alpha = donor[:, :, 3:4].astype(np.float32) / 255.0 * weight
+	alpha = donor_alpha + base_alpha * (1.0 - donor_alpha)
+	premultiplied = donor[:, :, :3].astype(np.float32) * donor_alpha + base[:, :, :3].astype(np.float32) * base_alpha * (1.0 - donor_alpha)
+	result = np.zeros_like(base)
+	result[:, :, :3] = np.rint(np.clip(premultiplied / np.maximum(alpha, 0.00001), 0, 255)).astype(np.uint8)
+	result[:, :, 3] = np.rint(np.clip(alpha[:, :, 0] * 255, 0, 255)).astype(np.uint8)
+	result[result[:, :, 3] == 0] = 0
+	return result
+
+
+def seamless_repeat(pixels: np.ndarray) -> np.ndarray:
+	"""Retain the source cloud center and cover only its transparent repeating edges."""
+	width = pixels.shape[1]
+	columns = np.arange(width, dtype=np.float32)
+	distance_to_edge = np.minimum(columns, width - 1 - columns)
+	edge_span = width * 0.34
+	feather = np.clip((edge_span - distance_to_edge) / edge_span, 0, 1)
+	feather = (feather * feather * (3.0 - 2.0 * feather))[None, :, None]
+	coverage = pixels[:, :, 3:4].astype(np.float32) / 255.0
+	weight = feather * (1.0 - coverage * 0.75)
+	return composite_cloud_patch(pixels, np.roll(pixels, width // 2, axis=1), weight)
+
+def prepare(source_directory: Path, output_directory: Path, evaluation_only: bool = True) -> dict:
 	for name, expected in EXPECTED_SHA256.items():
 		actual = hashlib.sha256((source_directory / f"{name}.png").read_bytes()).hexdigest()
 		if actual != expected:
@@ -152,13 +178,13 @@ def prepare(source_directory: Path, output_directory: Path) -> dict:
 	hero = isolate(read_rgba(source_directory / "hero.png"), 1)[0]
 	layers = {"upper": sheet[0], "hero": soften_lower_cloud_edge(hero, 0.77), "distant": soften_lower_cloud_edge(sheet[2], 0.72), "veil": atmospheric_veil(hero)}
 	output_directory.mkdir(parents=True, exist_ok=True)
-	manifest = {"issue": "https://github.com/Attacktive/weatherd/issues/405", "evaluation_only": True, "sources": {}, "layers": {}}
+	manifest = {"issue": "https://github.com/Attacktive/weatherd/issues/405", "processing_version": PROCESSING_VERSION, "evaluation_only": evaluation_only, "sources": {}, "layers": {}}
 	for name, url in SOURCES.items():
 		manifest["sources"][name] = {"url": url, "sha256": hashlib.sha256((source_directory / f"{name}.png").read_bytes()).hexdigest()}
 
 	for name, pixels in layers.items():
 		path = output_directory / f"{name}.png"
-		Image.fromarray(pixels).save(path, optimize=True)
+		Image.fromarray(seamless_repeat(pixels)).save(path, optimize=True)
 		manifest["layers"][name] = {"width": pixels.shape[1], "height": pixels.shape[0], "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
 
 	(output_directory / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
@@ -170,7 +196,11 @@ def main() -> None:
 	parser.add_argument("--source-dir", type=Path, default=Path(".local/storm-cloud-sources"))
 	parser.add_argument("--output-dir", type=Path, default=Path("app/src/debug/assets/storm-clouds"))
 	parser.add_argument("--download", action="store_true", help="Fetch the two original issue attachments into the local source directory")
+	parser.add_argument("--approved-release", action="store_true", help="Prepare distributable sprites after recording artwork publication permission")
 	args = parser.parse_args()
+	if args.approved_release and not (args.output_dir / "ARTWORK_PERMISSION.md").is_file():
+		parser.error("Release preparation requires an ARTWORK_PERMISSION.md file in the output directory")
+
 	if args.download:
 		args.source_dir.mkdir(parents=True, exist_ok=True)
 		for name, url in SOURCES.items():
@@ -180,7 +210,7 @@ def main() -> None:
 
 			(args.source_dir / f"{name}.png").write_bytes(data)
 
-	print(json.dumps(prepare(args.source_dir, args.output_dir), indent=2))
+	print(json.dumps(prepare(args.source_dir, args.output_dir, evaluation_only=not args.approved_release), indent=2))
 
 
 if __name__ == "__main__":

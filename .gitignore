@@ -16,6 +16,7 @@ __pycache__/
 .mcp.json
 release.keystore
 
-# Local #405 evaluation artwork; never bundle reporter-supplied assets in releases.
+# Local #405 evaluation artwork; release packaging requires explicit redistribution permission.
 /app/src/debug/assets/storm-clouds/
 /.local/storm-cloud-sources/
+/.local/storm-cloud-venv/
