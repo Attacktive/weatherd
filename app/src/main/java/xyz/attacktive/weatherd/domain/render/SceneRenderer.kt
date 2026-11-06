@@ -137,6 +137,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 	private var sceneryGlyphPaths: List<SceneryLayerPath> = emptyList()
 	private var sceneryWindmill: SceneryWindmill? = null
 	private val tiles = HashMap<String, Bitmap>()
+	private val stormCloudPrototype = StormCloudPrototype(resources)
 	private val sunSpriteCoverage = IdentityHashMap<Bitmap, SunSpriteCoverage>()
 	private val farOvercastBankDelegate = lazy { CloudLayer(resources, R.drawable.cloud_overcast_veil) }
 	private val supportOvercastBankDelegate = lazy { CloudLayer(resources, R.drawable.cloud_overcast_support) }
@@ -246,6 +247,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		supportOvercastBankDelegate.value
 		heroOvercastBankDelegate.value
 		cirrusLayerDelegates.forEach { it.value }
+		stormCloudPrototype.prewarm()
 	}
 
 	fun isSceneryTextureReady(scene: BackdropScene) = scene != BackdropScene.CLOUD_MOUNTAINS || cloudMountains.textureReady
@@ -1789,6 +1791,10 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 			params.thunder -> darken(base, 0.72f)
 			params.precipitation?.kind == PrecipitationKind.SNOW -> lighten(base, 0.12f)
 			else -> base
+		}
+
+		if (stormCloudPrototype.draw(canvas, width, height, params, timeSeconds, color, cloudGradeFor(params))) {
+			return
 		}
 
 		val surge = width * 0.006f * params.windFactor * params.windScale

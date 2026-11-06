@@ -26,7 +26,7 @@ data class SkyGradient(
  * The sky gradient for a scene: a clear base for the phase, blended toward gray by how overcast the features make it, then darkened for storms.
  * Pure ARGB maths so it unit-tests without Android.
  */
-fun skyGradientFor(params: SceneParams) = weatherAdjustedSkyGradient(params, basePhaseGradient(params))
+fun skyGradientFor(params: SceneParams) = prototypeSkyGradient(params, weatherAdjustedSkyGradient(params, basePhaseGradient(params)))
 
 internal fun naturalSkyGradientFor(params: SceneParams) = weatherAdjustedSkyGradient(
 	params,

@@ -49,6 +49,10 @@ android {
 	}
 
 	buildTypes {
+		debug {
+			buildConfigField("boolean", "STORM_CLOUD_PROTOTYPE", providers.gradleProperty("stormCloudPrototype").map { it.toBoolean().toString() }.orElse("false").get())
+		}
+
 		release {
 			signingConfig = signingConfigs.getByName("release")
 			isMinifyEnabled = true
@@ -160,4 +164,20 @@ dependencies {
 	testImplementation(libs.androidx.datastore.preferences.core)
 	androidTestImplementation(libs.androidx.junit)
 	androidTestImplementation(libs.androidx.test.runner)
+}
+
+// Experimental assets are local-only and must be prepared before an opted-in debug build.
+val validateStormCloudPrototypeAssets = tasks.register("validateStormCloudPrototypeAssets") {
+	onlyIf { providers.gradleProperty("stormCloudPrototype").orNull?.toBoolean() == true }
+	doLast {
+		for (layer in listOf("upper", "hero", "distant", "veil")) {
+			check(layout.projectDirectory.file("src/debug/assets/storm-clouds/$layer.png").asFile.isFile) {
+				"Missing #405 $layer artwork. Run scripts/prepare-storm-cloud-prototype.py --download first."
+			}
+		}
+	}
+}
+
+tasks.matching { it.name == "preDebugBuild" }.configureEach {
+	dependsOn(validateStormCloudPrototypeAssets)
 }
