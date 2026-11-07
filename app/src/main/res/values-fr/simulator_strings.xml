@@ -1,0 +1,7 @@
+<resources>
+	<string name="simulator_sleet">Pluie et neige mêlées</string>
+	<string name="simulator_low_clouds">Nuages bas</string>
+	<string name="simulator_mid_clouds">Nuages moyens</string>
+	<string name="simulator_high_clouds">Nuages élevés</string>
+	<string name="simulator_humid_haze">Brume humide</string>
+</resources>

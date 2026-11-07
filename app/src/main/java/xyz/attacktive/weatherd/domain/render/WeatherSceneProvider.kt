@@ -578,7 +578,7 @@ class WeatherSceneProvider @Inject constructor(
 			.copy(
 				backdropScene = backdropScene,
 				photoRevision = state.photoRevision,
-				overlayLabels = overlayLabels(snapshot = null, state = state, simulatedWeather = preset.name)
+				overlayLabels = overlayLabels(snapshot = null, state = state, simulatedWeather = if (showWeatherLabel) context.getString(preset.labelRes) else null)
 			)
 	}
 

@@ -1,5 +1,7 @@
 package xyz.attacktive.weatherd.domain.render
 
+import androidx.annotation.StringRes
+import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.BirdAppearanceInterval
 import xyz.attacktive.weatherd.domain.model.BirdFlockSize
 import xyz.attacktive.weatherd.domain.model.CLOUD_CONTRAST_SCALE_RANGE
@@ -36,6 +38,7 @@ import xyz.attacktive.weatherd.domain.weather.SEVERITY_STORM
 /** A named feature combination for the debug scene picker; combined with a [DayPhase] via [debugSceneParams]. */
 data class ScenePreset(
 	val name: String,
+	@StringRes val labelRes: Int,
 	val cloudiness: Float,
 	val cloudLayers: SceneCloudLayers? = null,
 	val fogDensity: Float = 0f,
@@ -47,34 +50,37 @@ data class ScenePreset(
 
 /** Representative feature combinations covering every rendering branch, for previewing without a weather fetch. */
 val SCENE_PRESETS = listOf(
-	ScenePreset("CLEAR", cloudiness = 0.05f),
-	ScenePreset("MOSTLY CLEAR", cloudiness = 0.2f),
-	ScenePreset("PARTLY CLOUDY", cloudiness = 0.7f),
-	ScenePreset("OVERCAST", cloudiness = 0.85f),
-	ScenePreset("FOG", cloudiness = 0.85f, fogDensity = 1f),
-	ScenePreset("DRIZZLE", cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.RAIN, SEVERITY_DRIZZLE, observed = 0.35f), windFactor = 0.45f),
-	ScenePreset("RAIN", cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.RAIN, SEVERITY_STEADY, observed = 0.65f), windFactor = 0.45f),
-	ScenePreset("HEAVY RAIN", cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.RAIN, SEVERITY_HEAVY, observed = 0.9f), windFactor = 0.65f),
-	ScenePreset("SLEET", cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.SLEET, SEVERITY_STEADY, observed = 0.65f), windFactor = 0.45f),
-	ScenePreset("SNOW", cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.SNOW, SEVERITY_STEADY, observed = 0.65f), windFactor = 0.45f),
-	ScenePreset("HEAVY SNOW", cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.SNOW, SEVERITY_HEAVY, observed = 0.9f), windFactor = 0.45f),
-	ScenePreset("THUNDERSTORM", cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.RAIN, SEVERITY_STORM, observed = 0.9f), thunder = true, windFactor = 0.85f),
+	ScenePreset("CLEAR", R.string.weather_clear_sky, cloudiness = 0.05f),
+	ScenePreset("MOSTLY CLEAR", R.string.weather_mainly_clear, cloudiness = 0.2f),
+	ScenePreset("PARTLY CLOUDY", R.string.weather_partly_cloudy, cloudiness = 0.7f),
+	ScenePreset("OVERCAST", R.string.weather_overcast, cloudiness = 0.85f),
+	ScenePreset("FOG", R.string.weather_fog, cloudiness = 0.85f, fogDensity = 1f),
+	ScenePreset("DRIZZLE", R.string.weather_drizzle, cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.RAIN, SEVERITY_DRIZZLE, observed = 0.35f), windFactor = 0.45f),
+	ScenePreset("RAIN", R.string.weather_rain, cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.RAIN, SEVERITY_STEADY, observed = 0.65f), windFactor = 0.45f),
+	ScenePreset("HEAVY RAIN", R.string.weather_heavy_rain, cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.RAIN, SEVERITY_HEAVY, observed = 0.9f), windFactor = 0.65f),
+	ScenePreset("SLEET", R.string.simulator_sleet, cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.SLEET, SEVERITY_STEADY, observed = 0.65f), windFactor = 0.45f),
+	ScenePreset("SNOW", R.string.weather_snow, cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.SNOW, SEVERITY_STEADY, observed = 0.65f), windFactor = 0.45f),
+	ScenePreset("HEAVY SNOW", R.string.weather_heavy_snow, cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.SNOW, SEVERITY_HEAVY, observed = 0.9f), windFactor = 0.45f),
+	ScenePreset("THUNDERSTORM", R.string.weather_thunderstorm, cloudiness = 0.75f, precipitation = Precipitation(PrecipitationKind.RAIN, SEVERITY_STORM, observed = 0.9f), thunder = true, windFactor = 0.85f),
 	ScenePreset(
 		"LOW CLOUDS",
+		R.string.simulator_low_clouds,
 		cloudiness = 0.8f,
 		cloudLayers = SceneCloudLayers(low = 0.8f, mid = 0.05f, high = 0.05f)
 	),
 	ScenePreset(
 		"MID CLOUDS",
+		R.string.simulator_mid_clouds,
 		cloudiness = 0.8f,
 		cloudLayers = SceneCloudLayers(low = 0.05f, mid = 0.8f, high = 0.05f)
 	),
 	ScenePreset(
 		"HIGH CLOUDS",
+		R.string.simulator_high_clouds,
 		cloudiness = 0.8f,
 		cloudLayers = SceneCloudLayers(low = 0.05f, mid = 0.05f, high = 0.8f)
 	),
-	ScenePreset("HUMID HAZE", cloudiness = 0.05f, humidityHazeDensity = 0.25f)
+	ScenePreset("HUMID HAZE", R.string.simulator_humid_haze, cloudiness = 0.05f, humidityHazeDensity = 0.25f)
 )
 
 /**

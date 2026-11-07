@@ -1,0 +1,7 @@
+<resources>
+	<string name="simulator_sleet">Sleet</string>
+	<string name="simulator_low_clouds">Low clouds</string>
+	<string name="simulator_mid_clouds">Mid-level clouds</string>
+	<string name="simulator_high_clouds">High clouds</string>
+	<string name="simulator_humid_haze">Humid haze</string>
+</resources>

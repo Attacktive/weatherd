@@ -309,6 +309,7 @@ class WeatherSceneProviderTest {
 	}
 
 	private val context = mockk<Context>(relaxed = true) {
+		every { getString(R.string.weather_clear_sky) } returns "Clear sky"
 		every { getString(R.string.weather_rain) } returns "Rain"
 	}
 
@@ -535,7 +536,20 @@ class WeatherSceneProviderTest {
 		coEvery { reverseGeocodingRepository.placeName(37.57, 126.98) } returns "Seoul"
 		provider.refresh(1_000_000L)
 
-		assertEquals(OverlayLabels(weather = "CLEAR", location = "Seoul"), provider.paramsFor(1_000_030L).overlayLabels)
+		assertEquals(OverlayLabels(weather = "Clear sky", location = "Seoul"), provider.paramsFor(1_000_030L).overlayLabels)
+	}
+
+	@Test
+	fun `simulated weather label uses the localized condition`() {
+		every { context.getString(R.string.weather_drizzle) } returns "Pioviggine"
+		val settings = AppSettings(
+			showWeatherLabel = true,
+			sceneSimulatorEnabled = true,
+			sceneSimulatorActive = true,
+			sceneSimulatorPresetIndex = SCENE_PRESETS.indexOfFirst { it.name == "DRIZZLE" }
+		)
+
+		assertEquals("Pioviggine", provider.paramsFor(1_000_000L, WeatherSceneState(settings)).overlayLabels?.weather)
 	}
 
 	@Test
@@ -555,12 +569,12 @@ class WeatherSceneProviderTest {
 
 		val captured = provider.sceneState.value
 		val clear = provider.paramsFor(1_000_000L, captured)
-		assertEquals(OverlayLabels(weather = "CLEAR", location = "Rome"), clear.overlayLabels)
+		assertEquals(OverlayLabels(weather = "Clear sky", location = "Rome"), clear.overlayLabels)
 		assertEquals(0.65f, clear.labelVerticalPosition, 0.0001f)
 
 		persistedSettings.value = persistedSettings.value.copy(sceneSimulatorPresetIndex = SCENE_PRESETS.indexOfFirst { it.name == "RAIN" })
-		assertEquals(OverlayLabels(weather = "RAIN", location = "Rome"), provider.paramsFor(1_000_030L).overlayLabels)
-		assertEquals(OverlayLabels(weather = "CLEAR", location = "Rome"), provider.paramsFor(1_000_030L, captured).overlayLabels)
+		assertEquals(OverlayLabels(weather = "Rain", location = "Rome"), provider.paramsFor(1_000_030L).overlayLabels)
+		assertEquals(OverlayLabels(weather = "Clear sky", location = "Rome"), provider.paramsFor(1_000_030L, captured).overlayLabels)
 
 		persistedSettings.value = persistedSettings.value.copy(showWeatherLabel = false)
 		assertEquals(OverlayLabels(weather = null, location = "Rome"), provider.paramsFor(1_000_030L).overlayLabels)
@@ -569,7 +583,7 @@ class WeatherSceneProviderTest {
 		assertNull(provider.paramsFor(1_000_030L).overlayLabels)
 
 		persistedSettings.value = persistedSettings.value.copy(showWeatherLabel = true)
-		assertEquals(OverlayLabels(weather = "RAIN", location = null), provider.paramsFor(1_000_030L).overlayLabels)
+		assertEquals(OverlayLabels(weather = "Rain", location = null), provider.paramsFor(1_000_030L).overlayLabels)
 	}
 
 	@Test

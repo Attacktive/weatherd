@@ -338,8 +338,15 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 				if (sceneSimulatorVisible) {
 					SceneSimulatorControls(
 						debugEnabled = debugEnabled,
-						sceneLabel = SCENE_PRESETS[debugSceneIndex].name,
-						phaseLabel = DayPhase.entries[debugPhaseIndex].name,
+						sceneLabel = stringResource(SCENE_PRESETS[debugSceneIndex].labelRes),
+						phaseLabel = stringResource(
+							when (DayPhase.entries[debugPhaseIndex]) {
+								DayPhase.NIGHT -> R.string.photo_bucket_night
+								DayPhase.DAWN -> R.string.photo_bucket_dawn
+								DayPhase.DAY -> R.string.photo_bucket_day
+								DayPhase.DUSK -> R.string.photo_bucket_dusk
+							}
+						),
 						celestialProgress = debugCelestialProgress,
 						onDebugToggle = viewModel::toggleSceneSimulator,
 						onScenePrevious = {

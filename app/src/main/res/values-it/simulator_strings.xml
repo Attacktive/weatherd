@@ -1,0 +1,7 @@
+<resources>
+	<string name="simulator_sleet">Nevischio</string>
+	<string name="simulator_low_clouds">Nubi basse</string>
+	<string name="simulator_mid_clouds">Nubi medie</string>
+	<string name="simulator_high_clouds">Nubi alte</string>
+	<string name="simulator_humid_haze">Foschia umida</string>
+</resources>

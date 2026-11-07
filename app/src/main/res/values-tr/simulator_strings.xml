@@ -1,0 +1,7 @@
+<resources>
+	<string name="simulator_sleet">Karla karışık yağmur</string>
+	<string name="simulator_low_clouds">Alçak bulutlar</string>
+	<string name="simulator_mid_clouds">Orta seviye bulutlar</string>
+	<string name="simulator_high_clouds">Yüksek bulutlar</string>
+	<string name="simulator_humid_haze">Nemli pus</string>
+</resources>

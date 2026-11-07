@@ -1,0 +1,7 @@
+<resources>
+	<string name="simulator_sleet">Aguanieve</string>
+	<string name="simulator_low_clouds">Nubes bajas</string>
+	<string name="simulator_mid_clouds">Nubes medias</string>
+	<string name="simulator_high_clouds">Nubes altas</string>
+	<string name="simulator_humid_haze">Bruma húmeda</string>
+</resources>

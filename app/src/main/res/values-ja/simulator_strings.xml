@@ -1,0 +1,7 @@
+<resources>
+	<string name="simulator_sleet">みぞれ</string>
+	<string name="simulator_low_clouds">下層雲</string>
+	<string name="simulator_mid_clouds">中層雲</string>
+	<string name="simulator_high_clouds">上層雲</string>
+	<string name="simulator_humid_haze">湿ったもや</string>
+</resources>

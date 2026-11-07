@@ -1,0 +1,7 @@
+<resources>
+	<string name="simulator_sleet">Schneeregen</string>
+	<string name="simulator_low_clouds">Tiefe Wolken</string>
+	<string name="simulator_mid_clouds">Mittelhohe Wolken</string>
+	<string name="simulator_high_clouds">Hohe Wolken</string>
+	<string name="simulator_humid_haze">Feuchter Dunst</string>
+</resources>

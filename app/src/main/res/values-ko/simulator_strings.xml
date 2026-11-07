@@ -1,0 +1,7 @@
+<resources>
+	<string name="simulator_sleet">진눈깨비</string>
+	<string name="simulator_low_clouds">하층운</string>
+	<string name="simulator_mid_clouds">중층운</string>
+	<string name="simulator_high_clouds">상층운</string>
+	<string name="simulator_humid_haze">습한 연무</string>
+</resources>
