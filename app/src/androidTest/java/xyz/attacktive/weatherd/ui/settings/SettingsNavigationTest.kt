@@ -728,6 +728,43 @@ class SettingsNavigationTest {
 	}
 
 	@Test
+	fun simulatorNextControlRemainsUsableWithLongLabelOnNarrowScreen() = runBlocking {
+		val repository = EntryPointAccessors.fromApplication(
+			instrumentation.targetContext.applicationContext,
+			ProviderEvaluationEntryPoint::class.java
+		).settingsRepository()
+		val original = repository.settings.first()
+
+		try {
+			repository.update(
+				listOf(
+					SettingsMutation.SceneSimulatorEnabled(true),
+					SettingsMutation.SceneSimulatorActive(true),
+					SettingsMutation.SceneSimulatorPresetIndex(13)
+				)
+			)
+
+			scenario.onActivity { activity ->
+				activity.window.setLayout((200 * activity.resources.displayMetrics.density).toInt(), (640 * activity.resources.displayMetrics.density).toInt())
+			}
+
+			pressSystemBack()
+
+			val label = waitForNode("mid-level clouds") { matchesText(it, text(R.string.simulator_mid_clouds), prefix = true) }
+			val labelBounds = Rect().also { label.getBoundsInScreen(it) }
+			val next = waitForNode("next simulator condition") {
+				val bounds = Rect().also { rect -> it.getBoundsInScreen(rect) }
+				matchesText(it, ">") && bounds.centerY() in labelBounds.top..labelBounds.bottom && bounds.width() > 0
+			}
+
+			click(next)
+			waitUntil("next simulator condition persisted") { runBlocking { repository.settings.first().sceneSimulatorPresetIndex == 14 } }
+		} finally {
+			repository.save(original)
+		}
+	}
+
+	@Test
 	fun seasonalCelebrationsToggleAndDebugControlsFunctionWithNightSimulator() = runBlocking {
 		val repository = EntryPointAccessors.fromApplication(
 			instrumentation.targetContext.applicationContext,

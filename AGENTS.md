@@ -158,6 +158,7 @@ The scene simulator on `HomeScreen` has two modes:
 1. **Live mode (`debugEnabled = false`)**: `WeatherSceneProvider` derives both the preview and live wallpaper from current weather and clock-derived day phase.
 2. **Debug mode (`debugEnabled = true`)**: The persisted simulator selection overrides weather in `WeatherSceneProvider`, so the preview and already-running live wallpaper both render the chosen `SCENE_PRESETS` preset, day phase and celestial progress until debug mode is turned off.
 Simulator condition and day-phase controls use localized resources; the simulated weather overlay uses the same localized condition as the control on both preview and wallpaper.
+Keep simulator cycle buttons usable at narrow widths and large font scales; truncate long labels between the buttons instead of shrinking their touch targets.
 
 **Debug mode must remain WYSIWYG between the preview and live wallpaper.**
 It pins meteorological conditions (cloud cover, precipitation kind/severity, fog, thunder, wind) and celestial timing while preserving all user-configured display settings:

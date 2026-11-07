@@ -56,6 +56,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -440,7 +442,16 @@ private fun DebugCycleRow(label: String, onPrevious: () -> Unit, onNext: () -> U
 		verticalAlignment = Alignment.CenterVertically
 	) {
 		TextButton(onClick = onPrevious) { Text("<", color = Color.White) }
-		Text(label, color = Color.White, fontFamily = FontFamily.Monospace)
+		Text(
+			text = label,
+			modifier = Modifier.weight(1f),
+			color = Color.White,
+			fontFamily = FontFamily.Monospace,
+			textAlign = TextAlign.Center,
+			maxLines = 1,
+			overflow = TextOverflow.Ellipsis
+		)
+
 		TextButton(onClick = onNext) { Text(">", color = Color.White) }
 	}
 }
