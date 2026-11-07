@@ -127,6 +127,7 @@ class BirthdayWeatherSceneProviderTest {
 		assertEquals(HolidayCelebration.BIRTHDAY, provider.paramsFor(now.epochSecond, captured).holidayCelebration)
 		assertEquals(HolidayCelebration.NONE, provider.paramsFor(now.plusSeconds(86_400).epochSecond, captured).holidayCelebration)
 	}
+
 	private fun snapshotWith(weatherCode: Int, isDay: Boolean) = WeatherSnapshot(
 		observation = WeatherObservation(
 			temperatureCelsius = 10.0,
