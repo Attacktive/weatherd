@@ -13,6 +13,13 @@ import xyz.attacktive.weatherd.domain.model.HolidayCelebration
  * Computes positions, progress, and visual geometry from an absolute epoch millisecond timestamp without allocating memory or storing mutable replay state.
  */
 internal class SeasonalCelebrationFrame {
+	var birthdayGreetingY: Float = 0f
+		private set
+	var birthdayGreetingHeight: Float = 0f
+		private set
+	var birthdayGreetingOpacity: Float = 0f
+		private set
+
 	var flybyActive: Boolean = false
 		private set
 	var flybyProgress: Float = 0f
@@ -91,10 +98,14 @@ internal class SeasonalCelebrationFrame {
 			HolidayCelebration.HALLOWEEN -> sampleFlyby(width, height, params, epochMillis, HALLOWEEN_SLOT_MILLIS, HALLOWEEN_DURATION_MILLIS, HALLOWEEN_SALT, isChristmas = false)
 			HolidayCelebration.CHRISTMAS -> sampleFlyby(width, height, params, epochMillis, CHRISTMAS_SLOT_MILLIS, CHRISTMAS_DURATION_MILLIS, CHRISTMAS_SALT, isChristmas = true)
 			HolidayCelebration.NEW_YEAR -> sampleFireworks(width, height, params, epochMillis)
+			HolidayCelebration.BIRTHDAY -> sampleBirthday(width, height, params, epochMillis)
 		}
 	}
 
 	fun clear() {
+		birthdayGreetingY = 0f
+		birthdayGreetingHeight = 0f
+		birthdayGreetingOpacity = 0f
 		flybyActive = false
 		flybyProgress = 0f
 		flybyX = 0f
@@ -259,9 +270,28 @@ internal class SeasonalCelebrationFrame {
 			return false
 		}
 
-		val currentSlot = Math.floorDiv(epochMillis, FIREWORK_SLOT_MILLIS)
-		val nightDimming = params.nightBrightnessScale.coerceIn(0f, 1f)
+		return sampleFireworksInBand(width, height, params, epochMillis, params.nightBrightnessScale.coerceIn(0f, 1f))
+	}
 
+	private fun sampleBirthday(width: Float, height: Float, params: SceneParams, epochMillis: Long): Boolean {
+		val slot = Math.floorDiv(epochMillis, BIRTHDAY_SLOT_MILLIS)
+		val start = passStartMillis(slot, BIRTHDAY_SLOT_MILLIS, BIRTHDAY_DURATION_MILLIS, BIRTHDAY_SALT)
+		val elapsed = epochMillis - start
+		if (elapsed !in 0L until BIRTHDAY_DURATION_MILLIS || !selectSkyBand(width, height, params, avoidMoon = true)) {
+			return false
+		}
+
+		val bandHeight = safeSkyBottom - safeSkyTop
+		birthdayGreetingHeight = minOf(minOf(width, height) * 0.075f, bandHeight * 0.30f)
+		birthdayGreetingY = safeSkyTop + birthdayGreetingHeight * 0.5f
+		birthdayGreetingOpacity = minOf(1f, elapsed / 700f, (BIRTHDAY_DURATION_MILLIS - elapsed) / 700f) * params.nightBrightnessScale.coerceIn(0f, 1f)
+		safeSkyTop += birthdayGreetingHeight + bandHeight * 0.08f
+		sampleFireworksInBand(width, height, params, epochMillis, birthdayGreetingOpacity)
+		return true
+	}
+
+	private fun sampleFireworksInBand(width: Float, height: Float, params: SceneParams, epochMillis: Long, nightDimming: Float): Boolean {
+		val currentSlot = Math.floorDiv(epochMillis, FIREWORK_SLOT_MILLIS)
 		configureFireworkSlot(burst1, currentSlot, epochMillis, width, height, params, nightDimming)
 		configureFireworkSlot(burst2, currentSlot - 1L, epochMillis, width, height, params, nightDimming)
 
@@ -413,6 +443,10 @@ internal class SeasonalCelebrationFrame {
 	}
 
 	companion object {
+		const val BIRTHDAY_SLOT_MILLIS = 90_000L
+		const val BIRTHDAY_DURATION_MILLIS = 12_000L
+		const val BIRTHDAY_SALT = 0x4249525448444159L
+
 		const val HALLOWEEN_SLOT_MILLIS = 90_000L
 		const val HALLOWEEN_DURATION_MILLIS = 16_000L
 		const val HALLOWEEN_SALT = 0x57495443484CL

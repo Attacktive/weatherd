@@ -20,6 +20,26 @@ import xyz.attacktive.weatherd.domain.model.DEFAULT_SUN_HORIZONTAL_POSITION
 
 class SceneDebugPresetsTest {
 	@Test
+	fun `birthday greeting reaches all simulated presets without changing weather or backdrop`() {
+		for (preset in SCENE_PRESETS) {
+			for (phase in DayPhase.entries) {
+				val ordinary = debugSceneParams(preset, phase)
+				val birthday = debugSceneParams(preset, phase, holidayCelebration = HolidayCelebration.BIRTHDAY, birthdayGreeting = "Buon compleanno!")
+				val expected = if (phase == DayPhase.NIGHT) {
+					HolidayCelebration.BIRTHDAY
+				} else {
+					HolidayCelebration.NONE
+				}
+
+				assertEquals(expected, birthday.holidayCelebration)
+				assertEquals("Buon compleanno!", birthday.birthdayGreeting)
+				assertEquals(ordinary.copy(holidayCelebration = expected, birthdayGreeting = birthday.birthdayGreeting), birthday)
+				assertEquals(backdropSignature(ordinary), backdropSignature(birthday))
+			}
+		}
+	}
+
+	@Test
 	fun `tree seasons preserve simulator weather and backdrop signature`() {
 		val preset = SCENE_PRESETS.first { it.name == "OVERCAST" }
 		val original = debugSceneParams(preset, DayPhase.DUSK, treesEnabled = true, treeSeason = TreeSeason.SPRING)

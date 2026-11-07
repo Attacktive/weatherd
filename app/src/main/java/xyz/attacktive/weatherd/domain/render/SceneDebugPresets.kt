@@ -125,7 +125,8 @@ fun debugSceneParams(
 	statusBarShadeStrength: Float = 0f,
 	birdFlockSize: BirdFlockSize = BirdFlockSize.SMALL,
 	birdAppearanceInterval: BirdAppearanceInterval = BirdAppearanceInterval.NATURAL,
-	holidayCelebration: HolidayCelebration = HolidayCelebration.NONE
+	holidayCelebration: HolidayCelebration = HolidayCelebration.NONE,
+	birthdayGreeting: String = ""
 ) = SceneParams(
 	dayPhase = dayPhase,
 	cloudiness = preset.cloudiness,
@@ -163,6 +164,7 @@ fun debugSceneParams(
 	birdFlockSize = birdFlockSize,
 	birdAppearanceInterval = birdAppearanceInterval,
 	holidayCelebration = visibleHolidayCelebration(dayPhase, holidayCelebration),
+	birthdayGreeting = birthdayGreeting,
 	glassDropletsEnabled = glassDropletsEnabled,
 	treesEnabled = treesEnabled,
 	treeStyle = treeStyle,

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="birthday_title">Nur zum Spaß</string>
+	<string name="birthday_enable">Geburtstag feiern</string>
+	<string name="birthday_hint">Ein kurzer Geburtstagsgruß mit Feuerwerk am Nachthimmel. Standardmäßig aus; keine Erinnerungen.</string>
+	<string name="birthday_every_day">Jeden Tag habe ich Geburtstag 😉</string>
+	<string name="birthday_choose_date">Geburtstag auswählen</string>
+	<string name="birthday_clear_date">Geburtstag löschen</string>
+	<string name="birthday_month">Monat</string>
+	<string name="birthday_day">Tag</string>
+	<string name="birthday_date_hint">Nur Monat und Tag werden gespeichert, nicht das Geburtsjahr. Der 29. Februar wird in Nichtschaltjahren am 28. Februar gefeiert.</string>
+	<string name="birthday_save">Speichern</string>
+	<string name="birthday_cancel">Abbrechen</string>
+	<string name="birthday_greeting">Alles Gute zum Geburtstag!</string>
+</resources>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="birthday_title">Juste pour le plaisir</string>
+	<string name="birthday_enable">Fêter son anniversaire</string>
+	<string name="birthday_hint">Un petit message et un feu d’artifice dans le ciel nocturne. Désactivé par défaut ; aucun rappel.</string>
+	<string name="birthday_every_day">Tous les jours, c’est mon anniversaire 😉</string>
+	<string name="birthday_choose_date">Choisir votre anniversaire</string>
+	<string name="birthday_clear_date">Effacer la date</string>
+	<string name="birthday_month">Mois</string>
+	<string name="birthday_day">Jour</string>
+	<string name="birthday_date_hint">Seuls le mois et le jour sont enregistrés, pas l’année de naissance. Les années non bissextiles, le 29 février est fêté le 28 février.</string>
+	<string name="birthday_save">Enregistrer</string>
+	<string name="birthday_cancel">Annuler</string>
+	<string name="birthday_greeting">Joyeux anniversaire !</string>
+</resources>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="birthday_title">Sadece eğlence için</string>
+	<string name="birthday_enable">Doğum günü kutlaması</string>
+	<string name="birthday_hint">Gece gökyüzünde kısa bir doğum günü mesajı ve havai fişekler. Varsayılan olarak kapalıdır; hatırlatıcı yoktur.</string>
+	<string name="birthday_every_day">Her gün benim doğum günüm 😉</string>
+	<string name="birthday_choose_date">Doğum gününüzü seçin</string>
+	<string name="birthday_clear_date">Doğum gününü sil</string>
+	<string name="birthday_month">Ay</string>
+	<string name="birthday_day">Gün</string>
+	<string name="birthday_date_hint">Doğum yılı değil, yalnızca ay ve gün kaydedilir. Artık olmayan yıllarda 29 Şubat, 28 Şubat’ta kutlanır.</string>
+	<string name="birthday_save">Kaydet</string>
+	<string name="birthday_cancel">İptal</string>
+	<string name="birthday_greeting">İyi ki doğdun!</string>
+</resources>

@@ -79,9 +79,11 @@ internal fun resolvedHolidayCelebration(
 	enabled: Boolean,
 	force: Boolean,
 	forced: HolidayCelebration,
-	debugBuild: Boolean
+	debugBuild: Boolean,
+	birthday: Boolean = false
 ) = when {
 	debugBuild && force -> forced
+	birthday -> HolidayCelebration.BIRTHDAY
 	!enabled -> HolidayCelebration.NONE
 	else -> holidayCelebrationAt(now)
 }

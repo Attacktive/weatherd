@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
+import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.BuildConfig
 import xyz.attacktive.weatherd.debugToolsEnabled
 import xyz.attacktive.weatherd.di.ApplicationScope
@@ -229,7 +230,8 @@ class WeatherSceneProvider @Inject constructor(
 			enabled = seasonalCelebrationsEnabled,
 			force = forceHolidayCelebration,
 			forced = forcedHolidayCelebration,
-			debugBuild = BuildConfig.DEBUG
+			debugBuild = BuildConfig.DEBUG,
+			birthday = birthdayCelebrationAt(Instant.ofEpochSecond(nowEpochSeconds), birthdayCelebrationEnabled, birthdayDate, birthdayEveryDay)
 		)
 
 		if (sceneSimulatorOverridesWeather(sceneSimulatorActive, sceneSimulatorEnabled, debugToolsAvailable)) {
@@ -243,6 +245,7 @@ class WeatherSceneProvider @Inject constructor(
 			snapshot = snapshot,
 			nowEpochSeconds = nowEpochSeconds,
 			holidayCelebration = holiday,
+			birthdayGreeting = birthdayGreetingFor(holiday),
 			backdropScene = backdropScene,
 			photoRevision = state.photoRevision,
 			overlayLabels = overlayLabels(snapshot, state),
@@ -539,6 +542,7 @@ class WeatherSceneProvider @Inject constructor(
 			preset = preset,
 			dayPhase = sceneSimulatorDayPhase,
 			holidayCelebration = holiday,
+			birthdayGreeting = birthdayGreetingFor(holiday),
 			precipitationScale = precipitationIntensityScale,
 			windScale = windIntensityScale,
 			cloudScale = cloudIntensityScale,
@@ -788,6 +792,7 @@ class WeatherSceneProvider @Inject constructor(
 			weatherNotice = WeatherNotice.UNAVAILABLE.takeUnless { hideStaleWeatherWarning },
 			dayPhase = phase,
 			holidayCelebration = visibleHolidayCelebration(phase, holiday),
+			birthdayGreeting = birthdayGreetingFor(holiday),
 			cloudiness = 0.05f,
 			fogDensity = 0f,
 			precipitation = null,
@@ -832,6 +837,12 @@ class WeatherSceneProvider @Inject constructor(
 			statusBarShadeStrength = statusBarShadeStrength,
 			overlayLabels = overlayLabels(snapshot = null, state = state)
 		)
+	}
+
+	private fun birthdayGreetingFor(holiday: HolidayCelebration) = if (holiday == HolidayCelebration.BIRTHDAY) {
+		context.getString(R.string.birthday_greeting)
+	} else {
+		""
 	}
 
 	companion object {

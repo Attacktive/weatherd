@@ -1,5 +1,6 @@
 package xyz.attacktive.weatherd.domain.model
 
+import java.time.MonthDay
 import java.util.Locale
 
 data class AppSettings(
@@ -56,6 +57,9 @@ data class AppSettings(
 	val labelVerticalPosition: Float = DEFAULT_LABEL_VERTICAL_POSITION,
 	val wallpaperDimmingStrength: Float = 0f,
 	val statusBarShadeStrength: Float = 0f,
+	val birthdayCelebrationEnabled: Boolean = false,
+	val birthdayDate: MonthDay? = null,
+	val birthdayEveryDay: Boolean = false,
 	val seasonalCelebrationsEnabled: Boolean = true,
 	val forceHolidayCelebration: Boolean = false,
 	val forcedHolidayCelebration: HolidayCelebration = HolidayCelebration.HALLOWEEN
