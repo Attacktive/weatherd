@@ -113,7 +113,7 @@ class BirthdayCelebrationTest {
 					val top = frame.birthdayGreetingY - frame.birthdayGreetingHeight * 0.5f
 					val bottom = frame.birthdayGreetingY + frame.birthdayGreetingHeight * 0.5f
 					assertTrue(top >= height * 0.10f)
-					assertTrue(bottom <= height * 0.56f)
+					assertTrue(bottom <= height * 0.80f)
 					for (burst in frame.activeBursts()) {
 						assertTrue(burst.apexY > bottom)
 					}

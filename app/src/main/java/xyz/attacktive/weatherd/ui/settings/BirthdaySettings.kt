@@ -51,37 +51,17 @@ internal fun BirthdaySettings(settings: AppSettings, onSave: (AppSettings) -> Un
 	)
 
 	if (settings.birthdayCelebrationEnabled) {
-		Row(
-			modifier = Modifier.fillMaxWidth().toggleable(
-				value = settings.birthdayEveryDay,
-				role = Role.Checkbox,
-				onValueChange = { onSave(settings.copy(birthdayEveryDay = it)) }
-			).padding(vertical = 8.dp),
-			verticalAlignment = Alignment.CenterVertically
-		) {
-			Checkbox(checked = settings.birthdayEveryDay, onCheckedChange = null)
-			Text(stringResource(R.string.birthday_every_day), modifier = Modifier.padding(start = 12.dp))
-		}
+		BirthdayEveryDayCheckbox(
+			checked = settings.birthdayEveryDay,
+			onChange = { onSave(settings.copy(birthdayEveryDay = it)) }
+		)
 
 		if (!settings.birthdayEveryDay) {
-			val date = settings.birthdayDate
-			val locale = LocalConfiguration.current.locales[0]
-			val dateText = if (date == null) {
-				stringResource(R.string.birthday_choose_date)
-			} else {
-				val pattern = android.text.format.DateFormat.getBestDateTimePattern(locale, "MMMMd")
-				date.format(java.time.format.DateTimeFormatter.ofPattern(pattern, locale))
-			}
-
-			OutlinedButton(onClick = { dateDialogOpen = true }, modifier = Modifier.fillMaxWidth()) {
-				Text(dateText)
-			}
-
-			if (date != null) {
-				TextButton(onClick = { onSave(settings.copy(birthdayDate = null)) }) {
-					Text(stringResource(R.string.birthday_clear_date))
-				}
-			}
+			BirthdayDateSetting(
+				date = settings.birthdayDate,
+				onChoose = { dateDialogOpen = true },
+				onClear = { onSave(settings.copy(birthdayDate = null)) }
+			)
 		}
 	}
 
@@ -94,6 +74,42 @@ internal fun BirthdaySettings(settings: AppSettings, onSave: (AppSettings) -> Un
 				dateDialogOpen = false
 			}
 		)
+	}
+}
+
+@Composable
+private fun BirthdayEveryDayCheckbox(checked: Boolean, onChange: (Boolean) -> Unit) {
+	Row(
+		modifier = Modifier.fillMaxWidth().toggleable(
+			value = checked,
+			role = Role.Checkbox,
+			onValueChange = onChange
+		).padding(vertical = 8.dp),
+		verticalAlignment = Alignment.CenterVertically
+	) {
+		Checkbox(checked = checked, onCheckedChange = null)
+		Text(stringResource(R.string.birthday_every_day), modifier = Modifier.padding(start = 12.dp))
+	}
+}
+
+@Composable
+private fun BirthdayDateSetting(date: MonthDay?, onChoose: () -> Unit, onClear: () -> Unit) {
+	val locale = LocalConfiguration.current.locales[0]
+	val dateText = if (date == null) {
+		stringResource(R.string.birthday_choose_date)
+	} else {
+		val pattern = android.text.format.DateFormat.getBestDateTimePattern(locale, "MMMMd")
+		date.format(java.time.format.DateTimeFormatter.ofPattern(pattern, locale))
+	}
+
+	OutlinedButton(onClick = onChoose, modifier = Modifier.fillMaxWidth()) {
+		Text(dateText)
+	}
+
+	if (date != null) {
+		TextButton(onClick = onClear) {
+			Text(stringResource(R.string.birthday_clear_date))
+		}
 	}
 }
 

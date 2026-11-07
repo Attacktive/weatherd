@@ -307,6 +307,34 @@ class SeasonalCelebrationMotionTest {
 		)
 	}
 
+	@Test
+	fun `birthday banner and fireworks clear large moons in both orientations`() {
+		val slot = 200L
+		val start = SeasonalCelebrationFrame.passStartMillis(slot, SeasonalCelebrationFrame.BIRTHDAY_SLOT_MILLIS, SeasonalCelebrationFrame.BIRTHDAY_DURATION_MILLIS, SeasonalCelebrationFrame.BIRTHDAY_SALT)
+		val frame = SeasonalCelebrationFrame()
+
+		for ((width, height) in listOf(360f to 780f, 780f to 360f)) {
+			for (moonSize in listOf(0.5f, 1f, 2f)) {
+				val params = testParams(dayPhase = DayPhase.NIGHT, holidayCelebration = HolidayCelebration.BIRTHDAY, moonVisible = true).copy(moonSizeScale = moonSize)
+				val moonY = height * 0.24f
+				val moonClearance = minOf(width, height) * (0.145f * moonSize + 0.015f)
+
+				for (elapsed in 200L until SeasonalCelebrationFrame.BIRTHDAY_DURATION_MILLIS step 400L) {
+					assertTrue("Birthday should fit in $width x $height with Moon size $moonSize", frame.sample(width, height, params, start + elapsed))
+					assertTrue("Birthday must have at least one firework at +$elapsed ms", frame.activeBurstCount > 0)
+					val greetingTop = frame.birthdayGreetingY - frame.birthdayGreetingHeight * 0.5f
+					val greetingBottom = frame.birthdayGreetingY + frame.birthdayGreetingHeight * 0.5f
+					assertTrue("Greeting must not touch Moon: +$elapsed ms", greetingBottom <= moonY - moonClearance || greetingTop >= moonY + moonClearance)
+
+					for (burst in frame.activeBursts()) {
+						assertTrue("Burst cannot be starved: +$elapsed ms", burst.maximumRadius > 0f && burst.launchDistance > 0f)
+						assertTrue("Firework must clear birthday banner: +$elapsed ms", burst.apexY - burst.maximumRadius >= greetingBottom)
+					}
+				}
+			}
+		}
+	}
+
 	private fun testParams(
 		dayPhase: DayPhase = DayPhase.NIGHT,
 		holidayCelebration: HolidayCelebration = HolidayCelebration.HALLOWEEN,

@@ -23,6 +23,9 @@ class BirthdayCelebrationRenderingTest {
 			for (position in listOf(0f, 0.09f, 0.35f, 0.75f, 1f)) {
 				val configured = params.copy(labelVerticalPosition = position)
 				assertTrue(renderedPixels(width, height, configured, start + 1000) > 0)
+				val frame = SeasonalCelebrationFrame()
+				assertTrue(frame.sample(width.toFloat(), height.toFloat(), configured, start + 1000))
+				assertTrue("Greeting needs fireworks even with a large Moon", frame.activeBurstCount > 0)
 				assertEquals(0, renderedPixels(width, height, configured, start - 1))
 				assertEquals(0, renderedPixels(width, height, configured, start + SeasonalCelebrationFrame.BIRTHDAY_DURATION_MILLIS))
 				assertEquals(0, renderedPixels(width, height, configured.copy(nightBrightnessScale = 0f), start + 1000))

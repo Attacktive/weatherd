@@ -624,7 +624,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 
 }
 
-private fun storedBirthdayDate(value: String?) = try {
+private fun storedBirthdayDate(value: String?): MonthDay? = try {
 	value?.let(MonthDay::parse)
 } catch (_: DateTimeParseException) {
 	null

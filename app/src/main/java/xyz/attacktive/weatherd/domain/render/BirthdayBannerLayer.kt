@@ -51,22 +51,7 @@ internal class BirthdayBannerLayer {
 			return
 		}
 
-		if (cachedText != text || cachedWidth != width || cachedHeight != height) {
-			cachedText = text
-			cachedWidth = width
-			cachedHeight = height
-			textPaint.textSize = height * 0.60f
-			val maxTextWidth = width * 0.78f - height * 1.2f
-			val measuredWidth = textPaint.measureText(text)
-			if (measuredWidth > maxTextWidth && measuredWidth > 0f) {
-				textPaint.textSize *= maxTextWidth / measuredWidth
-			}
-
-			glyphWidth = textPaint.measureText(text)
-			bannerWidth = glyphWidth + height * 1.2f
-			textPaint.getFontMetrics(metrics)
-			baselineOffset = -(metrics.ascent + metrics.descent) * 0.5f
-		}
+		prepareTextLayout(width, text, height)
 
 		val centerX = width * 0.5f
 		val centerY = frame.birthdayGreetingY
@@ -86,6 +71,27 @@ internal class BirthdayBannerLayer {
 		drawSparkle(canvas, centerX - glyphWidth * 0.5f - height * 0.34f, centerY, height * 0.13f)
 		drawSparkle(canvas, centerX + glyphWidth * 0.5f + height * 0.34f, centerY, height * 0.13f)
 		canvas.drawText(text, centerX, centerY + baselineOffset, textPaint)
+	}
+
+	private fun prepareTextLayout(width: Float, text: String, height: Float) {
+		if (cachedText == text && cachedWidth == width && cachedHeight == height) {
+			return
+		}
+
+		cachedText = text
+		cachedWidth = width
+		cachedHeight = height
+		textPaint.textSize = height * 0.60f
+		val maxTextWidth = width * 0.78f - height * 1.2f
+		val measuredWidth = textPaint.measureText(text)
+		if (measuredWidth > maxTextWidth && measuredWidth > 0f) {
+			textPaint.textSize *= maxTextWidth / measuredWidth
+		}
+
+		glyphWidth = textPaint.measureText(text)
+		bannerWidth = glyphWidth + height * 1.2f
+		textPaint.getFontMetrics(metrics)
+		baselineOffset = -(metrics.ascent + metrics.descent) * 0.5f
 	}
 
 	private fun drawSparkle(canvas: Canvas, x: Float, y: Float, radius: Float) {
