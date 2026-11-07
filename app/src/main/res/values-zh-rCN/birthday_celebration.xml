@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="birthday_title">趣味小功能</string>
+	<string name="birthday_enable">生日庆祝</string>
+	<string name="birthday_hint">夜空中短暂出现生日祝福和烟花。默认关闭，不发送提醒。</string>
+	<string name="birthday_every_day">每天都是我的生日 😉</string>
+	<string name="birthday_choose_date">选择生日</string>
+	<string name="birthday_clear_date">清除生日</string>
+	<string name="birthday_month">月</string>
+	<string name="birthday_day">日</string>
+	<string name="birthday_date_hint">只保存月和日，不保存出生年份。非闰年时，2月29日的生日会在2月28日庆祝。</string>
+	<string name="birthday_save">保存</string>
+	<string name="birthday_cancel">取消</string>
+	<string name="birthday_greeting">生日快乐！</string>
+</resources>

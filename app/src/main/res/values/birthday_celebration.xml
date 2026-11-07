@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="birthday_title">Just for fun</string>
+	<string name="birthday_enable">Birthday celebration</string>
+	<string name="birthday_hint">A brief birthday greeting and fireworks in the night sky. Off by default; no reminders.</string>
+	<string name="birthday_every_day">Every day is my birthday 😉</string>
+	<string name="birthday_choose_date">Choose your birthday</string>
+	<string name="birthday_clear_date">Clear birthday</string>
+	<string name="birthday_month">Month</string>
+	<string name="birthday_day">Day</string>
+	<string name="birthday_date_hint">Only month and day are saved, not your birth year. February 29 celebrates on February 28 in non-leap years.</string>
+	<string name="birthday_save">Save</string>
+	<string name="birthday_cancel">Cancel</string>
+	<string name="birthday_greeting">Happy birthday!</string>
+</resources>

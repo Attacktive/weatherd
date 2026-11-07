@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="birthday_title">Só por diversão</string>
+	<string name="birthday_enable">Celebrar aniversário</string>
+	<string name="birthday_hint">Uma breve mensagem de aniversário com fogo de artifício no céu noturno. Desativado por predefinição; sem lembretes.</string>
+	<string name="birthday_every_day">Todos os dias são o meu aniversário 😉</string>
+	<string name="birthday_choose_date">Escolha o seu aniversário</string>
+	<string name="birthday_clear_date">Apagar aniversário</string>
+	<string name="birthday_month">Mês</string>
+	<string name="birthday_day">Dia</string>
+	<string name="birthday_date_hint">São guardados apenas o mês e o dia, não o ano de nascimento. Nos anos não bissextos, 29 de fevereiro é celebrado a 28 de fevereiro.</string>
+	<string name="birthday_save">Guardar</string>
+	<string name="birthday_cancel">Cancelar</string>
+	<string name="birthday_greeting">Feliz aniversário!</string>
+</resources>

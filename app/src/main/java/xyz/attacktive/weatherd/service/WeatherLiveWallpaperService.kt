@@ -28,6 +28,7 @@ import xyz.attacktive.weatherd.domain.render.SceneScreenEffects
 import xyz.attacktive.weatherd.domain.render.WeatherSceneProvider
 import xyz.attacktive.weatherd.domain.render.WeatherSceneState
 import xyz.attacktive.weatherd.domain.render.backdropSignature
+import xyz.attacktive.weatherd.domain.render.birthdayCalendarRefreshDelayMillis
 import xyz.attacktive.weatherd.domain.render.holidayCalendarRefreshDelayMillis
 import xyz.attacktive.weatherd.domain.render.lensFlareMotionActive
 import xyz.attacktive.weatherd.domain.render.renderImmutableBitmap
@@ -288,7 +289,8 @@ class WeatherLiveWallpaperService: WallpaperService() {
 		private fun scheduleNextFrame(motionActive: Boolean, frameTimeNanos: Long, calendarEpochMillis: Long) {
 			if (!motionActive) {
 				val elapsedDrawWallMillis = System.currentTimeMillis() - calendarEpochMillis
-				val targetDelay = holidayCalendarRefreshDelayMillis(calendarEpochMillis, SETTLED_SCENE_REFRESH_MILLIS)
+				val holidayDelay = holidayCalendarRefreshDelayMillis(calendarEpochMillis, SETTLED_SCENE_REFRESH_MILLIS)
+				val targetDelay = birthdayCalendarRefreshDelayMillis(calendarEpochMillis, holidayDelay)
 				val delayMillis = (targetDelay - elapsedDrawWallMillis).coerceAtLeast(0L)
 				choreographer.postFrameCallbackDelayed(this, delayMillis)
 

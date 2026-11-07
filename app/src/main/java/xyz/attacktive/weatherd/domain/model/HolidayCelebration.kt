@@ -5,5 +5,6 @@ enum class HolidayCelebration {
 	NONE,
 	HALLOWEEN,
 	CHRISTMAS,
-	NEW_YEAR
+	NEW_YEAR,
+	BIRTHDAY
 }

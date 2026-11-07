@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="birthday_title">ちょっとした遊び心</string>
+	<string name="birthday_enable">誕生日のお祝い</string>
+	<string name="birthday_hint">夜空に短いお祝いのメッセージと花火が現れます。初期設定はオフで、リマインダーはありません。</string>
+	<string name="birthday_every_day">毎日が私の誕生日 😉</string>
+	<string name="birthday_choose_date">誕生日を選択</string>
+	<string name="birthday_clear_date">誕生日を消去</string>
+	<string name="birthday_month">月</string>
+	<string name="birthday_day">日</string>
+	<string name="birthday_date_hint">生まれた年は保存せず、月と日のみ保存します。うるう年以外では、2月29日の誕生日を2月28日に祝います。</string>
+	<string name="birthday_save">保存</string>
+	<string name="birthday_cancel">キャンセル</string>
+	<string name="birthday_greeting">お誕生日おめでとう！</string>
+</resources>

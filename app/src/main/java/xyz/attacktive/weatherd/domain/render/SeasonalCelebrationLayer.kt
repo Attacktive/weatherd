@@ -18,6 +18,7 @@ import xyz.attacktive.weatherd.domain.model.HolidayCelebration
  */
 internal class SeasonalCelebrationLayer {
 	val frame = SeasonalCelebrationFrame()
+	private val birthdayBanner = BirthdayBannerLayer()
 
 	private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
 		style = Paint.Style.FILL
@@ -90,6 +91,10 @@ internal class SeasonalCelebrationLayer {
 			HolidayCelebration.HALLOWEEN -> drawHalloweenWitch(canvas, epochMillis)
 			HolidayCelebration.CHRISTMAS -> drawChristmasSleigh(canvas, epochMillis)
 			HolidayCelebration.NEW_YEAR -> drawNewYearFireworks(canvas)
+			HolidayCelebration.BIRTHDAY -> {
+				drawNewYearFireworks(canvas)
+				birthdayBanner.draw(canvas, width, params.birthdayGreeting, frame)
+			}
 			HolidayCelebration.NONE -> Unit
 		}
 	}
