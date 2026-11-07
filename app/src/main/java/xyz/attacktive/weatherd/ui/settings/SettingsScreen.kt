@@ -286,6 +286,10 @@ private fun AdvancedSettingsTab(viewModel: SettingsViewModel, scrollState: Scrol
 
 		Spacer(modifier = Modifier.height(24.dp))
 
+		BirthdaySettings(settings = settings, onSave = onSave)
+
+		Spacer(modifier = Modifier.height(24.dp))
+
 		DiagnosticsSection()
 	}
 }
@@ -667,6 +671,7 @@ internal fun formatHolidayCelebration(celebration: HolidayCelebration) = when (c
 	HolidayCelebration.HALLOWEEN -> stringResource(R.string.holiday_celebration_halloween)
 	HolidayCelebration.CHRISTMAS -> stringResource(R.string.holiday_celebration_christmas)
 	HolidayCelebration.NEW_YEAR -> stringResource(R.string.holiday_celebration_new_year)
+	HolidayCelebration.BIRTHDAY -> stringResource(R.string.birthday_enable)
 }
 
 @Composable

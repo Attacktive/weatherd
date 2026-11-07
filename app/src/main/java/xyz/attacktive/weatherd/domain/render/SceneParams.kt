@@ -118,7 +118,8 @@ data class SceneParams(
 	val statusBarShadeStrength: Float = 0f,
 	val birdFlockSize: BirdFlockSize = BirdFlockSize.SMALL,
 	val birdAppearanceInterval: BirdAppearanceInterval = BirdAppearanceInterval.NATURAL,
-	val holidayCelebration: HolidayCelebration = HolidayCelebration.NONE
+	val holidayCelebration: HolidayCelebration = HolidayCelebration.NONE,
+	val birthdayGreeting: String = ""
 )
 
 /** The two overlay text lines — the current weather ("Rain · 10°") and the place name — each omissible on its own. */
@@ -182,7 +183,8 @@ fun backdropSignature(params: SceneParams, backgroundPhotoAvailable: Boolean = f
 		statusBarShadeStrength = 0f,
 		birdFlockSize = BirdFlockSize.SMALL,
 		birdAppearanceInterval = BirdAppearanceInterval.NATURAL,
-		holidayCelebration = HolidayCelebration.NONE
+		holidayCelebration = HolidayCelebration.NONE,
+		birthdayGreeting = ""
 	)
 }
 
@@ -286,7 +288,8 @@ fun sceneParamsFor(
 	statusBarShadeStrength: Float = 0f,
 	birdFlockSize: BirdFlockSize = BirdFlockSize.SMALL,
 	birdAppearanceInterval: BirdAppearanceInterval = BirdAppearanceInterval.NATURAL,
-	holidayCelebration: HolidayCelebration = HolidayCelebration.NONE
+	holidayCelebration: HolidayCelebration = HolidayCelebration.NONE,
+	birthdayGreeting: String = ""
 ): SceneParams {
 	val observation = snapshot.observation
 	val condition = observation.condition
@@ -363,7 +366,8 @@ fun sceneParamsFor(
 		statusBarShadeStrength = normalizeReadabilityStrength(statusBarShadeStrength),
 		birdFlockSize = birdFlockSize,
 		birdAppearanceInterval = birdAppearanceInterval,
-		holidayCelebration = visibleHolidayCelebration(dayPhase, holidayCelebration)
+		holidayCelebration = visibleHolidayCelebration(dayPhase, holidayCelebration),
+		birthdayGreeting = birthdayGreeting
 	)
 }
 

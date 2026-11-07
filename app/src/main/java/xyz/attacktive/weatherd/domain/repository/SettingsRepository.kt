@@ -1,5 +1,7 @@
 package xyz.attacktive.weatherd.domain.repository
 
+import java.time.MonthDay
+import java.time.format.DateTimeParseException
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
@@ -104,6 +106,9 @@ sealed interface SettingsMutation {
 	data class LabelVerticalPosition(val value: Float): SettingsMutation
 	data class WallpaperDimmingStrength(val value: Float): SettingsMutation
 	data class StatusBarShadeStrength(val value: Float): SettingsMutation
+	data class BirthdayCelebrationEnabled(val enabled: Boolean): SettingsMutation
+	data class BirthdayDate(val value: MonthDay?): SettingsMutation
+	data class BirthdayEveryDay(val enabled: Boolean): SettingsMutation
 	data class SeasonalCelebrationsEnabled(val enabled: Boolean): SettingsMutation
 	data class ForceHolidayCelebration(val enabled: Boolean): SettingsMutation
 	data class ForcedHolidayCelebration(val value: HolidayCelebration): SettingsMutation
@@ -163,6 +168,9 @@ internal fun settingsMutationsBetween(previous: AppSettings, updated: AppSetting
 		addIfChanged(previous.labelVerticalPosition, updated.labelVerticalPosition, SettingsMutation::LabelVerticalPosition)
 		addIfChanged(previous.wallpaperDimmingStrength, updated.wallpaperDimmingStrength, SettingsMutation::WallpaperDimmingStrength)
 		addIfChanged(previous.statusBarShadeStrength, updated.statusBarShadeStrength, SettingsMutation::StatusBarShadeStrength)
+		addIfChanged(previous.birthdayCelebrationEnabled, updated.birthdayCelebrationEnabled, SettingsMutation::BirthdayCelebrationEnabled)
+		addIfChanged(previous.birthdayDate, updated.birthdayDate, SettingsMutation::BirthdayDate)
+		addIfChanged(previous.birthdayEveryDay, updated.birthdayEveryDay, SettingsMutation::BirthdayEveryDay)
 		addIfChanged(previous.seasonalCelebrationsEnabled, updated.seasonalCelebrationsEnabled, SettingsMutation::SeasonalCelebrationsEnabled)
 		addIfChanged(previous.forceHolidayCelebration, updated.forceHolidayCelebration, SettingsMutation::ForceHolidayCelebration)
 		addIfChanged(previous.forcedHolidayCelebration, updated.forcedHolidayCelebration, SettingsMutation::ForcedHolidayCelebration)
@@ -256,6 +264,9 @@ private fun SettingsMutation.appliedTo(settings: AppSettings) = when (this) {
 	is SettingsMutation.LabelVerticalPosition -> settings.copy(labelVerticalPosition = value.coerceIn(LABEL_VERTICAL_POSITION_RANGE.start, LABEL_VERTICAL_POSITION_RANGE.endInclusive))
 	is SettingsMutation.WallpaperDimmingStrength -> settings.copy(wallpaperDimmingStrength = normalizeReadabilityStrength(value))
 	is SettingsMutation.StatusBarShadeStrength -> settings.copy(statusBarShadeStrength = normalizeReadabilityStrength(value))
+	is SettingsMutation.BirthdayCelebrationEnabled -> settings.copy(birthdayCelebrationEnabled = enabled)
+	is SettingsMutation.BirthdayDate -> settings.copy(birthdayDate = value)
+	is SettingsMutation.BirthdayEveryDay -> settings.copy(birthdayEveryDay = enabled)
 	is SettingsMutation.SeasonalCelebrationsEnabled -> settings.copy(seasonalCelebrationsEnabled = enabled)
 	is SettingsMutation.ForceHolidayCelebration -> settings.copy(forceHolidayCelebration = enabled)
 	is SettingsMutation.ForcedHolidayCelebration -> settings.copy(forcedHolidayCelebration = value)
@@ -334,6 +345,9 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		val LABEL_VERTICAL_POSITION = floatPreferencesKey("label_vertical_position")
 		val WALLPAPER_DIMMING_STRENGTH = floatPreferencesKey("wallpaper_dimming_strength")
 		val STATUS_BAR_SHADE_STRENGTH = floatPreferencesKey("status_bar_shade_strength")
+		val BIRTHDAY_CELEBRATION_ENABLED = booleanPreferencesKey("birthday_celebration_enabled")
+		val BIRTHDAY_DATE = stringPreferencesKey("birthday_date")
+		val BIRTHDAY_EVERY_DAY = booleanPreferencesKey("birthday_every_day")
 		val SEASONAL_CELEBRATIONS_ENABLED = booleanPreferencesKey("seasonal_celebrations_enabled")
 		val FORCE_HOLIDAY_CELEBRATION = booleanPreferencesKey("force_holiday_celebration")
 		val FORCED_HOLIDAY_CELEBRATION = stringPreferencesKey("forced_holiday_celebration")
@@ -394,6 +408,9 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			labelVerticalPosition = (preferences[Keys.LABEL_VERTICAL_POSITION] ?: defaults.labelVerticalPosition).coerceIn(LABEL_VERTICAL_POSITION_RANGE.start, LABEL_VERTICAL_POSITION_RANGE.endInclusive),
 			wallpaperDimmingStrength = normalizeReadabilityStrength(preferences[Keys.WALLPAPER_DIMMING_STRENGTH] ?: defaults.wallpaperDimmingStrength),
 			statusBarShadeStrength = normalizeReadabilityStrength(preferences[Keys.STATUS_BAR_SHADE_STRENGTH] ?: defaults.statusBarShadeStrength),
+			birthdayCelebrationEnabled = preferences[Keys.BIRTHDAY_CELEBRATION_ENABLED] ?: defaults.birthdayCelebrationEnabled,
+			birthdayDate = storedBirthdayDate(preferences[Keys.BIRTHDAY_DATE]),
+			birthdayEveryDay = preferences[Keys.BIRTHDAY_EVERY_DAY] ?: defaults.birthdayEveryDay,
 			seasonalCelebrationsEnabled = preferences[Keys.SEASONAL_CELEBRATIONS_ENABLED] ?: defaults.seasonalCelebrationsEnabled,
 			forceHolidayCelebration = preferences[Keys.FORCE_HOLIDAY_CELEBRATION] ?: defaults.forceHolidayCelebration,
 			forcedHolidayCelebration = enumOrDefault(preferences[Keys.FORCED_HOLIDAY_CELEBRATION], HolidayCelebration.entries, defaults.forcedHolidayCelebration)
@@ -479,6 +496,9 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			preferences[Keys.LABEL_VERTICAL_POSITION] = settings.labelVerticalPosition.coerceIn(LABEL_VERTICAL_POSITION_RANGE.start, LABEL_VERTICAL_POSITION_RANGE.endInclusive)
 			preferences[Keys.WALLPAPER_DIMMING_STRENGTH] = normalizeReadabilityStrength(settings.wallpaperDimmingStrength)
 			preferences[Keys.STATUS_BAR_SHADE_STRENGTH] = normalizeReadabilityStrength(settings.statusBarShadeStrength)
+			preferences[Keys.BIRTHDAY_CELEBRATION_ENABLED] = settings.birthdayCelebrationEnabled
+			preferences.putOrRemove(Keys.BIRTHDAY_DATE, settings.birthdayDate?.toString())
+			preferences[Keys.BIRTHDAY_EVERY_DAY] = settings.birthdayEveryDay
 			preferences[Keys.SEASONAL_CELEBRATIONS_ENABLED] = settings.seasonalCelebrationsEnabled
 			preferences[Keys.FORCE_HOLIDAY_CELEBRATION] = settings.forceHolidayCelebration
 			preferences[Keys.FORCED_HOLIDAY_CELEBRATION] = settings.forcedHolidayCelebration.name
@@ -553,6 +573,9 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			is SettingsMutation.LabelVerticalPosition -> this[Keys.LABEL_VERTICAL_POSITION] = mutation.value.coerceIn(LABEL_VERTICAL_POSITION_RANGE.start, LABEL_VERTICAL_POSITION_RANGE.endInclusive)
 			is SettingsMutation.WallpaperDimmingStrength -> this[Keys.WALLPAPER_DIMMING_STRENGTH] = normalizeReadabilityStrength(mutation.value)
 			is SettingsMutation.StatusBarShadeStrength -> this[Keys.STATUS_BAR_SHADE_STRENGTH] = normalizeReadabilityStrength(mutation.value)
+			is SettingsMutation.BirthdayCelebrationEnabled -> this[Keys.BIRTHDAY_CELEBRATION_ENABLED] = mutation.enabled
+			is SettingsMutation.BirthdayDate -> putOrRemove(Keys.BIRTHDAY_DATE, mutation.value?.toString())
+			is SettingsMutation.BirthdayEveryDay -> this[Keys.BIRTHDAY_EVERY_DAY] = mutation.enabled
 			is SettingsMutation.SeasonalCelebrationsEnabled -> this[Keys.SEASONAL_CELEBRATIONS_ENABLED] = mutation.enabled
 			is SettingsMutation.ForceHolidayCelebration -> this[Keys.FORCE_HOLIDAY_CELEBRATION] = mutation.enabled
 			is SettingsMutation.ForcedHolidayCelebration -> this[Keys.FORCED_HOLIDAY_CELEBRATION] = mutation.value.name
@@ -599,6 +622,12 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		this[Keys.SEASONAL_CELEBRATIONS_ENABLED] = snapshot.seasonalCelebrationsEnabled
 	}
 
+}
+
+private fun storedBirthdayDate(value: String?): MonthDay? = try {
+	value?.let(MonthDay::parse)
+} catch (_: DateTimeParseException) {
+	null
 }
 
 private fun globalWeatherProviderOrDefault(name: String?, default: WeatherProviderType): WeatherProviderType {

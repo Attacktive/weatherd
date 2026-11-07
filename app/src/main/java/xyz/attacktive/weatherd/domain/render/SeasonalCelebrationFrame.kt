@@ -13,6 +13,13 @@ import xyz.attacktive.weatherd.domain.model.HolidayCelebration
  * Computes positions, progress, and visual geometry from an absolute epoch millisecond timestamp without allocating memory or storing mutable replay state.
  */
 internal class SeasonalCelebrationFrame {
+	var birthdayGreetingY: Float = 0f
+		private set
+	var birthdayGreetingHeight: Float = 0f
+		private set
+	var birthdayGreetingOpacity: Float = 0f
+		private set
+
 	var flybyActive: Boolean = false
 		private set
 	var flybyProgress: Float = 0f
@@ -91,10 +98,14 @@ internal class SeasonalCelebrationFrame {
 			HolidayCelebration.HALLOWEEN -> sampleFlyby(width, height, params, epochMillis, HALLOWEEN_SLOT_MILLIS, HALLOWEEN_DURATION_MILLIS, HALLOWEEN_SALT, isChristmas = false)
 			HolidayCelebration.CHRISTMAS -> sampleFlyby(width, height, params, epochMillis, CHRISTMAS_SLOT_MILLIS, CHRISTMAS_DURATION_MILLIS, CHRISTMAS_SALT, isChristmas = true)
 			HolidayCelebration.NEW_YEAR -> sampleFireworks(width, height, params, epochMillis)
+			HolidayCelebration.BIRTHDAY -> sampleBirthday(width, height, params, epochMillis)
 		}
 	}
 
 	fun clear() {
+		birthdayGreetingY = 0f
+		birthdayGreetingHeight = 0f
+		birthdayGreetingOpacity = 0f
 		flybyActive = false
 		flybyProgress = 0f
 		flybyX = 0f
@@ -197,9 +208,9 @@ internal class SeasonalCelebrationFrame {
 		}
 	}
 
-	private fun selectSkyBand(width: Float, height: Float, params: SceneParams, avoidMoon: Boolean): Boolean {
+	private fun selectSkyBand(width: Float, height: Float, params: SceneParams, avoidMoon: Boolean, skyBottomFraction: Float = 0.56f): Boolean {
 		val skyTop = height * 0.10f
-		val skyBottom = height * 0.56f
+		val skyBottom = height * skyBottomFraction
 		updateLabelExclusion(height, params, skyTop, skyBottom)
 		val labelTop = labelExclusionTop
 		val labelBottom = labelExclusionBottom
@@ -207,7 +218,8 @@ internal class SeasonalCelebrationFrame {
 		var moonTop = skyBottom
 		var moonBottom = skyBottom
 		if (avoidMoon && params.moonVisible) {
-			val radius = minOf(width, height) * (0.10f * params.moonSizeScale.coerceIn(0.5f, 2f) + 0.015f)
+			// Reserve more than the rendered 0.10f Moon disc for the edge glow and the full-width greeting.
+			val radius = minOf(width, height) * (0.145f * params.moonSizeScale.coerceIn(0.5f, 2f) + 0.015f)
 			moonTop = (height * 0.24f - radius).coerceIn(skyTop, skyBottom)
 			moonBottom = (height * 0.24f + radius).coerceIn(skyTop, skyBottom)
 		}
@@ -259,12 +271,50 @@ internal class SeasonalCelebrationFrame {
 			return false
 		}
 
-		val currentSlot = Math.floorDiv(epochMillis, FIREWORK_SLOT_MILLIS)
-		val nightDimming = params.nightBrightnessScale.coerceIn(0f, 1f)
+		return sampleFireworksInBand(width, height, params, epochMillis, params.nightBrightnessScale.coerceIn(0f, 1f))
+	}
 
+	private fun sampleBirthday(width: Float, height: Float, params: SceneParams, epochMillis: Long): Boolean {
+		val slot = Math.floorDiv(epochMillis, BIRTHDAY_SLOT_MILLIS)
+		val start = passStartMillis(slot, BIRTHDAY_SLOT_MILLIS, BIRTHDAY_DURATION_MILLIS, BIRTHDAY_SALT)
+		val elapsed = epochMillis - start
+		if (elapsed !in 0L until BIRTHDAY_DURATION_MILLIS || !selectSkyBand(width, height, params, avoidMoon = true, skyBottomFraction = 0.80f)) {
+			return false
+		}
+
+		val bandHeight = safeSkyBottom - safeSkyTop
+		birthdayGreetingHeight = minOf(minOf(width, height) * 0.075f, bandHeight * 0.30f)
+		birthdayGreetingY = safeSkyTop + birthdayGreetingHeight * 0.5f
+		birthdayGreetingOpacity = minOf(1f, elapsed / 700f, (BIRTHDAY_DURATION_MILLIS - elapsed) / 700f) * params.nightBrightnessScale.coerceIn(0f, 1f)
+		safeSkyTop += birthdayGreetingHeight + bandHeight * 0.08f
+		sampleBirthdayFireworks(width, height, slot, start, elapsed, epochMillis, birthdayGreetingOpacity)
+		return true
+	}
+
+	private fun sampleBirthdayFireworks(width: Float, height: Float, slot: Long, start: Long, elapsed: Long, epochMillis: Long, nightDimming: Float) {
+		val index = elapsed / BIRTHDAY_FIREWORK_INTERVAL_MILLIS
+		configureBirthdayFireworkSlot(burst1, slot, index, start, epochMillis, width, height, nightDimming)
+		configureBirthdayFireworkSlot(burst2, slot, index - 1L, start, epochMillis, width, height, nightDimming)
+		collectActiveBursts()
+	}
+
+	private fun configureBirthdayFireworkSlot(burst: FireworkBurst, slot: Long, index: Long, start: Long, epochMillis: Long, width: Float, height: Float, nightDimming: Float) {
+		val burstStart = start + index * BIRTHDAY_FIREWORK_INTERVAL_MILLIS
+		val hash = slotHash(slot * 4L + index, BIRTHDAY_SALT xor FIREWORK_SALT)
+		configureFireworkBurst(burst, burstStart, hash, epochMillis, width, height, width * 0.88f, nightDimming)
+	}
+
+	private fun sampleFireworksInBand(width: Float, height: Float, params: SceneParams, epochMillis: Long, nightDimming: Float): Boolean {
+		val currentSlot = Math.floorDiv(epochMillis, FIREWORK_SLOT_MILLIS)
 		configureFireworkSlot(burst1, currentSlot, epochMillis, width, height, params, nightDimming)
 		configureFireworkSlot(burst2, currentSlot - 1L, epochMillis, width, height, params, nightDimming)
 
+		collectActiveBursts()
+
+		return activeBurstsList.isNotEmpty()
+	}
+
+	private fun collectActiveBursts() {
 		if (burst1.active) {
 			activeBurstsList.add(burst1)
 		}
@@ -272,8 +322,6 @@ internal class SeasonalCelebrationFrame {
 		if (burst2.active) {
 			activeBurstsList.add(burst2)
 		}
-
-		return activeBurstsList.isNotEmpty()
 	}
 
 	private fun configureFireworkSlot(
@@ -285,14 +333,23 @@ internal class SeasonalCelebrationFrame {
 		params: SceneParams,
 		nightDimming: Float
 	) {
-		val startMillis = fireworkStartMillis(slotIndex)
+		val shortEdge = minOf(width, height)
+		val rightBoundary = if (params.moonVisible) {
+			width * 0.72f - shortEdge * 0.10f * params.moonSizeScale.coerceIn(0.5f, 2f)
+		} else {
+			width * 0.88f
+		}
+
+		configureFireworkBurst(burst, fireworkStartMillis(slotIndex), slotHash(slotIndex, FIREWORK_SALT), epochMillis, width, height, rightBoundary, nightDimming)
+	}
+
+	private fun configureFireworkBurst(burst: FireworkBurst, startMillis: Long, hash: Long, epochMillis: Long, width: Float, height: Float, rightBoundary: Float, nightDimming: Float) {
 		val elapsed = epochMillis - startMillis
 		if (elapsed !in 0L until FIREWORK_BURST_DURATION_MILLIS) {
 			burst.clear()
 			return
 		}
 
-		val hash = slotHash(slotIndex, FIREWORK_SALT)
 		val positiveHash = hash and Long.MAX_VALUE
 		burst.active = true
 		burst.paletteIndex = ((positiveHash ushr 4).toInt() and 0x7FFFFFFF) % 6
@@ -305,11 +362,7 @@ internal class SeasonalCelebrationFrame {
 		burst.launchDistance = minOf(height * 0.22f, safeSkyBottom - burst.apexY - bandHeight * 0.08f)
 		val horizontalEnvelope = maxOf(burst.maximumRadius * 1.25f + 4f, width * 0.04f + 4f)
 		val left = width * 0.12f + horizontalEnvelope
-		val right = if (params.moonVisible) {
-			width * 0.72f - shortEdge * 0.10f * params.moonSizeScale.coerceIn(0.5f, 2f) - horizontalEnvelope
-		} else {
-			width * 0.88f - horizontalEnvelope
-		}
+		val right = rightBoundary - horizontalEnvelope
 
 		if (right < left) {
 			burst.clear()
@@ -413,6 +466,11 @@ internal class SeasonalCelebrationFrame {
 	}
 
 	companion object {
+		const val BIRTHDAY_SLOT_MILLIS = 90_000L
+		const val BIRTHDAY_DURATION_MILLIS = 12_000L
+		const val BIRTHDAY_FIREWORK_INTERVAL_MILLIS = 3_000L
+		const val BIRTHDAY_SALT = 0x4249525448444159L
+
 		const val HALLOWEEN_SLOT_MILLIS = 90_000L
 		const val HALLOWEEN_DURATION_MILLIS = 16_000L
 		const val HALLOWEEN_SALT = 0x57495443484CL

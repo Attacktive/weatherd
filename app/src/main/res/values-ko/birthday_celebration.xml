@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="birthday_title">소소한 재미</string>
+	<string name="birthday_enable">생일 축하</string>
+	<string name="birthday_hint">밤하늘에 잠깐 나타나는 생일 축하 문구와 불꽃놀이입니다. 기본적으로 꺼져 있으며 알림은 없습니다.</string>
+	<string name="birthday_every_day">매일이 내 생일 😉</string>
+	<string name="birthday_choose_date">생일 선택</string>
+	<string name="birthday_clear_date">생일 지우기</string>
+	<string name="birthday_month">월</string>
+	<string name="birthday_day">일</string>
+	<string name="birthday_date_hint">태어난 연도 없이 월과 일만 저장합니다. 윤년이 아닌 해에는 2월 29일 생일을 2월 28일에 축하합니다.</string>
+	<string name="birthday_save">저장</string>
+	<string name="birthday_cancel">취소</string>
+	<string name="birthday_greeting">생일 축하해요!</string>
+</resources>
