@@ -20,7 +20,7 @@ Live weather, simulator, and offline fallback all use the same birthday eligibil
 
 The greeting and reused fireworks appear for 12 seconds in each deterministic 90-second slot, with a 700 ms fade at either end. The birthday banner selects an available sky band avoiding weather/location labels and the Moon, reserving space below the text for fireworks. All content respects night brightness, the existing frozen animation clock, cloud occlusion, foreground scenery, and final readability dimming.
 
-The greeting is localized with the scene settings, including Italian **Buon compleanno!**. Banner text measurements and paint objects are reused instead of allocating per frame. Changing the greeting does not invalidate the backdrop cache.
+The greeting is localized with the scene settings, including Italian **Buon compleanno!**. The banner requests Android's cursive system font with platform script fallback, adds restrained gold trim and four-point sparkles, and still measures each translated greeting against its safe sky bounds. Banner text measurements, paths, and paint objects are reused instead of allocating per frame; no font download or bundled font is required. Changing the greeting does not invalidate the backdrop cache.
 
 ## Validation
 

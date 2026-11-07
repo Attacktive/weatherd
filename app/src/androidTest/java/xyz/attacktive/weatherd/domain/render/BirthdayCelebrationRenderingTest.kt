@@ -38,7 +38,7 @@ class BirthdayCelebrationRenderingTest {
 		val params = debugSceneParams(SCENE_PRESETS.first(), DayPhase.NIGHT, holidayCelebration = HolidayCelebration.BIRTHDAY, moonSizeScale = 2f)
 		val start = SeasonalCelebrationFrame.passStartMillis(200L, SeasonalCelebrationFrame.BIRTHDAY_SLOT_MILLIS, SeasonalCelebrationFrame.BIRTHDAY_DURATION_MILLIS, SeasonalCelebrationFrame.BIRTHDAY_SALT)
 		for ((width, height) in listOf(360 to 780, 780 to 360)) {
-			for (text in listOf("Happy birthday!", "Buon compleanno!", "Alles Gute zum Geburtstag!", "생일 축하해요!", "お誕生日おめでとう！")) {
+			for (text in listOf("Happy birthday!", "Buon compleanno!", "Alles Gute zum Geburtstag!", "Feliz cumpleaños!", "Joyeux anniversaire !", "생일 축하해요!", "お誕生日おめでとう！", "生日快乐！")) {
 				val bitmap = createBitmap(width, height)
 				try {
 					assertTrue(frame.sample(width.toFloat(), height.toFloat(), params, start + 1000))
