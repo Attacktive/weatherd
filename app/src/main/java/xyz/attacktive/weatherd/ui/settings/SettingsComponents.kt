@@ -33,18 +33,17 @@ internal fun SettingsTabContent(scrollState: ScrollState, content: @Composable C
 )
 
 @Composable
-internal fun ToggleSetting(label: String, subtitle: String, checked: Boolean, onToggle: (Boolean) -> Unit, enabled: Boolean = true) = Row(
+internal fun ToggleSetting(label: String, subtitle: String, checked: Boolean, onToggle: (Boolean) -> Unit, enabled: Boolean = true) = Column(
 	modifier = Modifier
 		.fillMaxWidth()
-		.alpha(if (enabled) 1f else 0.5f),
-	verticalAlignment = Alignment.CenterVertically
+		.alpha(if (enabled) 1f else 0.5f)
 ) {
-	Column(modifier = Modifier.weight(1f)) {
-		Text(label)
-		Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+	Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+		Text(label, modifier = Modifier.weight(1f).padding(end = 12.dp))
+		Switch(checked = checked, onCheckedChange = onToggle, enabled = enabled)
 	}
 
-	Switch(checked = checked, onCheckedChange = onToggle, enabled = enabled)
+	Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 @Composable

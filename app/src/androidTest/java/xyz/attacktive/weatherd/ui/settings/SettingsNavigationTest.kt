@@ -765,6 +765,30 @@ class SettingsNavigationTest {
 	}
 
 	@Test
+	fun birthdayDescriptionStaysClearOfTheSwitchOnNarrowScreens() {
+		openAdvanced()
+
+		for (width in listOf(320, 200)) {
+			scenario.onActivity { activity ->
+				activity.window.setLayout((width * activity.resources.displayMetrics.density).toInt(), (640 * activity.resources.displayMetrics.density).toInt())
+			}
+
+			val hint = waitForNode("birthday hint at ${width}dp") { matchesText(it, text(R.string.birthday_hint)) }
+			val label = waitForNode("birthday label at ${width}dp") { matchesText(it, text(R.string.birthday_enable)) }
+			val labelBounds = Rect().also { label.getBoundsInScreen(it) }
+			val hintBounds = Rect().also { hint.getBoundsInScreen(it) }
+			val toggle = waitForNode("birthday switch at ${width}dp") {
+				val bounds = Rect().also { rect -> it.getBoundsInScreen(rect) }
+				it.isCheckable && bounds.centerY() in labelBounds.top..(labelBounds.bottom + labelBounds.height())
+			}
+			val toggleBounds = Rect().also { toggle.getBoundsInScreen(it) }
+
+			assertTrue("Birthday description intersects its switch at ${width}dp: $hintBounds / $toggleBounds", hintBounds.top >= toggleBounds.bottom)
+			assertTrue("Birthday description must retain width at ${width}dp", hintBounds.width() > 0)
+		}
+	}
+
+	@Test
 	fun seasonalCelebrationsToggleAndDebugControlsFunctionWithNightSimulator() = runBlocking {
 		val repository = EntryPointAccessors.fromApplication(
 			instrumentation.targetContext.applicationContext,
