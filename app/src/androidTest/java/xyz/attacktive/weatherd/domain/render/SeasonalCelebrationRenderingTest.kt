@@ -193,6 +193,8 @@ class SeasonalCelebrationRenderingTest {
 			Triple(HolidayCelebration.CHRISTMAS, CHRISTMAS_ACTIVE_MILLIS, 1f)
 		)
 
+		var activeFlybyCases = 0
+		var suppressedFlybyCases = 0
 		for ((width, height) in listOf(PORTRAIT_WIDTH to PORTRAIT_HEIGHT, LANDSCAPE_WIDTH to LANDSCAPE_HEIGHT)) {
 			for ((holiday, epochMillis, position) in cases) {
 				val params = testParams(
@@ -201,29 +203,57 @@ class SeasonalCelebrationRenderingTest {
 					overlayLabels = OverlayLabels(weather = "Rain · 10°", location = "Tokyo")
 				).copy(moonSizeScale = 2f)
 
-				val captureEpoch = if (holiday == HolidayCelebration.NEW_YEAR) {
+				val transitEpoch = if (holiday == HolidayCelebration.NEW_YEAR) {
 					epochMillis
 				} else {
 					moonTransitEpoch(params, epochMillis, width, height)
 				}
 
-				assertProtectedPixels(renderer, params, captureEpoch, width, height)
+				if (holiday != HolidayCelebration.NEW_YEAR) {
+					if (transitEpoch == null) {
+						suppressedFlybyCases++
+					} else {
+						activeFlybyCases++
+					}
+				}
+
+				assertProtectedPixels(renderer, params, transitEpoch ?: epochMillis, width, height, expectedVisible = transitEpoch != null)
 			}
 		}
+
+		assertTrue("The test must exercise a flyby crossing the Moon sector", activeFlybyCases > 0)
+		assertTrue("The test must exercise a flyby suppressed by Moon clearance", suppressedFlybyCases > 0)
 	}
 
-	private fun moonTransitEpoch(params: SceneParams, midpoint: Long, width: Int, height: Int): Long {
+	private fun moonTransitEpoch(params: SceneParams, midpoint: Long, width: Int, height: Int): Long? {
 		val frame = SeasonalCelebrationFrame()
-		for (epoch in midpoint - 10_000L..midpoint + 10_000L step 100L) {
-			if (frame.sample(width.toFloat(), height.toFloat(), params, epoch) && abs(frame.flybyX - width * 0.72f) < width * 0.01f) {
-				return epoch
-			}
+		if (!frame.sample(width.toFloat(), height.toFloat(), params, midpoint)) {
+			return null
 		}
 
-		error("The flyby fixture must cross the Moon's horizontal sector")
+		val durationMillis = when (params.holidayCelebration) {
+			HolidayCelebration.HALLOWEEN -> SeasonalCelebrationFrame.HALLOWEEN_DURATION_MILLIS
+			HolidayCelebration.CHRISTMAS -> SeasonalCelebrationFrame.CHRISTMAS_DURATION_MILLIS
+			else -> error("Only flybys have a Moon transit")
+		}
+
+		val margin = minOf(width, height) * 0.35f
+		val moonX = width * 0.72f
+		val distance = width + margin * 2f
+		val progress = if (frame.flybyFliesRight) {
+			(moonX + margin) / distance
+		} else {
+			(width + margin - moonX) / distance
+		}
+
+		val transitEpoch = midpoint - durationMillis / 2L + (durationMillis.toFloat() * progress).toLong()
+		assertTrue("Flyby should remain active at Moon transit", frame.sample(width.toFloat(), height.toFloat(), params, transitEpoch))
+		assertTrue("Flyby fixture must cross the Moon horizontal sector", abs(frame.flybyX - moonX) < width * 0.01f)
+
+		return transitEpoch
 	}
 
-	private fun assertProtectedPixels(renderer: SceneRenderer, params: SceneParams, epochMillis: Long, width: Int, height: Int) {
+	private fun assertProtectedPixels(renderer: SceneRenderer, params: SceneParams, epochMillis: Long, width: Int, height: Int, expectedVisible: Boolean) {
 		val withHoliday = renderCompleteScene(renderer, params, epochMillis, width, height)
 		val withoutHoliday = renderCompleteScene(renderer, params.copy(holidayCelebration = HolidayCelebration.NONE), epochMillis, width, height)
 		val labels = createBitmap(width, height)
@@ -232,7 +262,12 @@ class SeasonalCelebrationRenderingTest {
 
 		try {
 			val changedPixels = countPixelDifferences(withHoliday, withoutHoliday)
-			assertTrue("${params.holidayCelebration} must remain a small visible sky detail at ${width}x$height, position ${params.labelVerticalPosition}: $changedPixels changed pixels", changedPixels in 8..(width * height / 40))
+			if (expectedVisible) {
+				assertTrue("${params.holidayCelebration} must remain a small visible sky detail at ${width}x$height, position ${params.labelVerticalPosition}: $changedPixels changed pixels", changedPixels in 8..(width * height / 40))
+			} else {
+				assertEquals("A suppressed flyby must not alter the scene", 0, changedPixels)
+			}
+
 			for (y in 0 until height) {
 				for (x in 0 until width) {
 					val dx = x - width * 0.72f

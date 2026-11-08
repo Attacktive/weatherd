@@ -128,6 +128,25 @@ class SeasonalCelebrationMotionTest {
 	}
 
 	@Test
+	fun `enlarged moon suppresses flybys only when the shallow landscape has no safe sky`() {
+		val frame = SeasonalCelebrationFrame()
+		val width = 780f
+		val height = 360f
+		for (celebration in listOf(HolidayCelebration.HALLOWEEN, HolidayCelebration.CHRISTMAS)) {
+			val start = findPassStartMillis(celebration)
+			val duration = if (celebration == HolidayCelebration.HALLOWEEN) {
+				SeasonalCelebrationFrame.HALLOWEEN_DURATION_MILLIS
+			} else {
+				SeasonalCelebrationFrame.CHRISTMAS_DURATION_MILLIS
+			}
+
+			val params = testParams(dayPhase = DayPhase.NIGHT, holidayCelebration = celebration).copy(moonSizeScale = 2f)
+			assertFalse("Large Moon must suppress $celebration when no safe band fits", frame.sample(width, height, params, start + duration / 2))
+			assertTrue("Normal Moon must leave room for $celebration", frame.sample(width, height, params.copy(moonSizeScale = 1f), start + duration / 2))
+		}
+	}
+
+	@Test
 	fun `christmas santa flyby scheduling advances gallop phase and respects pass duration`() {
 		val width = 1080f
 		val height = 2400f
