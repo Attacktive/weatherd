@@ -494,11 +494,11 @@ class CustomSkyGradientEditorTest {
 				isSegmentedButtonSelected(R.string.custom_sky_gradient_direction_horizontal)
 			}
 
-			val handle = waitForNode("Start stop handle") {
-				it.contentDescription == text(R.string.custom_sky_gradient_preview_handle_start)
-			}
-			val preview = waitForNode("Gradient preview") {
+			val preview = waitForNode("Gradient preview", scroll = true) {
 				it.contentDescription == text(R.string.custom_sky_gradient_preview)
+			}
+			val handle = waitForNode("Start stop handle", scroll = true) {
+				it.contentDescription == text(R.string.custom_sky_gradient_preview_handle_start)
 			}
 			val handleBounds = Rect().also { handle.getBoundsInScreen(it) }
 			val previewBounds = Rect().also { preview.getBoundsInScreen(it) }
