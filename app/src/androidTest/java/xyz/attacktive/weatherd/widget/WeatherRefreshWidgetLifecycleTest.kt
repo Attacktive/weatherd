@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.SystemClock
 import android.view.MotionEvent
 import android.view.View
@@ -90,6 +91,15 @@ class WeatherRefreshWidgetLifecycleTest {
 		assertFalse(first.filterEquals(legacy))
 		assertNotEquals(provider.refreshPendingIntent(context, 101), provider.refreshPendingIntent(context, 102))
 		assertEquals(provider.refreshPendingIntent(context, 101), provider.refreshPendingIntent(context, 101))
+		assertEquals("current", provider.refreshBindingStatus(first, 101))
+		assertEquals("missing", provider.refreshBindingStatus(legacy, 101))
+		assertEquals("unexpected", provider.refreshBindingStatus(first, 102))
+
+		val stale = Intent(first).setData(Uri.parse("weatherd://widget-refresh/${BuildConfig.VERSION_CODE - 1}/101"))
+		val malformed = Intent(first).setData(Uri.parse("weatherd://widget-refresh/unknown/101"))
+
+		assertEquals("stale", provider.refreshBindingStatus(stale, 101))
+		assertEquals("unexpected", provider.refreshBindingStatus(malformed, 101))
 	}
 
 	private class DefaultWidgetHostView(context: Context): AppWidgetHostView(context) {

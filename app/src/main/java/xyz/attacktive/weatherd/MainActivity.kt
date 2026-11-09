@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Process
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -97,13 +98,47 @@ class MainActivity: ComponentActivity() {
 		}
 
 		// Do not dump external intent data, extras, referrers, or arbitrary action/category strings.
-		Diagnostics.get(this).record(
-			event,
+		val fields = mutableListOf(
 			"task_id" to taskId.toString(),
 			"action" to action,
 			"launcher_category" to (launchIntent?.hasCategory(Intent.CATEGORY_LAUNCHER) == true).toString(),
 			"flags" to (launchIntent?.flags ?: 0).toString(16),
 			"restored" to (restored?.toString() ?: "not_applicable")
+		)
+		when (event) {
+			"activity_created" -> {
+				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+					val caller = runCatching { launchedFromPackage to launchedFromUid }.getOrNull()
+					fields += callerFields("initial", true, caller)
+				} else {
+					fields += callerFields("initial", false, null)
+				}
+			}
+
+			"activity_new_intent" -> {
+				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+					val caller = runCatching { currentCaller.let { it.getPackage() to it.uid } }.getOrNull()
+					fields += callerFields("new_intent", true, caller)
+				} else {
+					fields += callerFields("new_intent", false, null)
+				}
+			}
+		}
+
+		Diagnostics.get(this).record(event, *fields.toTypedArray())
+	}
+
+	private fun callerFields(source: String, supported: Boolean, caller: Pair<String?, Int>?): List<Pair<String, String>> {
+		val fallback = if (supported) {
+			"unavailable"
+		} else {
+			"unsupported"
+		}
+
+		return listOf(
+			"caller_source" to source,
+			"caller_package" to (caller?.first ?: fallback),
+			"caller_uid" to (caller?.second?.takeIf { it != Process.INVALID_UID }?.toString() ?: fallback)
 		)
 	}
 

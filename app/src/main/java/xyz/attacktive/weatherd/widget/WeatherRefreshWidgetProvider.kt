@@ -79,7 +79,12 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 
 		val widgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
 		val widgetIdLabel = if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID) "unknown" else widgetId.toString()
-		Diagnostics.get(context).record("receiver_received", "action" to action, "receipt" to receipt, "widget_id" to widgetIdLabel)
+		val eventFields = mutableListOf("action" to action, "receipt" to receipt, "widget_id" to widgetIdLabel)
+		if (intent.action == ACTION_REFRESH) {
+			eventFields += "click_binding" to refreshBindingStatus(intent, widgetId)
+		}
+
+		Diagnostics.get(context).record("receiver_received", *eventFields.toTypedArray())
 
 		if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) {
 			synchronized(STATE_LOCK) {
@@ -177,6 +182,21 @@ class WeatherRefreshWidgetProvider: AppWidgetProvider() {
 		.setData(Uri.parse("weatherd://widget-refresh/${BuildConfig.VERSION_CODE}/$appWidgetId"))
 		.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
 		.addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+
+	internal fun refreshBindingStatus(intent: Intent, appWidgetId: Int): String {
+		val data = intent.data ?: return "missing"
+		if (data.scheme != "weatherd" || data.authority != "widget-refresh" || data.pathSegments.size != 2 || data.lastPathSegment != appWidgetId.toString()) {
+			return "unexpected"
+		}
+
+		val revision = data.pathSegments.first().toIntOrNull() ?: return "unexpected"
+
+		return if (revision == BuildConfig.VERSION_CODE) {
+			"current"
+		} else {
+			"stale"
+		}
+	}
 
 	internal companion object {
 		private const val ACTION_REFRESH = "xyz.attacktive.weatherd.action.REFRESH_WEATHER"
