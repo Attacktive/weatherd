@@ -138,6 +138,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 	private var sceneryWindmill: SceneryWindmill? = null
 	private val tiles = HashMap<String, Bitmap>()
 	private val stormCloudPrototype = StormCloudPrototype(resources)
+	private val rainCloudClip = RainCloudClip()
 	private val sunSpriteCoverage = IdentityHashMap<Bitmap, SunSpriteCoverage>()
 	private val farOvercastBankDelegate = lazy { CloudLayer(resources, R.drawable.cloud_overcast_veil) }
 	private val supportOvercastBankDelegate = lazy { CloudLayer(resources, R.drawable.cloud_overcast_support) }
@@ -322,6 +323,7 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		includeOverlayLabels: Boolean = true,
 		celebrationEpochMillis: Long = System.currentTimeMillis()
 	) {
+		rainCloudClip.boundary.reset(width.toFloat(), height.toFloat())
 		prepareSunShaftFrame(width, height, params, timeSeconds)
 
 		if (params.dayPhase != previousGradePhase || params.celestialProgress != previousGradeProgress) {
@@ -1793,7 +1795,8 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 			else -> base
 		}
 
-		if (stormCloudPrototype.draw(canvas, width, height, params, timeSeconds, color, cloudGradeFor(params))) {
+		val rainBoundary = if (params.precipitation?.kind == PrecipitationKind.RAIN) rainCloudClip.boundary else null
+		if (stormCloudPrototype.draw(canvas, width, height, params, timeSeconds, color, cloudGradeFor(params), rainBoundary)) {
 			return
 		}
 
@@ -1822,9 +1825,9 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 
 		val overcastGrade = cloudGradeFor(params)
 
-		farOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, farHeight, farOffset, cloudFormationTop(width, height, OVERCAST_FAR_TOP) + bob * 0.25f, OVERCAST_FAR_VIEWPORTS), darken(color, 0.96f), farAlpha, overcastGrade, contrast = params.cloudContrastScale)
-		supportOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, supportHeight, supportOffset, cloudFormationTop(width, height, OVERCAST_SUPPORT_TOP) - bob * 0.35f, OVERCAST_SUPPORT_VIEWPORTS), darken(color, 0.94f), supportAlpha, overcastGrade, contrast = params.cloudContrastScale)
-		heroOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, heroHeight, heroOffset, cloudFormationTop(width, height, OVERCAST_HERO_TOP) - bob, OVERCAST_HERO_VIEWPORTS), color, heroAlpha, overcastGrade, contrast = params.cloudContrastScale)
+		farOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, farHeight, farOffset, cloudFormationTop(width, height, OVERCAST_FAR_TOP) + bob * 0.25f, OVERCAST_FAR_VIEWPORTS), darken(color, 0.96f), farAlpha, overcastGrade, contrast = params.cloudContrastScale, rainBoundary = rainBoundary)
+		supportOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, supportHeight, supportOffset, cloudFormationTop(width, height, OVERCAST_SUPPORT_TOP) - bob * 0.35f, OVERCAST_SUPPORT_VIEWPORTS), darken(color, 0.94f), supportAlpha, overcastGrade, contrast = params.cloudContrastScale, rainBoundary = rainBoundary)
+		heroOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, heroHeight, heroOffset, cloudFormationTop(width, height, OVERCAST_HERO_TOP) - bob, OVERCAST_HERO_VIEWPORTS), color, heroAlpha, overcastGrade, contrast = params.cloudContrastScale, rainBoundary = rainBoundary)
 		farOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, bridgeHeight, bridgeOffset, cloudFormationTop(width, height, OVERCAST_BRIDGE_TOP) + bob * 0.45f, OVERCAST_BRIDGE_VIEWPORTS), darken(color, 0.91f), bridgeAlpha, overcastGrade, contrast = params.cloudContrastScale)
 	}
 
@@ -2437,7 +2440,13 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 			}
 			PrecipitationKind.RAIN -> {
 				val slant = rainSlant(gust, params.windScale, precipitation.observed)
-				drawRain(canvas, width, height, counts, slant, timeSeconds, precipitation.severity, flash)
+				val checkpoint = canvas.save()
+				try {
+					rainCloudClip.clip(canvas)
+					drawRain(canvas, width, height, counts, slant, timeSeconds, precipitation.severity, flash)
+				} finally {
+					canvas.restoreToCount(checkpoint)
+				}
 			}
 		}
 	}

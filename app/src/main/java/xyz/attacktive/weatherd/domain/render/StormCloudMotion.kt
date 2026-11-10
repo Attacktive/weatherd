@@ -27,7 +27,7 @@ internal class StormCloudGeometry {
 	private var travel = 0.0
 
 	fun configure(viewportWidth: Float, viewportHeight: Float, sourceWidth: Int, sourceHeight: Int, plane: StormCloudPlane, timeSeconds: Float, windFactor: Float, windScale: Float, sizeScale: Float): Boolean {
-		if (!viewportWidth.isFinite() || !viewportHeight.isFinite() || viewportWidth <= 0f || viewportHeight <= 0f || sourceWidth <= 0 || sourceHeight <= 0) {
+		if (!validSourceAndViewport(viewportWidth, viewportHeight, sourceWidth, sourceHeight)) {
 			return false
 		}
 
@@ -45,9 +45,20 @@ internal class StormCloudGeometry {
 		val velocity = viewportWidth * plane.scrollRate * (0.35 + wind) * windResponse
 		travel = (travel + elapsed * velocity) % width.toDouble()
 		left = (viewportWidth - width) / 2f + viewportWidth * 0.045f * sin(plane.phase).toFloat() + travel.toFloat()
-		top = depth * size * plane.bottom - height
+		top = depth * size * plane.bottom - height - viewportHeight * 0.03f
 		return true
 	}
+
+	/** Keep the top of the screen inside the upper bank's covered band without stretching it. */
+	fun coverTopEdge(profile: CloudAlphaProfile) {
+		if (profile.coveredTop.isFinite() && profile.coveredBottom.isFinite()) {
+			top = top.coerceIn(-height * profile.coveredBottom, -height * profile.coveredTop)
+		}
+	}
+
+	private fun validSourceAndViewport(viewportWidth: Float, viewportHeight: Float, sourceWidth: Int, sourceHeight: Int) =
+		viewportWidth.isFinite() && viewportHeight.isFinite() && viewportWidth > 0f && viewportHeight > 0f &&
+			sourceWidth > 0 && sourceHeight > 0
 
 	private fun finiteOr(value: Float, fallback: Float) = if (value.isFinite()) {
 		value

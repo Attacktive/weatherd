@@ -35,6 +35,10 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 	constructor(resources: Resources, @DrawableRes texture: Int, epochDay: Long? = null) : this(resources, texture, cumulusKindFor(texture), epochDay)
 
 	private val bitmap = if (cumulusKind == null) decode(resources, texture) else null
+	private val rainProfile = when (texture) {
+		R.drawable.cloud_overcast_veil, R.drawable.cloud_overcast_support, R.drawable.cloud_overcast_hero -> bitmap?.rainCloudProfile()
+		else -> null
+	}
 
 	private val cumulusBitmaps = when (cumulusKind) {
 		null -> emptyList()
@@ -68,7 +72,7 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 	private var cachedOpacityStyleSizeScale = Float.NaN
 	private var cachedOpacityStyle: CumulusStyle? = null
 
-	fun draw(canvas: Canvas, geometry: CloudDrawGeometry, tint: Int, alpha: Int, grade: CloudColorGrade, shadow: CumulusShadow? = null, contrast: Float = 1f) {
+	fun draw(canvas: Canvas, geometry: CloudDrawGeometry, tint: Int, alpha: Int, grade: CloudColorGrade, shadow: CumulusShadow? = null, contrast: Float = 1f, rainBoundary: CloudRainBoundary? = null) {
 		if (geometry.width <= 0f || geometry.height <= 0f || alpha <= 0) {
 			return
 		}
@@ -84,6 +88,10 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 
 		val period = geometry.width * geometry.viewports
 		val wrappedOffset = positiveModulo(geometry.offset, period)
+
+		rainProfile?.let {
+			rainBoundary?.include(it, wrappedOffset, geometry.top, period, geometry.height, alpha)
+		}
 
 		transform.setScale(period / source.width, geometry.height / source.height)
 		transform.postTranslate(wrappedOffset, geometry.top)

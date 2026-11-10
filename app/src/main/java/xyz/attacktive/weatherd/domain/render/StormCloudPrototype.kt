@@ -43,14 +43,14 @@ internal class StormCloudPrototype(
 	}
 
 	/** Returns false when the caller must retain the existing cloud-deck path. */
-	fun draw(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float, tint: Int, grade: CloudColorGrade): Boolean {
+	fun draw(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float, tint: Int, grade: CloudColorGrade, rainBoundary: CloudRainBoundary? = null): Boolean {
 		if (!enabled || params.precipitation?.kind != PrecipitationKind.RAIN) {
 			return false
 		}
 
 		val ready = sprites ?: return false
 		for (sprite in ready) {
-			sprite.draw(canvas, width, height, params, timeSeconds, tint, grade)
+			sprite.draw(canvas, width, height, params, timeSeconds, tint, grade, rainBoundary)
 		}
 
 		return true
@@ -63,6 +63,7 @@ private fun decodeStormCloud(resources: Resources, plane: StormCloudPlane) = res
 
 private class StormCloudSprite(private val plane: StormCloudPlane, val bitmap: Bitmap) {
 	private val geometry = StormCloudGeometry()
+	private val rainProfile = bitmap.rainCloudProfile()
 	private val cloudShader = BitmapShader(bitmap, Shader.TileMode.REPEAT, Shader.TileMode.CLAMP)
 	private val shaderTransform = Matrix()
 	private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply { shader = cloudShader }
@@ -71,7 +72,7 @@ private class StormCloudSprite(private val plane: StormCloudPlane, val bitmap: B
 	private var previousContrast = Float.NaN
 	private var previousGrade = CloudColorGrade.IDENTITY
 
-	fun draw(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float, tint: Int, grade: CloudColorGrade) {
+	fun draw(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float, tint: Int, grade: CloudColorGrade, rainBoundary: CloudRainBoundary?) {
 		if (!geometry.configure(width, height, bitmap.width, bitmap.height, plane, timeSeconds, params.windFactor, params.windScale, params.cloudSizeScale)) {
 			return
 		}
@@ -87,8 +88,25 @@ private class StormCloudSprite(private val plane: StormCloudPlane, val bitmap: B
 			return
 		}
 
-		val contrast = if (params.cloudContrastScale.isFinite()) {
-			params.cloudContrastScale.coerceIn(CLOUD_CONTRAST_SCALE_RANGE.start, CLOUD_CONTRAST_SCALE_RANGE.endInclusive)
+		if (plane == StormCloudPlane.UPPER) {
+			geometry.coverTopEdge(rainProfile)
+		}
+
+		if (plane != StormCloudPlane.VEIL) {
+			rainBoundary?.include(rainProfile, geometry.left, geometry.top, geometry.width, geometry.height, paint.alpha)
+		}
+
+		updateColorFilter(params.cloudContrastScale, tint, grade)
+
+		shaderTransform.setScale(geometry.width / bitmap.width, geometry.height / bitmap.height)
+		shaderTransform.postTranslate(geometry.left, geometry.top)
+		cloudShader.setLocalMatrix(shaderTransform)
+		canvas.drawRect(0f, geometry.top, width, geometry.top + geometry.height, paint)
+	}
+
+	private fun updateColorFilter(cloudContrastScale: Float, tint: Int, grade: CloudColorGrade) {
+		val contrast = if (cloudContrastScale.isFinite()) {
+			cloudContrastScale.coerceIn(CLOUD_CONTRAST_SCALE_RANGE.start, CLOUD_CONTRAST_SCALE_RANGE.endInclusive)
 		} else {
 			1f
 		}
@@ -100,10 +118,5 @@ private class StormCloudSprite(private val plane: StormCloudPlane, val bitmap: B
 			previousContrast = contrast
 			previousGrade = grade
 		}
-
-		shaderTransform.setScale(geometry.width / bitmap.width, geometry.height / bitmap.height)
-		shaderTransform.postTranslate(geometry.left, geometry.top)
-		cloudShader.setLocalMatrix(shaderTransform)
-		canvas.drawRect(0f, geometry.top, width, geometry.top + geometry.height, paint)
 	}
 }
