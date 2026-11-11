@@ -45,7 +45,7 @@ internal class StormCloudGeometry {
 		val velocity = viewportWidth * plane.scrollRate * (0.35 + wind) * windResponse
 		travel = (travel + elapsed * velocity) % width.toDouble()
 		left = (viewportWidth - width) / 2f + viewportWidth * 0.045f * sin(plane.phase).toFloat() + travel.toFloat()
-		top = depth * size * plane.bottom - height - viewportHeight * 0.03f
+		top = depth * size * plane.bottom - height - viewportHeight * RAIN_CLOUD_LIFT_FRACTION
 		return true
 	}
 
@@ -66,3 +66,5 @@ internal class StormCloudGeometry {
 		fallback
 	}
 }
+
+private const val RAIN_CLOUD_LIFT_FRACTION = 0.15f

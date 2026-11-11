@@ -175,17 +175,13 @@ class StormCloudMotionTest {
 	}
 
 	@Test
-	fun defaultCloudDeckReachesMidSkyWithoutCoveringTheWholeScreen() {
+	fun defaultCloudDeckLeavesRoomForRainWithoutDetachingBanks() {
 		for ((width, height) in listOf(480f to 1056f, 800f to 1280f, 1056f to 480f)) {
 			val hero = assetGeometry(StormCloudPlane.HERO, width, height, 1f)
 			val distant = assetGeometry(StormCloudPlane.DISTANT, width, height, 1f)
-			assertTrue("Hero bank must extend below the upper clouds", hero.top + hero.height >= height * 0.42f)
-			if (width < height) {
-				assertTrue("Portrait hero bank must stay above the middle of the sky", hero.top + hero.height <= height * 0.51f)
-			} else {
-				assertTrue("Landscape hero bank must leave lower sky visible", hero.top + hero.height <= height * 0.63f)
-			}
-			assertTrue(distant.top + distant.height <= height * 0.70f)
+			assertTrue("Hero bank must extend below the upper clouds", hero.top + hero.height >= height * 0.30f)
+			assertTrue("Hero bank must leave most of the sky visible for rain", hero.top + hero.height <= height * 0.44f)
+			assertTrue("Distant bank must leave the lower half visible for rain", distant.top + distant.height <= height * 0.50f)
 		}
 	}
 

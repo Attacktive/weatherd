@@ -15,7 +15,7 @@ class StormCloudRainGeometryTest {
 				val geometry = geometry(width, height, plane)
 				val depth = min(height * 0.62f, max(height * 0.48f, width * 0.70f))
 				val previousTop = depth * plane.bottom - geometry.height
-				assertEquals(height * 0.03f, previousTop - geometry.top, 0.0001f)
+				assertEquals(height * 0.15f, previousTop - geometry.top, 0.0001f)
 				assertEquals(2f, geometry.width / geometry.height, 0.0001f)
 				val start = geometry.left
 				val top = geometry.top
@@ -75,12 +75,12 @@ class StormCloudRainGeometryTest {
 	}
 
 	@Test
-	fun liftedDefaultHeroRetainsExistingMidSkyCoverageContract() {
+	fun liftedDefaultHeroLeavesMoreRoomForRain() {
 		for ((width, height) in listOf(480f to 1056f, 800f to 1280f, 1056f to 480f)) {
 			val geometry = StormCloudGeometry()
 			assertTrue(geometry.configure(width, height, 1782, 892, StormCloudPlane.HERO, 0f, 0.5f, 1f, 1f))
-			assertTrue(geometry.top + geometry.height >= height * 0.42f)
-			assertTrue(geometry.top + geometry.height <= height * if (width < height) 0.51f else 0.63f)
+			assertTrue(geometry.top + geometry.height >= height * 0.30f)
+			assertTrue(geometry.top + geometry.height <= height * 0.44f)
 		}
 	}
 

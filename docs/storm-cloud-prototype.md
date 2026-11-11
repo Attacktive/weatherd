@@ -12,13 +12,16 @@ Every sprite preserves its source aspect ratio and drifts continuously to the ri
 The central cloud is uniformly scaled down in its own aspect ratio and raised within the deck; the derived debug PNGs taper the lowest hero/distant alpha rather than clipping at the near-opaque cloud bases. A reduced-opacity, soft atmospheric veil extends behind their lower edges without repainting the detailed RGB artwork.
 The three detailed planes share one sky-depth coordinate system: the dark upper bank meets the screen edge, the central mass overlaps it, and the distant strip overlaps the main cloud's feathered lower edge instead of forming an isolated row.
 The entire composition scales together with the cloud-size control.
+For #430, the rain-only formation uses a 15%-of-viewport-height lift instead of the previous 3%, moving the detailed banks and decorative veil upward together without resizing the artwork or changing horizontal motion.
+The lift remains viewport-relative rather than scaling with cloud size; the upper bank still clamps into its sampled covered band so smaller clouds cannot expose the top edge.
 At default size the artwork remains wider than the viewport. Seam-blended repeating texture sampling extends the image beyond its edges while it scrolls, without squeezing or stretching the original source; wide displays retain the same uniform scaling.
 Natural daytime rain receives a muted, slightly darker sky grade in the cached palette path; the existing daylight ramp fades that grade through dawn/dusk and leaves night colors unchanged.
 Custom and other built-in palettes are untouched, and photo drawing still bypasses the procedural sky.
 Wind scale zero freezes the motion, and changing wind intensity maintains the current position rather than teleporting the cloud layers.
 Textures decode once in the existing background cloud-prewarm step; draw callbacks reuse geometry, paint and color-filter state.
 The existing opacity, size, contrast and day-phase/sky-brightness tint continue to apply.
-Precipitation drawing is unchanged; #406 is not implemented here.
+Rain uses the #406 cloud-alpha boundary sampled from the transformed detailed banks, excluding the decorative veil; moving those banks also raises the visible rain origin without a separate particle offset.
+Rain density, speed and slant remain unchanged, as does the legacy renderer selected with `-PstormCloudPrototype=false`.
 Dry partly-cloudy and overcast scenes, snow, sleet and fog without rain keep the previous renderer.
 
 On this branch, debug and release builds enable the shared storm-cloud renderer by default. An ordinary Android Studio debug build prepares the four source-hash-verified PNGs if they are missing; valid prepared PNGs are reused. For a baseline comparison, pass `-PstormCloudPrototype=false`.
