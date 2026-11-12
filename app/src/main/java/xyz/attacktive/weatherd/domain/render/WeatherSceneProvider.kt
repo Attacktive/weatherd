@@ -34,6 +34,7 @@ import xyz.attacktive.weatherd.domain.model.WeatherObservation
 import xyz.attacktive.weatherd.domain.model.WeatherProviderType
 import xyz.attacktive.weatherd.domain.model.WeatherSnapshot
 import xyz.attacktive.weatherd.domain.model.WeatherSource
+import xyz.attacktive.weatherd.domain.model.normalizeCloudSizeScale
 import xyz.attacktive.weatherd.domain.model.normalizeRainbowSizeScale
 import xyz.attacktive.weatherd.domain.model.normalizeSunHorizontalPosition
 import xyz.attacktive.weatherd.domain.repository.CachedWeather
@@ -252,7 +253,7 @@ class WeatherSceneProvider @Inject constructor(
 			precipitationScale = precipitationIntensityScale,
 			windScale = windIntensityScale,
 			cloudScale = cloudIntensityScale,
-			cloudSizeScale = cloudSizeScale,
+			cloudSizeScale = normalizeCloudSizeScale(cloudSizeScale),
 			cloudCountScale = cloudCountScale,
 			cloudContrastScale = cloudContrastScale,
 			skyBrightnessScale = skyBrightnessScale,
@@ -546,7 +547,7 @@ class WeatherSceneProvider @Inject constructor(
 			precipitationScale = precipitationIntensityScale,
 			windScale = windIntensityScale,
 			cloudScale = cloudIntensityScale,
-			cloudSizeScale = cloudSizeScale,
+			cloudSizeScale = normalizeCloudSizeScale(cloudSizeScale),
 			cloudCountScale = cloudCountScale,
 			cloudContrastScale = cloudContrastScale,
 			skyBrightnessScale = skyBrightnessScale,
@@ -805,7 +806,7 @@ class WeatherSceneProvider @Inject constructor(
 			precipitationScale = precipitationIntensityScale,
 			windScale = windIntensityScale,
 			cloudScale = cloudIntensityScale,
-			cloudSizeScale = cloudSizeScale,
+			cloudSizeScale = normalizeCloudSizeScale(cloudSizeScale),
 			cloudCountScale = cloudCountScale,
 			cloudContrastScale = cloudContrastScale,
 			skyBrightnessScale = skyBrightnessScale,

@@ -61,7 +61,6 @@ import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.CLOUD_CONTRAST_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_COUNT_SCALE_RANGE
-import xyz.attacktive.weatherd.domain.model.CLOUD_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.INTENSITY_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.LABEL_VERTICAL_POSITION_RANGE
 import xyz.attacktive.weatherd.domain.model.NIGHT_BRIGHTNESS_SCALE_RANGE
@@ -252,13 +251,9 @@ private fun SkyColorPicker(settings: AppSettings, defaults: AppSettings, onSave:
 
 @Composable
 internal fun CloudAppearanceSection(settings: AppSettings, defaults: AppSettings, onSave: (AppSettings) -> Unit) {
-	PercentageSlider(
-		label = R.string.section_cloud_size,
+	CloudSizeSlider(
 		value = settings.cloudSizeScale,
 		defaultValue = defaults.cloudSizeScale,
-		valueRange = CLOUD_SIZE_SCALE_RANGE,
-		lowLabel = R.string.cloud_size_small,
-		highLabel = R.string.cloud_size_large,
 		onCommit = { onSave(settings.copy(cloudSizeScale = it)) }
 	)
 

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="warning_cloud_size" formatted="false">超过 125% 时，云层可能覆盖更多屏幕区域，遮挡雨或其他天气效果。</string>
+</resources>

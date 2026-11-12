@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="warning_cloud_size" formatted="false">Oltre il 125%, le nuvole possono occupare più spazio sullo schermo e nascondere la pioggia o altri effetti meteo.</string>
+</resources>

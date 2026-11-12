@@ -231,19 +231,10 @@ How much cloud a clear sky holds is chosen by the sparse, scattered, and broken 
 Alpha scales an entire cloud body uniformly, so raising it cannot add a cloud; it can only make the same silhouette less transparent.
 A sunlit crown that cannot reach white reads as haze no matter how the placement is tuned.
 
-The corollaries:
+Cloud Size is one global 50–150% control (default/reset 100%) with an inline warning strictly above 125% in every weather condition.
+Normalize legacy and non-finite sizes through `normalizeCloudSizeScale` across settings, presets, live weather, simulation, fallback, and cloud renderers; see [cloud-size limits](docs/development.md#cloud-size-limits).
 
-- `CUMULUS_NEAR_ALPHA` stays near 255. `params.cloudScale` is the user's opacity preference and is the only scene-level control that should pull it down.
-- Near morphology variants come from one shared four-bitmap hero source set. Prefer transformed or composite variants of that set before adding another decoded bitmap family; the seeded daily layout cycles through neighboring morphology variants before repeating so one coverage profile does not randomly collapse back to one shape.
-- Sparse, scattered, partly cloudy, and broken describe placement populations. Cross-fading draws the lower population at full alpha and grows the next population above the blend floor; do not replace that with a single population whose alpha tracks cloudiness.
-- The far deck is the exception because distance is carried by haze, size, and a dedicated pair of veil sprites; it also thickens with coverage.
-- The hero sprites bake their own sunlit-to-shadow ramp, so `cumulusTint(DayPhase.DAY)` is pure white. Tinting daylight applies the shading twice and grays the crowns.
-- Low-sun cloud lighting uses luminance-aware RGB grading (`CloudColorGrade`) at the `ColorMatrix` boundary during dawn and dusk, providing warm cream/golden highlights and cool slate-blue shadows without altering source or rendered alpha.
-- Day and night use identity material grading; clear-sky base multiply tint smoothly transitions between night blue and daylight white without flat peach/orange overlays. Dedicated overcast banks use the [nighttime lighting contract](docs/development.md#nighttime-overcast-lighting) while preserving source artwork, alpha, and default-brightness rendering.
-- Dry overcast banks receive phase grading, while rainy, snowy, thundery, dense-fog, and cirrus paths preserve identity treatment.
-- Cloud contrast and material grading are RGB-only transforms on cloud artwork. They must preserve the source alpha mask exactly and stay independent of cloud opacity or coverage.
-- Sky palette, brightness, and saturation customize the clear phase gradient; brightness also scales weather grayness, the overcast ceiling, and dedicated bank RGB lighting in every phase before weather darkening. Horizon haze also follows sky brightness without changing opacity. `NATURAL` at 100% brightness/saturation preserves the established appearance; stylized palettes and saturation must still yield to weather transforms.
-- A dry sky keeps its full clear-day blue until `OVERCAST_GRAY_FLOOR`, where the overcast ceiling starts drawing. Graying earlier leaves white clouds with nothing to read against.
+The cloud-material and placement corollaries are documented in [cloud material and coverage](docs/development.md#cloud-material-and-coverage).
 
 ### Preview Cloud Work Before Building
 

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="warning_cloud_size" formatted="false">Por encima del 125%, las nubes pueden ocupar más espacio en la pantalla y ocultar la lluvia u otros efectos del tiempo.</string>
+</resources>

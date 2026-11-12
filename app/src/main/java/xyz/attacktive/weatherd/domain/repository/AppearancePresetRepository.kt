@@ -26,6 +26,7 @@ import xyz.attacktive.weatherd.domain.model.BirdAppearanceInterval
 import xyz.attacktive.weatherd.domain.model.BirdFlockSize
 import xyz.attacktive.weatherd.domain.model.DEFAULT_LABEL_VERTICAL_POSITION
 import xyz.attacktive.weatherd.domain.model.DEFAULT_SUN_HORIZONTAL_POSITION
+import xyz.attacktive.weatherd.domain.model.normalizeCloudSizeScale
 import xyz.attacktive.weatherd.domain.model.normalizeSunHorizontalPosition
 import xyz.attacktive.weatherd.domain.model.SavedAppearancePreset
 import xyz.attacktive.weatherd.domain.model.SkyColorPreset
@@ -233,7 +234,7 @@ private data class StoredSnapshot(
 		glassDropletsEnabled = glassDropletsEnabled,
 		windIntensityScale = windIntensityScale,
 		cloudIntensityScale = cloudIntensityScale,
-		cloudSizeScale = cloudSizeScale,
+		cloudSizeScale = normalizeCloudSizeScale(cloudSizeScale),
 		cloudCountScale = cloudCountScale,
 		cloudContrastScale = cloudContrastScale,
 		skyBrightnessScale = skyBrightnessScale,
@@ -280,7 +281,7 @@ private fun AppearancePresetSnapshot.toStored() = StoredSnapshot(
 	glassDropletsEnabled = glassDropletsEnabled,
 	windIntensityScale = windIntensityScale,
 	cloudIntensityScale = cloudIntensityScale,
-	cloudSizeScale = cloudSizeScale,
+	cloudSizeScale = normalizeCloudSizeScale(cloudSizeScale),
 	cloudCountScale = cloudCountScale,
 	cloudContrastScale = cloudContrastScale,
 	skyBrightnessScale = skyBrightnessScale,

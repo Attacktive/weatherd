@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="warning_cloud_size" formatted="false">Above 125%, larger clouds may cover more of the screen and obscure rain or other weather effects.</string>
+</resources>

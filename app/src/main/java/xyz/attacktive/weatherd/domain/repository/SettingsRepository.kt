@@ -26,7 +26,6 @@ import xyz.attacktive.weatherd.domain.model.BirdAppearanceInterval
 import xyz.attacktive.weatherd.domain.model.BirdFlockSize
 import xyz.attacktive.weatherd.domain.model.CLOUD_COUNT_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.CLOUD_CONTRAST_SCALE_RANGE
-import xyz.attacktive.weatherd.domain.model.CLOUD_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.FrameRateCap
 import xyz.attacktive.weatherd.domain.model.HolidayCelebration
@@ -37,6 +36,7 @@ import xyz.attacktive.weatherd.domain.model.NIGHT_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SKY_BRIGHTNESS_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SKY_SATURATION_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.SUN_SIZE_SCALE_RANGE
+import xyz.attacktive.weatherd.domain.model.normalizeCloudSizeScale
 import xyz.attacktive.weatherd.domain.model.normalizeMoonSizeScale
 import xyz.attacktive.weatherd.domain.model.normalizeMoonOpacity
 import xyz.attacktive.weatherd.domain.model.normalizeRainbowSizeScale
@@ -137,7 +137,7 @@ internal fun settingsMutationsBetween(previous: AppSettings, updated: AppSetting
 		addIfChanged(previous.treeSeason, updated.treeSeason, SettingsMutation::TreeSeason)
 		addIfChanged(previous.windIntensityScale, updated.windIntensityScale, SettingsMutation::WindIntensity)
 		addIfChanged(previous.cloudIntensityScale, updated.cloudIntensityScale, SettingsMutation::CloudIntensity)
-		addIfChanged(previous.cloudSizeScale, updated.cloudSizeScale, SettingsMutation::CloudSize)
+		addIfChanged(previous.cloudSizeScale, normalizeCloudSizeScale(updated.cloudSizeScale), SettingsMutation::CloudSize)
 		addIfChanged(previous.cloudCountScale, updated.cloudCountScale, SettingsMutation::CloudCount)
 		addIfChanged(previous.cloudContrastScale, updated.cloudContrastScale, SettingsMutation::CloudContrast)
 		addIfChanged(previous.skyBrightnessScale, updated.skyBrightnessScale, SettingsMutation::SkyBrightness)
@@ -179,7 +179,7 @@ internal fun settingsMutationsBetween(previous: AppSettings, updated: AppSetting
 	val replayed = mutations.fold(previous) { settings, mutation ->
 		mutation.appliedTo(settings)
 	}
-	check(replayed == updated) { "Settings mutation mapping is incomplete" }
+	check(replayed == updated.copy(cloudSizeScale = normalizeCloudSizeScale(updated.cloudSizeScale))) { "Settings mutation mapping is incomplete" }
 
 	return mutations
 }
@@ -233,7 +233,7 @@ private fun SettingsMutation.appliedTo(settings: AppSettings) = when (this) {
 	is SettingsMutation.TreeSeason -> settings.copy(treeSeason = value)
 	is SettingsMutation.WindIntensity -> settings.copy(windIntensityScale = value)
 	is SettingsMutation.CloudIntensity -> settings.copy(cloudIntensityScale = value)
-	is SettingsMutation.CloudSize -> settings.copy(cloudSizeScale = value)
+	is SettingsMutation.CloudSize -> settings.copy(cloudSizeScale = normalizeCloudSizeScale(value))
 	is SettingsMutation.CloudCount -> settings.copy(cloudCountScale = value)
 	is SettingsMutation.CloudContrast -> settings.copy(cloudContrastScale = value)
 	is SettingsMutation.SkyBrightness -> settings.copy(skyBrightnessScale = value)
@@ -377,7 +377,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			treeSeason = storedTreeSeason(preferences),
 			windIntensityScale = preferences[Keys.WIND_INTENSITY_SCALE] ?: defaults.windIntensityScale,
 			cloudIntensityScale = preferences[Keys.CLOUD_INTENSITY_SCALE] ?: defaults.cloudIntensityScale,
-			cloudSizeScale = (preferences[Keys.CLOUD_SIZE_SCALE] ?: defaults.cloudSizeScale).coerceIn(CLOUD_SIZE_SCALE_RANGE.start, CLOUD_SIZE_SCALE_RANGE.endInclusive),
+			cloudSizeScale = normalizeCloudSizeScale(preferences[Keys.CLOUD_SIZE_SCALE] ?: defaults.cloudSizeScale),
 			cloudCountScale = (preferences[Keys.CLOUD_COUNT_SCALE] ?: defaults.cloudCountScale).coerceIn(CLOUD_COUNT_SCALE_RANGE.start, CLOUD_COUNT_SCALE_RANGE.endInclusive),
 			cloudContrastScale = (preferences[Keys.CLOUD_CONTRAST_SCALE] ?: defaults.cloudContrastScale).coerceIn(CLOUD_CONTRAST_SCALE_RANGE.start, CLOUD_CONTRAST_SCALE_RANGE.endInclusive),
 			skyBrightnessScale = (preferences[Keys.SKY_BRIGHTNESS_SCALE] ?: defaults.skyBrightnessScale).coerceIn(SKY_BRIGHTNESS_SCALE_RANGE.start, SKY_BRIGHTNESS_SCALE_RANGE.endInclusive),
@@ -465,7 +465,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			preferences[Keys.TREE_SEASON] = settings.treeSeason.name
 			preferences[Keys.WIND_INTENSITY_SCALE] = settings.windIntensityScale
 			preferences[Keys.CLOUD_INTENSITY_SCALE] = settings.cloudIntensityScale
-			preferences[Keys.CLOUD_SIZE_SCALE] = settings.cloudSizeScale.coerceIn(CLOUD_SIZE_SCALE_RANGE.start, CLOUD_SIZE_SCALE_RANGE.endInclusive)
+			preferences[Keys.CLOUD_SIZE_SCALE] = normalizeCloudSizeScale(settings.cloudSizeScale)
 			preferences[Keys.CLOUD_COUNT_SCALE] = settings.cloudCountScale.coerceIn(CLOUD_COUNT_SCALE_RANGE.start, CLOUD_COUNT_SCALE_RANGE.endInclusive)
 			preferences[Keys.CLOUD_CONTRAST_SCALE] = settings.cloudContrastScale.coerceIn(CLOUD_CONTRAST_SCALE_RANGE.start, CLOUD_CONTRAST_SCALE_RANGE.endInclusive)
 			preferences[Keys.SKY_BRIGHTNESS_SCALE] = settings.skyBrightnessScale.coerceIn(SKY_BRIGHTNESS_SCALE_RANGE.start, SKY_BRIGHTNESS_SCALE_RANGE.endInclusive)
@@ -537,7 +537,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			is SettingsMutation.TreeSeason -> this[Keys.TREE_SEASON] = mutation.value.name
 			is SettingsMutation.WindIntensity -> this[Keys.WIND_INTENSITY_SCALE] = mutation.value
 			is SettingsMutation.CloudIntensity -> this[Keys.CLOUD_INTENSITY_SCALE] = mutation.value
-			is SettingsMutation.CloudSize -> this[Keys.CLOUD_SIZE_SCALE] = mutation.value.coerceIn(CLOUD_SIZE_SCALE_RANGE.start, CLOUD_SIZE_SCALE_RANGE.endInclusive)
+			is SettingsMutation.CloudSize -> this[Keys.CLOUD_SIZE_SCALE] = normalizeCloudSizeScale(mutation.value)
 			is SettingsMutation.CloudCount -> this[Keys.CLOUD_COUNT_SCALE] = mutation.value.coerceIn(CLOUD_COUNT_SCALE_RANGE.start, CLOUD_COUNT_SCALE_RANGE.endInclusive)
 			is SettingsMutation.CloudContrast -> this[Keys.CLOUD_CONTRAST_SCALE] = mutation.value.coerceIn(CLOUD_CONTRAST_SCALE_RANGE.start, CLOUD_CONTRAST_SCALE_RANGE.endInclusive)
 			is SettingsMutation.SkyBrightness -> this[Keys.SKY_BRIGHTNESS_SCALE] = mutation.value.coerceIn(SKY_BRIGHTNESS_SCALE_RANGE.start, SKY_BRIGHTNESS_SCALE_RANGE.endInclusive)
@@ -593,7 +593,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		this[Keys.TREE_SEASON] = snapshot.treeSeason.name
 		this[Keys.WIND_INTENSITY_SCALE] = snapshot.windIntensityScale
 		this[Keys.CLOUD_INTENSITY_SCALE] = snapshot.cloudIntensityScale
-		this[Keys.CLOUD_SIZE_SCALE] = snapshot.cloudSizeScale.coerceIn(CLOUD_SIZE_SCALE_RANGE.start, CLOUD_SIZE_SCALE_RANGE.endInclusive)
+		this[Keys.CLOUD_SIZE_SCALE] = normalizeCloudSizeScale(snapshot.cloudSizeScale)
 		this[Keys.CLOUD_COUNT_SCALE] = snapshot.cloudCountScale.coerceIn(CLOUD_COUNT_SCALE_RANGE.start, CLOUD_COUNT_SCALE_RANGE.endInclusive)
 		this[Keys.CLOUD_CONTRAST_SCALE] = snapshot.cloudContrastScale.coerceIn(CLOUD_CONTRAST_SCALE_RANGE.start, CLOUD_CONTRAST_SCALE_RANGE.endInclusive)
 		this[Keys.SKY_BRIGHTNESS_SCALE] = snapshot.skyBrightnessScale.coerceIn(SKY_BRIGHTNESS_SCALE_RANGE.start, SKY_BRIGHTNESS_SCALE_RANGE.endInclusive)

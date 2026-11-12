@@ -546,22 +546,32 @@ class MoonRenderingTest {
 	@Test
 	fun denseCloudOverlapErasesLunarSurfaceDetail() {
 		val renderer = SceneRenderer(resources, epochDay = 20_000L)
-		val params = isolatedLowCloudParams().copy(cloudSizeScale = 2f)
+		val params = isolatedLowCloudParams().copy(cloudSizeScale = 1.5f)
 		renderer.prewarmCloudTextures()
 		renderer.prewarmMoonPhase(params.moonPhase)
 		val cloudy = renderForegroundOnNightSky(540, 960, params, 336f, renderer)
 		val cloudyControl = renderForegroundOnNightSky(540, 960, params.copy(moonVisible = false), 336f, renderer)
 		val clear = renderForegroundOnNightSky(540, 960, params.copy(cloudiness = 0f, cloudLayers = null), 336f, renderer)
 		val clearControl = renderForegroundOnNightSky(540, 960, params.copy(cloudiness = 0f, cloudLayers = null, moonVisible = false), 336f, renderer)
+		val cloudOnly = renderCachedForeground(
+			540,
+			960,
+			params.copy(dayPhase = DayPhase.DAY, sunVisible = false, moonVisible = false, distantAircraftEnabled = false, birdFlockSize = BirdFlockSize.OFF),
+			336f,
+			renderer
+		)
+
 		try {
-			val cloudyDetail = lunarDetailEnergy(cloudy, cloudyControl)
-			val clearDetail = lunarDetailEnergy(clear, clearControl)
-			assertTrue("Dense cumulus must hide lunar markings instead of exposing a ghost disc; cloudy=$cloudyDetail clear=$clearDetail", cloudyDetail < clearDetail * 0.08f)
+			val detail = lunarDetailEnergy(cloudy, cloudyControl, clear, clearControl, cloudOnly)
+			assertTrue("Dense cumulus must overlap enough of the lunar surface; coveredPairs=${detail.coveredPairs}", detail.coveredPairs >= 50)
+			assertTrue("Dense cumulus must cover discernible lunar markings; clear=${detail.clear}", detail.clear > 200f)
+			assertTrue("Dense cumulus must hide lunar markings instead of exposing a ghost disc; cloudy=${detail.cloudy} clear=${detail.clear}", detail.cloudy < detail.clear * 0.08f)
 		} finally {
 			cloudy.recycle()
 			cloudyControl.recycle()
 			clear.recycle()
 			clearControl.recycle()
+			cloudOnly.recycle()
 		}
 	}
 
@@ -587,19 +597,43 @@ class MoonRenderingTest {
 		}
 	}
 
-	/** Remove the cloud/sky control and measure local lunar contrast inside the fixed dense-overlap region. */
-	private fun lunarDetailEnergy(withMoon: Bitmap, withoutMoon: Bitmap): Float {
-		var energy = 0f
-		for (y in 212..228) {
-			for (x in 375..415) {
-				val here = pixelLuminance(withMoon.getPixel(x, y)) - pixelLuminance(withoutMoon.getPixel(x, y))
-				val next = pixelLuminance(withMoon.getPixel(x + 1, y)) - pixelLuminance(withoutMoon.getPixel(x + 1, y))
-				energy += abs(next - here)
+	/** Measure lunar texture only where actual cloud alpha predicts dense surface occlusion. */
+	private fun lunarDetailEnergy(cloudy: Bitmap, cloudyControl: Bitmap, clear: Bitmap, clearControl: Bitmap, cloudOnly: Bitmap): LunarDetailEnergy {
+		val center = celestialCenter(cloudy.width, cloudy.height)
+		val radius = minOf(cloudy.width, cloudy.height) * MOON_RADIUS_FRACTION - 8f
+		val radiusSquared = radius * radius
+		var cloudyDetail = 0f
+		var clearDetail = 0f
+		var coveredPairs = 0
+
+		for (y in (center.y - radius.toInt())..(center.y + radius.toInt())) {
+			for (x in (center.x - radius.toInt()) until (center.x + radius.toInt())) {
+				val dx = x - center.x
+				val dy = y - center.y
+				if (dx * dx + dy * dy >= radiusSquared || (dx + 1) * (dx + 1) + dy * dy >= radiusSquared) {
+					continue
+				}
+
+				val alpha = Color.alpha(cloudOnly.getPixel(x, y))
+				val nextAlpha = Color.alpha(cloudOnly.getPixel(x + 1, y))
+				if (alpha !in 175..225 || nextAlpha !in 175..225) {
+					continue
+				}
+
+				val cloudyHere = pixelLuminance(cloudy.getPixel(x, y)) - pixelLuminance(cloudyControl.getPixel(x, y))
+				val cloudyNext = pixelLuminance(cloudy.getPixel(x + 1, y)) - pixelLuminance(cloudyControl.getPixel(x + 1, y))
+				val clearHere = pixelLuminance(clear.getPixel(x, y)) - pixelLuminance(clearControl.getPixel(x, y))
+				val clearNext = pixelLuminance(clear.getPixel(x + 1, y)) - pixelLuminance(clearControl.getPixel(x + 1, y))
+				cloudyDetail += abs(cloudyNext - cloudyHere)
+				clearDetail += abs(clearNext - clearHere)
+				coveredPairs++
 			}
 		}
 
-		return energy
+		return LunarDetailEnergy(cloudyDetail, clearDetail, coveredPairs)
 	}
+
+	private data class LunarDetailEnergy(val cloudy: Float, val clear: Float, val coveredPairs: Int)
 
 	@Test
 	fun moonSizeScaleIsExcludedFromBackdropIndependence() {

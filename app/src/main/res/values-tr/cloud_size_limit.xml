@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="warning_cloud_size" formatted="false">Bulut boyutu %125’i aştığında bulutlar ekranın daha büyük bir bölümünü kaplayarak yağmuru veya diğer hava efektlerini gizleyebilir.</string>
+</resources>

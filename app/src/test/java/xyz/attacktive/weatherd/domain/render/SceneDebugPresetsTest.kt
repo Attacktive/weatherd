@@ -201,7 +201,7 @@ class SceneDebugPresetsTest {
 		val params = debugSceneParams(preset, DayPhase.DAY, cloudSizeScale = 1.8f, cloudCountScale = 0.6f)
 
 		assertEquals(preset.cloudiness, params.cloudiness, 0.0001f)
-		assertEquals(1.8f, params.cloudSizeScale, 0.0001f)
+		assertEquals(1.5f, params.cloudSizeScale, 0.0001f)
 		assertEquals(0.6f, params.cloudCountScale, 0.0001f)
 	}
 

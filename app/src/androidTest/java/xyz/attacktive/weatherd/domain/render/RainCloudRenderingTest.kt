@@ -108,7 +108,7 @@ class RainCloudRenderingTest {
 		assumeTrue(BuildConfig.STORM_CLOUD_PROTOTYPE)
 		val width = 528
 		val height = 240
-		val params = rainy.copy(cloudSizeScale = 2f)
+		val params = rainy.copy(cloudSizeScale = 1.5f)
 		val renderer = SceneRenderer(resources, epochDay = 0L)
 		renderer.prewarmCloudTextures()
 		val withoutRain = createBitmap(width, height)
@@ -125,7 +125,7 @@ class RainCloudRenderingTest {
 				}
 			}
 
-			assertTrue("Rain must remain visible with 200% clouds in landscape", changed > 0)
+			assertTrue("Rain must remain visible with 150% clouds in landscape", changed > 0)
 		} finally {
 			withoutRain.recycle()
 			withRain.recycle()
@@ -159,7 +159,7 @@ class RainCloudRenderingTest {
 		for ((width, height) in listOf(240 to 528, 528 to 240, 360 to 360)) {
 			val bitmap = createBitmap(width, height)
 			try {
-				for (size in listOf(0.5f, 1f, 2f)) {
+				for (size in listOf(0.5f, 1f, 1.25f, 1.5f)) {
 					for (time in listOf(0f, 60f, 600f)) {
 						bitmap.eraseColor(Color.TRANSPARENT)
 						assertTrue(prototype.draw(Canvas(bitmap), width.toFloat(), height.toFloat(), rainy.copy(cloudSizeScale = size), time, Color.WHITE, CloudColorGrade.IDENTITY))

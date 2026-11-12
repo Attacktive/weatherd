@@ -223,7 +223,7 @@ class SettingsRepositoryTest {
 		assertEquals(0.4f, settings.precipitationIntensityScale, 0.0001f)
 		assertEquals(1.8f, settings.windIntensityScale, 0.0001f)
 		assertEquals(0.6f, settings.cloudIntensityScale, 0.0001f)
-		assertEquals(1.7f, settings.cloudSizeScale, 0.0001f)
+		assertEquals(1.5f, settings.cloudSizeScale, 0.0001f)
 		assertEquals(0.7f, settings.cloudCountScale, 0.0001f)
 		assertEquals(1.3f, settings.cloudContrastScale, 0.0001f)
 		assertEquals(0.8f, settings.skyBrightnessScale, 0.0001f)

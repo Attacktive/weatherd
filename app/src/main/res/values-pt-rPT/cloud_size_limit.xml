@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="warning_cloud_size" formatted="false">Acima de 125%, as nuvens podem ocupar mais espaço no ecrã e ocultar a chuva ou outros efeitos meteorológicos.</string>
+</resources>

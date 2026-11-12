@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="warning_cloud_size" formatted="false">125%を超えると、雲が画面を広く覆い、雨などの天気エフェクトが見えにくくなる場合があります。</string>
+</resources>

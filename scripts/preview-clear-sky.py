@@ -23,7 +23,7 @@ HEIGHT = 2340
 
 # Mirrors CLOUD_SIZE_SCALE_RANGE and CLOUD_COUNT_SCALE_RANGE.
 CLOUD_SIZE_SCALE_MIN = 0.5
-CLOUD_SIZE_SCALE_MAX = 2.0
+CLOUD_SIZE_SCALE_MAX = 1.5
 CLOUD_COUNT_SCALE_MIN = 0.5
 CLOUD_COUNT_SCALE_MAX = 2.0
 
@@ -569,7 +569,7 @@ def clear_sky(cloudiness, cloud_scale=1.0, cloud_size_scale=1.0, cloud_count_sca
 def main():
 	parser = argparse.ArgumentParser(description='Preview Weatherd clear-sky cloud rendering.')
 	parser.add_argument('out', nargs='?', type=Path, default=Path('clear-sky-preview.png'))
-	parser.add_argument('--cloud-size', type=float, default=1.0, help='Cloud body size scale (0.5–2.0).')
+	parser.add_argument('--cloud-size', type=float, default=1.0, help='Cloud body size scale (0.5–1.5).')
 	parser.add_argument('--cloud-count', type=float, default=1.0, help='Rendered cloud coverage scale (0.5–2.0).')
 	parser.add_argument('--phase', choices=('dawn', 'day', 'dusk', 'night'), default='day')
 	parser.add_argument('--progress', type=float, default=0.5)

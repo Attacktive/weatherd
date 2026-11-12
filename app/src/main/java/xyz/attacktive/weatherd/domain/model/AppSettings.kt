@@ -79,8 +79,7 @@ val UPDATE_INTERVAL_OPTIONS = listOf(15, 30, 60, 120, 180, 360)
  */
 val INTENSITY_SCALE_RANGE = 0.1f..2f
 
-/** Bounds for fair-weather cloud body size and rendered cloud coverage. */
-val CLOUD_SIZE_SCALE_RANGE = 0.5f..2f
+/** Bounds for rendered cloud coverage, independent of cloud body size. */
 val CLOUD_COUNT_SCALE_RANGE = 0.5f..2f
 
 /** Reset coordinate anchored to the historical fixed weather/location baselines. */

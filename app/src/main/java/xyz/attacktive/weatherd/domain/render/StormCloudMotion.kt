@@ -3,6 +3,7 @@ package xyz.attacktive.weatherd.domain.render
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
+import xyz.attacktive.weatherd.domain.model.normalizeCloudSizeScale
 
 /** Shared deck-relative anchors overlap the three planes instead of spacing them into screen-height rows. */
 internal enum class StormCloudPlane(val widthScale: Float, val depthScale: Float, val bottom: Float, val opacity: Float, val scrollRate: Double, val phase: Double) {
@@ -32,7 +33,7 @@ internal class StormCloudGeometry {
 		}
 
 		val aspect = sourceWidth.toFloat() / sourceHeight
-		val size = finiteOr(sizeScale, 1f).coerceIn(0.5f, 2f)
+		val size = normalizeCloudSizeScale(sizeScale)
 		val depth = min(viewportHeight * 0.62f, max(viewportHeight * 0.48f, viewportWidth * 0.70f))
 		height = max(viewportWidth * plane.widthScale / aspect, depth * plane.depthScale) * size
 		width = height * aspect

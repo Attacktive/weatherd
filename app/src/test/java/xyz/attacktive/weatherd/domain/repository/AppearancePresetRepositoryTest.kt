@@ -5,6 +5,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.float
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -417,4 +419,45 @@ class AppearancePresetRepositoryTest {
 		val raw = store.data.first()[stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)]!!
 		assertEquals(APPEARANCE_PRESET_SCHEMA_VERSION, Json.parseToJsonElement(raw).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
 	}
+
+	@Test
+	fun legacyCloudSizeNormalizesOnReadWithoutRewritingThePresetBank() = runTest {
+		val store = dataStore("preset-cloud-size-legacy.preferences_pb")
+		val repository = AppearancePresetRepository(store)
+		val key = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)
+		val snapshot = AppSettings(cloudSizeScale = 1f, cloudCountScale = 1.7f).toAppearancePresetSnapshot()
+		assertTrue(repository.create("Legacy cloud", snapshot).isSuccess)
+
+		val original = store.data.first()[key]!!
+		val legacy = original.replace("\"cloudSizeScale\":1.0", "\"cloudSizeScale\":2.0")
+		assertTrue(legacy != original)
+		store.edit { it[key] = legacy }
+
+		val restored = (repository.state.first() as AppearancePresetStorageState.Ready).presets.single()
+		assertEquals(1.5f, restored.snapshot.cloudSizeScale, 0f)
+		assertEquals(1.7f, restored.snapshot.cloudCountScale, 0f)
+		assertEquals(legacy, store.data.first()[key])
+
+		assertTrue(repository.rename(restored.id, "Updated cloud").isSuccess)
+		val rewritten = store.data.first()[key]!!
+		assertEquals(1.5f, storedCloudSize(rewritten), 0f)
+		assertEquals(1.5f, (repository.state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot.cloudSizeScale, 0f)
+	}
+
+	@Test
+	fun directPresetWritesNormalizeLegacyAndNonFiniteCloudSizes() = runTest {
+		for ((index, value) in listOf(2f, Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY).withIndex()) {
+			val store = dataStore("preset-cloud-size-write-$index.preferences_pb")
+			val repository = AppearancePresetRepository(store)
+			val rawSnapshot = AppSettings().toAppearancePresetSnapshot().copy(cloudSizeScale = value)
+			assertTrue(repository.create("Cloud", rawSnapshot).isSuccess)
+
+			val raw = store.data.first()[stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)]!!
+			val expected = if (value.isFinite()) 1.5f else 1f
+			assertEquals(expected, storedCloudSize(raw), 0f)
+			assertEquals(expected, (repository.state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot.cloudSizeScale, 0f)
+		}
+	}
+
+	private fun storedCloudSize(raw: String) = Json.parseToJsonElement(raw).jsonObject.getValue("presets").jsonArray.single().jsonObject.getValue("snapshot").jsonObject.getValue("cloudSizeScale").jsonPrimitive.float
 }

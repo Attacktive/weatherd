@@ -59,6 +59,21 @@ import xyz.attacktive.weatherd.util.AppLogger
 @OptIn(ExperimentalCoroutinesApi::class)
 class WeatherSceneProviderTest {
 	@Test
+	fun `cloud size normalization covers live simulated and offline scenes`() {
+		val now = Instant.parse("2026-11-12T12:00:00Z").epochSecond
+		val settings = AppSettings(useDeviceLocation = false, cloudSizeScale = 2f)
+		val fallback = WeatherSceneState(settings)
+		val live = fallback.copy(snapshot = snapshotWith(weatherCode = 0))
+		val simulated = fallback.copy(settings = settings.copy(sceneSimulatorEnabled = true, sceneSimulatorActive = true))
+
+		for (scene in listOf(fallback, live, simulated)) {
+			assertEquals(1.5f, provider.paramsFor(now, scene).cloudSizeScale, 0f)
+			val nonFinite = scene.copy(settings = scene.settings.copy(cloudSizeScale = Float.NaN))
+			assertEquals(1f, provider.paramsFor(now, nonFinite).cloudSizeScale, 0f)
+		}
+	}
+
+	@Test
 	fun `auto foliage follows selected latitude in live simulated and offline scenes`() {
 		val now = Instant.parse("2026-10-31T12:00:00Z").epochSecond
 		val settings = AppSettings(
@@ -501,7 +516,7 @@ class WeatherSceneProviderTest {
 		assertEquals(1.5f, params.precipitationScale, 0.0001f)
 		assertEquals(0.5f, params.windScale, 0.0001f)
 		assertEquals(0.8f, params.cloudScale, 0.0001f)
-		assertEquals(1.6f, params.cloudSizeScale, 0.0001f)
+		assertEquals(1.5f, params.cloudSizeScale, 0.0001f)
 		assertEquals(0.7f, params.cloudCountScale, 0.0001f)
 		assertEquals(1.4f, params.cloudContrastScale, 0.0001f)
 		assertEquals(0.8f, params.skyBrightnessScale, 0.0001f)

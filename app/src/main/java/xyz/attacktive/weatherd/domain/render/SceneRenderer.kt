@@ -31,7 +31,6 @@ import android.graphics.Shader
 import androidx.core.graphics.withClip
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.BackdropScene
-import xyz.attacktive.weatherd.domain.model.CLOUD_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.DEFAULT_LABEL_VERTICAL_POSITION
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.HolidayCelebration
@@ -49,6 +48,7 @@ import xyz.attacktive.weatherd.domain.model.SunbeamMode
 import xyz.attacktive.weatherd.domain.model.TreeStyle
 import xyz.attacktive.weatherd.domain.model.TreeSeason
 import xyz.attacktive.weatherd.domain.model.drawsScenery
+import xyz.attacktive.weatherd.domain.model.normalizeCloudSizeScale
 import xyz.attacktive.weatherd.domain.model.normalizeMoonOpacity
 import xyz.attacktive.weatherd.domain.model.normalizeMoonSizeScale
 import xyz.attacktive.weatherd.domain.render.SceneRenderer.Companion.DOT_CORE_STOP
@@ -4179,7 +4179,7 @@ private fun showsCelestialBody(params: SceneParams) = when {
 }
 
 /** Fair-weather cloud geometry scale, clamped defensively for direct [SceneParams] construction in tests and previews. */
-private fun cloudSizeScale(params: SceneParams) = params.cloudSizeScale.coerceIn(CLOUD_SIZE_SCALE_RANGE.start, CLOUD_SIZE_SCALE_RANGE.endInclusive)
+private fun cloudSizeScale(params: SceneParams) = normalizeCloudSizeScale(params.cloudSizeScale)
 
 /** The scattered-cloud air wash belongs to the visible sun and never appears at night. */
 internal fun showsSunVeil(params: SceneParams) = params.sunVisible && params.dayPhase != DayPhase.NIGHT

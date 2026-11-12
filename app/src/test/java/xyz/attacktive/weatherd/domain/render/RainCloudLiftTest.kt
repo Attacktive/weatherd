@@ -13,7 +13,7 @@ class RainCloudLiftTest {
 	@Test
 	fun allPlanesRiseByTheSameViewportFractionWithoutResizing() {
 		for ((width, height) in viewports) {
-			for (size in listOf(0.5f, 1f, 2f)) {
+			for (size in listOf(0.5f, 1f, 1.25f, 1.5f)) {
 				for (plane in StormCloudPlane.entries) {
 					val geometry = StormCloudGeometry()
 					assertTrue(geometry.configure(width, height, 1600, 800, plane, 0f, 0.5f, 1f, size))
@@ -33,7 +33,7 @@ class RainCloudLiftTest {
 		val previous = CloudRainBoundary()
 		val raised = CloudRainBoundary()
 		for ((width, height) in viewports) {
-			for (size in listOf(0.5f, 1f, 2f)) {
+			for (size in listOf(0.5f, 1f, 1.25f, 1.5f)) {
 				for (plane in listOf(StormCloudPlane.HERO, StormCloudPlane.DISTANT)) {
 					val geometry = StormCloudGeometry()
 					for (time in listOf(0f, 30f, 600f)) {

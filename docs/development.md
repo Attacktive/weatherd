@@ -309,6 +309,34 @@ Cirrus, fog veils, the sky gradient and overcast ceiling, celestial positions, a
 The shared renderer applies this composition to preview, live wallpaper, simulator, and fallback without a new setting or preset field.
 Mirror clear-sky placement changes into `scripts/preview-clear-sky.py`; Android rendering remains authoritative.
 
+### Cloud Size Limits
+
+Cloud Size is one global 50–150% setting for fair-weather and rainy clouds, with the existing 100% default/reset.
+An inline warning appears strictly above 125% in every weather condition, follows the current slider drag before saving, and clears at 125% or below or on reset.
+Settings are saved when the user releases the slider or resets; Cloud Count, cloud opacity/contrast, Sun/Moon size, and precipitation intensity retain their separate ranges and defaults.
+`CloudSizePolicy.kt` is the source of truth for range, warning threshold, and normalization.
+Previously stored sizes such as 200% and legacy appearance presets clamp to 150% when read or applied, while non-finite values return to 100%; merely reading a saved preset bank does not rewrite it.
+The same normalization applies to direct preset snapshots, live weather, simulation, offline fallback, and both cloud renderers.
+The existing storm-cloud positioning, viewport lift, top-edge coverage, drift, and silhouette-based rain clipping stay unchanged; no fixed-bottom anchor or new vertical offset is introduced.
+Use the ordinary local Android instrumentation suite with explicit `ANDROID_SERIAL` before PR validation, and visually check rain and fair-weather scenes at 100%, 125%, and 150% in portrait and landscape.
+The 150% limit prevents the previous 200% extreme but does not establish acceptance against an affected-device screenshot.
+
+### Cloud Material and Coverage
+
+The corollaries:
+
+- `CUMULUS_NEAR_ALPHA` stays near 255. `params.cloudScale` is the user's opacity preference and is the only scene-level control that should pull it down.
+- Near morphology variants come from one shared four-bitmap hero source set. Prefer transformed or composite variants of that set before adding another decoded bitmap family; the seeded daily layout cycles through neighboring morphology variants before repeating so one coverage profile does not randomly collapse back to one shape.
+- Sparse, scattered, partly cloudy, and broken describe placement populations. Cross-fading draws the lower population at full alpha and grows the next population above the blend floor; do not replace that with a single population whose alpha tracks cloudiness.
+- The far deck is the exception because distance is carried by haze, size, and a dedicated pair of veil sprites; it also thickens with coverage.
+- The hero sprites bake their own sunlit-to-shadow ramp, so `cumulusTint(DayPhase.DAY)` is pure white. Tinting daylight applies the shading twice and grays the crowns.
+- Low-sun cloud lighting uses luminance-aware RGB grading (`CloudColorGrade`) at the `ColorMatrix` boundary during dawn and dusk, providing warm cream/golden highlights and cool slate-blue shadows without altering source or rendered alpha.
+- Day and night use identity material grading; clear-sky base multiply tint smoothly transitions between night blue and daylight white without flat peach/orange overlays. Dedicated overcast banks use the [nighttime lighting contract](#nighttime-overcast-lighting) while preserving source artwork, alpha, and default-brightness rendering.
+- Dry overcast banks receive phase grading, while rainy, snowy, thundery, dense-fog, and cirrus paths preserve identity treatment.
+- Cloud contrast and material grading are RGB-only transforms on cloud artwork. They must preserve the source alpha mask exactly and stay independent of cloud opacity or coverage.
+- Sky palette, brightness, and saturation customize the clear phase gradient; brightness also scales weather grayness, the overcast ceiling, and dedicated bank RGB lighting in every phase before weather darkening. Horizon haze also follows sky brightness without changing opacity. `NATURAL` at 100% brightness/saturation preserves the established appearance; stylized palettes and saturation must still yield to weather transforms.
+- A dry sky keeps its full clear-day blue until `OVERCAST_GRAY_FLOOR`, where the overcast ceiling starts drawing. Graying earlier leaves white clouds with nothing to read against.
+
 ### Nighttime Overcast Lighting
 
 The dedicated overcast banks retain their source artwork, alpha masks, placement, and drift; their RGB tint provides enough ambient night light to distinguish internal shading from the dark sky.
