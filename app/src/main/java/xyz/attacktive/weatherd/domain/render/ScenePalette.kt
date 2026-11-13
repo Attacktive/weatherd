@@ -167,15 +167,7 @@ private fun builtInBasePhaseGradient(
 	val phase = phaseGradient(dayPhase, preset)
 
 	return when (dayPhase) {
-		DayPhase.DAWN -> {
-			val daylight = dawnDaylightStrength(celestialProgress)
-			val day = phaseGradient(DayPhase.DAY, preset)
-
-			SkyGradient(
-				lerpColor(phase.topColor, day.topColor, daylight),
-				lerpColor(phase.bottomColor, day.bottomColor, daylight)
-			)
-		}
+		DayPhase.DAWN -> blendDawnGradient(phase, phaseGradient(DayPhase.DAY, preset), dawnDaylightStrength(celestialProgress))
 
 		DayPhase.DUSK -> {
 			val warmth = duskWarmStrength(celestialProgress)
@@ -195,6 +187,27 @@ private fun builtInBasePhaseGradient(
 
 		DayPhase.DAY, DayPhase.NIGHT -> phase
 	}
+}
+
+/** Move the explicit dawn stops onto the daytime ramp before removing the middle stop. */
+private fun blendDawnGradient(dawn: SkyGradient, day: SkyGradient, daylight: Float): SkyGradient {
+	val top = lerpColor(dawn.topColor, day.topColor, daylight)
+	val bottom = lerpColor(dawn.bottomColor, day.bottomColor, daylight)
+	val middle = dawn.middleColor
+	if (middle == null || daylight >= 1f) {
+		return SkyGradient(top, bottom)
+	}
+
+	val middlePosition = lerp(dawn.middlePosition, day.middlePosition, daylight)
+	val dayMiddle = lerpColor(day.topColor, day.bottomColor, middlePosition)
+
+	return SkyGradient(
+		topColor = top,
+		bottomColor = bottom,
+		middleColor = lerpColor(middle, dayMiddle, daylight),
+		middlePosition = middlePosition,
+		endPosition = lerp(dawn.endPosition, day.endPosition, daylight)
+	)
 }
 
 private fun baseCustomGradient(
@@ -290,7 +303,13 @@ private fun phaseGradient(dayPhase: DayPhase, preset: SkyColorPreset): SkyGradie
 			SkyGradient(rgb(74, 144, 217), rgb(169, 214, 245))
 		}
 
-		DayPhase.DAWN -> SkyGradient(rgb(58, 103, 151), rgb(246, 169, 132))
+		DayPhase.DAWN -> SkyGradient(
+			topColor = rgb(58, 103, 151),
+			bottomColor = rgb(246, 169, 132),
+			middleColor = rgb(132, 147, 179),
+			middlePosition = 0.4f,
+			endPosition = 0.88f
+		)
 		DayPhase.DUSK -> SkyGradient(rgb(38, 49, 79), rgb(232, 130, 91))
 		DayPhase.NIGHT -> SkyGradient(rgb(11, 16, 38), rgb(27, 36, 80))
 	}

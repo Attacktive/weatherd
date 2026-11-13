@@ -51,6 +51,9 @@ FAR_TINT_LIFT = 0.16
 # Mirrors ScenePalette.basePhaseGradient, phaseGray, and the dry OVERCAST_GRAY_FLOOR.
 SKY_TOP = np.array([74, 144, 217], dtype=np.float32)
 SKY_BOTTOM = np.array([169, 214, 245], dtype=np.float32)
+SKY_MIDDLE = None
+SKY_MIDDLE_POSITION = 0.5
+SKY_END_POSITION = 1.0
 PHASE_GRAY = np.array([150, 160, 170], dtype=np.float32)
 GRAY_FLOOR = 0.75
 GRAY_FULL = 0.85
@@ -114,6 +117,22 @@ def phase_sky(phase, progress):
 		top = lerp(lerp(day_top, top, warmth), night_top, nightfall)
 		bottom = lerp(lerp(day_bottom, bottom, warmth), night_bottom, nightfall)
 	return top, bottom, np.array(grays[phase], dtype=np.float32)
+
+def phase_sky_middle(phase, progress):
+	if phase != 'dawn':
+		return None, 0.5, 1.0
+
+	daylight = float(smoothstep(0.5, 0.85, progress))
+	if daylight >= 1.0:
+		return None, 0.5, 1.0
+
+	position = 0.4 + 0.1 * daylight
+	day_top = np.array([74, 144, 217], dtype=np.float32)
+	day_bottom = np.array([169, 214, 245], dtype=np.float32)
+	day_middle = lerp(day_top, day_bottom, position)
+	middle = lerp(np.array([132, 147, 179], dtype=np.float32), day_middle, daylight)
+	return middle, position, 0.88 + 0.12 * daylight
+
 
 NEAR_SPRITES = (
 	'cloud_cumulus_hero_broad.webp',
@@ -318,16 +337,30 @@ def near_cumulus_step(coverage):
 
 
 def sky(cloudiness):
-	"""Mirrors skyGradientFor for a dry, fogless day."""
+	"""Mirrors the dry phase palette, including explicit Natural dawn stops, without solar glow or vignette."""
 	overcast = float(np.clip((cloudiness - GRAY_FLOOR) / (GRAY_FULL - GRAY_FLOOR), 0, 1))
 	top = lerp(SKY_TOP, PHASE_GRAY, overcast)
 	bottom = lerp(SKY_BOTTOM, PHASE_GRAY, overcast)
+	middle = None
+	if SKY_MIDDLE is not None:
+		middle = lerp(SKY_MIDDLE, PHASE_GRAY, overcast)
+
 	if cloudiness > DECK_THRESHOLD:
 		top *= 0.93
 		bottom *= 0.93
+		if middle is not None:
+			middle *= 0.93
 
-	ramp = np.linspace(0, 1, HEIGHT, dtype=np.float32)[:, None]
-	column = top[None, :] * (1 - ramp) + bottom[None, :] * ramp
+	ramp = np.linspace(0, 1, HEIGHT, dtype=np.float32)
+	if middle is None:
+		column = top[None, :] * (1 - ramp[:, None]) + bottom[None, :] * ramp[:, None]
+	else:
+		stops = (0.0, SKY_MIDDLE_POSITION, SKY_END_POSITION)
+		column = np.stack([
+			np.interp(ramp, stops, (top[channel], middle[channel], bottom[channel]))
+			for channel in range(3)
+		], axis=1).astype(np.float32)
+
 	return np.repeat(column[:, None, :], WIDTH, axis=1), top, bottom
 
 
@@ -576,9 +609,10 @@ def main():
 	parser.add_argument('--cover', type=float, help='Export a single aspect-correct portrait for this cover.')
 	args = parser.parse_args()
 
-	global MATERIAL_GRADE, SKY_TOP, SKY_BOTTOM, PHASE_GRAY, CUMULUS_TINT, CIRRUS_TINT
+	global MATERIAL_GRADE, SKY_TOP, SKY_BOTTOM, SKY_MIDDLE, SKY_MIDDLE_POSITION, SKY_END_POSITION, PHASE_GRAY, CUMULUS_TINT, CIRRUS_TINT
 	MATERIAL_GRADE = cloud_grade(args.phase, args.progress)
 	SKY_TOP, SKY_BOTTOM, PHASE_GRAY = phase_sky(args.phase, args.progress)
+	SKY_MIDDLE, SKY_MIDDLE_POSITION, SKY_END_POSITION = phase_sky_middle(args.phase, args.progress)
 	CUMULUS_TINT = phase_cumulus_tint(args.phase, args.progress)
 	CIRRUS_TINT = np.array({'day': (249, 251, 255), 'dawn': (246, 230, 234), 'dusk': (238, 216, 226), 'night': (116, 132, 164)}[args.phase], dtype=np.float32)
 

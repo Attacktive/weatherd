@@ -577,7 +577,17 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 		gradient: SkyGradient,
 		dayPhase: DayPhase,
 		twilightWarmth: Float
-	) = if ((dayPhase == DayPhase.DAWN || dayPhase == DayPhase.DUSK) && twilightWarmth > 0f) {
+	) = if (gradient.middleColor != null) {
+		LinearGradient(
+			0f,
+			0f,
+			0f,
+			height,
+			intArrayOf(gradient.topColor, gradient.middleColor, gradient.bottomColor),
+			floatArrayOf(gradient.startPosition, gradient.middlePosition, gradient.endPosition),
+			Shader.TileMode.CLAMP
+		)
+	} else if ((dayPhase == DayPhase.DAWN || dayPhase == DayPhase.DUSK) && twilightWarmth > 0f) {
 		val middleBlend = lerp(
 			TWILIGHT_SKY_COLOR_MIDDLE_STOP,
 			TWILIGHT_SKY_COLOR_MIDDLE_BLEND,

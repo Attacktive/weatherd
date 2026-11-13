@@ -300,6 +300,18 @@ When custom daylight influence is zero, use Natural's complete vertical gradient
 
 Preferences store the gradient as one normalized JSON value. Appearance preset schema v19 stores its colors, positions, direction, and two/three-color mode even when a built-in palette is selected; v1–v18 remain readable with an inactive default gradient. Invalid or future preset banks remain unreadable rather than being silently rewritten. Shader arrays are built in the cached-backdrop path, and the renderer reuses its computed palette while palette inputs are unchanged.
 
+### Blue-and-Bronze Dawn Prototype
+
+Natural and Clear Blue use an explicit three-stop dawn gradient: blue `#3A6797` at the top, blue-lavender `#8493B3` at 40% of scene height, and the existing bronze `#F6A984` at 88%.
+The middle color replaces the renderer's inferred twilight midpoint for this gradient, raising warmth into the lower sky without an extra drawing pass or changes to the Sun, clouds, or scenery.
+The existing 50-85% dawn daylight ramp blends all three colors and moves the middle/end positions toward the ordinary daytime geometry; at 85% the selected daytime gradient is restored exactly.
+Brightness, saturation, fog, precipitation grayness, and storm darkening still operate on every active stop before rendering.
+Custom retains the existing complete-gradient crossfade from Natural dawn into the user's untouched daytime colors and geometry; photos retain precedence, while Warm, Pastel, Cyberpunk, dusk, and night keep their previous behavior.
+The desktop preview mirrors the explicit dawn colors and geometry but still omits solar glow and vignette; it is not an Android screenshot.
+
+Validation includes JVM stop/color/geometry and weather checks plus `DawnSkyGradientRenderingTest` for actual Android backdrop pixels, custom-transition continuity, and both orientations.
+The reporter's visual approval remains required before releasing the experiment; the earlier instrumentation pass for the two-endpoint version does not validate this refinement.
+
 ### Cloud Formation Placement
 
 Near and distant cumulus, the partly-cloudy support bank, and the overcast bank stack share a vertical lift of 12% of the viewport height in portrait and 4% in landscape.
