@@ -290,7 +290,7 @@ private fun phaseGradient(dayPhase: DayPhase, preset: SkyColorPreset): SkyGradie
 			SkyGradient(rgb(74, 144, 217), rgb(169, 214, 245))
 		}
 
-		DayPhase.DAWN -> SkyGradient(rgb(52, 64, 107), rgb(246, 169, 132))
+		DayPhase.DAWN -> SkyGradient(rgb(58, 103, 151), rgb(246, 169, 132))
 		DayPhase.DUSK -> SkyGradient(rgb(38, 49, 79), rgb(232, 130, 91))
 		DayPhase.NIGHT -> SkyGradient(rgb(11, 16, 38), rgb(27, 36, 80))
 	}

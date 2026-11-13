@@ -113,7 +113,7 @@ class ScenePaletteTest {
 		val daylight = skyGradientFor(clearParams(DayPhase.DAWN).copy(celestialProgress = 0.85f))
 		val day = skyGradientFor(clearParams(DayPhase.DAY))
 
-		assertEquals(0xFF34406B.toInt(), sunrise.topColor)
+		assertEquals(0xFF3A6797.toInt(), sunrise.topColor)
 		assertEquals(0xFFF6A984.toInt(), sunrise.bottomColor)
 		assertTrue("late-dawn horizon should have turned blue", blue(morning.bottomColor) > red(morning.bottomColor))
 		assertEquals("late dawn should meet the day palette before the phase flips", day, daylight)
@@ -684,6 +684,59 @@ class ScenePaletteTest {
 			assertEquals("$phase start must use current weather lighting", natural.topColor, custom.topColor)
 			assertEquals("$phase middle must use current weather lighting", natural.topColor, custom.middleColor)
 			assertEquals("$phase end must use current weather lighting", natural.bottomColor, custom.bottomColor)
+		}
+	}
+
+	@Test
+	fun `natural dawn keeps lighter blue above the original bronze through sunrise`() {
+		for (preset in listOf(SkyColorPreset.NATURAL, SkyColorPreset.CLEAR_BLUE, SkyColorPreset.CUSTOM)) {
+			for (progress in listOf(0f, 0.25f, 0.5f)) {
+				val gradient = skyGradientFor(clearParams(DayPhase.DAWN).copy(skyColorPreset = preset, celestialProgress = progress))
+
+				assertEquals("$preset at $progress keeps the lighter blue zenith", 0xFF3A6797.toInt(), gradient.topColor)
+				assertEquals("$preset at $progress keeps the original bronze horizon", 0xFFF6A984.toInt(), gradient.bottomColor)
+			}
+		}
+	}
+
+	@Test
+	fun `dawn reaches every selected daylight palette without color jumps`() {
+		val custom = CustomSkyGradient(
+			startColor = 0xFF224488.toInt(),
+			middleColor = 0xFF66AACC.toInt(),
+			endColor = 0xFFDDEEFF.toInt(),
+			threeColors = true,
+			direction = SkyGradientDirection.HORIZONTAL
+		)
+
+		for (preset in SkyColorPreset.entries) {
+			val params = clearParams(DayPhase.DAWN).copy(skyColorPreset = preset, customSkyGradient = custom, celestialProgress = 0.5f)
+			var previous = skyGradientFor(params)
+			for (step in 501..850) {
+				val current = skyGradientFor(params.copy(celestialProgress = step / 1000f))
+				for ((before, after) in listOf(previous.topColor to current.topColor, previous.bottomColor to current.bottomColor)) {
+					assertTrue("$preset at step $step must not jump red", abs(red(after) - red(before)) <= 2)
+					assertTrue("$preset at step $step must not jump green", abs(green(after) - green(before)) <= 2)
+					assertTrue("$preset at step $step must not jump blue", abs(blue(after) - blue(before)) <= 2)
+				}
+
+				previous = current
+			}
+
+			assertEquals("$preset must meet its daylight gradient before the phase changes", skyGradientFor(params.copy(dayPhase = DayPhase.DAY)), previous)
+		}
+	}
+
+	@Test
+	fun `dawn experiment leaves stylized palettes unchanged`() {
+		val expected = mapOf(
+			SkyColorPreset.WARM to SkyGradient(0xFF4A3D69.toInt(), 0xFFFAB179.toInt()),
+			SkyColorPreset.PASTEL to SkyGradient(0xFF746C9F.toInt(), 0xFFFAC2B5.toInt()),
+			SkyColorPreset.CYBERPUNK to SkyGradient(0xFF482D79.toInt(), 0xFFFF74A8.toInt())
+		)
+
+		for ((preset, gradient) in expected) {
+			assertEquals("$preset retains its own dawn colors", gradient, skyGradientFor(clearParams(DayPhase.DAWN).copy(skyColorPreset = preset, celestialProgress = 0.5f)))
 		}
 	}
 

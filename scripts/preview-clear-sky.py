@@ -97,7 +97,7 @@ def phase_cumulus_tint(phase, progress):
 def phase_sky(phase, progress):
 	gradients = {
 		'day': ((74, 144, 217), (169, 214, 245)),
-		'dawn': ((52, 64, 107), (246, 169, 132)),
+		'dawn': ((58, 103, 151), (246, 169, 132)),
 		'dusk': ((38, 49, 79), (232, 130, 91)),
 		'night': ((11, 16, 38), (27, 36, 80)),
 	}
@@ -118,7 +118,7 @@ def phase_sky(phase, progress):
 NEAR_SPRITES = (
 	'cloud_cumulus_hero_broad.webp',
 	'cloud_cumulus_hero_broad_alt.webp',
-	'cloud_cumulus_hero_soft_broad.webp',
+	'cloud_cumulus_hero_soft_broad_alt.webp',
 	'cloud_cumulus_hero_soft_broad_alt.webp',
 )
 FAR_SPRITES = ('cloud_cumulus_far_veil_broad.png', 'cloud_cumulus_far_veil_layered.png')
