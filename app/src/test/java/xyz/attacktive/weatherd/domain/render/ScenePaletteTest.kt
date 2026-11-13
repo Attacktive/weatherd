@@ -712,9 +712,21 @@ class ScenePaletteTest {
 		for (preset in SkyColorPreset.entries) {
 			val params = clearParams(DayPhase.DAWN).copy(skyColorPreset = preset, customSkyGradient = custom, celestialProgress = 0.5f)
 			var previous = skyGradientFor(params)
+			if (preset == SkyColorPreset.CUSTOM) {
+				assertEquals(
+					"Custom middle stop must meet the natural dawn bridge at the transition boundary",
+					skyGradientFor(params.copy(skyColorPreset = SkyColorPreset.NATURAL)).middleColor,
+					previous.middleColor
+				)
+			}
+
 			for (step in 501..850) {
 				val current = skyGradientFor(params.copy(celestialProgress = step / 1000f))
-				for ((before, after) in listOf(previous.topColor to current.topColor, previous.bottomColor to current.bottomColor)) {
+				val colorPairs = listOf(previous.topColor to current.topColor, previous.bottomColor to current.bottomColor) + listOfNotNull(
+					previous.middleColor?.let { before -> current.middleColor?.let { after -> before to after } }
+				)
+
+				for ((before, after) in colorPairs) {
 					assertTrue("$preset at step $step must not jump red", abs(red(after) - red(before)) <= 2)
 					assertTrue("$preset at step $step must not jump green", abs(green(after) - green(before)) <= 2)
 					assertTrue("$preset at step $step must not jump blue", abs(blue(after) - blue(before)) <= 2)

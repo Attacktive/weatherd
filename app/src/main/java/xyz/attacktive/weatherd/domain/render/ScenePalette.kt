@@ -238,7 +238,7 @@ private fun baseCustomGradient(
 			top = lerpColor(naturalDawn.topColor, custom.startColor, daylight)
 			bottom = lerpColor(naturalDawn.bottomColor, custom.endColor, daylight)
 			middle = if (custom.threeColors) {
-				val naturalDawnMiddle = lerpColor(naturalDawn.topColor, naturalDawn.bottomColor, custom.middlePosition)
+				val naturalDawnMiddle = naturalDawn.middleColor ?: lerpColor(naturalDawn.topColor, naturalDawn.bottomColor, custom.middlePosition)
 				lerpColor(naturalDawnMiddle, custom.middleColor, daylight)
 			} else {
 				null
@@ -310,6 +310,7 @@ private fun phaseGradient(dayPhase: DayPhase, preset: SkyColorPreset): SkyGradie
 			middlePosition = 0.4f,
 			endPosition = 0.88f
 		)
+
 		DayPhase.DUSK -> SkyGradient(rgb(38, 49, 79), rgb(232, 130, 91))
 		DayPhase.NIGHT -> SkyGradient(rgb(11, 16, 38), rgb(27, 36, 80))
 	}
