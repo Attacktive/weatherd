@@ -118,7 +118,7 @@ def phase_sky(phase, progress):
 NEAR_SPRITES = (
 	'cloud_cumulus_hero_broad.webp',
 	'cloud_cumulus_hero_broad_alt.webp',
-	'cloud_cumulus_hero_soft_broad_alt.webp',
+	'cloud_cumulus_hero_soft_broad.webp',
 	'cloud_cumulus_hero_soft_broad_alt.webp',
 )
 FAR_SPRITES = ('cloud_cumulus_far_veil_broad.png', 'cloud_cumulus_far_veil_layered.png')
