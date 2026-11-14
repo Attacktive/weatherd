@@ -314,7 +314,7 @@ The reporter's visual approval remains required before releasing the experiment;
 
 ### Cloud Formation Placement
 
-Near and distant cumulus, the partly-cloudy support bank, and the overcast bank stack share a vertical lift of 12% of the viewport height in portrait and 4% in landscape.
+Near and distant cumulus, the partly-cloudy support bank, and the legacy (`-PstormCloudPrototype=false`) overcast bank stack share a vertical lift of 12% of the viewport height in portrait and 4% in landscape (default builds use `StormCloudPrototype` in `drawCloudDrift`, documented in [storm-cloud-prototype.md](storm-cloud-prototype.md)).
 This raises formations toward the upper sky while preserving cloud artwork, body size, population, opacity, tint, drift, and the relative spacing between decks; the smaller landscape lift limits top-edge clipping.
 Keep cloud drawing, cast-shadow sampling, sun-edge sampling, and lunar transmission/halo sampling on the same translated geometry.
 Cirrus, fog veils, the sky gradient and overcast ceiling, celestial positions, and scenery remain in place; do not translate the entire canvas or change weather classification to reposition clouds.
@@ -323,7 +323,7 @@ Mirror clear-sky placement changes into `scripts/preview-clear-sky.py`; Android 
 
 ### Cloud Size Limits
 
-Cloud Size is one global 50–150% setting for fair-weather and rainy clouds, with the existing 100% default/reset.
+Cloud Size is one global 50–150% setting for fair-weather, overcast, and rainy clouds, with the existing 100% default/reset.
 An inline warning appears strictly above 125% in every weather condition, follows the current slider drag before saving, and clears at 125% or below or on reset.
 Settings are saved when the user releases the slider or resets; Cloud Count, cloud opacity/contrast, Sun/Moon size, and precipitation intensity retain their separate ranges and defaults.
 `CloudSizePolicy.kt` is the source of truth for range, warning threshold, and normalization.
@@ -351,7 +351,7 @@ The corollaries:
 
 ### Nighttime Overcast Lighting
 
-The dedicated overcast banks retain their source artwork, alpha masks, placement, and drift; their RGB tint provides enough ambient night light to distinguish internal shading from the dark sky.
+The dedicated overcast banks retain their source artwork, alpha masks, placement, and drift; their RGB tint provides enough ambient night light to distinguish internal shading from the dark sky. When enabled, `StormCloudPrototype` receives this same overcast/snow/thunder RGB tint and phase grade (`storm-cloud-prototype.md`).
 Sky brightness scales the weather-gray sky, overcast ceiling, and bank RGB tint in every phase, including fully overcast scenes where weather grayness replaces the clear-sky gradient; 100% preserves the established appearance.
 The lower-sky horizon haze follows the same brightness scaling without changing its alpha ramp or geometry; it must not wash out dimming or become a dark band over a brightened sky.
 Apply bank brightness once after the existing sunrise/daylight and sunset/nightfall ramps join night, dawn, day, and dusk; adjacent endpoints must still meet at nondefault brightness.

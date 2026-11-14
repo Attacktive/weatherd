@@ -12,7 +12,6 @@ import android.graphics.Paint
 import android.graphics.Shader
 import xyz.attacktive.weatherd.BuildConfig
 import xyz.attacktive.weatherd.domain.model.CLOUD_CONTRAST_SCALE_RANGE
-import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 
 /** Shared #405 renderer, enabled only when packaged artwork is available. */
 internal class StormCloudPrototype(
@@ -44,7 +43,7 @@ internal class StormCloudPrototype(
 
 	/** Returns false when the caller must retain the existing cloud-deck path. */
 	fun draw(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float, tint: Int, grade: CloudColorGrade, rainBoundary: CloudRainBoundary? = null): Boolean {
-		if (!enabled || params.precipitation?.kind != PrecipitationKind.RAIN) {
+		if (!enabled) {
 			return false
 		}
 

@@ -5,14 +5,14 @@ It targets Emanuele's [layered-cloud request](https://github.com/Attacktive/weat
 
 ## Scope and containment
 
-The shared SceneRenderer invokes the prototype only inside its existing rainy cloud-deck path.
+The shared SceneRenderer invokes the prototype inside its overcast and precipitation cloud-deck path (`drawCloudDrift`).
 Preview and live wallpaper therefore use the same implementation, including the simulator.
 The supplied central cloud remains a separate sprite from the upper dark bank and distant lower strip.
 Every sprite preserves its source aspect ratio and drifts continuously to the right with the existing rain and overcast layers, at an independent wind-dependent speed, without vertical bobbing or alpha pulsing. The build retains the original central cloud pixels unchanged, filling only the transparent **outer edges** with shifted cloud details to make the repeat seamless. It no longer shifts the original transparent borders into the center, which previously produced an artificial, symmetrical hole. Ordinary horizontal repetition keeps scrolling continuous without mirrored cloud pairs.
 The central cloud is uniformly scaled down in its own aspect ratio and raised within the deck; the derived debug PNGs taper the lowest hero/distant alpha rather than clipping at the near-opaque cloud bases. A reduced-opacity, soft atmospheric veil extends behind their lower edges without repainting the detailed RGB artwork.
 The three detailed planes share one sky-depth coordinate system: the dark upper bank meets the screen edge, the central mass overlaps it, and the distant strip overlaps the main cloud's feathered lower edge instead of forming an isolated row.
 The entire composition scales together with the cloud-size control.
-For #430, the rain-only formation uses a 15%-of-viewport-height lift instead of the previous 3%, moving the detailed banks and decorative veil upward together without resizing the artwork or changing horizontal motion.
+For #430/#434, the shared overcast/storm-cloud formation uses a 15%-of-viewport-height lift instead of the previous 3%, moving the detailed banks and decorative veil upward together without resizing the artwork or changing horizontal motion.
 The lift remains viewport-relative rather than scaling with cloud size; the upper bank still clamps into its sampled covered band so smaller clouds cannot expose the top edge.
 At default size the artwork remains wider than the viewport. Seam-blended repeating texture sampling extends the image beyond its edges while it scrolls, without squeezing or stretching the original source; wide displays retain the same uniform scaling.
 Natural daytime rain receives a muted, slightly darker sky grade in the cached palette path; the existing daylight ramp fades that grade through dawn/dusk and leaves night colors unchanged.
@@ -22,7 +22,7 @@ Textures decode once in the existing background cloud-prewarm step; draw callbac
 The existing opacity, size, contrast and day-phase/sky-brightness tint continue to apply.
 Rain uses the #406 cloud-alpha boundary sampled from the transformed detailed banks, excluding the decorative veil; moving those banks also raises the visible rain origin without a separate particle offset.
 Rain density, speed and slant remain unchanged, as does the legacy renderer selected with `-PstormCloudPrototype=false`.
-Dry partly-cloudy and overcast scenes, snow, sleet and fog without rain keep the previous renderer.
+Dry partly-cloudy scenes and cirrus/fog veils keep the previous renderer; dry overcast, low/mid heavy cover, snow, and sleet rendered through `drawCloudDrift` share the layered storm-cloud banks with existing overcast/snow/thunder tinting and without rain clipping. Natural-sky palette muting in `StormCloudAtmosphere` remains rain-only.
 
 On this branch, debug and release builds enable the shared storm-cloud renderer by default. An ordinary Android Studio debug build prepares the four source-hash-verified PNGs if they are missing; valid prepared PNGs are reused. For a baseline comparison, pass `-PstormCloudPrototype=false`.
 The renderer and rain-sky palette live in the shared main source set, so neither build variant compiles an inert substitute.
@@ -52,7 +52,7 @@ Debug builds prepare the four PNGs automatically on first run, placing them in i
 ```
 
 The application ID is unchanged: use a disposable test device/emulator rather than overwriting a personal installation.
-Choose rain or thunderstorm in Advanced's scene simulator, then compare portrait and landscape, day/night, multiple wind strengths, and cloud opacity/size/contrast settings.
+Choose overcast, snow, sleet, rain, or thunderstorm in Advanced's scene simulator, then compare portrait and landscape, day/night, multiple wind strengths, and cloud opacity/size/contrast settings.
 The existing gray weather backdrop and rain remain visible beneath the new banks.
 Use `-PstormCloudPrototype=false` to compare with the unchanged baseline.
 

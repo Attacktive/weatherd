@@ -24,10 +24,12 @@ class StormCloudPrototypeRenderingTest {
 	private val rainy = SceneParams(DayPhase.DAY, 1f, 0f, Precipitation(PrecipitationKind.RAIN, 0.5f, 1f), false, 0.5f)
 
 	@Test
-	fun disabledPrototypeDoesNotDecodeOrTakeOverRain() {
+	fun disabledPrototypeDoesNotDecodeOrTakeOverAnyWeather() {
 		val prototype = StormCloudPrototype(resources, enabled = false) { _, _ -> error("Disabled prototype decoded an asset") }
 		prototype.prewarm()
-		assertFalse(prototype.draw(Canvas(), 480f, 1056f, rainy, 0f, Color.WHITE, CloudColorGrade.IDENTITY))
+		for (precipitation in listOf(rainy.precipitation, null, Precipitation(PrecipitationKind.SNOW, 0.5f, 1f), Precipitation(PrecipitationKind.SLEET, 0.5f, 1f))) {
+			assertFalse(prototype.draw(Canvas(), 480f, 1056f, rainy.copy(precipitation = precipitation), 0f, Color.WHITE, CloudColorGrade.IDENTITY))
+		}
 	}
 
 	@Test
@@ -53,15 +55,21 @@ class StormCloudPrototypeRenderingTest {
 	}
 
 	@Test
-	fun drySkySnowAndSleetRetainTheirExistingRenderer() {
+	fun overcastSnowAndSleetUsePreparedStormClouds() {
 		val sources = mutableListOf<Bitmap>()
 		val prototype = StormCloudPrototype(resources, enabled = true) { _, _ -> fixture().also { sources.add(it) } }
+		val target = createBitmap(480, 1056)
+		val pixels = IntArray(480 * 1056)
 		try {
 			prototype.prewarm()
 			for (precipitation in listOf(null, Precipitation(PrecipitationKind.SNOW, 0.5f, 1f), Precipitation(PrecipitationKind.SLEET, 0.5f, 1f))) {
-				assertFalse(prototype.draw(Canvas(), 480f, 1056f, rainy.copy(precipitation = precipitation), 0f, Color.WHITE, CloudColorGrade.IDENTITY))
+				target.eraseColor(Color.TRANSPARENT)
+				assertTrue(prototype.draw(Canvas(target), 480f, 1056f, rainy.copy(precipitation = precipitation), 0f, Color.WHITE, CloudColorGrade.IDENTITY))
+				target.getPixels(pixels, 0, 480, 0, 0, 480, 1056)
+				assertTrue("Expected visible storm clouds for $precipitation", pixels.any { Color.alpha(it) > 0 })
 			}
 		} finally {
+			target.recycle()
 			sources.forEach { it.recycle() }
 		}
 	}
