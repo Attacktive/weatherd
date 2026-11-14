@@ -108,6 +108,38 @@ class StormCloudPrototypeRenderingTest {
 	}
 
 	@Test
+	fun sceneRendererRoutesOvercastLowMidCloudsAndPrecipitationThroughStormClouds() {
+		val stormCloudPresets = setOf("OVERCAST", "DRIZZLE", "RAIN", "HEAVY RAIN", "SLEET", "SNOW", "HEAVY SNOW", "THUNDERSTORM", "LOW CLOUDS", "MID CLOUDS")
+		val unchangedPresets = setOf("CLEAR", "MOSTLY CLEAR", "PARTLY CLOUDY", "FOG", "HIGH CLOUDS", "HUMID HAZE")
+		assertEquals(SCENE_PRESETS.map { it.name }.toSet(), stormCloudPresets + unchangedPresets)
+		val sources = mutableListOf<Bitmap>()
+		val legacyRenderer = SceneRenderer(resources, StormCloudPrototype(resources, enabled = false), epochDay = 0L)
+		val prototypeRenderer = SceneRenderer(resources, StormCloudPrototype(resources, enabled = true) { _, _ -> fixture().also { sources.add(it) } }, epochDay = 0L)
+		legacyRenderer.prewarmCloudTextures()
+		prototypeRenderer.prewarmCloudTextures()
+		val expected = createBitmap(240, 528)
+		val actual = createBitmap(240, 528)
+		try {
+			for (preset in SCENE_PRESETS) {
+				val params = debugSceneParams(preset, DayPhase.DAY)
+				expected.eraseColor(Color.TRANSPARENT)
+				actual.eraseColor(Color.TRANSPARENT)
+				legacyRenderer.render(Canvas(expected), 240, 528, params, 30f, celebrationEpochMillis = 0L)
+				prototypeRenderer.render(Canvas(actual), 240, 528, params, 30f, celebrationEpochMillis = 0L)
+				if (preset.name in stormCloudPresets) {
+					assertFalse("${preset.name} must route through StormCloudPrototype", expected.sameAs(actual))
+				} else {
+					assertTrue("${preset.name} must leave the non-overcast renderer unchanged", expected.sameAs(actual))
+				}
+			}
+		} finally {
+			expected.recycle()
+			actual.recycle()
+			sources.forEach { it.recycle() }
+		}
+	}
+
+	@Test
 	fun optedInBuildDecodesRealPackagedClouds() {
 		assumeTrue(BuildConfig.STORM_CLOUD_PROTOTYPE)
 		val prototype = StormCloudPrototype(resources)

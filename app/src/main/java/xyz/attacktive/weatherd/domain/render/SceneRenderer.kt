@@ -61,7 +61,15 @@ import xyz.attacktive.weatherd.domain.weather.SEVERITY_STORM
  * Split into a static [renderBackdrop] (sky, overcast ceiling, fog base, haze, vignette — cache it) and an animated [renderForeground] (twinkling stars, a glowing sun/moon, the horizon scenery, drifting clouds/overcast/mist, precipitation, lightning) advanced by `timeSeconds`.
  * Cloud sheets are decoded once and sampled through repeating bitmap shaders; fog uses cached scrolling veil tiles, so neither regenerates textures per frame.
  */
-class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
+class SceneRenderer private constructor(
+	resources: Resources,
+	private val epochDay: Long?,
+	private val stormCloudPrototype: StormCloudPrototype
+) {
+	constructor(resources: Resources, epochDay: Long? = null) : this(resources, epochDay, StormCloudPrototype(resources))
+
+	internal constructor(resources: Resources, stormCloudPrototype: StormCloudPrototype, epochDay: Long? = null) : this(resources, epochDay, stormCloudPrototype)
+
 	var lensFlareOffsetX: Float = 0f
 	var lensFlareOffsetY: Float = 0f
 
@@ -137,7 +145,6 @@ class SceneRenderer(resources: Resources, private val epochDay: Long? = null) {
 	private var sceneryGlyphPaths: List<SceneryLayerPath> = emptyList()
 	private var sceneryWindmill: SceneryWindmill? = null
 	private val tiles = HashMap<String, Bitmap>()
-	private val stormCloudPrototype = StormCloudPrototype(resources)
 	private val rainCloudClip = RainCloudClip()
 	private val sunSpriteCoverage = IdentityHashMap<Bitmap, SunSpriteCoverage>()
 	private val farOvercastBankDelegate = lazy { CloudLayer(resources, R.drawable.cloud_overcast_veil) }
