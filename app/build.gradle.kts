@@ -1,5 +1,5 @@
-import com.android.build.gradle.internal.tasks.DeviceProviderInstrumentTestTask
 import java.util.Properties
+import com.android.build.api.variant.DeviceTestBuilder
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -93,30 +93,44 @@ android {
 val instrumentationAdb = androidComponents.sdkComponents.adb
 val instrumentationScripts = rootProject.layout.projectDirectory.dir("scripts").asFile
 val instrumentationProviders = providers
-val instrumentationEnvironmentSerial = providers.environmentVariable("ANDROID_SERIAL").orElse("")
+val instrumentationEnvironmentSerial = providers.environmentVariable("ANDROID_SERIAL")
+	.orElse("")
 
-tasks.withType<DeviceProviderInstrumentTestTask>().configureEach {
-	val requestedSerials = testRunnerFactory.deviceSerialValues.orElse(testRunnerFactory.connectedCheckDeviceSerials).orElse(emptyList())
-	doFirst {
-		val taskSerials = requestedSerials.get()
-		if (taskSerials.isNotEmpty()) {
-			throw GradleException("This AGP version cannot safely execute task --serial selection. Set ANDROID_SERIAL to one disposable device instead.")
+val hasExplicitSerialSelection = gradle.startParameter.taskRequests
+	.flatMap { it.args }
+	.any { it == "--serial" || it.startsWith("--serial=") }
+
+androidComponents {
+	onVariants { variant ->
+		@Suppress("UnstableApiUsage")
+		variant.deviceTests[DeviceTestBuilder.ANDROID_TEST_TYPE]?.configureTestTask { testTask ->
+			testTask.doFirst {
+				if (hasExplicitSerialSelection) {
+					throw GradleException("This AGP version cannot safely execute task --serial selection. Set ANDROID_SERIAL to one disposable device instead.")
+				}
+
+				val serials = instrumentationEnvironmentSerial.get()
+					.split(',')
+					.filter { it.isNotBlank() }
+
+				val serialArguments = serials.flatMap { listOf("--serial", it) }
+
+				val command = listOf("python3", "-m", "provider_evaluation.instrumentation_safety") + serialArguments
+
+				val preflight = instrumentationProviders.exec {
+					workingDir(instrumentationScripts)
+					environment("ANDROID_HOME", instrumentationAdb.get().asFile.parentFile.parentFile.absolutePath)
+					commandLine(command)
+					isIgnoreExitValue = true
+				}
+
+				if (preflight.result.get().exitValue != 0) {
+					throw GradleException(preflight.standardError.asText.get().trim())
+				}
+
+				logger.lifecycle(preflight.standardOutput.asText.get().trim())
+			}
 		}
-
-		val serials = instrumentationEnvironmentSerial.get().split(',').filter { it.isNotBlank() }
-		val command = listOf("python3", "-m", "provider_evaluation.instrumentation_safety") + serials.flatMap { listOf("--serial", it) }
-		val preflight = instrumentationProviders.exec {
-			workingDir(instrumentationScripts)
-			environment("ANDROID_HOME", instrumentationAdb.get().asFile.parentFile.parentFile.absolutePath)
-			commandLine(command)
-			isIgnoreExitValue = true
-		}
-
-		if (preflight.result.get().exitValue != 0) {
-			throw GradleException(preflight.standardError.asText.get().trim())
-		}
-
-		logger.lifecycle(preflight.standardOutput.asText.get().trim())
 	}
 }
 
@@ -170,7 +184,9 @@ dependencies {
 }
 
 val prepareStormCloudDebugAssets = tasks.register("prepareStormCloudDebugAssets") {
+	description = "Prepares verified debug storm-cloud sprites when stormCloudPrototype is enabled."
 	onlyIf { stormCloudDebugEnabled.get() }
+
 	doLast {
 		val preparation = providers.exec {
 			workingDir(rootProject.projectDir)
@@ -187,8 +203,10 @@ val prepareStormCloudDebugAssets = tasks.register("prepareStormCloudDebugAssets"
 }
 
 val validateStormCloudPrototypeAssets = tasks.register("validateStormCloudPrototypeAssets") {
+	description = "Validates that all four debug storm-cloud PNG layers exist when stormCloudPrototype is enabled."
 	onlyIf { stormCloudDebugEnabled.get() }
 	dependsOn(prepareStormCloudDebugAssets)
+
 	doLast {
 		for (layer in listOf("upper", "hero", "distant", "veil")) {
 			check(layout.projectDirectory.file("src/debug/assets/storm-clouds/$layer.png").asFile.isFile) {
@@ -204,9 +222,12 @@ tasks.matching { it.name == "preDebugBuild" || it.name == "mergeDebugAssets" }.c
 
 /** Blocks release opt-in unless the licensed, high-resolution artwork is bundled. */
 val validateStormCloudReleaseAssets = tasks.register("validateStormCloudReleaseAssets") {
+	description = "Validates release storm-cloud permission metadata and artwork against stormCloudRelease."
+
 	doLast {
 		val assets = layout.projectDirectory.dir("src/release/assets/storm-clouds").asFile
 		val minimumWidths = mapOf("upper" to 1200, "hero" to 1500, "distant" to 1200, "veil" to 720)
+
 		check(stormCloudReleaseEnabled.get() || minimumWidths.keys.none { assets.resolve("$it.png").isFile }) {
 			"Storm-cloud artwork is present but the release renderer is disabled; enabling #405 must be explicit."
 		}
@@ -239,14 +260,17 @@ tasks.matching { it.name == "preReleaseBuild" }.configureEach {
 
 /** Verify the built APK and AAB before a cloud-enabled release can be published. */
 val verifyStormCloudReleasePackage = tasks.register("verifyStormCloudReleasePackage") {
+	description = "Verifies that the release APK and AAB contain matching authorized high-resolution storm-cloud assets."
 	onlyIf { stormCloudReleaseEnabled.get() }
 	dependsOn("assembleRelease")
+
 	doLast {
 		val verification = providers.exec {
 			workingDir(rootProject.projectDir)
 			commandLine("python3", rootProject.file("scripts/verify-storm-cloud-package.py").absolutePath)
 			isIgnoreExitValue = true
 		}.result.get()
+
 		check(verification.exitValue == 0) {
 			"Release APK/AAB do not contain matching authorized high-resolution storm clouds."
 		}
