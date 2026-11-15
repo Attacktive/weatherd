@@ -290,7 +290,6 @@ private fun AdvancedSettingsTab(viewModel: SettingsViewModel, scrollState: Scrol
 
 		if (BuildConfig.DEBUG) {
 			Spacer(modifier = Modifier.height(24.dp))
-
 			SeasonalCelebrationDebugSection(settings = settings, onSave = onSave)
 		}
 
@@ -714,7 +713,7 @@ private fun LocationSection(
 		lastFailureEpochSeconds = state.weatherStatus.lastFailureEpochSeconds,
 		weatherNotice = state.weatherStatus.weatherNotice,
 		weatherSource = state.weatherStatus.weatherSource,
-		refreshInProgress = state.weatherStatus.weatherRefreshInProgress,
+		refreshInProgress = state.weatherRefreshInProgress,
 		onClear = locationActions.onClearManualLocation.takeIf { manualLocationSelected }
 	)
 
