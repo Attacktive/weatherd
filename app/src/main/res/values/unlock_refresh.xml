@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="refresh_on_unlock">Refresh on unlock</string>
+	<string name="refresh_on_unlock_summary">Request fresh weather when you unlock your device while Weatherd is running. Independent of the refresh interval, with at least 5 minutes between unlock refresh attempts. Waits for a network connection and may use more battery and data.</string>
+</resources>

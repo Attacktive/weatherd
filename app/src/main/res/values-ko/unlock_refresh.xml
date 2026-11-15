@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="refresh_on_unlock">잠금 해제 시 날씨 갱신</string>
+	<string name="refresh_on_unlock_summary">Weatherd가 실행 중일 때 기기의 잠금을 해제하면 날씨를 새로 받아옵니다. 기존 갱신 간격과 별도로 동작하며, 갱신 시도 사이에 최소 5분을 둡니다. 네트워크에 연결될 때까지 기다리며 배터리와 데이터 사용량이 늘어날 수 있습니다.</string>
+</resources>

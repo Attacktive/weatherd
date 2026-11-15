@@ -57,6 +57,7 @@ sealed interface SettingsMutation {
 	data class WeatherProvider(val value: WeatherProviderType): SettingsMutation
 	data class WeatherFallbackProvider(val value: WeatherProviderType): SettingsMutation
 	data class UpdateIntervalMinutes(val value: Int): SettingsMutation
+	data class RefreshOnUnlock(val enabled: Boolean): SettingsMutation
 	data class HideStaleWeatherWarning(val enabled: Boolean): SettingsMutation
 	data class UseDeviceLocation(val enabled: Boolean): SettingsMutation
 	data class ManualLocation(val latitude: Double, val longitude: Double, val label: String?): SettingsMutation
@@ -120,6 +121,7 @@ internal fun settingsMutationsBetween(previous: AppSettings, updated: AppSetting
 		addIfChanged(previous.weatherProvider, updated.weatherProvider, SettingsMutation::WeatherProvider)
 		addIfChanged(previous.weatherFallbackProvider, updated.weatherFallbackProvider, SettingsMutation::WeatherFallbackProvider)
 		addIfChanged(previous.updateIntervalMinutes, updated.updateIntervalMinutes, SettingsMutation::UpdateIntervalMinutes)
+		addIfChanged(previous.refreshOnUnlockEnabled, updated.refreshOnUnlockEnabled, SettingsMutation::RefreshOnUnlock)
 		addIfChanged(previous.hideStaleWeatherWarning, updated.hideStaleWeatherWarning, SettingsMutation::HideStaleWeatherWarning)
 		addManualLocationChange(previous, updated)
 		addIfChanged(previous.useDeviceLocation, updated.useDeviceLocation, SettingsMutation::UseDeviceLocation)
@@ -215,6 +217,7 @@ private fun SettingsMutation.appliedTo(settings: AppSettings) = when (this) {
 	is SettingsMutation.WeatherProvider -> settings.copy(weatherProvider = value)
 	is SettingsMutation.WeatherFallbackProvider -> settings.copy(weatherFallbackProvider = value)
 	is SettingsMutation.UpdateIntervalMinutes -> settings.copy(updateIntervalMinutes = value)
+	is SettingsMutation.RefreshOnUnlock -> settings.copy(refreshOnUnlockEnabled = enabled)
 	is SettingsMutation.HideStaleWeatherWarning -> settings.copy(hideStaleWeatherWarning = enabled)
 	is SettingsMutation.UseDeviceLocation -> settings.copy(useDeviceLocation = enabled)
 	is SettingsMutation.ManualLocation -> settings.copy(useDeviceLocation = false, manualLatitude = latitude, manualLongitude = longitude, manualLocationLabel = label)
@@ -295,6 +298,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		val WEATHER_PROVIDER = stringPreferencesKey("weather_provider")
 		val WEATHER_FALLBACK_PROVIDER = stringPreferencesKey("weather_fallback_provider")
 		val UPDATE_INTERVAL_MINUTES = intPreferencesKey("update_interval_minutes")
+		val REFRESH_ON_UNLOCK_ENABLED = booleanPreferencesKey("refresh_on_unlock_enabled")
 		val HIDE_STALE_WEATHER_WARNING = booleanPreferencesKey("hide_stale_weather_warning")
 		val USE_DEVICE_LOCATION = booleanPreferencesKey("use_device_location")
 		val MANUAL_LATITUDE = doublePreferencesKey("manual_latitude")
@@ -358,6 +362,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			weatherProvider = enumOrDefault(preferences[Keys.WEATHER_PROVIDER], WeatherProviderType.entries, defaults.weatherProvider),
 			weatherFallbackProvider = globalWeatherProviderOrDefault(preferences[Keys.WEATHER_FALLBACK_PROVIDER], defaults.weatherFallbackProvider),
 			updateIntervalMinutes = preferences[Keys.UPDATE_INTERVAL_MINUTES] ?: defaults.updateIntervalMinutes,
+			refreshOnUnlockEnabled = preferences[Keys.REFRESH_ON_UNLOCK_ENABLED] ?: defaults.refreshOnUnlockEnabled,
 			hideStaleWeatherWarning = preferences[Keys.HIDE_STALE_WEATHER_WARNING] ?: defaults.hideStaleWeatherWarning,
 			useDeviceLocation = preferences[Keys.USE_DEVICE_LOCATION] ?: defaults.useDeviceLocation,
 			manualLatitude = preferences[Keys.MANUAL_LATITUDE],
@@ -446,6 +451,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			preferences[Keys.WEATHER_PROVIDER] = settings.weatherProvider.name
 			preferences[Keys.WEATHER_FALLBACK_PROVIDER] = settings.weatherFallbackProvider.takeIf { it.definition.isGlobal }?.name ?: defaults.weatherFallbackProvider.name
 			preferences[Keys.UPDATE_INTERVAL_MINUTES] = settings.updateIntervalMinutes
+			preferences[Keys.REFRESH_ON_UNLOCK_ENABLED] = settings.refreshOnUnlockEnabled
 			preferences[Keys.HIDE_STALE_WEATHER_WARNING] = settings.hideStaleWeatherWarning
 			preferences[Keys.USE_DEVICE_LOCATION] = settings.useDeviceLocation
 			preferences.putOrRemove(Keys.MANUAL_LATITUDE, settings.manualLatitude)
@@ -510,6 +516,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			is SettingsMutation.WeatherProvider -> this[Keys.WEATHER_PROVIDER] = mutation.value.name
 			is SettingsMutation.WeatherFallbackProvider -> this[Keys.WEATHER_FALLBACK_PROVIDER] = mutation.value.takeIf { it.definition.isGlobal }?.name ?: defaults.weatherFallbackProvider.name
 			is SettingsMutation.UpdateIntervalMinutes -> this[Keys.UPDATE_INTERVAL_MINUTES] = mutation.value
+			is SettingsMutation.RefreshOnUnlock -> this[Keys.REFRESH_ON_UNLOCK_ENABLED] = mutation.enabled
 			is SettingsMutation.HideStaleWeatherWarning -> this[Keys.HIDE_STALE_WEATHER_WARNING] = mutation.enabled
 			is SettingsMutation.UseDeviceLocation -> this[Keys.USE_DEVICE_LOCATION] = mutation.enabled
 			is SettingsMutation.ManualLocation -> {

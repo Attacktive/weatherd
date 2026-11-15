@@ -233,6 +233,15 @@ private fun WeatherSettingsTab(viewModel: SettingsViewModel, scrollState: Scroll
 		Spacer(modifier = Modifier.height(24.dp))
 
 		ToggleSetting(
+			label = stringResource(R.string.refresh_on_unlock),
+			subtitle = stringResource(R.string.refresh_on_unlock_summary),
+			checked = settings.refreshOnUnlockEnabled,
+			onToggle = { onSave(settings.copy(refreshOnUnlockEnabled = it)) }
+		)
+
+		Spacer(modifier = Modifier.height(24.dp))
+
+		ToggleSetting(
 			label = stringResource(R.string.hide_stale_weather_warning),
 			subtitle = stringResource(R.string.hide_stale_weather_warning_summary),
 			checked = settings.hideStaleWeatherWarning,
@@ -281,6 +290,7 @@ private fun AdvancedSettingsTab(viewModel: SettingsViewModel, scrollState: Scrol
 
 		if (BuildConfig.DEBUG) {
 			Spacer(modifier = Modifier.height(24.dp))
+
 			SeasonalCelebrationDebugSection(settings = settings, onSave = onSave)
 		}
 
@@ -704,7 +714,7 @@ private fun LocationSection(
 		lastFailureEpochSeconds = state.weatherStatus.lastFailureEpochSeconds,
 		weatherNotice = state.weatherStatus.weatherNotice,
 		weatherSource = state.weatherStatus.weatherSource,
-		refreshInProgress = state.weatherRefreshInProgress,
+		refreshInProgress = state.weatherStatus.weatherRefreshInProgress,
 		onClear = locationActions.onClearManualLocation.takeIf { manualLocationSelected }
 	)
 

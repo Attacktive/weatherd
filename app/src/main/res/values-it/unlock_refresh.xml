@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="refresh_on_unlock">Aggiorna allo sblocco</string>
+	<string name="refresh_on_unlock_summary">Richiede dati meteo aggiornati allo sblocco del dispositivo mentre Weatherd è in esecuzione. Funziona indipendentemente dall’intervallo di aggiornamento, con almeno 5 minuti tra i tentativi. Attende una connessione di rete e può consumare più batteria e dati.</string>
+</resources>
