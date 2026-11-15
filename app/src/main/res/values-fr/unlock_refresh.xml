@@ -1,0 +1,4 @@
+<resources>
+	<string name="refresh_on_unlock">Actualiser au déverrouillage</string>
+	<string name="refresh_on_unlock_summary">Récupère des données météo à jour lorsque vous déverrouillez votre appareil pendant que Weatherd fonctionne. Indépendant de l’intervalle d’actualisation, avec au moins 5 minutes entre les tentatives déclenchées par le déverrouillage. Attend une connexion réseau et peut consommer davantage de batterie et de données.</string>
+</resources>

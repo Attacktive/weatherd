@@ -1,0 +1,4 @@
+<resources>
+	<string name="refresh_on_unlock">Atualizar ao desbloquear</string>
+	<string name="refresh_on_unlock_summary">Pede dados meteorológicos atualizados ao desbloquear o dispositivo enquanto o Weatherd está em execução. Funciona independentemente do intervalo de atualização, com pelo menos 5 minutos entre as tentativas de atualização após o desbloqueio. Aguarda uma ligação à rede e pode consumir mais bateria e dados.</string>
+</resources>

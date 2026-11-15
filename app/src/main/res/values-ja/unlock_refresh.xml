@@ -1,0 +1,4 @@
+<resources>
+	<string name="refresh_on_unlock">ロック解除時に更新</string>
+	<string name="refresh_on_unlock_summary">Weatherd の実行中に端末のロックを解除すると、最新の天気情報を取得します。通常の更新間隔とは独立して動作し、ロック解除による更新は少なくとも 5 分間隔で試行します。ネットワーク接続を待機し、バッテリーやデータ通信量が増える場合があります。</string>
+</resources>

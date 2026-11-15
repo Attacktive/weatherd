@@ -1,0 +1,4 @@
+<resources>
+	<string name="refresh_on_unlock">Kilit açıldığında yenile</string>
+	<string name="refresh_on_unlock_summary">Weatherd çalışırken cihazın kilidini açtığınızda güncel hava durumu verilerini ister. Yenileme sıklığından bağımsız çalışır ve kilit açma sonrası yenileme denemeleri arasında en az 5 dakika bırakır. Ağ bağlantısı kurulmasını bekler; daha fazla pil ve veri tüketebilir.</string>
+</resources>

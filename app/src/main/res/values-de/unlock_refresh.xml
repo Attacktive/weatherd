@@ -1,0 +1,4 @@
+<resources>
+	<string name="refresh_on_unlock">Beim Entsperren aktualisieren</string>
+	<string name="refresh_on_unlock_summary">Ruft beim Entsperren des Geräts aktuelle Wetterdaten ab, während Weatherd läuft. Funktioniert unabhängig vom Aktualisierungsintervall, mit mindestens 5 Minuten zwischen den durch Entsperren ausgelösten Aktualisierungsversuchen. Wartet auf eine Netzwerkverbindung und kann den Akku sowie das Datenvolumen stärker beanspruchen.</string>
+</resources>

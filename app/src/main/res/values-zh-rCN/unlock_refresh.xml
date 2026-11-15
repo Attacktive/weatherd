@@ -1,0 +1,4 @@
+<resources>
+	<string name="refresh_on_unlock">解锁时刷新</string>
+	<string name="refresh_on_unlock_summary">Weatherd 运行期间，解锁设备时请求最新天气数据。此功能独立于常规刷新间隔，解锁触发的刷新尝试之间至少间隔 5 分钟。需要等待网络连接，可能增加耗电量和数据用量。</string>
+</resources>
