@@ -83,6 +83,7 @@
 	<string name="section_backdrop">Backdrop scenery</string>
 	<string name="label_trees">Trees</string>
 	<string name="subtitle_trees">Show trees in the foreground</string>
+	<string name="subtitle_trees_treescape">Treescape includes its own trees.</string>
 	<string name="section_tree_style">Tree shape</string>
 	<string name="tree_style_evergreen">Evergreen</string>
 	<string name="tree_style_broadleaf">Broadleaf</string>
@@ -212,6 +213,8 @@
 	<string name="backdrop_not_recommended">%1$s (Not recommended)</string>
 	<string name="backdrop_photo">Your photos</string>
 	<string name="backdrop_cloud_mountains">Cloud mountains</string>
+	<string name="backdrop_treescape">Treescape</string>
+	<string name="hint_treescape_season">The season changes the trees and meadow in Treescape.</string>
 
 	<!-- Photo backgrounds -->
 	<string name="section_photo_backgrounds">Photo backgrounds</string>

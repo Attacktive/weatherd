@@ -60,6 +60,7 @@
 	<string name="section_backdrop">Cenário de fundo</string>
 	<string name="label_trees">Árvores</string>
 	<string name="subtitle_trees">Mostrar árvores em primeiro plano</string>
+	<string name="subtitle_trees_treescape">A paisagem arborizada inclui as suas próprias árvores.</string>
 	<string name="section_tree_style">Formato das árvores</string>
 	<string name="tree_style_evergreen">Perene</string>
 	<string name="tree_style_broadleaf">Folhosa</string>
@@ -188,6 +189,8 @@
 	<string name="backdrop_not_recommended">%1$s (Utilização não recomendada)</string>
 	<string name="backdrop_photo">As suas fotografias</string>
 	<string name="backdrop_cloud_mountains">Montanhas entre nuvens</string>
+	<string name="backdrop_treescape">Paisagem arborizada</string>
+	<string name="hint_treescape_season">A estação altera as árvores e o prado na paisagem arborizada.</string>
 
 	<!-- Photo backgrounds -->
 	<string name="section_photo_backgrounds">Fotografias de fundo</string>

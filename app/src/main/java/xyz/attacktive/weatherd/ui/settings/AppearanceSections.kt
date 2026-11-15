@@ -752,46 +752,59 @@ internal fun TreesSection(
 	defaults: AppSettings,
 	onSave: (AppSettings) -> Unit
 ) {
+	val isTreescape = settings.backdropScene == BackdropScene.TREESCAPE
 	ToggleSetting(
 		label = stringResource(R.string.label_trees),
-		subtitle = stringResource(R.string.subtitle_trees),
-		checked = settings.treesEnabled,
-		onToggle = { onSave(settings.copy(treesEnabled = it)) }
+		subtitle = stringResource(if (isTreescape) R.string.subtitle_trees_treescape else R.string.subtitle_trees),
+		checked = settings.treesEnabled && !isTreescape,
+		onToggle = { onSave(settings.copy(treesEnabled = it)) },
+		enabled = !isTreescape
 	)
 
 	AnimatedVisibility(visible = settings.treesEnabled) {
 		Column {
 			Spacer(modifier = Modifier.height(16.dp))
-			TreeStylePicker(settings = settings, defaults = defaults, onSave = onSave)
+			TreeStylePicker(settings = settings, defaults = defaults, onSave = onSave, enabled = !isTreescape)
+		}
+	}
+
+	AnimatedVisibility(visible = settings.treesEnabled || isTreescape) {
+		Column {
 			Spacer(modifier = Modifier.height(16.dp))
 			TreeSeasonPicker(settings = settings, defaults = defaults, onSave = onSave)
+
+			if (isTreescape) {
+				HintText(stringResource(R.string.hint_treescape_season))
+			}
 		}
 	}
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TreeStylePicker(settings: AppSettings, defaults: AppSettings, onSave: (AppSettings) -> Unit) {
+private fun TreeStylePicker(settings: AppSettings, defaults: AppSettings, onSave: (AppSettings) -> Unit, enabled: Boolean) {
 	var expanded by remember { mutableStateOf(false) }
+	val menuExpanded = expanded && enabled
 
 	ResettableSectionLabel(
 		text = stringResource(R.string.section_tree_style),
-		isDefault = settings.treeStyle == defaults.treeStyle,
+		isDefault = !enabled || settings.treeStyle == defaults.treeStyle,
 		onReset = { onSave(settings.copy(treeStyle = defaults.treeStyle)) }
 	)
 
-	ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+	ExposedDropdownMenuBox(expanded = menuExpanded, onExpandedChange = { expanded = it && enabled }) {
 		OutlinedTextField(
 			value = formatTreeStyle(settings.treeStyle),
 			onValueChange = {},
 			readOnly = true,
-			trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+			enabled = enabled,
+			trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuExpanded) },
 			modifier = Modifier
 				.fillMaxWidth()
-				.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+				.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled = enabled)
 		)
 
-		ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+		ExposedDropdownMenu(expanded = menuExpanded, onDismissRequest = { expanded = false }) {
 			TreeStyle.entries.forEach { style ->
 				DropdownMenuItem(
 					text = { Text(formatTreeStyle(style)) },
@@ -999,6 +1012,7 @@ internal fun formatBackdrop(scene: BackdropScene, includeRecommendation: Boolean
 		BackdropScene.COUNTRYSIDE -> stringResource(R.string.backdrop_countryside)
 		BackdropScene.PHOTO -> stringResource(R.string.backdrop_photo)
 		BackdropScene.CLOUD_MOUNTAINS -> stringResource(R.string.backdrop_cloud_mountains)
+		BackdropScene.TREESCAPE -> stringResource(R.string.backdrop_treescape)
 	}
 
 	return if (scene.drawsScenery && includeRecommendation) {

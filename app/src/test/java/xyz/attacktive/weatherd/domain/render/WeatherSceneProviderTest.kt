@@ -77,7 +77,8 @@ class WeatherSceneProviderTest {
 	fun `auto foliage follows selected latitude in live simulated and offline scenes`() {
 		val now = Instant.parse("2026-10-31T12:00:00Z").epochSecond
 		val settings = AppSettings(
-			treesEnabled = true,
+			backdropScene = BackdropScene.TREESCAPE,
+			treesEnabled = false,
 			treeSeason = TreeSeason.AUTO,
 			useDeviceLocation = false,
 			manualLatitude = 37.57,
@@ -88,10 +89,15 @@ class WeatherSceneProviderTest {
 		val simulated = fallback.copy(settings = settings.copy(sceneSimulatorEnabled = true, sceneSimulatorActive = true))
 		for (scene in listOf(fallback, live, simulated)) {
 			val north = provider.paramsFor(now, scene)
+			assertEquals(BackdropScene.TREESCAPE, north.backdropScene)
+			assertFalse(north.treesEnabled)
 			assertEquals(TreeSeason.AUTUMN, north.treeSeason)
 			val south = provider.paramsFor(now, scene.copy(settings = scene.settings.copy(manualLatitude = -33.9, manualLongitude = 151.2)))
+			assertEquals(BackdropScene.TREESCAPE, south.backdropScene)
 			assertEquals(TreeSeason.SPRING, south.treeSeason)
-			assertEquals(backdropSignature(north), backdropSignature(north.copy(treeSeason = south.treeSeason)))
+			val winter = provider.paramsFor(now, scene.copy(settings = scene.settings.copy(treeSeason = TreeSeason.WINTER)))
+			assertEquals(BackdropScene.TREESCAPE, winter.backdropScene)
+			assertEquals(TreeSeason.WINTER, winter.treeSeason)
 		}
 
 		val device = fallback.copy(settings = settings.copy(useDeviceLocation = true), deviceLocation = GeoLocation(-33.9, 151.2))

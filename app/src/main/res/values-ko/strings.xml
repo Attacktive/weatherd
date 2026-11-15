@@ -60,6 +60,7 @@
 	<string name="section_backdrop">배경 풍경</string>
 	<string name="label_trees">나무</string>
 	<string name="subtitle_trees">전경에 나무를 표시합니다</string>
+	<string name="subtitle_trees_treescape">나무 풍경에는 자체 나무가 포함되어 있습니다.</string>
 	<string name="section_tree_style">나무 모양</string>
 	<string name="tree_style_evergreen">상록수</string>
 	<string name="tree_style_broadleaf">활엽수</string>
@@ -188,6 +189,8 @@
 	<string name="backdrop_not_recommended">%1$s (권장하지 않음)</string>
 	<string name="backdrop_photo">내 사진</string>
 	<string name="backdrop_cloud_mountains">구름 산맥</string>
+	<string name="backdrop_treescape">나무 풍경</string>
+	<string name="hint_treescape_season">계절에 따라 나무 풍경의 나무와 초원이 바뀝니다.</string>
 
 	<!-- Photo backgrounds -->
 	<string name="section_photo_backgrounds">배경 사진</string>

@@ -27,35 +27,42 @@ class ForegroundTreeRenderingTest {
 	@Test
 	fun seasonalFoliagePreservesTreeGeometryAndOriginalRendering() {
 		val layer = ForegroundTreeLayer(resources)
-		for (style in TreeStyle.entries) {
-			layer.prewarm(style)
-			val original = renderTrees(layer, clearParams(style))
-			val defaultParams = clearParams(style).copy(treeSeason = TreeSeason.SPRING)
+		val compositions = listOf(
+			clearParams(),
+			clearParams(TreeStyle.BROADLEAF)
+		)
+
+		for (params in compositions) {
+			val context = "${params.treeStyle}/${params.backdropScene}"
+			layer.prewarm(params)
+			val original = renderTrees(layer, params)
+			val defaultParams = params.copy(treeSeason = TreeSeason.SPRING)
 			val defaultRender = renderTrees(ForegroundTreeLayer(resources), defaultParams)
-			assertTrue("The Spring $style artwork must match the original bitmaps", original.sameAs(defaultRender))
+			assertTrue("The Spring $context artwork must match the original bitmaps", original.sameAs(defaultRender))
 			defaultRender.recycle()
 
 			for (season in TreeSeason.entries.filter { it != TreeSeason.SPRING && it != TreeSeason.AUTO }) {
-				layer.prewarm(style, season)
-				val variant = renderTrees(layer, clearParams(style).copy(treeSeason = season))
+				val selected = params.copy(treeSeason = season)
+				layer.prewarm(selected)
+				val variant = renderTrees(layer, selected)
 				var changedPixels = 0
 				for (y in 0 until HEIGHT) {
 					for (x in 0 until WIDTH) {
 						val before = original.getPixel(x, y)
 						val after = variant.getPixel(x, y)
-						assertEquals("Season $season must preserve $style alpha at ($x, $y)", Color.alpha(before), Color.alpha(after))
+						assertEquals("Season $season must preserve $context alpha at ($x, $y)", Color.alpha(before), Color.alpha(after))
 						if (before != after) {
 							changedPixels++
 						}
 					}
 				}
 
-				assertTrue("$style $season must visibly change foliage", changedPixels > WIDTH * HEIGHT / 500)
+				assertTrue("$context $season must visibly change foliage", changedPixels > WIDTH * HEIGHT / 500)
 				variant.recycle()
 			}
 
-			val restored = renderTrees(layer, clearParams(style))
-			assertTrue("Switching back must restore original $style pixels", original.sameAs(restored))
+			val restored = renderTrees(layer, params)
+			assertTrue("Switching back must restore original $context pixels", original.sameAs(restored))
 			original.recycle()
 			restored.recycle()
 		}
@@ -67,19 +74,19 @@ class ForegroundTreeRenderingTest {
 		val obsoleteWorker = ForegroundTreeLayer(resources)
 
 		for (style in TreeStyle.entries) {
-			selectedLayer.prewarm(style)
+			selectedLayer.prewarm(clearParams(style))
 			val original = renderTrees(selectedLayer, clearParams(style))
-			selectedLayer.prewarm(style, TreeSeason.WINTER)
+			selectedLayer.prewarm(clearParams(style).copy(treeSeason = TreeSeason.WINTER))
 			val selected = clearParams(style).copy(treeSeason = TreeSeason.WINTER)
 			val expected = renderTrees(selectedLayer, selected)
 			assertFalse("Winter $style must differ from Spring", original.sameAs(expected))
 
 			// Simulate an older preview request resuming after the active wallpaper season is ready.
-			obsoleteWorker.prewarm(style, TreeSeason.AUTUMN)
-			obsoleteWorker.prewarm(style, TreeSeason.SUMMER)
+			obsoleteWorker.prewarm(clearParams(style).copy(treeSeason = TreeSeason.AUTUMN))
+			obsoleteWorker.prewarm(clearParams(style).copy(treeSeason = TreeSeason.SUMMER))
 
 			for (season in TreeSeason.entries) {
-				assertTrue("$style $season must remain ready after obsolete prewarms", selectedLayer.isTextureReady(style, season))
+				assertTrue("$style $season must remain ready after obsolete prewarms", selectedLayer.isTextureReady(clearParams(style).copy(treeSeason = season)))
 			}
 
 			val actual = renderTrees(selectedLayer, selected)
@@ -96,7 +103,7 @@ class ForegroundTreeRenderingTest {
 			for (backdrop in BackdropScene.entries) {
 				val params = clearParams(style).copy(backdropScene = backdrop)
 				val renderer = SceneRenderer(resources)
-				renderer.prewarmTreeTextures(style)
+				renderer.prewarmTreeTextures(params)
 				val control = SceneRenderer(resources)
 				// Compare matching frame histories because the existing scenery retains paint and cache state between draws.
 				renderForeground(control, params.copy(treesEnabled = false)).recycle()
@@ -116,7 +123,9 @@ class ForegroundTreeRenderingTest {
 					}
 				}
 
-				if (style == TreeStyle.EVERGREEN) {
+				if (backdrop == BackdropScene.TREESCAPE) {
+					assertEquals("Treescape must not acquire an additional foreground cluster for $style", 0, changedPixels)
+				} else if (style == TreeStyle.EVERGREEN) {
 					assertTrue("Evergreen must retain its existing foreground presence for $backdrop: $changedPixels pixels", changedPixels > WIDTH * HEIGHT / 10)
 				}
 
@@ -134,35 +143,38 @@ class ForegroundTreeRenderingTest {
 	@Test
 	fun broadleafKeepsTheLargerCrownVisibleAndTheUpperCenterOpenAcrossViewportsAndScrolling() {
 		val layer = ForegroundTreeLayer(resources)
-		layer.prewarm(TreeStyle.BROADLEAF)
 		val viewports = listOf(360 to 780, 780 to 360, 800 to 1280, 1280 to 800, 1200 to 540, 1920 to 540)
-		for ((width, height) in viewports) {
-			for (scrolling in listOf(false, true)) {
-				val sceneWidth = wallpaperSceneWidth(width, scrolling)
-				val offsets = if (scrolling) {
-					listOf(0f, 0.5f, 1f)
-				} else {
-					listOf(0.5f)
-				}
+		for (backdrop in BackdropScene.entries.filter { it != BackdropScene.TREESCAPE }) {
+			val params = clearParams(TreeStyle.BROADLEAF).copy(backdropScene = backdrop)
+			layer.prewarm(params)
+			for ((width, height) in viewports) {
+				for (scrolling in listOf(false, true)) {
+					val sceneWidth = wallpaperSceneWidth(width, scrolling)
+					val offsets = if (scrolling) {
+						listOf(0f, 0.5f, 1f)
+					} else {
+						listOf(0.5f)
+					}
 
-				for (offset in offsets) {
-					val bitmap = createBitmap(width, height)
-					val canvas = Canvas(bitmap)
-					val viewportLeft = wallpaperViewportLeft(width, sceneWidth, offset, scrolling)
-					canvas.translate(-viewportLeft, 0f)
-					layer.draw(canvas, sceneWidth.toFloat(), height.toFloat(), clearParams(TreeStyle.BROADLEAF))
+					for (offset in offsets) {
+						val bitmap = createBitmap(width, height)
+						val canvas = Canvas(bitmap)
+						val viewportLeft = wallpaperViewportLeft(width, sceneWidth, offset, scrolling)
+						canvas.translate(-viewportLeft, 0f)
+						layer.draw(canvas, sceneWidth.toFloat(), height.toFloat(), params)
 
-					val left = alphaCoverage(bitmap, 0, width / 3)
-					val upperCenter = alphaCoverage(bitmap, width * 2 / 5, width * 3 / 5, endY = height / 2)
-					val right = alphaCoverage(bitmap, width * 3 / 4, width)
-					val context = "${width}x$height scrolling=$scrolling offset=$offset"
+						val left = alphaCoverage(bitmap, 0, width / 3)
+						val upperCenter = alphaCoverage(bitmap, width * 2 / 5, width * 3 / 5, endY = height / 2)
+						val right = alphaCoverage(bitmap, width * 3 / 4, width)
+						val context = "$backdrop ${width}x$height scrolling=$scrolling offset=$offset"
 
-					assertTrue("The larger Broadleaf tree must retain its left-side presence: $context ($left)", left > 0.015)
-					assertTrue("Right Broadleaf tree must frame the edge: $context ($right)", right > 0.015)
-					assertEquals("The larger Broadleaf crown must not clip the left boundary: $context", 0.0, alphaCoverage(bitmap, 0, 1), 0.0)
-					assertEquals("Broadleaf must leave the upper middle sky open: $context", 0.0, upperCenter, 0.0)
+						assertTrue("The larger Broadleaf tree must retain its left-side presence: $context ($left)", left > 0.015)
+						assertTrue("Right Broadleaf tree must frame the edge: $context ($right)", right > 0.015)
+						assertEquals("The larger Broadleaf crown must not clip the left boundary: $context", 0.0, alphaCoverage(bitmap, 0, 1), 0.0)
+						assertEquals("Broadleaf must leave the upper middle sky open: $context", 0.0, upperCenter, 0.0)
 
-					bitmap.recycle()
+						bitmap.recycle()
+					}
 				}
 			}
 		}
@@ -172,7 +184,7 @@ class ForegroundTreeRenderingTest {
 	fun phaseLightingDarkensFoliageWithoutChangingItsSilhouette() {
 		val layer = ForegroundTreeLayer(resources)
 		for (style in TreeStyle.entries) {
-			layer.prewarm(style)
+			layer.prewarm(clearParams(style))
 			val day = renderTrees(layer, clearParams(style))
 			val night = renderTrees(layer, clearParams(style).copy(dayPhase = DayPhase.NIGHT))
 			val storm = renderTrees(layer, clearParams(style).copy(cloudiness = 1f, thunder = true))
@@ -205,7 +217,7 @@ class ForegroundTreeRenderingTest {
 	fun resizingAndReturningToPortraitPreservesTheDeterministicComposition() {
 		val layer = ForegroundTreeLayer(resources)
 		for (style in TreeStyle.entries) {
-			layer.prewarm(style)
+			layer.prewarm(clearParams(style))
 			val original = renderTrees(layer, clearParams(style))
 			val landscape = renderTrees(layer, clearParams(style), width = HEIGHT, height = WIDTH)
 			val restored = renderTrees(layer, clearParams(style))
@@ -234,8 +246,8 @@ class ForegroundTreeRenderingTest {
 	@Test
 	fun switchingStyleAtTheSameSizeUsesItsNaturalGeometryAndRestoresEvergreensExactly() {
 		val layer = ForegroundTreeLayer(resources)
-		layer.prewarm(TreeStyle.EVERGREEN)
-		layer.prewarm(TreeStyle.BROADLEAF)
+		layer.prewarm(clearParams())
+		layer.prewarm(clearParams(TreeStyle.BROADLEAF))
 		val evergreen = renderTrees(layer, clearParams())
 		val broadleaf = renderTrees(layer, clearParams(TreeStyle.BROADLEAF))
 		val freshBroadleaf = renderTrees(ForegroundTreeLayer(resources), clearParams(TreeStyle.BROADLEAF))
@@ -260,10 +272,34 @@ class ForegroundTreeRenderingTest {
 	}
 
 	@Test
+	fun treescapeSuppressesBothOverlayStylesAndRestoresTheirPreparedComposition() {
+		val layer = ForegroundTreeLayer(resources)
+		for (style in TreeStyle.entries) {
+			for (season in listOf(TreeSeason.SPRING, TreeSeason.SUMMER, TreeSeason.AUTUMN, TreeSeason.WINTER)) {
+				val standard = clearParams(style).copy(treeSeason = season)
+				val treescape = standard.copy(backdropScene = BackdropScene.TREESCAPE)
+				layer.prewarm(standard)
+				for ((width, height) in listOf(360 to 780, 780 to 360)) {
+					val original = renderTrees(layer, standard, width, height)
+					layer.prewarm(treescape)
+					val suppressed = renderTrees(layer, treescape, width, height)
+					val restored = renderTrees(layer, standard, width, height)
+					assertTrue("The prepared $style foreground must be visible outside Treescape", alphaCoverage(original, 0, width) > 0.01)
+					assertEquals("Treescape must suppress $style in $season, even with an already prepared bank", 0.0, alphaCoverage(suppressed, 0, width), 0.0)
+					assertTrue("Leaving Treescape must restore the exact $style composition", original.sameAs(restored))
+					original.recycle()
+					suppressed.recycle()
+					restored.recycle()
+				}
+			}
+		}
+	}
+
+	@Test
 	fun fogRainAndSnowCompositeInFrontOfTheTrees() {
 		val layer = ForegroundTreeLayer(resources)
 		for (style in TreeStyle.entries) {
-			layer.prewarm(style)
+			layer.prewarm(clearParams(style))
 			val weatherScenes = listOf(
 				clearParams(style).copy(fogDensity = 0.7f),
 				clearParams(style).copy(precipitation = Precipitation(PrecipitationKind.RAIN, severity = 1f, observed = 1f)),

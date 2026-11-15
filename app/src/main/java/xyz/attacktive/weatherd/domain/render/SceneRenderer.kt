@@ -45,7 +45,6 @@ import xyz.attacktive.weatherd.domain.model.SkyGradientDirection
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.SunbeamMode
-import xyz.attacktive.weatherd.domain.model.TreeStyle
 import xyz.attacktive.weatherd.domain.model.TreeSeason
 import xyz.attacktive.weatherd.domain.model.drawsScenery
 import xyz.attacktive.weatherd.domain.model.normalizeCloudSizeScale
@@ -78,6 +77,7 @@ class SceneRenderer private constructor(
 	private val blitDest = RectF()
 	private val lightningBolt by lazy(LazyThreadSafetyMode.NONE) { LightningBoltLayer() }
 	private val cloudMountains = CloudMountainLayer(resources)
+	private val treescape = TreescapeLayer(resources)
 	private val foregroundTrees = ForegroundTreeLayer(resources)
 	private val distantAircraft = DistantAircraftLayer()
 	private val seasonalCelebration by lazy(LazyThreadSafetyMode.NONE) { SeasonalCelebrationLayer() }
@@ -258,19 +258,25 @@ class SceneRenderer private constructor(
 		stormCloudPrototype.prewarm()
 	}
 
-	fun isSceneryTextureReady(scene: BackdropScene) = scene != BackdropScene.CLOUD_MOUNTAINS || cloudMountains.textureReady
+	fun isSceneryTextureReady(scene: BackdropScene, season: TreeSeason = TreeSeason.SPRING) = when (scene) {
+		BackdropScene.CLOUD_MOUNTAINS -> cloudMountains.textureReady
+		BackdropScene.TREESCAPE -> treescape.isTextureReady(season)
+		else -> true
+	}
 
-	/** Decodes the mountain artwork only when selected, outside the rendering callback. */
-	fun prewarmSceneryTexture(scene: BackdropScene) {
-		if (scene == BackdropScene.CLOUD_MOUNTAINS) {
-			cloudMountains.prewarm()
+	/** Prepares only the selected scenery and resolved season outside the rendering callback. */
+	fun prewarmSceneryTexture(scene: BackdropScene, season: TreeSeason = TreeSeason.SPRING) {
+		when (scene) {
+			BackdropScene.CLOUD_MOUNTAINS -> cloudMountains.prewarm()
+			BackdropScene.TREESCAPE -> treescape.prewarm(season)
+			else -> Unit
 		}
 	}
 
-	fun isTreeTextureReady(style: TreeStyle, season: TreeSeason = TreeSeason.SPRING) = foregroundTrees.isTextureReady(style, season)
+	fun isTreeTextureReady(params: SceneParams) = foregroundTrees.isTextureReady(params)
 
 	/** Decodes only the selected tree style off the render thread after the user opts in. */
-	fun prewarmTreeTextures(style: TreeStyle, season: TreeSeason = TreeSeason.SPRING) = foregroundTrees.prewarm(style, season)
+	fun prewarmTreeTextures(params: SceneParams) = foregroundTrees.prewarm(params)
 
 	fun isMoonPhaseReady(moonPhase: Float) = moonLayer.isPhaseReady(moonPhase)
 
@@ -400,6 +406,7 @@ class SceneRenderer private constructor(
 		}
 
 		cloudMountains.draw(canvas, w, h, params, timeSeconds)
+		treescape.draw(canvas, w, h, params)
 		foregroundTrees.draw(canvas, w, h, params)
 
 		if (fogDensity > 0f) {

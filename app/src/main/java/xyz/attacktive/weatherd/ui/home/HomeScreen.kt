@@ -94,7 +94,6 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	var celebrationEpochMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
 	val sceneState by viewModel.sceneState.collectAsStateWithLifecycle()
 	val settings = sceneState.settings
-	var sceneryTextureReady by remember(renderer, settings.backdropScene) { mutableStateOf(renderer.isSceneryTextureReady(settings.backdropScene)) }
 	var sunTextureReady by remember(renderer, settings.sunStyle) { mutableStateOf(renderer.isSunTextureReady(settings.sunStyle)) }
 	val debugEnabled = sceneState.simulatorActive
 	val debugSceneIndex = settings.sceneSimulatorPresetIndex.coerceIn(0, SCENE_PRESETS.lastIndex)
@@ -125,8 +124,12 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 		}
 	}
 
-	var treeTexturesReady by remember(renderer, params.treeStyle, params.treeSeason) {
-		mutableStateOf(renderer.isTreeTextureReady(params.treeStyle, params.treeSeason))
+	var sceneryTextureReady by remember(renderer, params.backdropScene, params.treeSeason) {
+		mutableStateOf(renderer.isSceneryTextureReady(params.backdropScene, params.treeSeason))
+	}
+
+	var treeTexturesReady by remember(renderer, params.treesEnabled, params.treeStyle, params.treeSeason, params.backdropScene) {
+		mutableStateOf(renderer.isTreeTextureReady(params))
 	}
 
 	// Keep relative warning age ticking after animation settles, without invalidating the backdrop.
@@ -178,20 +181,20 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 		}
 	}
 
-	LaunchedEffect(renderer, params.backdropScene) {
-		if (!renderer.isSceneryTextureReady(params.backdropScene)) {
+	LaunchedEffect(renderer, params.backdropScene, params.treeSeason) {
+		if (!renderer.isSceneryTextureReady(params.backdropScene, params.treeSeason)) {
 			withContext(Dispatchers.Default) {
-				renderer.prewarmSceneryTexture(params.backdropScene)
+				renderer.prewarmSceneryTexture(params.backdropScene, params.treeSeason)
 			}
 
 			sceneryTextureReady = true
 		}
 	}
 
-	LaunchedEffect(renderer, params.treesEnabled, params.treeStyle, params.treeSeason) {
-		if (params.treesEnabled) {
+	LaunchedEffect(renderer, params.treesEnabled, params.treeStyle, params.treeSeason, params.backdropScene) {
+		if (!renderer.isTreeTextureReady(params)) {
 			withContext(Dispatchers.Default) {
-				renderer.prewarmTreeTextures(params.treeStyle, params.treeSeason)
+				renderer.prewarmTreeTextures(params)
 			}
 
 			treeTexturesReady = true

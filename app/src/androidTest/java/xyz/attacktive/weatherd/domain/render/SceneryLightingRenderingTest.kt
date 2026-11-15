@@ -98,7 +98,7 @@ class SceneryLightingRenderingTest {
 		val layer = ForegroundTreeLayer(resources)
 
 		for (style in TreeStyle.entries) {
-			layer.prewarm(style)
+			layer.prewarm(clear.copy(treeStyle = style))
 
 			val night = clear.copy(dayPhase = DayPhase.NIGHT, treeStyle = style)
 			val normal = render { layer.draw(it, WIDTH.toFloat(), HEIGHT.toFloat(), night) }
@@ -139,7 +139,7 @@ class SceneryLightingRenderingTest {
 		)
 
 		for (style in TreeStyle.entries) {
-			trees.prewarm(style)
+			trees.prewarm(clear.copy(treeStyle = style))
 			draws.add { canvas, params -> trees.draw(canvas, WIDTH.toFloat(), HEIGHT.toFloat(), params.copy(treeStyle = style)) }
 		}
 

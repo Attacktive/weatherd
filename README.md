@@ -26,7 +26,7 @@ These are actual Weatherd **3.9.20** preview captures using simulated weather an
 - Weather-driven clouds, precipitation, fog, humidity haze, lightning, and day/night lighting.
 - Customizable sky palettes, sun styles, lunar phases, birds, and distant aircraft.
 - Optional Halloween, Christmas, and New Year's night-sky celebrations, with a setting to turn them off.
-- Scenery, personal photo backgrounds, and optional Evergreen or Broadleaf trees with Spring, Summer, Autumn, Winter, or location-aware Auto foliage.
+- Scenery, including seasonal Treescape, personal photo backgrounds, and optional Evergreen or Broadleaf trees with Spring, Summer, Autumn, Winter, or location-aware Auto foliage.
 - Appearance presets, weather/location labels, and readability shading behind launcher icons.
 - A scene simulator that changes both the preview and live wallpaper without replacing cached real weather.
 - A home-screen weather refresh widget and configurable motion/performance controls.
@@ -78,6 +78,7 @@ Weatherd normalizes provider-specific fields into its weather-condition model an
 
 - Lunar surface: [NASA SVS CGI Moon Kit](https://svs.gsfc.nasa.gov/4720/), NASA's Scientific Visualization Studio ([public domain unless otherwise noted](https://svs.gsfc.nasa.gov/help/)).
 - Radiant sun: [image contributed by @emanuelelina2014-arch](https://github.com/Attacktive/weatherd/issues/255), bundled unchanged with a softened rendering texture prepared at runtime.
+- Treescape: [artwork contributed in issue #394](https://github.com/Attacktive/weatherd/issues/394), with [permission to redistribute](https://github.com/Attacktive/weatherd/issues/394#issuecomment-6891507685).
 - Tree, cloud, Starburst sun, and sun-glare generators produce first-party artwork without sampling reference-app or third-party artwork; the Moon generator uses the credited NASA source above.
 
 ## Sister project

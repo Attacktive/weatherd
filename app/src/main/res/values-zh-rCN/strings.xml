@@ -60,6 +60,7 @@
 	<string name="section_backdrop">背景风光</string>
 	<string name="label_trees">树木</string>
 	<string name="subtitle_trees">在前景中显示树木</string>
+	<string name="subtitle_trees_treescape">树木风景自带树木。</string>
 	<string name="section_tree_style">树木形状</string>
 	<string name="tree_style_evergreen">常绿树</string>
 	<string name="tree_style_broadleaf">阔叶树</string>
@@ -188,6 +189,8 @@
 	<string name="backdrop_not_recommended">%1$s（不推荐）</string>
 	<string name="backdrop_photo">我的照片</string>
 	<string name="backdrop_cloud_mountains">云雾山峦</string>
+	<string name="backdrop_treescape">树木风景</string>
+	<string name="hint_treescape_season">季节会改变树木风景中的树木和草地。</string>
 
 	<!-- Photo backgrounds -->
 	<string name="section_photo_backgrounds">照片背景</string>

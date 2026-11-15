@@ -60,6 +60,7 @@
 	<string name="section_backdrop">Décor en arrière-plan</string>
 	<string name="label_trees">Arbres</string>
 	<string name="subtitle_trees">Afficher des arbres au premier plan</string>
+	<string name="subtitle_trees_treescape">Le paysage arboré inclut ses propres arbres.</string>
 	<string name="section_tree_style">Forme des arbres</string>
 	<string name="tree_style_evergreen">À feuilles persistantes</string>
 	<string name="tree_style_broadleaf">Feuillu</string>
@@ -188,6 +189,8 @@
 	<string name="backdrop_not_recommended">%1$s (À éviter)</string>
 	<string name="backdrop_photo">Vos photos</string>
 	<string name="backdrop_cloud_mountains">Montagnes nuageuses</string>
+	<string name="backdrop_treescape">Paysage arboré</string>
+	<string name="hint_treescape_season">La saison modifie les arbres et la prairie du paysage arboré.</string>
 
 	<!-- Photo backgrounds -->
 	<string name="section_photo_backgrounds">Photos en arrière-plan</string>

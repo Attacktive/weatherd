@@ -60,6 +60,7 @@
 	<string name="section_backdrop">Panorama di sfondo</string>
 	<string name="label_trees">Alberi</string>
 	<string name="subtitle_trees">Mostra alberi in primo piano</string>
+	<string name="subtitle_trees_treescape">Il paesaggio alberato include i propri alberi.</string>
 	<string name="section_tree_style">Forma degli alberi</string>
 	<string name="tree_style_evergreen">Sempreverde</string>
 	<string name="tree_style_broadleaf">Latifoglia</string>
@@ -188,6 +189,8 @@
 	<string name="backdrop_not_recommended">%1$s (Da evitare)</string>
 	<string name="backdrop_photo">Le tue foto</string>
 	<string name="backdrop_cloud_mountains">Montagne tra le nuvole</string>
+	<string name="backdrop_treescape">Paesaggio alberato</string>
+	<string name="hint_treescape_season">La stagione cambia gli alberi e il prato nel paesaggio alberato.</string>
 
 	<!-- Photo backgrounds -->
 	<string name="section_photo_backgrounds">Foto di sfondo</string>

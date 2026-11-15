@@ -91,7 +91,11 @@ private fun appearanceSummary(category: AppearanceCategory, settings: AppSetting
 	AppearanceCategory.SCENERY -> stringResource(
 		R.string.appearance_summary_scenery,
 		formatBackdrop(settings.backdropScene, includeRecommendation = false),
-		stringResource(if (settings.treesEnabled) R.string.appearance_summary_trees_on else R.string.appearance_summary_trees_off)
+		if (settings.backdropScene == BackdropScene.TREESCAPE) {
+			formatTreeSeason(settings.treeSeason)
+		} else {
+			stringResource(if (settings.treesEnabled) R.string.appearance_summary_trees_on else R.string.appearance_summary_trees_off)
+		}
 	)
 
 	AppearanceCategory.SKY -> stringResource(

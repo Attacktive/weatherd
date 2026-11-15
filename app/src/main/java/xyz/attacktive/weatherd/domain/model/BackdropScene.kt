@@ -8,7 +8,8 @@ enum class BackdropScene {
 	MOUNTAINS,
 	COUNTRYSIDE,
 	PHOTO,
-	CLOUD_MOUNTAINS;
+	CLOUD_MOUNTAINS,
+	TREESCAPE;
 
 	companion object {
 		/** The scene stored under [name], or [NONE] when the value is absent or unrecognized (e.g. read by an older build after a downgrade). */
@@ -18,11 +19,11 @@ enum class BackdropScene {
 
 /**
  * Whether this scene uses one of the legacy procedural silhouette renderers.
- * [BackdropScene.CLOUD_MOUNTAINS] has a separate bitmap layer, and [BackdropScene.NONE] and [BackdropScene.PHOTO] have no generated silhouette.
+ * Bitmap scenery has dedicated layers; the bare sky and photos have no generated silhouette.
  */
 val BackdropScene.drawsScenery
 	get() = when (this) {
-		BackdropScene.NONE, BackdropScene.PHOTO, BackdropScene.CLOUD_MOUNTAINS -> false
+		BackdropScene.NONE, BackdropScene.PHOTO, BackdropScene.CLOUD_MOUNTAINS, BackdropScene.TREESCAPE -> false
 		BackdropScene.METROPOLIS, BackdropScene.BEACH, BackdropScene.MOUNTAINS, BackdropScene.COUNTRYSIDE -> true
 	}
 
@@ -31,6 +32,7 @@ fun availableBackdropScenes(current: BackdropScene) = buildList {
 	add(BackdropScene.NONE)
 	add(BackdropScene.PHOTO)
 	add(BackdropScene.CLOUD_MOUNTAINS)
+	add(BackdropScene.TREESCAPE)
 	if (current.drawsScenery) {
 		add(current)
 	}

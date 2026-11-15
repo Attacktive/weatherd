@@ -60,6 +60,7 @@
 	<string name="section_backdrop">背景の風景</string>
 	<string name="label_trees">樹木</string>
 	<string name="subtitle_trees">前景に樹木を表示します</string>
+	<string name="subtitle_trees_treescape">木々の風景には独自の木が含まれています。</string>
 	<string name="section_tree_style">樹木の形状</string>
 	<string name="tree_style_evergreen">常緑樹</string>
 	<string name="tree_style_broadleaf">広葉樹</string>
@@ -188,6 +189,8 @@
 	<string name="backdrop_not_recommended">%1$s（非推奨）</string>
 	<string name="backdrop_photo">自分の写真</string>
 	<string name="backdrop_cloud_mountains">雲の山々</string>
+	<string name="backdrop_treescape">木々の風景</string>
+	<string name="hint_treescape_season">季節によって木々の風景の木と草原が変わります。</string>
 
 	<!-- Photo backgrounds -->
 	<string name="section_photo_backgrounds">背景写真</string>

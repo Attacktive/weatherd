@@ -1495,6 +1495,7 @@ def render_tree(output_path: Path, companion: bool) -> None:
 		cropped = raw_img.crop(crop_box)
 		target_height = round(cropped.height * (SPRITE_WIDTH / cropped.width))
 		sprite = cropped.resize((SPRITE_WIDTH, target_height), Image.Resampling.LANCZOS)
+
 		verify_transparent_borders(sprite)
 		sprite.save(output_path, optimize=True)
 

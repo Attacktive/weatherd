@@ -90,16 +90,20 @@ class TreesSettingsRepositoryTest {
 	fun `appearance presets restore tree seasons and leave weather preferences untouched`() = runTest {
 		val dataStore = dataStore()
 		val presets = AppearancePresetRepository(dataStore)
-		assertTrue(presets.create("Winter", AppSettings(treeSeason = TreeSeason.WINTER, treesEnabled = false).toAppearancePresetSnapshot()).isSuccess)
+		assertTrue(presets.create("Winter", AppSettings(backdropScene = BackdropScene.TREESCAPE, treeSeason = TreeSeason.WINTER, treesEnabled = false).toAppearancePresetSnapshot()).isSuccess)
 		val snapshot = (AppearancePresetRepository(dataStore).state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot
+		assertEquals(BackdropScene.TREESCAPE, snapshot.backdropScene)
 		assertEquals(TreeSeason.WINTER, snapshot.treeSeason)
 
 		val settings = SettingsRepository(dataStore)
 		settings.save(AppSettings(treeSeason = TreeSeason.SUMMER, updateIntervalMinutes = 180))
 		settings.applyAppearancePreset(snapshot)
 
-		assertEquals(TreeSeason.WINTER, settings.settings.first().treeSeason)
-		assertEquals(180, settings.settings.first().updateIntervalMinutes)
+		val restored = settings.settings.first()
+		assertEquals(BackdropScene.TREESCAPE, restored.backdropScene)
+		assertFalse(restored.treesEnabled)
+		assertEquals(TreeSeason.WINTER, restored.treeSeason)
+		assertEquals(180, restored.updateIntervalMinutes)
 	}
 
 	@Test

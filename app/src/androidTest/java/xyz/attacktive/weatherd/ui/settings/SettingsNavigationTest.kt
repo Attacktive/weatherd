@@ -38,6 +38,9 @@ import xyz.attacktive.weatherd.MainActivity
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.data.provider.ProviderEvaluationEntryPoint
 import xyz.attacktive.weatherd.domain.repository.SettingsMutation
+import xyz.attacktive.weatherd.domain.model.BackdropScene
+import xyz.attacktive.weatherd.domain.model.TreeSeason
+import xyz.attacktive.weatherd.domain.model.TreeStyle
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.HolidayCelebration
 
@@ -86,6 +89,109 @@ class SettingsNavigationTest {
 			instrumentation.runOnMainSync {
 				ActivityLifecycleMonitorRegistry.getInstance().removeLifecycleCallback(viewport)
 			}
+		}
+	}
+
+	@Test
+	fun treescapeSeasonRemainsEditableWithoutOptionalTrees() = runBlocking {
+		val repository = EntryPointAccessors.fromApplication(
+			instrumentation.targetContext.applicationContext,
+			ProviderEvaluationEntryPoint::class.java
+		).settingsRepository()
+		val original = repository.settings.first()
+
+		try {
+			repository.save(original.copy(backdropScene = BackdropScene.TREESCAPE, treesEnabled = false, treeSeason = TreeSeason.SPRING))
+			clickText(R.string.appearance_category_scenery)
+			scrollTo(R.string.section_tree_season)
+			assertAbsent(R.string.section_tree_style)
+			clickText(R.string.tree_season_spring)
+			clickText(R.string.tree_season_winter)
+			waitUntil("Treescape winter selection persisted") { runBlocking { repository.settings.first().treeSeason == TreeSeason.WINTER } }
+
+			for (enabled in listOf(true, false)) {
+				repository.save(repository.settings.first().copy(treesEnabled = enabled))
+				scrollTo(R.string.section_tree_season)
+				assertVisible(R.string.tree_season_winter)
+
+				fun countSeasonLabels(node: AccessibilityNodeInfo?): Int {
+					if (node == null) {
+						return 0
+					}
+
+					var count = if (node.isVisibleToUser && matchesText(node, text(R.string.section_tree_season))) 1 else 0
+					for (index in 0 until node.childCount) {
+						count += countSeasonLabels(node.getChild(index))
+					}
+
+					return count
+				}
+
+				assertEquals("Show one shared season selector", 1, countSeasonLabels(automation.rootInActiveWindow))
+			}
+		} finally {
+			repository.save(original)
+		}
+	}
+
+	@Test
+	fun treescapeDisablesOptionalTreesAndPreservesTheirChoicesAcrossSceneryChanges() = runBlocking {
+		val repository = EntryPointAccessors.fromApplication(
+			instrumentation.targetContext.applicationContext,
+			ProviderEvaluationEntryPoint::class.java
+		).settingsRepository()
+		val original = repository.settings.first()
+
+		fun treeToggle() = waitForNode("Trees switch") { it.isCheckable }
+
+		try {
+			repository.save(original.copy(backdropScene = BackdropScene.TREESCAPE, treesEnabled = true, treeStyle = TreeStyle.BROADLEAF, treeSeason = TreeSeason.AUTUMN))
+			val summary = instrumentation.targetContext.getString(R.string.appearance_summary_scenery, text(R.string.backdrop_treescape), text(R.string.tree_season_autumn))
+			waitForNode("Treescape summary shows Season instead of the suppressed overlay preference") { matchesText(it, summary) }
+			clickText(R.string.appearance_category_scenery)
+			scrollTo(R.string.label_trees)
+			assertFalse("Treescape must disable the extra Trees switch", treeToggle().isEnabled)
+			assertFalse("Suppressed foreground trees must not appear switched on", treeToggle().isChecked)
+			assertVisible(R.string.subtitle_trees_treescape)
+			scrollTo(R.string.tree_style_broadleaf)
+			assertFalse("Treescape must disable the saved foreground shape", waitForNode(text(R.string.tree_style_broadleaf)) { matchesText(it, text(R.string.tree_style_broadleaf)) }.isEnabled)
+			val resetDescription = instrumentation.targetContext.getString(R.string.content_description_reset_to_default, text(R.string.section_tree_style))
+			assertTrue("Disabled shape must not offer a reset", findNode(automation.rootInActiveWindow) { it.contentDescription?.toString() == resetDescription } == null)
+			scrollTo(R.string.tree_season_autumn)
+			clickText(R.string.tree_season_autumn)
+			clickText(R.string.tree_season_winter)
+			waitUntil("Treescape Season remains editable") { runBlocking { repository.settings.first().treeSeason == TreeSeason.WINTER } }
+			scenario.recreate()
+			assertVisible(R.string.tree_season_winter)
+			assertTrue("Changing Treescape season must retain the saved Trees choice", repository.settings.first().treesEnabled)
+			assertEquals(TreeStyle.BROADLEAF, repository.settings.first().treeStyle)
+
+			if (InstrumentationRegistry.getArguments().getString("treescapeControlsEvidence") == "true") {
+				val capture = File(instrumentation.targetContext.getExternalFilesDir(null), "treescape-controls.png")
+				val bitmap = checkNotNull(automation.takeScreenshot())
+				try {
+					capture.outputStream().use { assertTrue(bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)) }
+				} finally {
+					bitmap.recycle()
+				}
+			}
+
+			repository.save(repository.settings.first().copy(backdropScene = BackdropScene.NONE))
+			waitUntil("Saved Trees choice restored outside Treescape") {
+				val toggle = findNode(automation.rootInActiveWindow) { it.isVisibleToUser && it.isCheckable }
+				toggle?.isEnabled == true && toggle.isChecked
+			}
+			assertTrue("Saved shape becomes editable again", waitForNode(text(R.string.tree_style_broadleaf)) { matchesText(it, text(R.string.tree_style_broadleaf)) }.isEnabled)
+			clickSettingSwitch(R.string.label_trees)
+			waitUntil("Trees remain independently switchable elsewhere") { runBlocking { !repository.settings.first().treesEnabled } }
+			repository.save(repository.settings.first().copy(backdropScene = BackdropScene.TREESCAPE))
+			scrollTo(R.string.section_tree_season)
+			assertVisible(R.string.tree_season_winter)
+			assertAbsent(R.string.section_tree_style)
+			assertFalse("Treescape must also preserve a saved off choice", repository.settings.first().treesEnabled)
+			assertEquals(TreeStyle.BROADLEAF, repository.settings.first().treeStyle)
+		} finally {
+			repository.save(original)
 		}
 	}
 
