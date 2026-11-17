@@ -84,6 +84,7 @@ class SceneRenderer private constructor(
 	private val radiantSun = RadiantSunLayer(resources)
 	private val starburstSun = StarburstSunLayer(resources)
 	private val sunGlare by lazy(LazyThreadSafetyMode.NONE) { SunGlareLayer(resources) }
+	private val sunlitMotes = SunlitMoteLayer()
 	private val moonLayer = MoonLayer(resources)
 	private val moonOcclusion = MoonOcclusionLayer()
 	private val weatherNoticeLayer = WeatherNoticeLayer(resources)
@@ -1589,7 +1590,8 @@ class SceneRenderer private constructor(
 		val halo = tile("sunHalo", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildHaloSprite(it, core) }
 		val atmosphere = tile("sunAtmosphere", HALO_SPRITE_SIZE, HALO_SPRITE_SIZE) { buildSunAtmosphereSprite(it, core) }
 		val drawsShafts = canDrawSunLightShafts(sun.params)
-		val cloudSampled = if (drawsShafts || showsRainbow(sun.params)) {
+		val moteStrength = sunlitMoteStrength(sun.params)
+		val cloudSampled = if (drawsShafts || showsRainbow(sun.params) || moteStrength > 0f) {
 			sampleSunCloudEdgeProfile(sun, radius, drawsShafts)
 		} else {
 			false
@@ -1602,6 +1604,8 @@ class SceneRenderer private constructor(
 		if (drawVeiledSun(canvas, sun, radius, atmosphere)) {
 			return
 		}
+
+		sunlitMotes.draw(canvas, sun.span, sun.centerX, sun.centerY, radius, sun.timeSeconds, moteStrength * sunOpticalTransmission)
 
 		if (showsRainbow(sun.params)) {
 			drawSunLensFlare(canvas, sun, radius, core)
