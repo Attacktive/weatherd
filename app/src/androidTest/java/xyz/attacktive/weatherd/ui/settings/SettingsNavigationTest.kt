@@ -20,6 +20,7 @@ import androidx.annotation.StringRes
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -151,7 +152,7 @@ class SettingsNavigationTest {
 			clickText(R.string.appearance_category_scenery)
 			scrollTo(R.string.label_trees)
 			assertFalse("Treescape must disable the extra Trees switch", treeToggle().isEnabled)
-			assertFalse("Suppressed foreground trees must not appear switched on", treeToggle().isChecked)
+			assertFalse("Suppressed foreground trees must not appear switched on", AccessibilityNodeInfoCompat.wrap(treeToggle()).checked == AccessibilityNodeInfoCompat.CHECKED_STATE_TRUE)
 			assertVisible(R.string.subtitle_trees_treescape)
 			scrollTo(R.string.tree_style_broadleaf)
 			assertFalse("Treescape must disable the saved foreground shape", waitForNode(text(R.string.tree_style_broadleaf)) { matchesText(it, text(R.string.tree_style_broadleaf)) }.isEnabled)
@@ -179,7 +180,7 @@ class SettingsNavigationTest {
 			repository.save(repository.settings.first().copy(backdropScene = BackdropScene.NONE))
 			waitUntil("Saved Trees choice restored outside Treescape") {
 				val toggle = findNode(automation.rootInActiveWindow) { it.isVisibleToUser && it.isCheckable }
-				toggle?.isEnabled == true && toggle.isChecked
+				toggle?.isEnabled == true && AccessibilityNodeInfoCompat.wrap(toggle).checked == AccessibilityNodeInfoCompat.CHECKED_STATE_TRUE
 			}
 			assertTrue("Saved shape becomes editable again", waitForNode(text(R.string.tree_style_broadleaf)) { matchesText(it, text(R.string.tree_style_broadleaf)) }.isEnabled)
 			clickSettingSwitch(R.string.label_trees)
