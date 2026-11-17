@@ -1,5 +1,6 @@
 package xyz.attacktive.weatherd.domain.render
 
+import kotlin.math.abs
 import kotlin.math.hypot
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -35,8 +36,19 @@ class SunlitMoteMotionTest {
 		val thick = sunlitMoteStrength(clear.copy(cloudiness = 0.6f))
 		assertTrue(thin > thick)
 		assertTrue(thick > 0f)
-		assertTrue(kotlin.math.abs(thick - sunlitMoteStrength(clear.copy(cloudiness = 0.6001f))) < 0.001f)
+		assertTrue(abs(thick - sunlitMoteStrength(clear.copy(cloudiness = 0.6001f))) < 0.001f)
 		assertEquals(sunlitMoteStrength(clear), sunlitMoteStrength(clear.copy(cloudLayers = SceneCloudLayers(0f, 0f, 1f))), 0f)
+	}
+
+	@Test
+	fun strengthStaysContinuousAcrossDaylightPhaseBoundaries() {
+		for ((before, after) in listOf(DayPhase.DAWN to DayPhase.DAY, DayPhase.DAY to DayPhase.DUSK)) {
+			val ending = sunlitMoteStrength(clear.copy(dayPhase = before, celestialProgress = 1f))
+			val starting = sunlitMoteStrength(clear.copy(dayPhase = after, celestialProgress = 0f))
+			assertEquals("$before to $after must not change mote brightness", ending, starting, 0.0001f)
+			assertEquals(ending, sunlitMoteStrength(clear.copy(dayPhase = before, celestialProgress = 0.9999f)), 0.0001f)
+			assertEquals(starting, sunlitMoteStrength(clear.copy(dayPhase = after, celestialProgress = 0.0001f)), 0.0001f)
+		}
 	}
 
 	@Test
@@ -72,7 +84,7 @@ class SunlitMoteMotionTest {
 		}
 
 		field.update(360f, 250f, 100f, 20f, 20f)
-		assertTrue(x.indices.any { kotlin.math.abs(x[it] - field.x[it]) > 0.1f })
+		assertTrue(x.indices.any { abs(x[it] - field.x[it]) > 0.1f })
 	}
 
 	@Test

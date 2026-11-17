@@ -42,7 +42,7 @@ class SunlitMoteRenderingTest {
 						val x = field.x[index].roundToInt()
 						val y = field.y[index].roundToInt()
 						if (x in 4 until width - 4 && y in 4 until height - 4) {
-							contrast += Color.red(bitmap.getPixel(x, y)) * 4 - Color.red(bitmap.getPixel(x - 4, y)) - Color.red(bitmap.getPixel(x + 4, y)) - Color.red(bitmap.getPixel(x, y - 4)) - Color.red(bitmap.getPixel(x, y + 4))
+							contrast += localContrast(bitmap, x, y)
 						}
 					}
 
