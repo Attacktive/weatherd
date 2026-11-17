@@ -15,7 +15,7 @@ import android.view.WindowManager
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.annotation.StringRes
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipe
