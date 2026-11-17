@@ -14,6 +14,11 @@ import android.os.SystemClock
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.annotation.StringRes
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipe
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -27,6 +32,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import xyz.attacktive.weatherd.MainActivity
@@ -39,6 +45,9 @@ import xyz.attacktive.weatherd.domain.repository.SettingsMutation
 
 @RunWith(AndroidJUnit4::class)
 class CustomSkyGradientEditorTest {
+	@get:Rule
+	val compose = createEmptyComposeRule()
+
 	private val instrumentation = InstrumentationRegistry.getInstrumentation()
 	private val automation = instrumentation.uiAutomation
 	private lateinit var scenario: ActivityScenario<MainActivity>
@@ -494,18 +503,45 @@ class CustomSkyGradientEditorTest {
 				isSegmentedButtonSelected(R.string.custom_sky_gradient_direction_horizontal)
 			}
 
-			val preview = waitForNode("Gradient preview", scroll = true) {
+			waitForNode("Gradient preview", scroll = true) {
 				it.contentDescription == text(R.string.custom_sky_gradient_preview)
 			}
-			val handle = waitForNode("Start stop handle", scroll = true) {
+
+			waitForNode("Start stop handle", scroll = true) {
 				it.contentDescription == text(R.string.custom_sky_gradient_preview_handle_start)
 			}
+
+			// A visible handle can still belong to an active accessibility scroll that intercepts DOWN.
+			compose.waitForIdle()
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+				automation.clearCache()
+			}
+
+			val root = automation.rootInActiveWindow
+			val preview = checkNotNull(
+				findNode(root) {
+					it.isVisibleToUser && it.contentDescription == text(R.string.custom_sky_gradient_preview)
+				}
+			)
+
+			val handle = checkNotNull(
+				findNode(root) {
+					it.isVisibleToUser && it.contentDescription == text(R.string.custom_sky_gradient_preview_handle_start)
+				}
+			)
+
 			val handleBounds = Rect().also { handle.getBoundsInScreen(it) }
 			val previewBounds = Rect().also { preview.getBoundsInScreen(it) }
-			val x = handleBounds.exactCenterX()
-			val y = handleBounds.exactCenterY()
 			val travel = previewBounds.width() * 0.35f
-			shell("input swipe ${x.toInt()} ${y.toInt()} ${(x + travel).toInt()} ${y.toInt()} 500")
+
+			compose.onNodeWithContentDescription(text(R.string.custom_sky_gradient_preview_handle_start), useUnmergedTree = true)
+				.performTouchInput {
+					swipe(
+						start = center,
+						end = center + Offset(travel, 0f),
+						durationMillis = 500L
+					)
+				}
 
 			clickText(R.string.apply)
 			waitUntil("Dragged gradient persisted from $handleBounds within $previewBounds") {
@@ -693,6 +729,8 @@ class CustomSkyGradientEditorTest {
 		}
 
 		scroller.performAction(scrollAction(direction))
+		compose.waitForIdle()
+
 		return direction
 	}
 
@@ -705,6 +743,7 @@ class CustomSkyGradientEditorTest {
 	private fun waitUntil(description: String, condition: () -> Boolean) {
 		val deadline = SystemClock.uptimeMillis() + 10_000L
 		while (true) {
+			compose.mainClock.advanceTimeByFrame()
 			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
 				automation.clearCache()
 			}

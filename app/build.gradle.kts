@@ -179,6 +179,9 @@ dependencies {
 	testImplementation(libs.mockk)
 	testImplementation(libs.okhttp.mockwebserver)
 	testImplementation(libs.androidx.datastore.preferences.core)
+	androidTestImplementation(composeBom)
+	androidTestImplementation(libs.compose.ui.test.junit4)
+	androidTestImplementation(libs.androidx.espresso.core)
 	androidTestImplementation(libs.androidx.junit)
 	androidTestImplementation(libs.androidx.test.runner)
 }
