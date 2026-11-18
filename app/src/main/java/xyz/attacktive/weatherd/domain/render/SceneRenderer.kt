@@ -324,6 +324,7 @@ class SceneRenderer private constructor(
 		}
 
 		drawVignette(canvas, w, h)
+		drawDawnHorizonHaze(canvas, w, h, params)
 		drawNightBackdropDimming(canvas, w, h, params)
 	}
 
@@ -585,21 +586,24 @@ class SceneRenderer private constructor(
 			canvas.drawRect(0f, height * 0.55f, width, height, paint)
 			paint.shader = null
 		}
-
-		val hazeBaseBottom = if (params.skyColorPreset == SkyColorPreset.CUSTOM) {
-			naturalSkyGradientFor(params).bottomColor
-		} else {
-			gradient.bottomColor
-		}
-
-		drawDawnHorizonHaze(canvas, width, height, params, hazeBaseBottom)
 	}
 
-	/** A subtle, low white-gold veil along the early-morning horizon that keeps weather fog and humidity haze separate. */
-	private fun drawDawnHorizonHaze(canvas: Canvas, width: Float, height: Float, params: SceneParams, skyBottom: Int) {
+	/** A soft white-gold veil along the early-morning horizon that keeps weather fog and humidity haze separate. */
+	private fun drawDawnHorizonHaze(canvas: Canvas, width: Float, height: Float, params: SceneParams) {
+		val photo = backgroundPhoto
+		if (params.backdropScene == BackdropScene.PHOTO && photo != null && !photo.isRecycled) {
+			return
+		}
+
 		val alpha = dawnHorizonHazeAlpha(params)
 		if (alpha <= 0) {
 			return
+		}
+
+		val skyBottom = if (params.skyColorPreset == SkyColorPreset.CUSTOM) {
+			naturalSkyGradientFor(params).bottomColor
+		} else {
+			cachedSkyGradient(params).bottomColor
 		}
 
 		val top = height * DAWN_HORIZON_HAZE_TOP_FRACTION
@@ -607,6 +611,7 @@ class SceneRenderer private constructor(
 		val bottomColor = dawnHorizonHazeBottomColor(params, skyBottom)
 		val middleAlpha = (alpha * DAWN_HORIZON_HAZE_MIDDLE_ALPHA_SCALE).roundToInt()
 
+		paint.style = Paint.Style.FILL
 		paint.shader = LinearGradient(
 			0f,
 			top,
@@ -4583,16 +4588,16 @@ internal fun dawnHorizonHazeBottomColor(params: SceneParams, skyBottom: Int) = l
 private fun withAlpha(color: Int, alpha: Int) = Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color))
 
 private const val WARM_HORIZON_GLOW_ALPHA = 96
-private const val DAWN_HORIZON_HAZE_MAX_ALPHA = 52
-private const val DAWN_HORIZON_HAZE_EARLY_FLOOR = 0.35f
+private const val DAWN_HORIZON_HAZE_MAX_ALPHA = 132
+private const val DAWN_HORIZON_HAZE_EARLY_FLOOR = 0.65f
 private const val MAX_HUMIDITY_HAZE_DENSITY = 0.25f
-private const val DAWN_HORIZON_HAZE_TOP_FRACTION = 0.75f
-private const val DAWN_HORIZON_HAZE_MIDDLE_STOP = 0.52f
-private const val DAWN_HORIZON_HAZE_MIDDLE_ALPHA_SCALE = 0.42f
-private const val DAWN_HORIZON_HAZE_CREST_GOLD_BLEND = 0.72f
-private const val DAWN_HORIZON_HAZE_BOTTOM_GOLD_BLEND = 0.84f
-private const val DAWN_HORIZON_WARM_GOLD = 0xFFFFECC0.toInt()
-private const val DAWN_HORIZON_WHITE_GOLD = 0xFFFFF8DE.toInt()
+private const val DAWN_HORIZON_HAZE_TOP_FRACTION = 0.66f
+private const val DAWN_HORIZON_HAZE_MIDDLE_STOP = 0.38f
+private const val DAWN_HORIZON_HAZE_MIDDLE_ALPHA_SCALE = 0.66f
+private const val DAWN_HORIZON_HAZE_CREST_GOLD_BLEND = 0.88f
+private const val DAWN_HORIZON_HAZE_BOTTOM_GOLD_BLEND = 0.94f
+private const val DAWN_HORIZON_WARM_GOLD = 0xFFFFF2C8.toInt()
+private const val DAWN_HORIZON_WHITE_GOLD = 0xFFFFFBF0.toInt()
 
 /** Keeps most twilight warmth below the middle of the frame instead of washing the upper sky brown. */
 private const val TWILIGHT_SKY_COLOR_MIDDLE_STOP = 0.72f

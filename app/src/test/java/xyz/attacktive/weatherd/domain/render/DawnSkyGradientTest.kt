@@ -157,7 +157,7 @@ class DawnSkyGradientTest {
 		}
 
 		for (preset in listOf(SkyColorPreset.NATURAL, SkyColorPreset.CLEAR_BLUE, SkyColorPreset.CUSTOM)) {
-			assertEquals(52, dawnHorizonHazeAlpha(clearDawn().copy(skyColorPreset = preset)))
+			assertEquals(132, dawnHorizonHazeAlpha(clearDawn().copy(skyColorPreset = preset)))
 		}
 	}
 
@@ -184,7 +184,7 @@ class DawnSkyGradientTest {
 
 		assertTrue(alphaAtZero > 0)
 		assertTrue(alphaAtQuarter > alphaAtZero)
-		assertEquals(52, alphaAtSunrise)
+		assertEquals(132, alphaAtSunrise)
 		assertTrue(alphaAtMorning in 1 until alphaAtSunrise)
 
 		assertTrue(abs(alphaAtSunrise - dawnHorizonHazeAlpha(clear.copy(celestialProgress = 0.499f))) <= 1)

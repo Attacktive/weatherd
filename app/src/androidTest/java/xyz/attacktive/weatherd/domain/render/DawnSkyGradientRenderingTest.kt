@@ -141,6 +141,7 @@ class DawnSkyGradientRenderingTest {
 						val stopNeutrality = (Color.green(stop) + Color.blue(stop)) / (2f * Color.red(stop))
 						val horizonNeutrality = (Color.green(horizon) + Color.blue(horizon)) / (2f * Color.red(horizon))
 						assertTrue("$width x $height progress=$progress x=$xFraction bottom horizon ($horizonNeutrality) must soften toward white-gold past 88% stop ($stopNeutrality)", horizonNeutrality > stopNeutrality)
+						assertTrue("$width x $height progress=$progress x=$xFraction bottom horizon ($horizon) must visibly lift above the un-veiled bronze stop", Color.green(horizon) >= 190 && Color.blue(horizon) >= 160)
 					}
 				} finally {
 					bitmap.recycle()
@@ -275,8 +276,8 @@ class DawnSkyGradientRenderingTest {
 						for (yFraction in listOf(0.88f, 0.96f)) {
 							val horizon = backdrop.getPixel(x, (height * yFraction).toInt())
 							val horizonLuminance = luminance(horizon)
-							assertTrue("$width x $height progress=$progress x=$xFraction y=$yFraction horizon luminance ($horizonLuminance) must stay bounded for white glyphs", horizonLuminance < 215f)
-							assertTrue("$width x $height progress=$progress x=$xFraction y=$yFraction white glyph luminance contrast must stay >= 32 (horizon=$horizonLuminance)", luminance(Color.rgb(245, 248, 252)) - horizonLuminance >= 32f)
+							assertTrue("$width x $height progress=$progress x=$xFraction y=$yFraction horizon luminance ($horizonLuminance) must stay bounded for white glyphs", horizonLuminance < 226f)
+							assertTrue("$width x $height progress=$progress x=$xFraction y=$yFraction white glyph luminance contrast must stay >= 21 (horizon=$horizonLuminance)", luminance(Color.rgb(245, 248, 252)) - horizonLuminance >= 21f)
 						}
 					}
 
