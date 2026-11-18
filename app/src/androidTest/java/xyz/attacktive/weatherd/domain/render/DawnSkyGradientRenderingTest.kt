@@ -212,6 +212,93 @@ class DawnSkyGradientRenderingTest {
 		}
 	}
 
+	@Test
+	fun stylizedDawnPresetsPreservePreviousHorizonAndSaturationScalesHaze() {
+		for ((width, height) in viewports) {
+			val renderer = SceneRenderer(resources, epochDay = 20_000L)
+			val base = clearDawn()
+
+			for (preset in listOf(SkyColorPreset.WARM, SkyColorPreset.PASTEL, SkyColorPreset.CYBERPUNK)) {
+				for (progress in listOf(0f, 0.25f, 0.5f, 0.7f, 0.85f)) {
+					assertEquals(0, dawnHorizonHazeAlpha(base.copy(skyColorPreset = preset, celestialProgress = progress)))
+				}
+			}
+
+			for (progress in listOf(0.25f, 0.5f)) {
+				val cyberpunk = render(renderer, width, height, base.copy(skyColorPreset = SkyColorPreset.CYBERPUNK, celestialProgress = progress))
+				try {
+					val horizon = cyberpunk.getPixel(width / 2, (height * 0.96f).toInt())
+					assertTrue("$width x $height progress=$progress CYBERPUNK must preserve bright red in magenta horizon; color=$horizon", Color.red(horizon) > 200)
+					assertTrue("$width x $height progress=$progress CYBERPUNK must preserve magenta blue-over-green horizon; color=$horizon", Color.blue(horizon) > Color.green(horizon))
+				} finally {
+					cyberpunk.recycle()
+				}
+			}
+
+			val customDone = base.copy(skyColorPreset = SkyColorPreset.CUSTOM, customSkyGradient = custom(), celestialProgress = 0.85f)
+			assertEquals(0, dawnHorizonHazeAlpha(customDone))
+			assertBackdropsNear(renderer, width, height, customDone, customDone.copy(dayPhase = DayPhase.DAY, celestialProgress = 0f), 0)
+
+			val earlyDawn = base.copy(celestialProgress = 0.25f)
+			val muted = render(renderer, width, height, earlyDawn.copy(skySaturationScale = 0.5f))
+			val normal = render(renderer, width, height, earlyDawn)
+			val vivid = render(renderer, width, height, earlyDawn.copy(skySaturationScale = 1.5f))
+			try {
+				val sampleX = width / 2
+				val sampleY = (height * 0.96f).toInt()
+				val mutedSpread = channelSpread(muted.getPixel(sampleX, sampleY))
+				val normalSpread = channelSpread(normal.getPixel(sampleX, sampleY))
+				val vividSpread = channelSpread(vivid.getPixel(sampleX, sampleY))
+				assertTrue("$width x $height skySaturationScale must scale dawn horizon chroma ($mutedSpread < $normalSpread < $vividSpread)", mutedSpread < normalSpread && normalSpread < vividSpread)
+			} finally {
+				muted.recycle()
+				normal.recycle()
+				vivid.recycle()
+			}
+		}
+	}
+
+	@Test
+	fun dawnHorizonVeilPreservesBottomLauncherAndOverlayLabelReadability() {
+		for ((width, height) in viewports) {
+			val renderer = SceneRenderer(resources, epochDay = 20_000L)
+			val labels = OverlayLabels("Clear · 12°", "Seoul")
+			for (progress in listOf(0.25f, 0.5f)) {
+				val dawn = clearDawn().copy(celestialProgress = progress, overlayLabels = labels, labelVerticalPosition = 1f)
+				val backdrop = render(renderer, width, height, dawn)
+				val labeled = backdrop.copy(Bitmap.Config.ARGB_8888, true)
+				try {
+					renderer.renderOverlayLabels(Canvas(labeled), width, height, dawn)
+
+					for (xFraction in listOf(0.18f, 0.50f, 0.72f)) {
+						val x = (width * xFraction).toInt()
+						for (yFraction in listOf(0.88f, 0.96f)) {
+							val horizon = backdrop.getPixel(x, (height * yFraction).toInt())
+							val horizonLuminance = luminance(horizon)
+							assertTrue("$width x $height progress=$progress x=$xFraction y=$yFraction horizon luminance ($horizonLuminance) must stay bounded for white glyphs", horizonLuminance < 215f)
+							assertTrue("$width x $height progress=$progress x=$xFraction y=$yFraction white glyph luminance contrast must stay >= 32 (horizon=$horizonLuminance)", luminance(Color.rgb(245, 248, 252)) - horizonLuminance >= 32f)
+						}
+					}
+
+					var maxLabelDiff = 0
+					val bandTop = (height * 0.85f).toInt()
+					for (y in bandTop until height) {
+						for (x in 0 until width) {
+							val before = backdrop.getPixel(x, y)
+							val after = labeled.getPixel(x, y)
+							maxLabelDiff = maxOf(maxLabelDiff, abs(Color.red(before) - Color.red(after)), abs(Color.green(before) - Color.green(after)), abs(Color.blue(before) - Color.blue(after)))
+						}
+					}
+
+					assertTrue("$width x $height progress=$progress bottom-anchored labels must stay visibly crisp over the dawn veil (maxDiff=$maxLabelDiff)", maxLabelDiff > 40)
+				} finally {
+					backdrop.recycle()
+					labeled.recycle()
+				}
+			}
+		}
+	}
+
 	private fun clearDawn() = SceneParams(dayPhase = DayPhase.DAWN, cloudiness = 0.05f, fogDensity = 0f, precipitation = null, thunder = false, windFactor = 0f, celestialProgress = 0.5f)
 
 	private fun custom() = CustomSkyGradient(startColor = 0xFF224488.toInt(), middleColor = 0xFF66AACC.toInt(), endColor = 0xFFDDEEFF.toInt(), threeColors = true, startPosition = 0.2f, middlePosition = 0.4f, endPosition = 0.8f, direction = SkyGradientDirection.HORIZONTAL)
@@ -229,6 +316,8 @@ class DawnSkyGradientRenderingTest {
 	}
 
 	private fun luminance(color: Int) = Color.red(color) * 0.2126f + Color.green(color) * 0.7152f + Color.blue(color) * 0.0722f
+
+	private fun channelSpread(color: Int) = maxOf(Color.red(color), Color.green(color), Color.blue(color)) - minOf(Color.red(color), Color.green(color), Color.blue(color))
 
 	private fun foregroundAlphaSum(bitmap: Bitmap): Long {
 		var sum = 0L
@@ -266,9 +355,14 @@ class DawnSkyGradientRenderingTest {
 		val base = clearDawn().copy(cloudiness = 0f, distantAircraftEnabled = false, birdFlockSize = BirdFlockSize.OFF)
 		val scenes = mapOf(
 			"clear_015" to base.copy(celestialProgress = 0.15f),
+			"clear_025" to base.copy(celestialProgress = 0.25f),
 			"clear_050" to base.copy(celestialProgress = 0.50f),
 			"clear_070" to base.copy(celestialProgress = 0.70f),
 			"clear_085" to base.copy(celestialProgress = 0.85f),
+			"cyberpunk_025" to base.copy(celestialProgress = 0.25f, skyColorPreset = SkyColorPreset.CYBERPUNK),
+			"clear_025_muted" to base.copy(celestialProgress = 0.25f, skySaturationScale = 0.5f),
+			"clear_025_vivid" to base.copy(celestialProgress = 0.25f, skySaturationScale = 1.5f),
+			"clear_025_labels" to base.copy(celestialProgress = 0.25f, overlayLabels = OverlayLabels("Clear · 12°", "Seoul"), labelVerticalPosition = 1f),
 			"cloudy_050" to base.copy(celestialProgress = 0.50f, cloudiness = 0.45f),
 			"overcast_050" to base.copy(celestialProgress = 0.50f, cloudiness = 0.85f),
 			"humid_050" to base.copy(celestialProgress = 0.50f, humidityHazeDensity = 0.25f),

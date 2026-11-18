@@ -353,6 +353,16 @@ private fun tuneSkyGradient(gradient: SkyGradient, brightnessScale: Float, satur
 	)
 }
 
+internal fun tuneSkyColor(color: Int, brightnessScale: Float, saturationScale: Float): Int {
+	val brightness = brightnessScale.coerceIn(SKY_BRIGHTNESS_SCALE_RANGE.start, SKY_BRIGHTNESS_SCALE_RANGE.endInclusive)
+	val saturation = saturationScale.coerceIn(SKY_SATURATION_SCALE_RANGE.start, SKY_SATURATION_SCALE_RANGE.endInclusive)
+	if (brightness == 1f && saturation == 1f) {
+		return color
+	}
+
+	return adjustSkyColor(color, brightness, saturation)
+}
+
 private fun adjustSkyColor(color: Int, brightness: Float, saturation: Float): Int {
 	val red = color ushr 16 and 0xFF
 	val green = color ushr 8 and 0xFF

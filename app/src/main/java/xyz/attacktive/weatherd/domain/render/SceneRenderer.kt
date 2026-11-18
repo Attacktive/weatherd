@@ -586,7 +586,13 @@ class SceneRenderer private constructor(
 			paint.shader = null
 		}
 
-		drawDawnHorizonHaze(canvas, width, height, params, gradient.bottomColor)
+		val hazeBaseBottom = if (params.skyColorPreset == SkyColorPreset.CUSTOM) {
+			naturalSkyGradientFor(params).bottomColor
+		} else {
+			gradient.bottomColor
+		}
+
+		drawDawnHorizonHaze(canvas, width, height, params, hazeBaseBottom)
 	}
 
 	/** A subtle, low white-gold veil along the early-morning horizon that keeps weather fog and humidity haze separate. */
@@ -4554,7 +4560,7 @@ internal fun warmHorizonGlowAlpha(dayPhase: DayPhase, celestialProgress: Float) 
 	(WARM_HORIZON_GLOW_ALPHA * twilightWarmthStrength(dayPhase, celestialProgress)).roundToInt()
 
 internal fun dawnHorizonHazeStrength(params: SceneParams): Float {
-	if (params.dayPhase != DayPhase.DAWN || !showsCelestialBody(params) || params.thunder || params.fogDensity > 0f) {
+	if (params.dayPhase != DayPhase.DAWN || !usesDawnHorizonHaze(params.skyColorPreset) || !showsCelestialBody(params) || params.thunder || params.fogDensity > 0f) {
 		return 0f
 	}
 
@@ -4568,9 +4574,11 @@ internal fun dawnHorizonHazeStrength(params: SceneParams): Float {
 
 internal fun dawnHorizonHazeAlpha(params: SceneParams) = (DAWN_HORIZON_HAZE_MAX_ALPHA * dawnHorizonHazeStrength(params)).roundToInt().coerceIn(0, DAWN_HORIZON_HAZE_MAX_ALPHA)
 
-internal fun dawnHorizonHazeCrestColor(params: SceneParams, skyBottom: Int) = lerpColor(skyBottom, overcastBrightnessTint(DAWN_HORIZON_WARM_GOLD, params.skyBrightnessScale), DAWN_HORIZON_HAZE_CREST_GOLD_BLEND)
+private fun usesDawnHorizonHaze(preset: SkyColorPreset) = preset == SkyColorPreset.NATURAL || preset == SkyColorPreset.CLEAR_BLUE || preset == SkyColorPreset.CUSTOM
 
-internal fun dawnHorizonHazeBottomColor(params: SceneParams, skyBottom: Int) = lerpColor(skyBottom, overcastBrightnessTint(DAWN_HORIZON_WHITE_GOLD, params.skyBrightnessScale), DAWN_HORIZON_HAZE_BOTTOM_GOLD_BLEND)
+internal fun dawnHorizonHazeCrestColor(params: SceneParams, skyBottom: Int) = lerpColor(skyBottom, tuneSkyColor(DAWN_HORIZON_WARM_GOLD, params.skyBrightnessScale, params.skySaturationScale), DAWN_HORIZON_HAZE_CREST_GOLD_BLEND)
+
+internal fun dawnHorizonHazeBottomColor(params: SceneParams, skyBottom: Int) = lerpColor(skyBottom, tuneSkyColor(DAWN_HORIZON_WHITE_GOLD, params.skyBrightnessScale, params.skySaturationScale), DAWN_HORIZON_HAZE_BOTTOM_GOLD_BLEND)
 
 private fun withAlpha(color: Int, alpha: Int) = Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color))
 

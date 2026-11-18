@@ -151,7 +151,13 @@ class DawnSkyGradientTest {
 		)
 
 		for ((preset, gradient) in expected) {
-			assertEquals(gradient, skyGradientFor(clearDawn().copy(skyColorPreset = preset)))
+			val stylized = clearDawn().copy(skyColorPreset = preset)
+			assertEquals(gradient, skyGradientFor(stylized))
+			assertEquals(0, dawnHorizonHazeAlpha(stylized))
+		}
+
+		for (preset in listOf(SkyColorPreset.NATURAL, SkyColorPreset.CLEAR_BLUE, SkyColorPreset.CUSTOM)) {
+			assertEquals(52, dawnHorizonHazeAlpha(clearDawn().copy(skyColorPreset = preset)))
 		}
 	}
 
@@ -258,6 +264,20 @@ class DawnSkyGradientTest {
 
 		assertTrue(channel(brightBottom, 8) > channel(bottom, 8))
 		assertTrue(channel(brightBottom, 0) > channel(bottom, 0))
+
+		val muted = clear.copy(skySaturationScale = 0.5f)
+		val vivid = clear.copy(skySaturationScale = 1.5f)
+		val mutedCrest = dawnHorizonHazeCrestColor(muted, skyBottom)
+		val vividCrest = dawnHorizonHazeCrestColor(vivid, skyBottom)
+		val mutedBottom = dawnHorizonHazeBottomColor(muted, skyBottom)
+		val vividBottom = dawnHorizonHazeBottomColor(vivid, skyBottom)
+
+		assertTrue(spread(mutedCrest) < spread(crest) && spread(crest) < spread(vividCrest))
+		assertTrue(spread(mutedBottom) < spread(bottom) && spread(bottom) < spread(vividBottom))
+
+		val scaledMutedBottom = dawnHorizonHazeBottomColor(muted, skyGradientFor(muted).bottomColor)
+		val scaledVividBottom = dawnHorizonHazeBottomColor(vivid, skyGradientFor(vivid).bottomColor)
+		assertTrue(spread(scaledMutedBottom) < spread(bottom) && spread(bottom) < spread(scaledVividBottom))
 	}
 
 	private fun clearDawn() = SceneParams(dayPhase = DayPhase.DAWN, cloudiness = 0.05f, fogDensity = 0f, precipitation = null, thunder = false, windFactor = 0f, celestialProgress = 0.5f)
