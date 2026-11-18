@@ -513,6 +513,38 @@ class SceneParamsTest {
 	}
 
 	@Test
+	fun `dawn progress past daylight completion reuses the cached backdrop`() {
+		val base = fullyPopulatedParams().copy(
+			dayPhase = DayPhase.DAWN,
+			backdropScene = BackdropScene.NONE,
+			celestialProgress = 0.75f
+		)
+
+		val completed = base.copy(celestialProgress = 0.85f)
+		val lateMorning = base.copy(celestialProgress = 0.92f)
+		val end = base.copy(celestialProgress = 1f)
+
+		assertNotEquals(backdropSignature(base), backdropSignature(completed))
+		assertEquals(backdropSignature(completed), backdropSignature(lateMorning))
+		assertEquals(backdropSignature(completed), backdropSignature(end))
+	}
+
+	@Test
+	fun `sun horizontal position does not invalidate completed dawn backdrop`() {
+		val activeDawn = fullyPopulatedParams().copy(
+			dayPhase = DayPhase.DAWN,
+			backdropScene = BackdropScene.NONE,
+			celestialProgress = 0.75f,
+			sunHorizontalPosition = 0.25f
+		)
+
+		assertNotEquals(backdropSignature(activeDawn), backdropSignature(activeDawn.copy(sunHorizontalPosition = 0.90f)))
+
+		val completedDawn = activeDawn.copy(celestialProgress = 0.85f)
+		assertEquals(backdropSignature(completedDawn), backdropSignature(completedDawn.copy(sunHorizontalPosition = 0.90f)))
+	}
+
+	@Test
 	fun `sun horizontal position invalidates a procedural twilight backdrop`() {
 		val early = fullyPopulatedParams().copy(
 			dayPhase = DayPhase.DUSK,

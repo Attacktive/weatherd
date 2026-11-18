@@ -308,6 +308,8 @@ Preferences store the gradient as one normalized JSON value. Appearance preset s
 
 Natural and Clear Blue use an explicit three-stop dawn gradient: blue `#3A6797` at the top, blue-lavender `#8493B3` at 40% of scene height, and the existing bronze `#F6A984` at 88%.
 The middle color replaces the renderer's inferred twilight midpoint for this gradient, raising warmth into the lower sky without an extra drawing pass or changes to the Sun, clouds, or scenery.
+A restrained low white-gold horizon veil (`drawDawnHorizonHaze`, bottom quarter `75–100%` of height with a golden bridge at `88%`) softens the lowest dawn band during early and sunrise dawn, peaks at `50%` progress, and fades continuously to zero by `85%` daylight completion without altering upper/mid sky hues, day/dusk/night, photo backdrops, or weather semantics.
+It attenuates smoothly across the opaque overcast transition (`75–85%`, preserving clear-sky gaps between scattered clouds) and humidity haze (`0–0.25`) and disables during reported fog, precipitation, or thunder so atmospheric morning depth never stacks onto weather fog; `backdropSignature` reuses the cached dawn backdrop once daylight completion reaches `85%`.
 The existing 50-85% dawn daylight ramp blends all three colors and moves the middle/end positions toward the ordinary daytime geometry; at 85% the selected daytime gradient is restored exactly.
 Brightness, saturation, fog, precipitation grayness, and storm darkening still operate on every active stop before rendering.
 Custom retains the existing complete-gradient crossfade from Natural dawn into the user's untouched daytime colors and geometry; photos retain precedence, while Warm, Pastel, Cyberpunk, dusk, and night keep their previous behavior.

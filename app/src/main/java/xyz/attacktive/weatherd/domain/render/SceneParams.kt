@@ -135,13 +135,13 @@ data class OverlayLabels(val weather: String?, val location: String?)
  */
 fun backdropSignature(params: SceneParams, backgroundPhotoAvailable: Boolean = false): SceneParams {
 	val usesTwilightGlow = twilightBackdropUsesProgress(params, backgroundPhotoAvailable)
-	val backdropCelestialProgress = if (usesTwilightGlow) {
-		params.celestialProgress
-	} else {
-		0f
+	val backdropCelestialProgress = when {
+		!usesTwilightGlow -> 0f
+		params.dayPhase == DayPhase.DAWN -> params.celestialProgress.coerceIn(0f, DAWN_DAYLIGHT_FULL)
+		else -> params.celestialProgress
 	}
 
-	val backdropSunHorizontalPosition = if (usesTwilightGlow) {
+	val backdropSunHorizontalPosition = if (usesTwilightGlow && (params.dayPhase != DayPhase.DAWN || dawnDaylightStrength(params.celestialProgress) < 1f)) {
 		params.sunHorizontalPosition
 	} else {
 		DEFAULT_SUN_HORIZONTAL_POSITION

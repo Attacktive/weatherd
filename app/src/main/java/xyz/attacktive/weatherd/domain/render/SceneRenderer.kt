@@ -585,6 +585,38 @@ class SceneRenderer private constructor(
 			canvas.drawRect(0f, height * 0.55f, width, height, paint)
 			paint.shader = null
 		}
+
+		drawDawnHorizonHaze(canvas, width, height, params, gradient.bottomColor)
+	}
+
+	/** A subtle, low white-gold veil along the early-morning horizon that keeps weather fog and humidity haze separate. */
+	private fun drawDawnHorizonHaze(canvas: Canvas, width: Float, height: Float, params: SceneParams, skyBottom: Int) {
+		val alpha = dawnHorizonHazeAlpha(params)
+		if (alpha <= 0) {
+			return
+		}
+
+		val top = height * DAWN_HORIZON_HAZE_TOP_FRACTION
+		val crestColor = dawnHorizonHazeCrestColor(params, skyBottom)
+		val bottomColor = dawnHorizonHazeBottomColor(params, skyBottom)
+		val middleAlpha = (alpha * DAWN_HORIZON_HAZE_MIDDLE_ALPHA_SCALE).roundToInt()
+
+		paint.shader = LinearGradient(
+			0f,
+			top,
+			0f,
+			height,
+			intArrayOf(
+				withAlpha(crestColor, 0),
+				withAlpha(crestColor, middleAlpha),
+				withAlpha(bottomColor, alpha)
+			),
+			floatArrayOf(0f, DAWN_HORIZON_HAZE_MIDDLE_STOP, 1f),
+			Shader.TileMode.CLAMP
+		)
+
+		canvas.drawRect(0f, top, width, height, paint)
+		paint.shader = null
 	}
 
 	private fun createNaturalSkyShader(
@@ -4439,12 +4471,11 @@ private fun overcastPhaseTint(phase: DayPhase) = if (phase == DayPhase.NIGHT) {
 
 private fun overcastBrightnessTint(color: Int, brightnessScale: Float): Int {
 	val brightness = brightnessScale.coerceIn(SKY_BRIGHTNESS_SCALE_RANGE.start, SKY_BRIGHTNESS_SCALE_RANGE.endInclusive)
+	val red = ((color ushr 16 and 0xFF) * brightness).roundToInt().coerceIn(0, 255)
+	val green = ((color ushr 8 and 0xFF) * brightness).roundToInt().coerceIn(0, 255)
+	val blue = ((color and 0xFF) * brightness).roundToInt().coerceIn(0, 255)
 
-	return Color.rgb(
-		(Color.red(color) * brightness).roundToInt().coerceIn(0, 255),
-		(Color.green(color) * brightness).roundToInt().coerceIn(0, 255),
-		(Color.blue(color) * brightness).roundToInt().coerceIn(0, 255)
-	)
+	return (255 shl 24) or (red shl 16) or (green shl 8) or blue
 }
 
 
@@ -4522,9 +4553,38 @@ internal fun twilightWarmthStrength(dayPhase: DayPhase, celestialProgress: Float
 internal fun warmHorizonGlowAlpha(dayPhase: DayPhase, celestialProgress: Float) =
 	(WARM_HORIZON_GLOW_ALPHA * twilightWarmthStrength(dayPhase, celestialProgress)).roundToInt()
 
+internal fun dawnHorizonHazeStrength(params: SceneParams): Float {
+	if (params.dayPhase != DayPhase.DAWN || !showsCelestialBody(params) || params.thunder || params.fogDensity > 0f) {
+		return 0f
+	}
+
+	val progress = params.celestialProgress.coerceIn(0f, 1f)
+	val phaseStrength = (DAWN_HORIZON_HAZE_EARLY_FLOOR + (1f - DAWN_HORIZON_HAZE_EARLY_FLOOR) * dawnSunriseStrength(progress)) * (1f - dawnDaylightStrength(progress))
+	val cloudFade = 1f - overcastCeilingStrength(observedOpaqueCloudiness(params))
+	val humidityFade = 1f - (effectiveFogDensity(params) / MAX_HUMIDITY_HAZE_DENSITY).coerceIn(0f, 1f)
+
+	return phaseStrength * cloudFade * humidityFade
+}
+
+internal fun dawnHorizonHazeAlpha(params: SceneParams) = (DAWN_HORIZON_HAZE_MAX_ALPHA * dawnHorizonHazeStrength(params)).roundToInt().coerceIn(0, DAWN_HORIZON_HAZE_MAX_ALPHA)
+
+internal fun dawnHorizonHazeCrestColor(params: SceneParams, skyBottom: Int) = lerpColor(skyBottom, overcastBrightnessTint(DAWN_HORIZON_WARM_GOLD, params.skyBrightnessScale), DAWN_HORIZON_HAZE_CREST_GOLD_BLEND)
+
+internal fun dawnHorizonHazeBottomColor(params: SceneParams, skyBottom: Int) = lerpColor(skyBottom, overcastBrightnessTint(DAWN_HORIZON_WHITE_GOLD, params.skyBrightnessScale), DAWN_HORIZON_HAZE_BOTTOM_GOLD_BLEND)
+
 private fun withAlpha(color: Int, alpha: Int) = Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color))
 
 private const val WARM_HORIZON_GLOW_ALPHA = 96
+private const val DAWN_HORIZON_HAZE_MAX_ALPHA = 52
+private const val DAWN_HORIZON_HAZE_EARLY_FLOOR = 0.35f
+private const val MAX_HUMIDITY_HAZE_DENSITY = 0.25f
+private const val DAWN_HORIZON_HAZE_TOP_FRACTION = 0.75f
+private const val DAWN_HORIZON_HAZE_MIDDLE_STOP = 0.52f
+private const val DAWN_HORIZON_HAZE_MIDDLE_ALPHA_SCALE = 0.42f
+private const val DAWN_HORIZON_HAZE_CREST_GOLD_BLEND = 0.72f
+private const val DAWN_HORIZON_HAZE_BOTTOM_GOLD_BLEND = 0.84f
+private const val DAWN_HORIZON_WARM_GOLD = 0xFFFFECC0.toInt()
+private const val DAWN_HORIZON_WHITE_GOLD = 0xFFFFF8DE.toInt()
 
 /** Keeps most twilight warmth below the middle of the frame instead of washing the upper sky brown. */
 private const val TWILIGHT_SKY_COLOR_MIDDLE_STOP = 0.72f

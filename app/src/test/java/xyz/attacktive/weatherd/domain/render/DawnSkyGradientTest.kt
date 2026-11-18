@@ -168,6 +168,98 @@ class DawnSkyGradientTest {
 		}
 	}
 
+	@Test
+	fun dawnHorizonHazePeaksAtSunriseAndVanishesByDaylight() {
+		val clear = clearDawn()
+		val alphaAtZero = dawnHorizonHazeAlpha(clear.copy(celestialProgress = 0f))
+		val alphaAtQuarter = dawnHorizonHazeAlpha(clear.copy(celestialProgress = 0.25f))
+		val alphaAtSunrise = dawnHorizonHazeAlpha(clear.copy(celestialProgress = 0.5f))
+		val alphaAtMorning = dawnHorizonHazeAlpha(clear.copy(celestialProgress = 0.7f))
+
+		assertTrue(alphaAtZero > 0)
+		assertTrue(alphaAtQuarter > alphaAtZero)
+		assertEquals(52, alphaAtSunrise)
+		assertTrue(alphaAtMorning in 1 until alphaAtSunrise)
+
+		assertTrue(abs(alphaAtSunrise - dawnHorizonHazeAlpha(clear.copy(celestialProgress = 0.499f))) <= 1)
+		assertTrue(abs(alphaAtSunrise - dawnHorizonHazeAlpha(clear.copy(celestialProgress = 0.501f))) <= 1)
+		assertTrue(abs(dawnHorizonHazeAlpha(clear.copy(celestialProgress = 0.849f)) - dawnHorizonHazeAlpha(clear.copy(celestialProgress = 0.85f))) <= 1)
+
+		for (progress in listOf(0.85f, 0.92f, 1f)) {
+			assertEquals(0, dawnHorizonHazeAlpha(clear.copy(celestialProgress = progress)))
+		}
+
+		for (phase in listOf(DayPhase.DAY, DayPhase.DUSK, DayPhase.NIGHT)) {
+			for (progress in listOf(0f, 0.5f, 1f)) {
+				assertEquals(0, dawnHorizonHazeAlpha(clear.copy(dayPhase = phase, celestialProgress = progress)))
+			}
+		}
+	}
+
+	@Test
+	fun dawnHorizonHazeYieldsToOpaqueCloudsFogHumidityAndPrecipitation() {
+		val clear = clearDawn()
+		val baseline = dawnHorizonHazeAlpha(clear)
+
+		assertEquals(baseline, dawnHorizonHazeAlpha(clear.copy(cloudiness = 0.9f, cloudLayers = SceneCloudLayers(0.05f, 0.05f, 0.9f))))
+		assertEquals(baseline, dawnHorizonHazeAlpha(clear.copy(cloudCountScale = 2f)))
+		assertEquals(baseline, dawnHorizonHazeAlpha(clear.copy(sunVisible = false)))
+
+		for (coverage in listOf(0.2f, 0.45f, 0.72f, 0.75f)) {
+			assertEquals(baseline, dawnHorizonHazeAlpha(clear.copy(cloudiness = coverage)))
+		}
+
+		val transitional = clear.copy(cloudiness = 0.80f)
+		val transitionalAlpha = dawnHorizonHazeAlpha(transitional)
+		assertTrue(transitionalAlpha in 1 until baseline)
+		assertEquals(transitionalAlpha, dawnHorizonHazeAlpha(transitional.copy(cloudCountScale = 2f)))
+
+		val humid = dawnHorizonHazeAlpha(clear.copy(humidityHazeDensity = 0.125f))
+		assertTrue(humid in 1 until baseline)
+
+		val suppressed = listOf(
+			clear.copy(cloudiness = 0.85f),
+			clear.copy(cloudiness = 0.9f),
+			clear.copy(fogDensity = 0.1f),
+			clear.copy(fogDensity = 1f),
+			clear.copy(humidityHazeDensity = 0.25f),
+			clear.copy(precipitation = Precipitation(PrecipitationKind.RAIN, 0.4f, observed = 0.3f)),
+			clear.copy(precipitation = Precipitation(PrecipitationKind.SNOW, 0.4f, observed = 0.3f)),
+			clear.copy(thunder = true)
+		)
+
+		for (params in suppressed) {
+			assertEquals(0, dawnHorizonHazeAlpha(params))
+		}
+	}
+
+	@Test
+	fun dawnHorizonHazeColorsHonorBrightnessAndWarmWhiteGoldOrdering() {
+		val clear = clearDawn()
+		val skyBottom = skyGradientFor(clear).bottomColor
+		val crest = dawnHorizonHazeCrestColor(clear, skyBottom)
+		val bottom = dawnHorizonHazeBottomColor(clear, skyBottom)
+
+		assertTrue(channel(crest, 16) >= channel(crest, 8) && channel(crest, 8) >= channel(crest, 0))
+		assertTrue(channel(bottom, 16) >= channel(bottom, 8) && channel(bottom, 8) >= channel(bottom, 0))
+		assertTrue(channel(bottom, 8) > channel(skyBottom, 8))
+		assertTrue(channel(bottom, 0) > channel(skyBottom, 0))
+		assertTrue(channel(bottom, 8) + channel(bottom, 0) > channel(crest, 8) + channel(crest, 0))
+
+		val dim = clear.copy(skyBrightnessScale = 0.7f)
+		val dimBottom = dawnHorizonHazeBottomColor(dim, skyGradientFor(dim).bottomColor)
+		val bright = clear.copy(skyBrightnessScale = 1.3f)
+		val brightBottom = dawnHorizonHazeBottomColor(bright, skyGradientFor(bright).bottomColor)
+
+		for (shift in listOf(16, 8, 0)) {
+			assertTrue(channel(dimBottom, shift) < channel(bottom, shift))
+			assertTrue(channel(brightBottom, shift) >= channel(bottom, shift))
+		}
+
+		assertTrue(channel(brightBottom, 8) > channel(bottom, 8))
+		assertTrue(channel(brightBottom, 0) > channel(bottom, 0))
+	}
+
 	private fun clearDawn() = SceneParams(dayPhase = DayPhase.DAWN, cloudiness = 0.05f, fogDensity = 0f, precipitation = null, thunder = false, windFactor = 0f, celestialProgress = 0.5f)
 
 	private fun custom() = CustomSkyGradient(startColor = 0xFF224488.toInt(), middleColor = 0xFF66AACC.toInt(), endColor = 0xFFDDEEFF.toInt(), threeColors = true, startPosition = 0.2f, middlePosition = 0.4f, endPosition = 0.8f, direction = SkyGradientDirection.HORIZONTAL)
