@@ -35,8 +35,8 @@ android {
 		applicationId = "xyz.attacktive.weatherd"
 		minSdk = 26
 		targetSdk = 37
-		versionCode = 154
-		versionName = "3.10.12"
+		versionCode = 155
+		versionName = "3.10.13"
 		testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 		testInstrumentationRunnerArguments["notClass"] = "xyz.attacktive.weatherd.data.provider.ProviderEvaluationCaptureTest"
 	}
@@ -180,6 +180,7 @@ dependencies {
 	testImplementation(libs.okhttp.mockwebserver)
 	testImplementation(libs.androidx.datastore.preferences.core)
 	androidTestImplementation(composeBom)
+	androidTestImplementation(libs.compose.ui.test.junit4)
 	androidTestImplementation(libs.compose.ui.test.junit4)
 	androidTestImplementation(libs.androidx.espresso.core)
 	androidTestImplementation(libs.androidx.junit)
