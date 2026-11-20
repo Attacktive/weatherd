@@ -368,9 +368,18 @@ class SceneRenderer private constructor(
 
 		prepareMoonOcclusion(w, h, moonCenterX, celestialCenterY, params, timeSeconds)
 
-		if (params.dayPhase == DayPhase.NIGHT && showsCelestialBody(params)) {
-			drawStars(canvas, w, h, timeSeconds)
-			drawShootingStar(canvas, w, h, timeSeconds)
+		val starStrength = when (params.dayPhase) {
+			DayPhase.DAWN -> 1f - dawnSunriseStrength(params.celestialProgress)
+			DayPhase.DAY -> 0f
+			DayPhase.DUSK -> duskNightStrength(params.celestialProgress)
+			DayPhase.NIGHT -> 1f
+		}
+
+		if (starStrength > 0f && showsNightSky(params)) {
+			drawStars(canvas, w, h, timeSeconds, starStrength)
+			if (params.dayPhase == DayPhase.NIGHT) {
+				drawShootingStar(canvas, w, h, timeSeconds)
+			}
 		}
 
 		if (showsCelestialBody(params)) {
@@ -1375,7 +1384,9 @@ class SceneRenderer private constructor(
 		}
 	}
 
-	private fun drawStars(canvas: Canvas, width: Float, height: Float, timeSeconds: Float) {
+	private fun drawStars(canvas: Canvas, width: Float, height: Float, timeSeconds: Float, strength: Float) {
+		val faintProgress = (2f * strength - 1f).coerceAtLeast(0f)
+		val faintStrength = faintProgress * faintProgress * (3f - 2f * faintProgress)
 		val random = Random(STAR_SEED)
 		val count = (width * height / STAR_AREA_PER_STAR).roundToInt()
 		paint.style = Paint.Style.FILL
@@ -1390,6 +1401,11 @@ class SceneRenderer private constructor(
 
 			// Every star used to twinkle at one shared 2.2 rad/s — synchronized twinkle reads as a screensaver. Each now has its own rate, and the bright ones breathe slowly instead of flickering.
 			val frequency = random.nextFloat(1.4f, 3.1f)
+			val visibility = if (bright) strength else faintStrength
+			if (visibility == 0f) {
+				return@repeat
+			}
+
 			val rate = if (bright) {
 				frequency * 0.45f
 			} else {
@@ -1397,7 +1413,7 @@ class SceneRenderer private constructor(
 			}
 
 			val twinkle = 0.55f + 0.45f * sin(timeSeconds * rate + phase)
-			val alpha = (baseAlpha * twinkle).roundToInt().coerceIn(0, 255)
+			val alpha = (baseAlpha * twinkle * visibility).roundToInt().coerceIn(0, 255)
 			val reach = if (bright) radius * 3.2f else radius
 			val starLayer = moonOcclusion.beginStar(canvas, x - reach, y - reach, x + reach, y + reach)
 
@@ -4241,13 +4257,10 @@ internal fun moonCloudTransmittance(localOpacity: Float): Float {
 	return (1f - localOpacity.coerceIn(0f, 1f)).pow(0.75f)
 }
 
-/** Dry daylight keeps either a full or veiled sun, while the moon remains limited to a clear, fog-free sky. */
+private fun showsNightSky(params: SceneParams) = params.precipitation == null && params.fogDensity <= 0f && observedOpaqueCloudiness(params) <= 0.75f
 
-private fun showsCelestialBody(params: SceneParams) = when {
-	params.precipitation != null -> false
-	params.dayPhase != DayPhase.NIGHT -> true
-	else -> params.fogDensity <= 0f && observedOpaqueCloudiness(params) <= 0.75f
-}
+/** Dry daylight keeps either a full or veiled sun, while the moon remains limited to a clear, fog-free sky. */
+private fun showsCelestialBody(params: SceneParams) = if (params.dayPhase == DayPhase.NIGHT) showsNightSky(params) else params.precipitation == null
 
 /** Fair-weather cloud geometry scale, clamped defensively for direct [SceneParams] construction in tests and previews. */
 private fun cloudSizeScale(params: SceneParams) = normalizeCloudSizeScale(params.cloudSizeScale)

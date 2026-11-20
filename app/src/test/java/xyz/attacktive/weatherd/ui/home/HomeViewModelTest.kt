@@ -82,7 +82,7 @@ class HomeViewModelTest {
 	@Test
 	fun `simulator can be reenabled and changed before its exit refresh finishes`() = runTest {
 		Dispatchers.setMain(StandardTestDispatcher(testScheduler))
-		val settings = MutableStateFlow(AppSettings(sceneSimulatorActive = true, sceneSimulatorDayPhase = DayPhase.NIGHT))
+		val settings = MutableStateFlow(AppSettings(sceneSimulatorActive = true, sceneSimulatorDayPhase = DayPhase.NIGHT, sceneSimulatorCelestialProgress = 0.78f))
 		val repository = mockk<SettingsRepository> {
 			every { defaults } returns AppSettings()
 			every { this@mockk.settings } returns settings
@@ -133,7 +133,12 @@ class HomeViewModelTest {
 			viewModel.changeSceneSimulatorDayPhase(-1)
 			runCurrent()
 
-			assertEquals(DayPhase.DUSK, provider.paramsFor(1_000_000L).dayPhase)
+			val wallpaper = provider.paramsFor(1_000_000L)
+			val preview = viewModel.currentParams()
+			assertEquals(DayPhase.DUSK, wallpaper.dayPhase)
+			assertEquals(wallpaper.dayPhase, preview.dayPhase)
+			assertEquals(0.78f, wallpaper.celestialProgress, 0f)
+			assertEquals(wallpaper.celestialProgress, preview.celestialProgress, 0f)
 			assertFalse(response.isCompleted)
 
 			response.complete(Result.failure(IllegalStateException("Offline")))
