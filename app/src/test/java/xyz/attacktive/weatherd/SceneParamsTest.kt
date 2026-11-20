@@ -375,6 +375,10 @@ class SceneParamsTest {
 
 		val signature = backdropSignature(params)
 
+		assertEquals(0f, signature.windFactor, 0.0001f)
+		assertEquals(1f, signature.precipitationScale, 0.0001f)
+		assertEquals(1f, signature.windScale, 0.0001f)
+		assertEquals(1f, signature.cloudCountScale, 0.0001f)
 		assertEquals(0f, signature.moonPhase, 0.0001f)
 		assertEquals(0f, signature.celestialProgress, 0.0001f)
 		assertEquals(1f, signature.rainbowSizeScale, 0.0001f)
@@ -383,6 +387,10 @@ class SceneParamsTest {
 		assertEquals(
 			params,
 			signature.copy(
+				windFactor = params.windFactor,
+				precipitationScale = params.precipitationScale,
+				windScale = params.windScale,
+				cloudCountScale = params.cloudCountScale,
 				moonPhase = params.moonPhase,
 				celestialProgress = params.celestialProgress,
 				overlayLabels = params.overlayLabels,
@@ -391,6 +399,16 @@ class SceneParamsTest {
 				sunHorizontalPosition = params.sunHorizontalPosition
 			)
 		)
+	}
+
+	@Test
+	fun `foreground-only weather and cloud count fields leave cached backdrop pixels reusable`() {
+		val base = fullyPopulatedParams().copy(dayPhase = DayPhase.DAY)
+
+		assertEquals(backdropSignature(base), backdropSignature(base.copy(windFactor = 0.95f)))
+		assertEquals(backdropSignature(base), backdropSignature(base.copy(windScale = 2f)))
+		assertEquals(backdropSignature(base), backdropSignature(base.copy(precipitationScale = 2f)))
+		assertEquals(backdropSignature(base), backdropSignature(base.copy(cloudCountScale = 0.5f)))
 	}
 
 	@Test
@@ -697,9 +715,6 @@ class SceneParamsTest {
 			"fogDensity" to params.copy(fogDensity = 0.95f),
 			"precipitation" to params.copy(precipitation = null),
 			"thunder" to params.copy(thunder = false),
-			"windFactor" to params.copy(windFactor = 0.95f),
-			"precipitationScale" to params.copy(precipitationScale = 2f),
-			"windScale" to params.copy(windScale = 2f),
 			"cloudScale" to params.copy(cloudScale = 2f),
 			"skyBrightnessScale" to params.copy(skyBrightnessScale = 1.4f),
 			"nightBrightnessScale" to params.copy(nightBrightnessScale = 0.2f),
@@ -814,6 +829,7 @@ class SceneParamsTest {
 		precipitationScale = 1.5f,
 		windScale = 0.5f,
 		cloudScale = 0.7f,
+		cloudCountScale = 1.6f,
 		cloudContrastScale = 1.3f,
 		skyBrightnessScale = 0.8f,
 		nightBrightnessScale = 0.6f,

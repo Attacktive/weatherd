@@ -154,6 +154,10 @@ fun backdropSignature(params: SceneParams, backgroundPhotoAvailable: Boolean = f
 	}
 
 	return params.copy(
+		windFactor = 0f,
+		precipitationScale = 1f,
+		windScale = 1f,
+		cloudCountScale = 1f,
 		moonPhase = 0f,
 		celestialProgress = backdropCelestialProgress,
 		sunHorizontalPosition = backdropSunHorizontalPosition,

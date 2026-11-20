@@ -169,9 +169,13 @@ class WeatherLiveWallpaperService: WallpaperService() {
 		override fun onSurfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
 			this.width = width
 			this.height = height
-			backdrop = null
-			renderedParams = null
-			previousBackdrop = null
+			val cached = backdrop
+			val sceneWidth = wallpaperSceneWidth(width, wallpaperScrollingPreferenceEnabled && wallpaperScrollingSupported)
+			if (cached == null || !shouldRetainWallpaperBackdrop(cached.width, cached.height, sceneWidth, height)) {
+				backdrop = null
+				renderedParams = null
+				previousBackdrop = null
+			}
 
 			if (visible) {
 				requestImmediateFrame()
@@ -182,6 +186,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			choreographer.removeFrameCallback(this)
 			width = 0
 			height = 0
+			previousBackdrop = null
 			updateReflectionMotion(false)
 		}
 
@@ -376,7 +381,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 				return
 			}
 
-			if (outgoing != null && current !== outgoing && outgoing.width == current.width) {
+			if (outgoing != null && current !== outgoing && canCrossfadeBackdrop(outgoing.width, outgoing.height, current.width, current.height)) {
 				// The scene flipped: keep the outgoing backdrop around and ease the new scene in over it.
 				previousBackdrop = outgoing
 				fadeStartSeconds = timeSeconds
@@ -467,7 +472,7 @@ class WeatherLiveWallpaperService: WallpaperService() {
 			val current = backdrop
 			val backgroundPhotoAvailable = photoBackgroundRepository.hasFor(params.backdropScene, params.dayPhase)
 			val signature = backdropSignature(params, backgroundPhotoAvailable)
-			if (current != null && current.width == sceneWidth && current.height == height && signature == renderedParams) {
+			if (current != null && shouldRetainWallpaperBackdrop(current.width, current.height, sceneWidth, height) && signature == renderedParams) {
 				return current
 			}
 
@@ -543,3 +548,9 @@ internal fun normalizeWallpaperOffset(xOffset: Float) = if (!xOffset.isFinite() 
 } else {
 	xOffset.coerceAtMost(1f)
 }
+
+internal fun shouldRetainWallpaperBackdrop(cachedWidth: Int, cachedHeight: Int, sceneWidth: Int, surfaceHeight: Int) =
+	cachedWidth == sceneWidth && cachedHeight == surfaceHeight
+
+internal fun canCrossfadeBackdrop(outgoingWidth: Int, outgoingHeight: Int, currentWidth: Int, currentHeight: Int) =
+	outgoingWidth == currentWidth && outgoingHeight == currentHeight
