@@ -7,7 +7,12 @@ internal data class CachedWallpaperBackdrop<T: Any>(
 	val width: Int,
 	val height: Int,
 	val signature: SceneParams
-)
+) {
+	fun matchesSize(sceneWidth: Int, surfaceHeight: Int) = shouldRetainWallpaperBackdrop(width, height, sceneWidth, surfaceHeight)
+
+	fun matches(sceneWidth: Int, surfaceHeight: Int, signature: SceneParams) =
+		matchesSize(sceneWidth, surfaceHeight) && this.signature == signature
+}
 
 /**
  * Holds the live wallpaper's cached static backdrop and optional outgoing crossfade snapshot.
@@ -22,8 +27,7 @@ internal class WallpaperBackdropCache<T: Any> {
 		private set
 
 	fun onSurfaceChanged(sceneWidth: Int, surfaceHeight: Int) {
-		val cached = current
-		if (cached == null || !shouldRetainWallpaperBackdrop(cached.width, cached.height, sceneWidth, surfaceHeight)) {
+		if (current?.matchesSize(sceneWidth, surfaceHeight) != true) {
 			current = null
 			previous = null
 		}
@@ -33,18 +37,22 @@ internal class WallpaperBackdropCache<T: Any> {
 		previous = null
 	}
 
-	fun resolve(
+	inline fun resolve(
 		sceneWidth: Int,
 		surfaceHeight: Int,
 		signature: SceneParams,
 		rasterize: () -> T
 	): CachedWallpaperBackdrop<T> {
 		val cached = current
-		if (cached != null && shouldRetainWallpaperBackdrop(cached.width, cached.height, sceneWidth, surfaceHeight) && cached.signature == signature) {
+		if (cached != null && cached.matches(sceneWidth, surfaceHeight, signature)) {
 			return cached
 		}
 
-		val fresh = CachedWallpaperBackdrop(rasterize(), sceneWidth, surfaceHeight, signature)
+		return store(rasterize(), sceneWidth, surfaceHeight, signature)
+	}
+
+	internal fun store(value: T, sceneWidth: Int, surfaceHeight: Int, signature: SceneParams): CachedWallpaperBackdrop<T> {
+		val fresh = CachedWallpaperBackdrop(value, sceneWidth, surfaceHeight, signature)
 		current = fresh
 
 		return fresh

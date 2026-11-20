@@ -157,6 +157,22 @@ class WallpaperBackdropCachePolicyTest {
 	}
 
 	@Test
+	fun `cached backdrop matches only when size and signature all agree`() {
+		val day = backdropSignature(baseParams(dayPhase = DayPhase.DAY))
+		val night = backdropSignature(baseParams(dayPhase = DayPhase.NIGHT))
+		val entry = CachedWallpaperBackdrop(Any(), width = 1080, height = 2400, signature = day)
+
+		assertTrue(entry.matchesSize(sceneWidth = 1080, surfaceHeight = 2400))
+		assertFalse(entry.matchesSize(sceneWidth = 1210, surfaceHeight = 2400))
+		assertFalse(entry.matchesSize(sceneWidth = 1080, surfaceHeight = 2340))
+
+		assertTrue(entry.matches(sceneWidth = 1080, surfaceHeight = 2400, signature = day))
+		assertFalse(entry.matches(sceneWidth = 1210, surfaceHeight = 2400, signature = day))
+		assertFalse(entry.matches(sceneWidth = 1080, surfaceHeight = 2340, signature = day))
+		assertFalse(entry.matches(sceneWidth = 1080, surfaceHeight = 2400, signature = night))
+	}
+
+	@Test
 	fun `matching surface dimensions retain the cached backdrop`() {
 		assertTrue(shouldRetainWallpaperBackdrop(cachedWidth = 1080, cachedHeight = 2400, sceneWidth = 1080, surfaceHeight = 2400))
 		assertTrue(shouldRetainWallpaperBackdrop(cachedWidth = 1210, cachedHeight = 2400, sceneWidth = 1210, surfaceHeight = 2400))
