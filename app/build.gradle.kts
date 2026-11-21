@@ -24,8 +24,14 @@ val localProperties = Properties().apply {
 }
 
 val keystorePassword: String? = System.getenv("KEYSTORE_PASSWORD") ?: localProperties.getProperty("KEYSTORE_PASSWORD")
-val stormCloudDebugEnabled = providers.gradleProperty("stormCloudPrototype").map { it.toBoolean() }.orElse(true)
-val stormCloudReleaseEnabled = providers.gradleProperty("stormCloudRelease").map { it.toBoolean() }.orElse(true)
+
+val stormCloudDebugEnabled = providers.gradleProperty("stormCloudPrototype")
+	.map { it.toBoolean() }
+	.orElse(true)
+
+val stormCloudReleaseEnabled = providers.gradleProperty("stormCloudRelease")
+	.map { it.toBoolean() }
+	.orElse(true)
 
 android {
 	namespace = "xyz.attacktive.weatherd"
