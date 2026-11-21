@@ -175,7 +175,16 @@ class RainCloudRenderingTest {
 	}
 
 	@Test
-	fun rainChangesPixelsOnlyBelowTheCloudBoundaryAcrossPhasesAndOrientations() {
+	fun rainChangesPixelsOnlyBelowTheCloudBoundaryAcrossPhasesAndOrientations() = assertParticlesStayBelowClouds(rainy)
+
+	@Test
+	fun snowChangesPixelsOnlyBelowTheCloudBoundaryAcrossPhasesAndOrientations() {
+		for (severity in listOf(0.5f, 1f)) {
+			assertParticlesStayBelowClouds(rainy.copy(precipitation = Precipitation(PrecipitationKind.SNOW, severity, 1f)))
+		}
+	}
+
+	private fun assertParticlesStayBelowClouds(scene: SceneParams) {
 		assumeTrue(BuildConfig.STORM_CLOUD_PROTOTYPE)
 		val renderer = SceneRenderer(resources, epochDay = 0L)
 		val prototype = StormCloudPrototype(resources)
@@ -183,25 +192,25 @@ class RainCloudRenderingTest {
 		prototype.prewarm()
 		val boundary = CloudRainBoundary()
 		for ((width, height) in listOf(240 to 528, 528 to 240)) {
-			val withoutRain = createBitmap(width, height)
-			val withRain = createBitmap(width, height)
+			val withoutParticles = createBitmap(width, height)
+			val withParticles = createBitmap(width, height)
 			try {
 				for (phase in DayPhase.entries) {
 					for (time in listOf(0f, 30f, 600f)) {
-						val params = rainy.copy(dayPhase = phase, precipitationScale = 16f)
+						val params = scene.copy(dayPhase = phase, precipitationScale = 16f)
 						boundary.reset(width.toFloat(), height.toFloat())
 						assertTrue(prototype.draw(Canvas(), width.toFloat(), height.toFloat(), params, time, Color.WHITE, CloudColorGrade.IDENTITY, boundary))
 						assertTrue(boundary.active)
-						withoutRain.eraseColor(Color.TRANSPARENT)
-						withRain.eraseColor(Color.TRANSPARENT)
-						renderer.render(Canvas(withoutRain), width, height, params.copy(precipitationScale = 0f), time, celebrationEpochMillis = 0L)
-						renderer.render(Canvas(withRain), width, height, params, time, celebrationEpochMillis = 0L)
-						assertRainDifferenceIsBelowClouds(withoutRain, withRain, boundary, phase, time)
+						withoutParticles.eraseColor(Color.TRANSPARENT)
+						withParticles.eraseColor(Color.TRANSPARENT)
+						renderer.render(Canvas(withoutParticles), width, height, params.copy(precipitationScale = 0f), time, celebrationEpochMillis = 0L)
+						renderer.render(Canvas(withParticles), width, height, params, time, celebrationEpochMillis = 0L)
+						assertParticleDifferenceIsBelowClouds(withoutParticles, withParticles, boundary, phase, time)
 					}
 				}
 			} finally {
-				withoutRain.recycle()
-				withRain.recycle()
+				withoutParticles.recycle()
+				withParticles.recycle()
 			}
 		}
 	}
@@ -255,7 +264,7 @@ class RainCloudRenderingTest {
 		}
 	}
 
-	private fun assertRainDifferenceIsBelowClouds(before: Bitmap, after: Bitmap, boundary: CloudRainBoundary, phase: DayPhase, timeSeconds: Float) {
+	private fun assertParticleDifferenceIsBelowClouds(before: Bitmap, after: Bitmap, boundary: CloudRainBoundary, phase: DayPhase, timeSeconds: Float) {
 		val clipped = boundary.hasVisibleAreaBelowClouds()
 		val lowest = boundary.lowerEdges.minOrNull()
 		val highest = boundary.lowerEdges.maxOrNull()
@@ -269,7 +278,7 @@ class RainCloudRenderingTest {
 			for (y in 0 until before.height) {
 				if (before.getPixel(x, y) != after.getPixel(x, y)) {
 					if (clipped) {
-						assertTrue("Rain changed pixel above cloud base at ($x, $y), boundary=$edge; $context", y + 1f >= edge)
+						assertTrue("Precipitation changed pixel above cloud base at ($x, $y), boundary=$edge; $context", y + 1f >= edge)
 					}
 
 					changed++
@@ -277,7 +286,7 @@ class RainCloudRenderingTest {
 			}
 		}
 
-		assertTrue("Expected visible rain; $context", changed > 0)
+		assertTrue("Expected visible precipitation; $context", changed > 0)
 	}
 
 }

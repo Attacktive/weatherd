@@ -3,12 +3,20 @@ package xyz.attacktive.weatherd.domain.render
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Path
+import androidx.core.graphics.withSave
 
 internal class RainCloudClip {
 	val boundary = CloudRainBoundary()
 	private val path = Path()
 
-	/** Call inside a canvas save/restore block limited to the rain pass. */
+	inline fun drawBelowClouds(canvas: Canvas, draw: () -> Unit) {
+		canvas.withSave {
+			clip(this)
+			draw()
+		}
+	}
+
+	/** Call inside a canvas save/restore block limited to the precipitation pass. */
 	fun clip(canvas: Canvas) {
 		if (!boundary.hasVisibleAreaBelowClouds()) {
 			return

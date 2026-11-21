@@ -1882,7 +1882,11 @@ class SceneRenderer private constructor(
 			else -> base
 		}
 
-		val rainBoundary = if (params.precipitation?.kind == PrecipitationKind.RAIN) rainCloudClip.boundary else null
+		val rainBoundary = when (params.precipitation?.kind) {
+			PrecipitationKind.RAIN, PrecipitationKind.SNOW -> rainCloudClip.boundary
+			PrecipitationKind.SLEET, null -> null
+		}
+
 		if (stormCloudPrototype.draw(canvas, width, height, params, timeSeconds, color, cloudGradeFor(params), rainBoundary)) {
 			return
 		}
@@ -2518,7 +2522,9 @@ class SceneRenderer private constructor(
 		when (precipitation.kind) {
 			PrecipitationKind.SNOW -> {
 				val slant = snowSlant(gust, params.windScale)
-				drawSnow(canvas, width, height, counts, slant, timeSeconds, heavy)
+				rainCloudClip.drawBelowClouds(canvas) {
+					drawSnow(canvas, width, height, counts, slant, timeSeconds, heavy)
+				}
 			}
 			PrecipitationKind.SLEET -> {
 				val streakSlant = ((0.1f + gust * 0.43f) * params.windScale).coerceAtMost(MAX_WIND_SLANT)
@@ -2527,12 +2533,8 @@ class SceneRenderer private constructor(
 			}
 			PrecipitationKind.RAIN -> {
 				val slant = rainSlant(gust, params.windScale, precipitation.observed)
-				val checkpoint = canvas.save()
-				try {
-					rainCloudClip.clip(canvas)
+				rainCloudClip.drawBelowClouds(canvas) {
 					drawRain(canvas, width, height, counts, slant, timeSeconds, precipitation.severity, flash)
-				} finally {
-					canvas.restoreToCount(checkpoint)
 				}
 			}
 		}
