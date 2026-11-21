@@ -25,6 +25,7 @@ internal class RainCloudClip {
 		val edges = boundary.lowerEdges
 		path.rewind()
 		path.moveTo(0f, edges[0])
+
 		for (index in 1 until edges.size) {
 			path.lineTo(boundary.width * index / (edges.size - 1), edges[index])
 		}
@@ -40,5 +41,6 @@ internal class RainCloudClip {
 internal fun Bitmap.rainCloudProfile(): CloudAlphaProfile {
 	val pixels = IntArray(width * height)
 	getPixels(pixels, 0, width, 0, 0, width, height)
+
 	return CloudAlphaProfile.fromPixels(width, height, pixels)
 }
