@@ -27,6 +27,7 @@ class CloudLayerTest {
 		val before = render(layer, offset = -17.25f)
 		val after = render(layer, offset = 540f * CLOUD_TEXTURE_VIEWPORTS - 17.25f)
 		assertTrue("Crossing the texture boundary must not change the sampled cloud", before.sameAs(after))
+
 		before.recycle()
 		after.recycle()
 	}
@@ -38,8 +39,10 @@ class CloudLayerTest {
 			val row = IntArray(bitmap.width)
 			bitmap.getPixels(row, 0, bitmap.width, 0, 0, bitmap.width, 1)
 			assertTrue("${name(texture)} must start effectively transparent", row.all { Color.alpha(it) <= OVERCAST_EDGE_ALPHA_MAX })
+
 			bitmap.getPixels(row, 0, bitmap.width, 0, bitmap.height - 1, bitmap.width, 1)
 			assertTrue("${name(texture)} must end effectively transparent", row.all { Color.alpha(it) <= OVERCAST_EDGE_ALPHA_MAX })
+
 			bitmap.recycle()
 		}
 	}
@@ -59,10 +62,12 @@ class CloudLayerTest {
 				var maxJoinDelta = 0
 				var veiledPixels = 0
 				var structuredCorePixels = 0
+
 				for (y in 0 until height) {
 					val leftEdgeAlpha = Color.alpha(pixels[y * width])
 					val rightEdgeAlpha = Color.alpha(pixels[y * width + width - 1])
 					maxJoinDelta = maxOf(maxJoinDelta, abs(leftEdgeAlpha - rightEdgeAlpha))
+
 					for (x in 0 until width) {
 						val alpha = Color.alpha(pixels[y * width + x])
 						peakAlpha = maxOf(peakAlpha, alpha)
@@ -82,6 +87,7 @@ class CloudLayerTest {
 				assertTrue("${name(texture)} must wrap smoothly across horizontal tile seam, saw max edge delta $maxJoinDelta", maxJoinDelta <= 5)
 				assertTrue("${name(texture)} must surround core wisps ($structuredCorePixels) with a broader feathered veil ($veiledPixels)", veiledPixels > structuredCorePixels * 3)
 				assertTrue("${name(texture)} must build stronger structure across sparse -> scattered -> broken ($previousPeakAlpha -> $peakAlpha)", peakAlpha > previousPeakAlpha)
+
 				previousPeakAlpha = peakAlpha
 			} finally {
 				bitmap.recycle()
@@ -99,6 +105,7 @@ class CloudLayerTest {
 				val bitmap = render(layer, offset = -540f * viewport)
 				val pixels = IntArray(bitmap.width * bitmap.height)
 				bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+
 				for (pixel in pixels) {
 					if (Color.alpha(pixel) < 64) {
 						continue
@@ -124,6 +131,7 @@ class CloudLayerTest {
 		val dayAgain = render(layer, tint = Color.WHITE, alpha = 180)
 		assertFalse("Night should not retain the daylight tint", day.sameAs(night))
 		assertTrue("Returning to daylight must restore the cloud appearance", day.sameAs(dayAgain))
+
 		day.recycle()
 		night.recycle()
 		dayAgain.recycle()
@@ -138,6 +146,7 @@ class CloudLayerTest {
 		val after = IntArray(strong.width * strong.height)
 		soft.getPixels(before, 0, soft.width, 0, 0, soft.width, soft.height)
 		strong.getPixels(after, 0, strong.width, 0, 0, strong.width, strong.height)
+
 		var changedCloudPixels = 0
 		for (index in before.indices) {
 			assertEquals("Cloud contrast must preserve alpha exactly", Color.alpha(before[index]), Color.alpha(after[index]))
@@ -148,6 +157,7 @@ class CloudLayerTest {
 
 		assertTrue("Cloud contrast must change visible cloud shading", changedCloudPixels > 0)
 		assertTrue("Higher contrast must widen the visible RGB range", luminanceSpread(strong) > luminanceSpread(soft))
+
 		soft.recycle()
 		strong.recycle()
 	}
@@ -160,6 +170,7 @@ class CloudLayerTest {
 
 		// A deck that asks for its own span has to wrap on that span, not on the default one, or its drift jumps every time it crosses the seam.
 		assertTrue("A two-viewport deck must repeat every two viewport widths", before.sameAs(after))
+
 		before.recycle()
 		after.recycle()
 	}
@@ -232,6 +243,7 @@ class CloudLayerTest {
 		 */
 		val wideDetail = horizontalDetail(wide)
 		val narrowDetail = horizontalDetail(narrow)
+
 		assertTrue(
 			"A shorter span must sample finer detail, saw $wideDetail at four viewports and $narrowDetail at two",
 			narrowDetail > wideDetail
@@ -308,6 +320,7 @@ class CloudLayerTest {
 		}
 
 		assertTrue("The projected blocker must darken at least part of the far cloud deck", changedCloudPixels > 0)
+
 		baseline.recycle()
 		shadowed.recycle()
 	}
@@ -319,6 +332,7 @@ class CloudLayerTest {
 			CloudLayer(resources, R.drawable.cloud_cumulus_far),
 			CloudLayer(resources, R.drawable.cloud_overcast_hero)
 		)
+
 		val testGrades = listOf(
 			cloudColorGradeFor(DayPhase.DAWN, 0.5f),
 			cloudColorGradeFor(DayPhase.DUSK, 0.5f)
@@ -341,8 +355,10 @@ class CloudLayerTest {
 							val grA = Color.alpha(gradedPixels[index])
 							assertEquals("Alpha must be preserved identically at index $index", unA, grA)
 						}
+
 						graded.recycle()
 					}
+
 					ungraded.recycle()
 				}
 			}
@@ -375,6 +391,7 @@ class CloudLayerTest {
 			if (a < 128) {
 				continue
 			}
+
 			val r = Color.red(pixel)
 			val g = Color.green(pixel)
 			val b = Color.blue(pixel)
@@ -391,6 +408,7 @@ class CloudLayerTest {
 
 		assertTrue("Must have verified at least one highlight pixel", highlightChecked)
 		assertTrue("Must have verified at least one shadow pixel", shadowChecked)
+
 		bitmap.recycle()
 	}
 
@@ -414,6 +432,7 @@ class CloudLayerTest {
 		for (index in firstPixels.indices) {
 			assertEquals("Pixels must be identical upon returning to same params", firstPixels[index], secondPixels[index])
 		}
+
 		first.recycle()
 		second.recycle()
 	}
@@ -522,11 +541,13 @@ class CloudLayerTest {
 			R.drawable.cloud_overcast_support,
 			R.drawable.cloud_overcast_veil
 		)
+
 		val CIRRUS_TEXTURES = listOf(
 			R.drawable.cloud_cirrus_sparse,
 			R.drawable.cloud_cirrus_scattered,
 			R.drawable.cloud_cirrus_broken
 		)
+
 		val HERO_CUMULUS_TEXTURES = listOf(
 			R.drawable.cloud_cumulus_hero_broad,
 			R.drawable.cloud_cumulus_hero_broad_alt,

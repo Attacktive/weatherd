@@ -36,10 +36,12 @@ class CloudRenderingTest {
 				celestialProgress = 0.5f,
 				sunVisible = false
 			)
+
 			val clear = createBitmap(WIDTH, HEIGHT)
 			val partly = createBitmap(WIDTH, HEIGHT)
 			val amplified = createBitmap(WIDTH, HEIGHT)
 			val overcast = createBitmap(WIDTH, HEIGHT)
+
 			try {
 				renderer.renderBackdrop(Canvas(clear), WIDTH, HEIGHT, params.copy(cloudiness = 0.05f))
 				renderer.renderBackdrop(Canvas(partly), WIDTH, HEIGHT, params)
@@ -62,6 +64,7 @@ class CloudRenderingTest {
 	fun cloudCountRetainsBlueGapsInFullyCompositedPartlyCloudyScene() {
 		val renderer = SceneRenderer(resources, epochDay = 20_000L)
 		renderer.prewarmCloudTextures()
+
 		val params = SceneParams(
 			dayPhase = DayPhase.DAY,
 			cloudiness = 0.7f,
@@ -74,10 +77,12 @@ class CloudRenderingTest {
 			distantAircraftEnabled = false,
 			birdFlockSize = BirdFlockSize.OFF
 		)
+
 		val backdrop = createBitmap(WIDTH, HEIGHT)
 		val normal = createBitmap(WIDTH, HEIGHT)
 		val amplified = createBitmap(WIDTH, HEIGHT)
 		val saturated = createBitmap(WIDTH, HEIGHT)
+
 		try {
 			renderer.renderBackdrop(Canvas(backdrop), WIDTH, HEIGHT, params)
 			renderer.render(Canvas(normal), WIDTH, HEIGHT, params, TIME_SECONDS)
@@ -90,9 +95,11 @@ class CloudRenderingTest {
 			backdrop.getPixels(backgroundPixels, 0, WIDTH, 0, 0, WIDTH, HEIGHT)
 			normal.getPixels(normalPixels, 0, WIDTH, 0, 0, WIDTH, HEIGHT)
 			amplified.getPixels(amplifiedPixels, 0, WIDTH, 0, 0, WIDTH, HEIGHT)
+
 			var normalCloudPixels = 0
 			var amplifiedCloudPixels = 0
 			var openBluePixels = 0
+
 			for (y in HEIGHT / 10 until HEIGHT / 2) {
 				for (x in 0 until WIDTH) {
 					val index = y * WIDTH + x
@@ -138,11 +145,13 @@ class CloudRenderingTest {
 			distantAircraftEnabled = false,
 			birdFlockSize = BirdFlockSize.OFF
 		)
+
 		val normal = createBitmap(WIDTH, HEIGHT)
 		val reduced = createBitmap(WIDTH, HEIGHT)
 		val scattered = createBitmap(WIDTH, HEIGHT)
 		val normalBackdrop = createBitmap(WIDTH, HEIGHT)
 		val reducedBackdrop = createBitmap(WIDTH, HEIGHT)
+
 		try {
 			renderer.renderForeground(Canvas(normal), WIDTH, HEIGHT, overcast, TIME_SECONDS)
 			renderer.renderForeground(Canvas(reduced), WIDTH, HEIGHT, overcast.copy(cloudCountScale = 0.5f), TIME_SECONDS)
@@ -180,6 +189,7 @@ class CloudRenderingTest {
 			windFactor = 0f,
 			sunVisible = false
 		)
+
 		val wetScenes = mapOf(
 			"rain" to dry.copy(precipitation = Precipitation(PrecipitationKind.RAIN, 0.65f, observed = 0.5f)),
 			"fog" to dry.copy(fogDensity = 0.5f)
@@ -188,6 +198,7 @@ class CloudRenderingTest {
 		for ((kind, params) in wetScenes) {
 			val withoutCeiling = createBitmap(WIDTH, HEIGHT)
 			val withCeiling = createBitmap(WIDTH, HEIGHT)
+
 			try {
 				renderer.renderBackdrop(Canvas(withoutCeiling), WIDTH, HEIGHT, params.copy(cloudScale = 0f))
 				renderer.renderBackdrop(Canvas(withCeiling), WIDTH, HEIGHT, params)
@@ -209,6 +220,7 @@ class CloudRenderingTest {
 			"Mostly cloudy skies must retain moving textured clouds instead of only the cached ceiling",
 			withoutClouds.sameAs(withClouds)
 		)
+
 		withoutClouds.recycle()
 		withClouds.recycle()
 	}
@@ -221,25 +233,30 @@ class CloudRenderingTest {
 			cloudScale = 0f,
 			cloudLayers = layers
 		)
+
 		val withClouds = renderForeground(
 			cloudiness = 0.8f,
 			cloudScale = 1f,
 			cloudLayers = layers
 		)
+
 		val bounds = differenceBounds(withoutClouds, withClouds)
 
 		assertTrue(
 			"High cloud must render visible cirrus across the upper sky",
 			bounds.width >= (WIDTH * 0.35f).roundToInt()
 		)
+
 		assertTrue(
 			"Cirrus veils must reach into the upper-middle sky, saw bottom ${bounds.bottom}",
 			bounds.bottom >= (HEIGHT * 0.28f).roundToInt()
 		)
+
 		assertTrue(
 			"Cirrus must stay above the lower cumulus region, but reached ${bounds.bottom}",
 			bounds.bottom <= (HEIGHT * 0.38f).roundToInt()
 		)
+
 		withoutClouds.recycle()
 		withClouds.recycle()
 	}
@@ -248,6 +265,7 @@ class CloudRenderingTest {
 	fun cirrusRespectsCoverageFloorAndGrowsAcrossPopulationsWithoutTurningSkyOpaque() {
 		val renderer = SceneRenderer(resources, epochDay = 20_000L)
 		renderer.prewarmCloudTextures()
+
 		val baseParams = SceneParams(
 			dayPhase = DayPhase.DAY,
 			cloudiness = 0f,
@@ -268,6 +286,7 @@ class CloudRenderingTest {
 		val highFg = renderForeground(cloudiness = 0.85f, cloudScale = 1f, cloudLayers = SceneCloudLayers(0f, 0f, 0.85f))
 		val fullLowComposited = createBitmap(WIDTH, HEIGHT)
 		val fullHighComposited = createBitmap(WIDTH, HEIGHT)
+
 		try {
 			assertTrue("Cirrus floor (10%) must draw no high-cloud veil", emptyFg.sameAs(floorFg))
 
@@ -281,6 +300,7 @@ class CloudRenderingTest {
 
 			renderer.render(Canvas(fullLowComposited), WIDTH, HEIGHT, baseParams.copy(cloudiness = 0.3f, cloudLayers = SceneCloudLayers(0f, 0f, 0.3f)), TIME_SECONDS)
 			renderer.render(Canvas(fullHighComposited), WIDTH, HEIGHT, baseParams.copy(cloudiness = 0.85f, cloudLayers = SceneCloudLayers(0f, 0f, 0.85f)), TIME_SECONDS)
+
 			for ((label, composited) in listOf("low cirrus" to fullLowComposited, "high cirrus" to fullHighComposited)) {
 				val pixels = IntArray(WIDTH * (HEIGHT / 2))
 				composited.getPixels(pixels, 0, WIDTH, 0, 0, WIDTH, HEIGHT / 2)
@@ -301,6 +321,7 @@ class CloudRenderingTest {
 	fun cirrusPopulationTransitionsFadeSmoothlyWithoutPopping() {
 		val renderer = SceneRenderer(resources, epochDay = 20_000L)
 		renderer.prewarmCloudTextures()
+
 		val baseParams = SceneParams(
 			dayPhase = DayPhase.DAY,
 			cloudiness = 0f,
@@ -314,26 +335,33 @@ class CloudRenderingTest {
 			distantAircraftEnabled = false,
 			birdFlockSize = BirdFlockSize.OFF
 		)
+
 		val coverages = listOf(0.10f, 0.11f, 0.39f, 0.40f, 0.41f, 0.69f, 0.70f, 0.71f)
+
 		val foregroundFrames = coverages.map { high ->
 			createBitmap(WIDTH, HEIGHT).also { bitmap ->
 				val params = baseParams.copy(cloudiness = high, cloudLayers = SceneCloudLayers(0f, 0f, high))
 				renderer.renderForeground(Canvas(bitmap), WIDTH, HEIGHT, params, TIME_SECONDS)
 			}
 		}
+
 		val compositedFrames = coverages.map { high ->
 			createBitmap(WIDTH, HEIGHT).also { bitmap ->
 				val params = baseParams.copy(cloudiness = high, cloudLayers = SceneCloudLayers(0f, 0f, high))
 				renderer.render(Canvas(bitmap), WIDTH, HEIGHT, params, TIME_SECONDS)
 			}
 		}
+
 		try {
 			val fgByCoverage = coverages.zip(foregroundFrames).toMap()
 			val fullByCoverage = coverages.zip(compositedFrames).toMap()
-			for ((below, boundary, above) in listOf(
+
+			val populationTransitions = listOf(
 				Triple(0.39f, 0.40f, 0.41f),
 				Triple(0.69f, 0.70f, 0.71f)
-			)) {
+			)
+
+			for ((below, boundary, above) in populationTransitions) {
 				val belowFg = fgByCoverage.getValue(below)
 				val boundaryFg = fgByCoverage.getValue(boundary)
 				val aboveFg = fgByCoverage.getValue(above)
@@ -363,12 +391,15 @@ class CloudRenderingTest {
 	@Test
 	fun cirrusRendersAndDriftsInBothPortraitAndLandscape() {
 		val layers = SceneCloudLayers(low = 0.05f, mid = 0.05f, high = 0.8f)
-		for ((w, h, maxBottomFraction) in listOf(
+		val orientations = listOf(
 			Triple(WIDTH, HEIGHT, 0.38f),
 			Triple(HEIGHT, WIDTH, 0.34f)
-		)) {
+		)
+
+		for ((w, h, maxBottomFraction) in orientations) {
 			val renderer = SceneRenderer(resources, epochDay = 20_000L)
 			renderer.prewarmCloudTextures()
+
 			val params = SceneParams(
 				dayPhase = DayPhase.DAY,
 				cloudiness = 0.8f,
@@ -382,13 +413,16 @@ class CloudRenderingTest {
 				distantAircraftEnabled = false,
 				birdFlockSize = BirdFlockSize.OFF
 			)
+
 			val withoutCirrus = createBitmap(w, h)
 			val early = createBitmap(w, h)
 			val later = createBitmap(w, h)
+
 			try {
 				renderer.renderForeground(Canvas(withoutCirrus), w, h, params.copy(cloudScale = 0f), TIME_SECONDS)
 				renderer.renderForeground(Canvas(early), w, h, params, TIME_SECONDS)
 				renderer.renderForeground(Canvas(later), w, h, params, TIME_SECONDS + 40f)
+
 				val bounds = differenceBounds(withoutCirrus, early)
 
 				assertTrue("Cirrus must span the upper sky at ${w}x$h", bounds.width >= (w * 0.35f).roundToInt())
@@ -408,6 +442,7 @@ class CloudRenderingTest {
 			val withoutClouds = renderForeground(cloudiness = cloudiness, cloudScale = 0f)
 			val withClouds = renderForeground(cloudiness = cloudiness, cloudScale = 1f)
 			val bounds = differenceBounds(withoutClouds, withClouds)
+
 			try {
 				assertTrue(
 					"Cloud formations must leave the lower portrait sky clear above the scenery at cover $cloudiness, but reached ${bounds.bottom}",
@@ -437,6 +472,7 @@ class CloudRenderingTest {
 			"Overcast composition must cover most of the portrait width, but its changed-pixel span was ${bounds.width}px",
 			bounds.width >= (WIDTH * 0.82f).roundToInt()
 		)
+
 		withoutClouds.recycle()
 		withClouds.recycle()
 	}
@@ -462,6 +498,7 @@ class CloudRenderingTest {
 			"Dense fog without precipitation must use fog veils rather than overcast cloud banks",
 			SceneRenderer.shouldDrawOvercastBanks(cloudiness = 0.9f, fogDensity = 1f, hasPrecipitation = false)
 		)
+
 		assertTrue(
 			"Precipitation must retain its cloud deck even when fog is also present",
 			SceneRenderer.shouldDrawOvercastBanks(cloudiness = 0.9f, fogDensity = 1f, hasPrecipitation = true)
@@ -475,16 +512,19 @@ class CloudRenderingTest {
 			cloudScale = 1f,
 			cloudLayers = SceneCloudLayers(low = 0.32f, mid = 0f, high = 0f)
 		)
+
 		val partly = renderForeground(
 			cloudiness = 0.70f,
 			cloudScale = 1f,
 			cloudLayers = SceneCloudLayers(low = 0.70f, mid = 0f, high = 0f)
 		)
+
 		val broken = renderForeground(
 			cloudiness = 0.75f,
 			cloudScale = 1f,
 			cloudLayers = SceneCloudLayers(low = 0.75f, mid = 0f, high = 0f)
 		)
+
 		try {
 			var scatteredPixels = 0
 			var partlyPixels = 0
@@ -535,6 +575,7 @@ class CloudRenderingTest {
 
 		renderer.prewarmCloudTextures()
 		val bank = createBitmap(WIDTH, HEIGHT)
+
 		try {
 			renderer.drawPartlyCloudBank(Canvas(bank), WIDTH.toFloat(), HEIGHT.toFloat(), params, TIME_SECONDS)
 			val pixels = IntArray(WIDTH * HEIGHT)
@@ -575,6 +616,7 @@ class CloudRenderingTest {
 
 		var changed = 0
 		var visible = 0
+
 		for (index in softPixels.indices) {
 			val softAlpha = Color.alpha(softPixels[index])
 			val hardAlpha = Color.alpha(hardPixels[index])
@@ -609,6 +651,7 @@ class CloudRenderingTest {
 			cloudScale = 1f,
 			celestialProgress = 0.5f
 		)
+
 		assertEquals(
 			cloudColorGradeFor(DayPhase.DAWN, 0.5f),
 			renderer.cloudGradeFor(clearLowSunParams)
@@ -636,6 +679,7 @@ class CloudRenderingTest {
 			var normalLuminance = 0.0
 			var dimmerLuminance = 0.0
 			var brighterLuminance = 0.0
+
 			try {
 				for (y in 0 until HEIGHT) {
 					for (x in 0 until WIDTH) {
@@ -644,6 +688,7 @@ class CloudRenderingTest {
 						val bright = brighter.getPixel(x, y)
 						assertEquals("$phase brightness must not change cloud coverage at ($x, $y)", Color.alpha(before), Color.alpha(after))
 						assertEquals("$phase brightening must not change cloud coverage at ($x, $y)", Color.alpha(before), Color.alpha(bright))
+
 						if (Color.alpha(before) >= 96) {
 							normalLuminance += luminance(before)
 							dimmerLuminance += luminance(after)
@@ -677,6 +722,7 @@ class CloudRenderingTest {
 
 			val normal = createBitmap(WIDTH, HEIGHT)
 			val brighter = createBitmap(WIDTH, HEIGHT)
+
 			try {
 				renderer.renderBackdrop(Canvas(normal), WIDTH, HEIGHT, params)
 				renderer.renderBackdrop(Canvas(brighter), WIDTH, HEIGHT, params.copy(skyBrightnessScale = 1.5f))
@@ -709,10 +755,12 @@ class CloudRenderingTest {
 			val normal = createBitmap(WIDTH, HEIGHT)
 			val dimmer = createBitmap(WIDTH, HEIGHT)
 			val brighter = createBitmap(WIDTH, HEIGHT)
+
 			try {
 				renderer.renderBackdrop(Canvas(normal), WIDTH, HEIGHT, params)
 				renderer.renderBackdrop(Canvas(dimmer), WIDTH, HEIGHT, params.copy(skyBrightnessScale = 0.5f))
 				renderer.renderBackdrop(Canvas(brighter), WIDTH, HEIGHT, params.copy(skyBrightnessScale = 1.5f))
+
 				for (y in listOf(HEIGHT * 8 / 10, HEIGHT * 95 / 100)) {
 					val normalLuminance = luminance(normal.getPixel(WIDTH / 2, y))
 					assertTrue("$phase horizon haze must not wash out dimming at height $y", luminance(dimmer.getPixel(WIDTH / 2, y)) < normalLuminance * 0.55)
@@ -729,14 +777,17 @@ class CloudRenderingTest {
 	@Test
 	fun overcastLightingJoinsNeighboringPhasesWithoutAColorJump() {
 		for (brightness in listOf(0.5f, 1f, 1.5f)) {
-			for ((phase, progress, neighbor) in listOf(
+			val phaseBoundaries = listOf(
 				Triple(DayPhase.DAWN, 0f, DayPhase.NIGHT),
 				Triple(DayPhase.DAWN, 1f, DayPhase.DAY),
 				Triple(DayPhase.DUSK, 0f, DayPhase.DAY),
 				Triple(DayPhase.DUSK, 1f, DayPhase.NIGHT)
-			)) {
+			)
+
+			for ((phase, progress, neighbor) in phaseBoundaries) {
 				val boundary = renderForeground(cloudiness = 0.9f, cloudScale = 1f, dayPhase = phase, celestialProgress = progress, skyBrightnessScale = brightness)
 				val adjacent = renderForeground(cloudiness = 0.9f, cloudScale = 1f, dayPhase = neighbor, skyBrightnessScale = brightness)
+
 				try {
 					assertTrue("$phase at $progress must meet $neighbor at brightness $brightness", boundary.sameAs(adjacent))
 				} finally {
@@ -819,6 +870,7 @@ class CloudRenderingTest {
 			distantAircraftEnabled = false,
 			birdFlockSize = BirdFlockSize.OFF
 		)
+
 		val renderer = SceneRenderer(resources, epochDay = 20_000L)
 		renderer.prewarmCloudTextures()
 		renderer.renderForeground(Canvas(bitmap), WIDTH, HEIGHT, params, TIME_SECONDS)
