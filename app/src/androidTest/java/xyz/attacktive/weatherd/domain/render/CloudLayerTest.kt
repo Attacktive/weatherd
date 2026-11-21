@@ -56,9 +56,13 @@ class CloudLayerTest {
 				bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
 
 				var peakAlpha = 0
+				var maxJoinDelta = 0
 				var veiledPixels = 0
 				var structuredCorePixels = 0
 				for (y in 0 until height) {
+					val leftEdgeAlpha = Color.alpha(pixels[y * width])
+					val rightEdgeAlpha = Color.alpha(pixels[y * width + width - 1])
+					maxJoinDelta = maxOf(maxJoinDelta, abs(leftEdgeAlpha - rightEdgeAlpha))
 					for (x in 0 until width) {
 						val alpha = Color.alpha(pixels[y * width + x])
 						peakAlpha = maxOf(peakAlpha, alpha)
@@ -75,6 +79,7 @@ class CloudLayerTest {
 				}
 
 				assertTrue("${name(texture)} must keep recognizable wisp highlights while remaining translucent, saw peak alpha $peakAlpha", peakAlpha in 48..80)
+				assertTrue("${name(texture)} must wrap smoothly across horizontal tile seam, saw max edge delta $maxJoinDelta", maxJoinDelta <= 5)
 				assertTrue("${name(texture)} must surround core wisps ($structuredCorePixels) with a broader feathered veil ($veiledPixels)", veiledPixels > structuredCorePixels * 3)
 				assertTrue("${name(texture)} must build stronger structure across sparse -> scattered -> broken ($previousPeakAlpha -> $peakAlpha)", peakAlpha > previousPeakAlpha)
 				previousPeakAlpha = peakAlpha

@@ -1,5 +1,6 @@
 package xyz.attacktive.weatherd.domain.render
 
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -293,6 +294,69 @@ class CloudRenderingTest {
 			highFg.recycle()
 			fullLowComposited.recycle()
 			fullHighComposited.recycle()
+		}
+	}
+
+	@Test
+	fun cirrusPopulationTransitionsFadeSmoothlyWithoutPopping() {
+		val renderer = SceneRenderer(resources, epochDay = 20_000L)
+		renderer.prewarmCloudTextures()
+		val baseParams = SceneParams(
+			dayPhase = DayPhase.DAY,
+			cloudiness = 0f,
+			fogDensity = 0f,
+			precipitation = null,
+			thunder = false,
+			windFactor = 0.2f,
+			cloudScale = 1f,
+			sunVisible = false,
+			moonVisible = false,
+			distantAircraftEnabled = false,
+			birdFlockSize = BirdFlockSize.OFF
+		)
+		val coverages = listOf(0.10f, 0.11f, 0.39f, 0.40f, 0.41f, 0.69f, 0.70f, 0.71f)
+		val foregroundFrames = coverages.map { high ->
+			createBitmap(WIDTH, HEIGHT).also { bitmap ->
+				val params = baseParams.copy(cloudiness = high, cloudLayers = SceneCloudLayers(0f, 0f, high))
+				renderer.renderForeground(Canvas(bitmap), WIDTH, HEIGHT, params, TIME_SECONDS)
+			}
+		}
+		val compositedFrames = coverages.map { high ->
+			createBitmap(WIDTH, HEIGHT).also { bitmap ->
+				val params = baseParams.copy(cloudiness = high, cloudLayers = SceneCloudLayers(0f, 0f, high))
+				renderer.render(Canvas(bitmap), WIDTH, HEIGHT, params, TIME_SECONDS)
+			}
+		}
+		try {
+			val fgByCoverage = coverages.zip(foregroundFrames).toMap()
+			val fullByCoverage = coverages.zip(compositedFrames).toMap()
+			for ((below, boundary, above) in listOf(
+				Triple(0.39f, 0.40f, 0.41f),
+				Triple(0.69f, 0.70f, 0.71f)
+			)) {
+				val belowFg = fgByCoverage.getValue(below)
+				val boundaryFg = fgByCoverage.getValue(boundary)
+				val aboveFg = fgByCoverage.getValue(above)
+				assertTrue("Approach to $boundary must increase cirrus mass", totalAlpha(boundaryFg) > totalAlpha(belowFg))
+				assertTrue("Exit from $boundary must fade in the next cirrus population", totalAlpha(aboveFg) > totalAlpha(boundaryFg))
+
+				val approachAlphaDelta = maxPixelAlphaDelta(belowFg, boundaryFg)
+				val fadeInAlphaDelta = maxPixelAlphaDelta(boundaryFg, aboveFg)
+				val approachRgbDelta = maxPixelRgbDelta(fullByCoverage.getValue(below), fullByCoverage.getValue(boundary))
+				val fadeInRgbDelta = maxPixelRgbDelta(fullByCoverage.getValue(boundary), fullByCoverage.getValue(above))
+				assertTrue("Approach $below -> $boundary must remain smooth, saw alpha delta $approachAlphaDelta", approachAlphaDelta in 1..8)
+				assertTrue("Fade-in $boundary -> $above must not pop into view, saw alpha delta $fadeInAlphaDelta", fadeInAlphaDelta in 1..8)
+				assertTrue("Composited approach $below -> $boundary must remain smooth, saw RGB delta $approachRgbDelta", approachRgbDelta in 1..8)
+				assertTrue("Composited fade-in $boundary -> $above must remain smooth, saw RGB delta $fadeInRgbDelta", fadeInRgbDelta in 1..8)
+			}
+
+			val floorAlphaDelta = maxPixelAlphaDelta(fgByCoverage.getValue(0.10f), fgByCoverage.getValue(0.11f))
+			val floorRgbDelta = maxPixelRgbDelta(fullByCoverage.getValue(0.10f), fullByCoverage.getValue(0.11f))
+			assertTrue("Floor entry 0.10 -> 0.11 must fade in smoothly, saw alpha delta $floorAlphaDelta", floorAlphaDelta in 1..8)
+			assertTrue("Composited floor entry 0.10 -> 0.11 must fade in smoothly, saw RGB delta $floorRgbDelta", floorRgbDelta in 1..8)
+		} finally {
+			foregroundFrames.forEach { it.recycle() }
+			compositedFrames.forEach { it.recycle() }
 		}
 	}
 
@@ -701,6 +765,32 @@ class CloudRenderingTest {
 		bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
 
 		return pixels.maxOf { Color.alpha(it) }
+	}
+
+	private fun maxPixelAlphaDelta(first: Bitmap, second: Bitmap) = maxPixelDelta(first, second) { a, b ->
+		abs(Color.alpha(a) - Color.alpha(b))
+	}
+
+	private fun maxPixelRgbDelta(first: Bitmap, second: Bitmap) = maxPixelDelta(first, second) { a, b ->
+		maxOf(
+			abs(Color.red(a) - Color.red(b)),
+			abs(Color.green(a) - Color.green(b)),
+			abs(Color.blue(a) - Color.blue(b))
+		)
+	}
+
+	private inline fun maxPixelDelta(first: Bitmap, second: Bitmap, channelDelta: (Int, Int) -> Int): Int {
+		val firstPixels = IntArray(first.width * first.height)
+		val secondPixels = IntArray(second.width * second.height)
+		first.getPixels(firstPixels, 0, first.width, 0, 0, first.width, first.height)
+		second.getPixels(secondPixels, 0, second.width, 0, 0, second.width, second.height)
+
+		var maxDelta = 0
+		for (index in firstPixels.indices) {
+			maxDelta = maxOf(maxDelta, channelDelta(firstPixels[index], secondPixels[index]))
+		}
+
+		return maxDelta
 	}
 
 	private fun renderForeground(

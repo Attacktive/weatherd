@@ -125,6 +125,15 @@ def draw_cirrus_filament(veil_draw, wisp_draw, width, streak, population_gain, f
 	draw_tapered_cirrus_polyline(wisp_draw, width, points, round(filament_alpha * 1.12), filament_width, 0.38, pulse_frequency, pulse_phase)
 
 
+def blur_horizontally_wrapped(mask, radius):
+	"""Blur horizontally across the tile seam so repeated cirrus layers show no vertical crease."""
+	pad = min(mask.width, max(16, round(radius * 6)))
+	padded = np.pad(np.asarray(mask, dtype=np.uint8), ((0, 0), (pad, pad)), mode='wrap')
+	blurred = Image.fromarray(padded, 'L').filter(ImageFilter.GaussianBlur(radius=radius))
+
+	return np.asarray(blurred, dtype=np.float32)[:, pad:-pad]
+
+
 def cirrus_texture(start_index, end_index):
 	width, height = CIRRUS_SIZE
 	veil_mask = Image.new('L', CIRRUS_SIZE, 0)
@@ -132,7 +141,7 @@ def cirrus_texture(start_index, end_index):
 	veil_draw = ImageDraw.Draw(veil_mask)
 	wisp_draw = ImageDraw.Draw(wisp_mask)
 	streaks = cirrus_streaks()
-	population_gain = {0: 1.02, 8: 1.18, 16: 1.34}[start_index]
+	population_gain = {0: 1.02, 8: 1.18, 16: 1.34}.get(start_index, 1.0)
 	for index in range(start_index, end_index):
 		streak = streaks[index]
 		filament_count = streak[8]
@@ -140,8 +149,8 @@ def cirrus_texture(start_index, end_index):
 		for filament in range(filament_count):
 			draw_cirrus_filament(veil_draw, wisp_draw, width, streak, population_gain, filament_rng, filament, filament_count)
 
-	veil = np.asarray(veil_mask.filter(ImageFilter.GaussianBlur(radius=3.2)), dtype=np.float32)
-	wisp = np.asarray(wisp_mask.filter(ImageFilter.GaussianBlur(radius=1.15)), dtype=np.float32)
+	veil = blur_horizontally_wrapped(veil_mask, 3.2)
+	wisp = blur_horizontally_wrapped(wisp_mask, 1.15)
 	combined = 255.0 * (1.0 - (1.0 - veil / 255.0) * (1.0 - wisp / 255.0))
 	vertical = np.linspace(0, 1, height, dtype=np.float32)[:, None]
 	envelope = np.clip(vertical / 0.06, 0, 1) * np.clip((1.0 - vertical) / 0.06, 0, 1)
