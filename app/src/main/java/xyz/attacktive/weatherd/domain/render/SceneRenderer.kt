@@ -432,7 +432,6 @@ class SceneRenderer private constructor(
 		}
 
 		if (params.precipitation != null) {
-			// Passing both params and the smart-cast non-null precipitation preserves narrowing without re-checking.
 			drawPrecipitation(canvas, w, h, params, params.precipitation, timeSeconds, flashWash)
 		}
 
@@ -1882,8 +1881,9 @@ class SceneRenderer private constructor(
 			else -> base
 		}
 
-		val rainBoundary = if (params.precipitation?.kind == PrecipitationKind.RAIN) rainCloudClip.boundary else null
-		if (stormCloudPrototype.draw(canvas, width, height, params, timeSeconds, color, cloudGradeFor(params), rainBoundary)) {
+		val precipitationBoundary = if (params.precipitation != null) rainCloudClip.boundary else null
+
+		if (stormCloudPrototype.draw(canvas, width, height, params, timeSeconds, color, cloudGradeFor(params), precipitationBoundary)) {
 			return
 		}
 
@@ -1912,9 +1912,9 @@ class SceneRenderer private constructor(
 
 		val overcastGrade = cloudGradeFor(params)
 
-		farOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, farHeight, farOffset, cloudFormationTop(width, height, OVERCAST_FAR_TOP) + bob * 0.25f, OVERCAST_FAR_VIEWPORTS), darken(color, 0.96f), farAlpha, overcastGrade, contrast = params.cloudContrastScale, rainBoundary = rainBoundary)
-		supportOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, supportHeight, supportOffset, cloudFormationTop(width, height, OVERCAST_SUPPORT_TOP) - bob * 0.35f, OVERCAST_SUPPORT_VIEWPORTS), darken(color, 0.94f), supportAlpha, overcastGrade, contrast = params.cloudContrastScale, rainBoundary = rainBoundary)
-		heroOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, heroHeight, heroOffset, cloudFormationTop(width, height, OVERCAST_HERO_TOP) - bob, OVERCAST_HERO_VIEWPORTS), color, heroAlpha, overcastGrade, contrast = params.cloudContrastScale, rainBoundary = rainBoundary)
+		farOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, farHeight, farOffset, cloudFormationTop(width, height, OVERCAST_FAR_TOP) + bob * 0.25f, OVERCAST_FAR_VIEWPORTS), darken(color, 0.96f), farAlpha, overcastGrade, contrast = params.cloudContrastScale, precipitationBoundary = precipitationBoundary)
+		supportOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, supportHeight, supportOffset, cloudFormationTop(width, height, OVERCAST_SUPPORT_TOP) - bob * 0.35f, OVERCAST_SUPPORT_VIEWPORTS), darken(color, 0.94f), supportAlpha, overcastGrade, contrast = params.cloudContrastScale, precipitationBoundary = precipitationBoundary)
+		heroOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, heroHeight, heroOffset, cloudFormationTop(width, height, OVERCAST_HERO_TOP) - bob, OVERCAST_HERO_VIEWPORTS), color, heroAlpha, overcastGrade, contrast = params.cloudContrastScale, precipitationBoundary = precipitationBoundary)
 		farOvercastBank.draw(canvas, cloudDrawGeometry.configure(width, bridgeHeight, bridgeOffset, cloudFormationTop(width, height, OVERCAST_BRIDGE_TOP) + bob * 0.45f, OVERCAST_BRIDGE_VIEWPORTS), darken(color, 0.91f), bridgeAlpha, overcastGrade, contrast = params.cloudContrastScale)
 	}
 
@@ -2515,24 +2515,20 @@ class SceneRenderer private constructor(
 		val heavy = precipitation.severity >= HEAVY_SEVERITY
 		val gust = gustFactor(timeSeconds, params.windFactor)
 
-		when (precipitation.kind) {
-			PrecipitationKind.SNOW -> {
-				val slant = snowSlant(gust, params.windScale)
-				drawSnow(canvas, width, height, counts, slant, timeSeconds, heavy)
-			}
-			PrecipitationKind.SLEET -> {
-				val streakSlant = ((0.1f + gust * 0.43f) * params.windScale).coerceAtMost(MAX_WIND_SLANT)
-				val pelletSlant = snowSlant(gust, params.windScale)
-				drawSleet(canvas, width, height, count, streakSlant, pelletSlant, timeSeconds, flash)
-			}
-			PrecipitationKind.RAIN -> {
-				val slant = rainSlant(gust, params.windScale, precipitation.observed)
-				val checkpoint = canvas.save()
-				try {
-					rainCloudClip.clip(canvas)
+		rainCloudClip.drawBelowClouds(canvas) { boundary ->
+			when (precipitation.kind) {
+				PrecipitationKind.SNOW -> {
+					val slant = snowSlant(gust, params.windScale)
+					drawSnow(canvas, width, height, counts, slant, timeSeconds, heavy, boundary)
+				}
+				PrecipitationKind.SLEET -> {
+					val streakSlant = ((0.1f + gust * 0.43f) * params.windScale).coerceAtMost(MAX_WIND_SLANT)
+					val pelletSlant = snowSlant(gust, params.windScale)
+					drawSleet(canvas, width, height, count, streakSlant, pelletSlant, timeSeconds, flash, boundary)
+				}
+				PrecipitationKind.RAIN -> {
+					val slant = rainSlant(gust, params.windScale, precipitation.observed)
 					drawRain(canvas, width, height, counts, slant, timeSeconds, precipitation.severity, flash)
-				} finally {
-					canvas.restoreToCount(checkpoint)
 				}
 			}
 		}
@@ -2675,7 +2671,7 @@ class SceneRenderer private constructor(
 	 * [heavy] means a blizzard: bigger, faster flakes leaning hard on the wind.
 	 * Flakes are blits of the pre-blurred soft-dot sprites, so they stay smooth in motion instead of shimmering as hard-edged discs.
 	 */
-	private fun drawSnow(canvas: Canvas, width: Float, height: Float, counts: ParticleCounts, slant: Float, timeSeconds: Float, heavy: Boolean) {
+	private fun drawSnow(canvas: Canvas, width: Float, height: Float, counts: ParticleCounts, slant: Float, timeSeconds: Float, heavy: Boolean, boundary: CloudRainBoundary?) {
 		val speed = if (heavy) {
 			1.5f
 		} else {
@@ -2705,7 +2701,7 @@ class SceneRenderer private constructor(
 			val sway = sin(timeSeconds * 0.7f + phase) * (width * 0.02f)
 			val radius = farRandom.nextFloat(1.2f, 2.6f) * size
 
-			drawSoftDot(canvas, farFlakeSprite, x + sway, y, radius)
+			drawSoftDot(canvas, farFlakeSprite, x + sway, y, radius, boundary)
 		}
 
 		val nearRandom = Random(PRECIP_SEED + 1L)
@@ -2720,12 +2716,12 @@ class SceneRenderer private constructor(
 			val sway = sin(timeSeconds * 1.1f + phase) * (width * 0.045f)
 			val radius = nearRandom.nextFloat(2.6f, 5.8f) * size
 
-			drawSoftDot(canvas, nearFlakeSprite, x + sway, y, radius)
+			drawSoftDot(canvas, nearFlakeSprite, x + sway, y, radius, boundary)
 		}
 	}
 
 	/** Sleet: a wintry rain/snow mix — short, sharp icy streaks interleaved with small tumbling pellets. */
-	private fun drawSleet(canvas: Canvas, width: Float, height: Float, count: Int, streakSlant: Float, pelletSlant: Float, timeSeconds: Float, flash: Float) {
+	private fun drawSleet(canvas: Canvas, width: Float, height: Float, count: Int, streakSlant: Float, pelletSlant: Float, timeSeconds: Float, flash: Float, boundary: CloudRainBoundary?) {
 		/*
 		 * Streaks: shorter and more vertical than rain, tinted cold, falling slower than a downpour.
 		 * Sleet skips squall breathing entirely; both its layers are bright enough that a mid-fall pop would show.
@@ -2772,7 +2768,7 @@ class SceneRenderer private constructor(
 			val sway = sin(timeSeconds * 1.6f + phase) * (width * 0.012f)
 			val radius = pelletRandom.nextFloat(1.2f, 2.8f)
 
-			drawSoftDot(canvas, pelletSprite, x + sway, y, radius)
+			drawSoftDot(canvas, pelletSprite, x + sway, y, radius, boundary)
 		}
 	}
 
@@ -2970,8 +2966,17 @@ class SceneRenderer private constructor(
 	}
 
 	/** Blits a soft-dot sprite scaled so its solid core spans [coreRadius]; the halo extends past that and fades to nothing. */
-	private fun drawSoftDot(canvas: Canvas, sprite: Bitmap, x: Float, y: Float, coreRadius: Float) {
+	private fun drawSoftDot(canvas: Canvas, sprite: Bitmap, x: Float, y: Float, coreRadius: Float, boundary: CloudRainBoundary? = null) {
 		val reach = coreRadius / DOT_CORE_STOP
+		val alpha = boundary?.roundParticleAlpha(x, y, reach) ?: 255
+		if (alpha < 255) {
+			if (alpha > 0) {
+				blitSprite(canvas, sprite, x, y, reach, alpha)
+			}
+
+			return
+		}
+
 		spriteDest.set(x - reach, y - reach, x + reach, y + reach)
 		canvas.drawBitmap(sprite, null, spriteDest, spritePaint)
 	}
