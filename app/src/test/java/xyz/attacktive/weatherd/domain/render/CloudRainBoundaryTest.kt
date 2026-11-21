@@ -21,6 +21,26 @@ class CloudRainBoundaryTest {
 	}
 
 	@Test
+	fun aRoundParticleFadesOnlyAfterItsHaloClearsTheCloud() {
+		val boundary = CloudRainBoundary()
+		boundary.reset(400f, 800f)
+		boundary.include(fullCloud, 0f, 0f, 400f, 100f, 255)
+
+		assertEquals(0, boundary.roundParticleAlpha(200f, 110f, 10f))
+		assertEquals(128, boundary.roundParticleAlpha(200f, 115f, 10f))
+		assertEquals(255, boundary.roundParticleAlpha(200f, 120f, 10f))
+	}
+
+	@Test
+	fun aSlopingBankCanStillCoverTheSideOfAParticleAfterItsCenterClears() {
+		val boundary = CloudRainBoundary()
+		boundary.reset(400f, 800f)
+		boundary.include(unevenCloud, 0f, 10f, 400f, 200f, 255)
+
+		assertEquals(0, boundary.roundParticleAlpha(250f, 211f, 20f))
+	}
+
+	@Test
 	fun lowestOverlappingBankWinsIndependentlyOfDrawingOrder() {
 		val first = CloudRainBoundary()
 		val second = CloudRainBoundary()

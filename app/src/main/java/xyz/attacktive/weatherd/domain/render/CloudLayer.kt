@@ -72,7 +72,7 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 	private var cachedOpacityStyleSizeScale = Float.NaN
 	private var cachedOpacityStyle: CumulusStyle? = null
 
-	fun draw(canvas: Canvas, geometry: CloudDrawGeometry, tint: Int, alpha: Int, grade: CloudColorGrade, shadow: CumulusShadow? = null, contrast: Float = 1f, rainBoundary: CloudRainBoundary? = null) {
+	fun draw(canvas: Canvas, geometry: CloudDrawGeometry, tint: Int, alpha: Int, grade: CloudColorGrade, shadow: CumulusShadow? = null, contrast: Float = 1f, precipitationBoundary: CloudRainBoundary? = null) {
 		if (geometry.width <= 0f || geometry.height <= 0f || alpha <= 0) {
 			return
 		}
@@ -90,7 +90,7 @@ internal class CloudLayer private constructor(resources: Resources, @DrawableRes
 		val wrappedOffset = positiveModulo(geometry.offset, period)
 
 		rainProfile?.let {
-			rainBoundary?.include(it, wrappedOffset, geometry.top, period, geometry.height, alpha)
+			precipitationBoundary?.include(it, wrappedOffset, geometry.top, period, geometry.height, alpha)
 		}
 
 		transform.setScale(period / source.width, geometry.height / source.height)

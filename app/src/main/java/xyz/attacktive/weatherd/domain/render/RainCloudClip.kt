@@ -9,17 +9,16 @@ internal class RainCloudClip {
 	val boundary = CloudRainBoundary()
 	private val path = Path()
 
-	inline fun drawBelowClouds(canvas: Canvas, draw: () -> Unit) {
+	inline fun drawBelowClouds(canvas: Canvas, draw: (CloudRainBoundary?) -> Unit) {
 		canvas.withSave {
-			clip(this)
-			draw()
+			draw(clip(this))
 		}
 	}
 
 	/** Call inside a canvas save/restore block limited to the precipitation pass. */
-	fun clip(canvas: Canvas) {
+	fun clip(canvas: Canvas): CloudRainBoundary? {
 		if (!boundary.hasVisibleAreaBelowClouds()) {
-			return
+			return null
 		}
 
 		val edges = boundary.lowerEdges
@@ -34,6 +33,8 @@ internal class RainCloudClip {
 		path.lineTo(0f, boundary.height)
 		path.close()
 		canvas.clipPath(path)
+
+		return boundary
 	}
 }
 

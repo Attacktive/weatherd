@@ -157,12 +157,12 @@ class RainCloudRenderingTest {
 
 		try {
 			boundary.reset(240f, 528f)
-			bank.draw(Canvas(bitmap), geometry, Color.WHITE, 255, CloudColorGrade.IDENTITY, rainBoundary = boundary)
+			bank.draw(Canvas(bitmap), geometry, Color.WHITE, 255, CloudColorGrade.IDENTITY, precipitationBoundary = boundary)
 			assertTrue(boundary.active)
 			assertTrue(boundary.lowerEdges.any { it > 0f })
 
 			boundary.reset(240f, 528f)
-			bank.draw(Canvas(bitmap), geometry, Color.WHITE, 0, CloudColorGrade.IDENTITY, rainBoundary = boundary)
+			bank.draw(Canvas(bitmap), geometry, Color.WHITE, 0, CloudColorGrade.IDENTITY, precipitationBoundary = boundary)
 			assertFalse(boundary.active)
 		} finally {
 			bitmap.recycle()
