@@ -20,9 +20,9 @@ Custom and other built-in palettes are untouched, and photo drawing still bypass
 Wind scale zero freezes the motion, and changing wind intensity maintains the current position rather than teleporting the cloud layers.
 Textures decode once in the existing background cloud-prewarm step; draw callbacks reuse geometry, paint and color-filter state.
 The existing opacity, size, contrast and day-phase/sky-brightness tint continue to apply.
-Rain and both depths of snowfall emerge below the moving cloud boundary sampled from the transformed detailed banks, excluding the decorative veil. The legacy cloud banks supply their own boundary when `-PstormCloudPrototype=false`.
+Rain, snowflakes, and both sleet streaks and pellets emerge below the moving cloud boundary sampled from the transformed detailed banks, excluding the decorative veil. The legacy cloud banks supply their own boundary when `-PstormCloudPrototype=false`.
 Only the particle draw is clipped: flake sway, speed, wrap and depth remain continuous, and precipitation stays visible if no usable boundary exists.
-Dry partly-cloudy scenes and cirrus/fog veils keep the previous renderer. Dry overcast, low/mid heavy cover, snow, and sleet share the layered storm-cloud banks and their existing lighting; sleet is not clipped. Natural-sky palette muting in `StormCloudAtmosphere` remains rain-only.
+Dry partly-cloudy scenes and cirrus/fog veils keep the previous renderer. Dry overcast, low/mid heavy cover, snow, and sleet share the layered storm-cloud banks and their existing lighting. Natural-sky palette muting in `StormCloudAtmosphere` remains rain-only.
 
 On this branch, debug and release builds enable the shared storm-cloud renderer by default. An ordinary Android Studio debug build prepares the four source-hash-verified PNGs if they are missing; valid prepared PNGs are reused. For a baseline comparison, pass `-PstormCloudPrototype=false`.
 The renderer and rain-sky palette live in the shared main source set, so neither build variant compiles an inert substitute.

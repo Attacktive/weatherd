@@ -178,6 +178,9 @@ class RainCloudRenderingTest {
 	fun rainChangesPixelsOnlyBelowTheCloudBoundaryAcrossPhasesAndOrientations() = assertParticlesStayBelowClouds(rainy)
 
 	@Test
+	fun sleetChangesPixelsOnlyBelowTheCloudBoundaryAcrossPhasesAndOrientations() = assertParticlesStayBelowClouds(rainy.copy(precipitation = Precipitation(PrecipitationKind.SLEET, 0.5f, 1f)))
+
+	@Test
 	fun snowChangesPixelsOnlyBelowTheCloudBoundaryAcrossPhasesAndOrientations() {
 		for (severity in listOf(0.5f, 1f)) {
 			assertParticlesStayBelowClouds(rainy.copy(precipitation = Precipitation(PrecipitationKind.SNOW, severity, 1f)))
