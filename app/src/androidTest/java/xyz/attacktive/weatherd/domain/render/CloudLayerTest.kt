@@ -45,6 +45,46 @@ class CloudLayerTest {
 	}
 
 	@Test
+	fun cirrusPopulationsFeatherSmoothlyWithProgressiveWispStructure() {
+		var previousPeakAlpha = 0
+		for (texture in CIRRUS_TEXTURES) {
+			val bitmap = decode(texture)
+			try {
+				val width = bitmap.width
+				val height = bitmap.height
+				val pixels = IntArray(width * height)
+				bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+
+				var peakAlpha = 0
+				var veiledPixels = 0
+				var structuredCorePixels = 0
+				for (y in 0 until height) {
+					for (x in 0 until width) {
+						val alpha = Color.alpha(pixels[y * width + x])
+						peakAlpha = maxOf(peakAlpha, alpha)
+						if (y == 0 || y == height - 1) {
+							assertEquals("${name(texture)} must dissolve to zero alpha at vertical edge y=$y", 0, alpha)
+						}
+
+						if (alpha in 1..20) {
+							veiledPixels++
+						} else if (alpha >= 32) {
+							structuredCorePixels++
+						}
+					}
+				}
+
+				assertTrue("${name(texture)} must keep recognizable wisp highlights while remaining translucent, saw peak alpha $peakAlpha", peakAlpha in 48..80)
+				assertTrue("${name(texture)} must surround core wisps ($structuredCorePixels) with a broader feathered veil ($veiledPixels)", veiledPixels > structuredCorePixels * 3)
+				assertTrue("${name(texture)} must build stronger structure across sparse -> scattered -> broken ($previousPeakAlpha -> $peakAlpha)", peakAlpha > previousPeakAlpha)
+				previousPeakAlpha = peakAlpha
+			} finally {
+				bitmap.recycle()
+			}
+		}
+	}
+
+	@Test
 	fun overcastBanksKeepBroadInternalShading() {
 		for (texture in OVERCAST_TEXTURES) {
 			val layer = CloudLayer(resources, texture)
@@ -476,6 +516,11 @@ class CloudLayerTest {
 			R.drawable.cloud_overcast_hero,
 			R.drawable.cloud_overcast_support,
 			R.drawable.cloud_overcast_veil
+		)
+		val CIRRUS_TEXTURES = listOf(
+			R.drawable.cloud_cirrus_sparse,
+			R.drawable.cloud_cirrus_scattered,
+			R.drawable.cloud_cirrus_broken
 		)
 		val HERO_CUMULUS_TEXTURES = listOf(
 			R.drawable.cloud_cumulus_hero_broad,

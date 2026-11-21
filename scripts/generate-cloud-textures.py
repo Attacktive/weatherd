@@ -75,43 +75,77 @@ def cirrus_filament_points(streak, filament_rng, filament, filament_count):
 	end = filament_rng.uniform(0.72, 1)
 	offset = (filament - (filament_count - 1) / 2) * spread / max(filament_count - 1, 1) + filament_rng.uniform(-1.5, 1.5)
 	phase_offset = filament_rng.uniform(-0.18, 0.18)
+	curl = filament_rng.uniform(-5.5, 5.5)
+	ripple_frequency = filament_rng.uniform(1.8, 3.2)
+	ripple_phase = filament_rng.uniform(0, 2 * pi)
+	ripple_amplitude = filament_rng.uniform(0.6, 2.2)
 	points = []
 	for sample in range(35):
-		t = start + (end - start) * sample / 34
+		progress = sample / 34
+		t = start + (end - start) * progress
+		splay = offset * (0.35 + 1.05 * progress ** 1.15)
+		hook = curl * progress ** 2.2
+		ripple = ripple_amplitude * sin(2 * pi * ripple_frequency * progress + ripple_phase)
 		points.append((
 			x + length * t,
-			y + slope * (t - 0.5) + amplitude * sin(2 * pi * frequency * t + phase + phase_offset) + offset * (0.45 + 0.8 * t),
+			y + slope * (t - 0.5) + amplitude * sin(2 * pi * frequency * t + phase + phase_offset) + splay + hook + ripple,
 		))
 
 	return points
 
 
-def draw_cirrus_filament(draw, width, streak, filament_rng, filament, filament_count):
-	alpha = streak[7]
+def draw_tapered_cirrus_polyline(draw, width, points, peak_alpha, line_width, taper_power, pulse_frequency, pulse_phase):
+	segment_count = len(points) - 1
+	for index in range(segment_count):
+		progress = (index + 0.5) / segment_count
+		taper = sin(pi * progress) ** taper_power
+		tuft = 0.72 + 0.28 * sin(2 * pi * pulse_frequency * progress + pulse_phase)
+		segment_alpha = round(peak_alpha * taper * tuft)
+		if segment_alpha <= 0:
+			continue
+
+		start_x, start_y = points[index]
+		end_x, end_y = points[index + 1]
+		for shift in (-width, 0, width):
+			draw.line(
+				[(start_x + shift, start_y), (end_x + shift, end_y)],
+				fill=segment_alpha,
+				width=line_width
+			)
+
+
+def draw_cirrus_filament(veil_draw, wisp_draw, width, streak, population_gain, filament_rng, filament, filament_count):
+	alpha = streak[7] * population_gain
 	points = cirrus_filament_points(streak, filament_rng, filament, filament_count)
-	filament_alpha = max(14, min(72, round(alpha * filament_rng.uniform(0.55, 1))))
+	filament_alpha = max(16, min(92, round(alpha * filament_rng.uniform(0.58, 1))))
 	filament_width = filament_rng.choice((1, 1, 1, 2))
-	for shift in (-width, 0, width):
-		draw.line(
-			[(point_x + shift, point_y) for point_x, point_y in points],
-			fill=filament_alpha,
-			width=filament_width
-		)
+	pulse_frequency = filament_rng.uniform(1.2, 2.4)
+	pulse_phase = filament_rng.uniform(0, 2 * pi)
+	draw_tapered_cirrus_polyline(veil_draw, width, points, round(filament_alpha * 0.44), filament_width + 3, 0.65, pulse_frequency, pulse_phase)
+	draw_tapered_cirrus_polyline(wisp_draw, width, points, round(filament_alpha * 1.12), filament_width, 0.38, pulse_frequency, pulse_phase)
 
 
 def cirrus_texture(start_index, end_index):
-	width = CIRRUS_SIZE[0]
-	mask = Image.new('L', CIRRUS_SIZE, 0)
-	draw = ImageDraw.Draw(mask)
+	width, height = CIRRUS_SIZE
+	veil_mask = Image.new('L', CIRRUS_SIZE, 0)
+	wisp_mask = Image.new('L', CIRRUS_SIZE, 0)
+	veil_draw = ImageDraw.Draw(veil_mask)
+	wisp_draw = ImageDraw.Draw(wisp_mask)
 	streaks = cirrus_streaks()
+	population_gain = {0: 1.02, 8: 1.18, 16: 1.34}[start_index]
 	for index in range(start_index, end_index):
 		streak = streaks[index]
 		filament_count = streak[8]
 		filament_rng = Random(CIRRUS_SEED * 100 + index)  # nosec B311 - deterministic artwork generation, not security-sensitive randomness.
 		for filament in range(filament_count):
-			draw_cirrus_filament(draw, width, streak, filament_rng, filament, filament_count)
+			draw_cirrus_filament(veil_draw, wisp_draw, width, streak, population_gain, filament_rng, filament, filament_count)
 
-	mask = mask.filter(ImageFilter.GaussianBlur(radius=1.15))
+	veil = np.asarray(veil_mask.filter(ImageFilter.GaussianBlur(radius=3.2)), dtype=np.float32)
+	wisp = np.asarray(wisp_mask.filter(ImageFilter.GaussianBlur(radius=1.15)), dtype=np.float32)
+	combined = 255.0 * (1.0 - (1.0 - veil / 255.0) * (1.0 - wisp / 255.0))
+	vertical = np.linspace(0, 1, height, dtype=np.float32)[:, None]
+	envelope = np.clip(vertical / 0.06, 0, 1) * np.clip((1.0 - vertical) / 0.06, 0, 1)
+	mask = Image.fromarray(np.clip(combined * envelope, 0, 255).astype(np.uint8), 'L')
 	image = Image.new('RGBA', CIRRUS_SIZE, (249, 251, 255, 0))
 	image.putalpha(mask)
 

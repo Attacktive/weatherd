@@ -232,11 +232,110 @@ class CloudRenderingTest {
 			bounds.width >= (WIDTH * 0.35f).roundToInt()
 		)
 		assertTrue(
+			"Cirrus veils must reach into the upper-middle sky, saw bottom ${bounds.bottom}",
+			bounds.bottom >= (HEIGHT * 0.28f).roundToInt()
+		)
+		assertTrue(
 			"Cirrus must stay above the lower cumulus region, but reached ${bounds.bottom}",
-			bounds.bottom <= (HEIGHT * 0.42f).roundToInt()
+			bounds.bottom <= (HEIGHT * 0.38f).roundToInt()
 		)
 		withoutClouds.recycle()
 		withClouds.recycle()
+	}
+
+	@Test
+	fun cirrusRespectsCoverageFloorAndGrowsAcrossPopulationsWithoutTurningSkyOpaque() {
+		val renderer = SceneRenderer(resources, epochDay = 20_000L)
+		renderer.prewarmCloudTextures()
+		val baseParams = SceneParams(
+			dayPhase = DayPhase.DAY,
+			cloudiness = 0f,
+			fogDensity = 0f,
+			precipitation = null,
+			thunder = false,
+			windFactor = 0.2f,
+			sunVisible = false,
+			moonVisible = false,
+			distantAircraftEnabled = false,
+			birdFlockSize = BirdFlockSize.OFF
+		)
+
+		val emptyFg = renderForeground(cloudiness = 0f, cloudScale = 1f, cloudLayers = SceneCloudLayers(0f, 0f, 0f))
+		val floorFg = renderForeground(cloudiness = 0.1f, cloudScale = 1f, cloudLayers = SceneCloudLayers(0f, 0f, 0.1f))
+		val lowFg = renderForeground(cloudiness = 0.3f, cloudScale = 1f, cloudLayers = SceneCloudLayers(0f, 0f, 0.3f))
+		val midFg = renderForeground(cloudiness = 0.55f, cloudScale = 1f, cloudLayers = SceneCloudLayers(0f, 0f, 0.55f))
+		val highFg = renderForeground(cloudiness = 0.85f, cloudScale = 1f, cloudLayers = SceneCloudLayers(0f, 0f, 0.85f))
+		val fullLowComposited = createBitmap(WIDTH, HEIGHT)
+		val fullHighComposited = createBitmap(WIDTH, HEIGHT)
+		try {
+			assertTrue("Cirrus floor (10%) must draw no high-cloud veil", emptyFg.sameAs(floorFg))
+
+			val lowAlphaSum = totalAlpha(lowFg)
+			val midAlphaSum = totalAlpha(midFg)
+			val highAlphaSum = totalAlpha(highFg)
+			assertTrue("Low high-cloud coverage must render a faint cirrus veil", lowAlphaSum > 0L)
+			assertTrue("Mid high-cloud coverage must add cirrus veil mass ($lowAlphaSum -> $midAlphaSum)", midAlphaSum > lowAlphaSum)
+			assertTrue("High coverage must add broken cirrus veil mass ($midAlphaSum -> $highAlphaSum)", highAlphaSum > midAlphaSum)
+			assertTrue("Even high cirrus coverage must remain translucent rather than opaque, saw peak alpha ${peakAlpha(highFg)}", peakAlpha(highFg) <= 110)
+
+			renderer.render(Canvas(fullLowComposited), WIDTH, HEIGHT, baseParams.copy(cloudiness = 0.3f, cloudLayers = SceneCloudLayers(0f, 0f, 0.3f)), TIME_SECONDS)
+			renderer.render(Canvas(fullHighComposited), WIDTH, HEIGHT, baseParams.copy(cloudiness = 0.85f, cloudLayers = SceneCloudLayers(0f, 0f, 0.85f)), TIME_SECONDS)
+			for ((label, composited) in listOf("low cirrus" to fullLowComposited, "high cirrus" to fullHighComposited)) {
+				val pixels = IntArray(WIDTH * (HEIGHT / 2))
+				composited.getPixels(pixels, 0, WIDTH, 0, 0, WIDTH, HEIGHT / 2)
+				assertTrue("$label must preserve a blue sky across every upper-sky pixel", pixels.all { Color.blue(it) > Color.red(it) + 25 })
+			}
+		} finally {
+			emptyFg.recycle()
+			floorFg.recycle()
+			lowFg.recycle()
+			midFg.recycle()
+			highFg.recycle()
+			fullLowComposited.recycle()
+			fullHighComposited.recycle()
+		}
+	}
+
+	@Test
+	fun cirrusRendersAndDriftsInBothPortraitAndLandscape() {
+		val layers = SceneCloudLayers(low = 0.05f, mid = 0.05f, high = 0.8f)
+		for ((w, h, maxBottomFraction) in listOf(
+			Triple(WIDTH, HEIGHT, 0.38f),
+			Triple(HEIGHT, WIDTH, 0.34f)
+		)) {
+			val renderer = SceneRenderer(resources, epochDay = 20_000L)
+			renderer.prewarmCloudTextures()
+			val params = SceneParams(
+				dayPhase = DayPhase.DAY,
+				cloudiness = 0.8f,
+				fogDensity = 0f,
+				precipitation = null,
+				thunder = false,
+				windFactor = 0.3f,
+				cloudLayers = layers,
+				sunVisible = false,
+				moonVisible = false,
+				distantAircraftEnabled = false,
+				birdFlockSize = BirdFlockSize.OFF
+			)
+			val withoutCirrus = createBitmap(w, h)
+			val early = createBitmap(w, h)
+			val later = createBitmap(w, h)
+			try {
+				renderer.renderForeground(Canvas(withoutCirrus), w, h, params.copy(cloudScale = 0f), TIME_SECONDS)
+				renderer.renderForeground(Canvas(early), w, h, params, TIME_SECONDS)
+				renderer.renderForeground(Canvas(later), w, h, params, TIME_SECONDS + 40f)
+				val bounds = differenceBounds(withoutCirrus, early)
+
+				assertTrue("Cirrus must span the upper sky at ${w}x$h", bounds.width >= (w * 0.35f).roundToInt())
+				assertTrue("Cirrus must stay in the upper/mid sky at ${w}x$h, saw bottom ${bounds.bottom}", bounds.bottom <= (h * maxBottomFraction).roundToInt())
+				assertFalse("Wind-driven cirrus must drift over time at ${w}x$h", early.sameAs(later))
+			} finally {
+				withoutCirrus.recycle()
+				early.recycle()
+				later.recycle()
+			}
+		}
 	}
 
 	@Test
@@ -585,6 +684,24 @@ class CloudRenderingTest {
 	}
 
 	private fun luminance(color: Int) = Color.red(color) * 0.2126 + Color.green(color) * 0.7152 + Color.blue(color) * 0.0722
+
+	private fun totalAlpha(bitmap: Bitmap): Long {
+		val pixels = IntArray(bitmap.width * bitmap.height)
+		bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+		var sum = 0L
+		for (pixel in pixels) {
+			sum += Color.alpha(pixel)
+		}
+
+		return sum
+	}
+
+	private fun peakAlpha(bitmap: Bitmap): Int {
+		val pixels = IntArray(bitmap.width * bitmap.height)
+		bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+
+		return pixels.maxOf { Color.alpha(it) }
+	}
 
 	private fun renderForeground(
 		cloudiness: Float,
