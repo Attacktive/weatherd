@@ -29,6 +29,7 @@ import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
 import androidx.core.graphics.withClip
+import androidx.core.graphics.withSave
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DEFAULT_LABEL_VERTICAL_POSITION
@@ -2912,10 +2913,13 @@ class SceneRenderer private constructor(
 
 	private fun drawVignette(canvas: Canvas, width: Float, height: Float) {
 		val radius = maxOf(width, height) * 0.72f
+		val centerX = width * 0.5f
+		val centerY = height * 0.42f
+		val clearStop = 0.4f
 		paint.style = Paint.Style.FILL
 		paint.shader = RadialGradient(
-			width * 0.5f,
-			height * 0.42f,
+			centerX,
+			centerY,
 			radius,
 			intArrayOf(
 				Color.argb(0, 0, 0, 0),
@@ -2925,11 +2929,21 @@ class SceneRenderer private constructor(
 				Color.argb(42, 0, 0, 0),
 				Color.argb(60, 0, 0, 0)
 			),
-			floatArrayOf(0f, 0.4f, 0.55f, 0.7f, 0.85f, 1f),
+			floatArrayOf(0f, clearStop, 0.55f, 0.7f, 0.85f, 1f),
 			Shader.TileMode.CLAMP
 		)
 
-		canvas.drawRect(0f, 0f, width, height, paint)
+		if (canvas.isHardwareAccelerated) {
+			canvas.drawRect(0f, 0f, width, height, paint)
+		} else {
+			// Keep all four corners inside the zero-alpha stop: 0.7 < 1 / sqrt(2).
+			val halfSide = radius * clearStop * 0.7f
+			canvas.withSave {
+				clipOutRect(centerX - halfSide, centerY - halfSide, centerX + halfSide, centerY + halfSide)
+				drawRect(0f, 0f, width, height, paint)
+			}
+		}
+
 		paint.shader = null
 	}
 

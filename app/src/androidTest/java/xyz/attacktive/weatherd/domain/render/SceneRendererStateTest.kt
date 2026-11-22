@@ -96,6 +96,37 @@ class SceneRendererStateTest {
 	}
 
 	@Test
+	fun vignetteFalloffStaysRadialOutsideTheClearCenter() {
+		val renderer = SceneRenderer(resources)
+		val photo = createBitmap(1, 1)
+		photo.eraseColor(Color.WHITE)
+		renderer.backgroundPhoto = photo
+		val backdrop = createBitmap(400, 400)
+		val params = SceneParams(
+			dayPhase = DayPhase.DAY,
+			cloudiness = 0f,
+			fogDensity = 0f,
+			precipitation = null,
+			thunder = false,
+			windFactor = 0f,
+			backdropScene = BackdropScene.PHOTO
+		)
+
+		try {
+			renderer.renderBackdrop(Canvas(backdrop), 400, 400, params)
+			// (140, 0) and (84, 112) are the same distance from the vignette center (200, 168).
+			val axial = Color.red(backdrop.getPixel(340, 168))
+			val diagonal = Color.red(backdrop.getPixel(284, 280))
+			assertTrue("The reference point must be in the darkening falloff", axial < 253)
+			assertTrue("A square cutout must not erase the diagonal falloff: $axial vs $diagonal", abs(axial - diagonal) <= 1)
+		} finally {
+			renderer.backgroundPhoto = null
+			photo.recycle()
+			backdrop.recycle()
+		}
+	}
+
+	@Test
 	fun blackNightBrightnessDarkensStaticWeatherLayers() {
 		val renderer = SceneRenderer(resources)
 		val clearNight = SceneParams(

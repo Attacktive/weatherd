@@ -500,6 +500,12 @@ Before opening a pull request, run the ordinary Android instrumentation suite on
 
 ### Rendering Performance and Motion Sensors
 
+#### Wallpaper backdrop resize
+
+On [#452](https://github.com/Attacktive/weatherd/issues/452), a Pixel 5 running Android 14 spent most of a warm daytime backdrop rebuild drawing the sky gradient and vignette on a software canvas, not copying the immutable bitmap. Skip only the vignette’s fully transparent center; leave the radial falloff, hardware drawing, and subsequent layers’ clip unchanged.
+
+To compare resize paths, hold scene inputs fixed, alternate two real surface sizes in a warmed wallpaper preview, and interleave the original and candidate in the same process. Report main-thread wall time separately from scheduled CPU time and compare backdrop pixel hashes at each size. In 24 alternating 990×2145 and 1080×2340 resizes, the clipped path reduced median paired rebuild time by 78 ms and 18 ms respectively (six pairs per size); pixel hashes matched. This is a resize measurement on one device, not a reproduction of the reported Infinix ANR.
+
 #### Capped Frame Pacing
 
 Wallpaper and preview share `FrameRateCap.remainingDelayMillis`: callback latency and completed work consume the interval measured from the latest monotonic frame-clock timestamp.
