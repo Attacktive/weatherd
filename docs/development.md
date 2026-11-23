@@ -365,6 +365,12 @@ Snow lightening and thunder darkening still apply after the phase tint; storm da
 This is a lighting correction, not new high-definition artwork or a blur/upscaling pass; affected-device graininess needs a matched comparison rather than an assumed resolution fix.
 The clear-sky desktop preview does not implement the overcast bank stack; inspect Android renderer captures for this path.
 
+### Snowfall Frost on Glass
+
+**Appearance → Weather effects → Frost on glass** is off by default and stored in appearance presets; older banks default to off.
+Opted-in snow and heavy snow grow frost inward from the viewport edges using the shared animation clock, leaving the center clear. A change away from snow, disabling the effect, or zero precipitation intensity clears it immediately; the next snowfall starts clear.
+The shared screen pass draws frost above the world and below readability overlays and labels in preview and wallpaper, including simulation. It does not change snow particles, cloud clipping, cached backdrops, or the settled-scene frame policy.
+
 ### Scenery and Tree Artwork
 
 Optional trees are an independent fixed foreground composition over backdrops other than Treescape, including None and Photo. Treescape owns its meadow and two built-in trees, and suppresses the optional overlay even when the saved Trees preference is on. Its Trees switch shows disabled/off with an explanation; the saved Shape selector is disabled when present and cannot reset. Neither control rewrites saved preferences, so leaving Treescape restores their previous effect. The shared Tree season selector remains editable when Treescape is selected or optional trees are enabled, applying to the selected scenery or foreground trees.

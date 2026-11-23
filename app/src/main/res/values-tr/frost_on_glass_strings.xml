@@ -1,0 +1,4 @@
+<resources>
+	<string name="label_frost_on_glass">Camda kırağı</string>
+	<string name="subtitle_frost_on_glass">Kar yağarken kırağı ekranın kenarlarından içeri doğru yayılır.</string>
+</resources>

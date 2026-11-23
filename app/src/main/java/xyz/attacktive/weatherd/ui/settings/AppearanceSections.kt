@@ -105,6 +105,15 @@ internal fun WeatherEffectsSection(settings: AppSettings, defaults: AppSettings,
 
 	Spacer(modifier = Modifier.height(12.dp))
 
+	ToggleSetting(
+		label = stringResource(R.string.label_frost_on_glass),
+		subtitle = stringResource(R.string.subtitle_frost_on_glass),
+		checked = settings.frostOnGlassEnabled,
+		onToggle = { onSave(settings.copy(frostOnGlassEnabled = it)) }
+	)
+
+	Spacer(modifier = Modifier.height(12.dp))
+
 	IntensitySlider(
 		label = stringResource(R.string.section_wind_intensity),
 		value = settings.windIntensityScale,

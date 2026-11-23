@@ -193,6 +193,7 @@ private data class StoredSnapshot(
 	val showLocationLabel: Boolean,
 	val precipitationIntensityScale: Float,
 	val glassDropletsEnabled: Boolean = false,
+	val frostOnGlassEnabled: Boolean = false,
 	val windIntensityScale: Float,
 	val cloudIntensityScale: Float,
 	val cloudSizeScale: Float,
@@ -232,6 +233,7 @@ private data class StoredSnapshot(
 		showLocationLabel = showLocationLabel,
 		precipitationIntensityScale = precipitationIntensityScale,
 		glassDropletsEnabled = glassDropletsEnabled,
+		frostOnGlassEnabled = frostOnGlassEnabled,
 		windIntensityScale = windIntensityScale,
 		cloudIntensityScale = cloudIntensityScale,
 		cloudSizeScale = normalizeCloudSizeScale(cloudSizeScale),
@@ -279,6 +281,7 @@ private fun AppearancePresetSnapshot.toStored() = StoredSnapshot(
 	showLocationLabel = showLocationLabel,
 	precipitationIntensityScale = precipitationIntensityScale,
 	glassDropletsEnabled = glassDropletsEnabled,
+	frostOnGlassEnabled = frostOnGlassEnabled,
 	windIntensityScale = windIntensityScale,
 	cloudIntensityScale = cloudIntensityScale,
 	cloudSizeScale = normalizeCloudSizeScale(cloudSizeScale),
@@ -352,8 +355,8 @@ private fun <T : Enum<T>> enumValue(name: String, values: Iterable<T>) = values.
 internal fun appearancePresetNameKey(name: String) = Normalizer.normalize(name.trim().lowercase(Locale.ROOT), Normalizer.Form.NFC)
 
 /** Bump whenever persisted preset snapshot fields are added, removed, renamed, or change meaning. */
-internal const val APPEARANCE_PRESET_SCHEMA_VERSION = 19
+internal const val APPEARANCE_PRESET_SCHEMA_VERSION = 20
 internal const val APPEARANCE_PRESET_NAME_MAX_LENGTH = 40
 internal const val APPEARANCE_PRESETS_KEY_NAME = "appearance_presets_json"
-private val SUPPORTED_APPEARANCE_PRESET_SCHEMA_VERSIONS = setOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, APPEARANCE_PRESET_SCHEMA_VERSION)
+private val SUPPORTED_APPEARANCE_PRESET_SCHEMA_VERSIONS = 1..APPEARANCE_PRESET_SCHEMA_VERSION
 private val PRESETS_KEY = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)

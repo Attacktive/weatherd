@@ -1,18 +1,26 @@
 package xyz.attacktive.weatherd.domain.render
 
 import android.graphics.Canvas
+import xyz.attacktive.weatherd.domain.model.PrecipitationKind
 
 /**
  * Screen-anchored weather effects that draw after any world-space translation has been restored.
- * Glass droplets stay fixed to the visible viewport and the existing overlay labels remain the topmost renderer-owned content.
+ * Glass effects stay fixed to the visible viewport and the existing overlay labels remain the topmost renderer-owned content.
  */
 internal class SceneScreenEffects(private val renderer: SceneRenderer) {
 	private val glassDropletLayer = GlassDropletLayer()
+	private val frostOnGlassLayer = FrostOnGlassLayer()
 	private val readabilityOverlayLayer = ReadabilityOverlayLayer()
 
 	fun render(canvas: Canvas, width: Int, height: Int, params: SceneParams, timeSeconds: Float, noticeEpochSeconds: Long = System.currentTimeMillis() / 1000L) {
 		if (params.glassDropletsEnabled) {
 			glassDropletLayer.draw(canvas, width.toFloat(), height.toFloat(), params, timeSeconds)
+		}
+
+		if (params.frostOnGlassEnabled && params.precipitation?.kind == PrecipitationKind.SNOW && params.precipitationScale > 0f) {
+			frostOnGlassLayer.draw(canvas, width, height, timeSeconds)
+		} else {
+			frostOnGlassLayer.clear()
 		}
 
 		readabilityOverlayLayer.draw(canvas, width.toFloat(), height.toFloat(), params)

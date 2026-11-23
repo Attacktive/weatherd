@@ -90,7 +90,7 @@ fun HomeScreen(onNavigateToSettings: () -> Unit, viewModel: HomeViewModel = hilt
 	val screenEffects = remember(renderer) { SceneScreenEffects(renderer) }
 	val motionSensor = viewModel.lensFlareMotionSensor
 	val motionOwner = remember { Any() }
-	var timeSeconds by remember { mutableFloatStateOf(0f) }
+	var timeSeconds by remember { mutableFloatStateOf(sceneAnimationTimeSeconds(System.nanoTime())) }
 	var celebrationEpochMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
 	val sceneState by viewModel.sceneState.collectAsStateWithLifecycle()
 	val settings = sceneState.settings

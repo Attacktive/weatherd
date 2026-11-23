@@ -1,0 +1,4 @@
+<resources>
+	<string name="label_frost_on_glass">玻璃结霜</string>
+	<string name="subtitle_frost_on_glass">下雪时，霜会从屏幕边缘向内蔓延。</string>
+</resources>

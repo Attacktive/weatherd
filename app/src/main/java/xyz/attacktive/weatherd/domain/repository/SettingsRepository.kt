@@ -71,6 +71,7 @@ sealed interface SettingsMutation {
 	data class WallpaperScrolling(val enabled: Boolean): SettingsMutation
 	data class PrecipitationIntensity(val value: Float): SettingsMutation
 	data class GlassDropletsEnabled(val enabled: Boolean): SettingsMutation
+	data class FrostOnGlassEnabled(val enabled: Boolean): SettingsMutation
 	data class TreesEnabled(val enabled: Boolean): SettingsMutation
 	data class TreeStyle(val value: xyz.attacktive.weatherd.domain.model.TreeStyle): SettingsMutation
 	data class TreeSeason(val value: xyz.attacktive.weatherd.domain.model.TreeSeason): SettingsMutation
@@ -134,6 +135,7 @@ internal fun settingsMutationsBetween(previous: AppSettings, updated: AppSetting
 		addIfChanged(previous.wallpaperScrollingEnabled, updated.wallpaperScrollingEnabled, SettingsMutation::WallpaperScrolling)
 		addIfChanged(previous.precipitationIntensityScale, updated.precipitationIntensityScale, SettingsMutation::PrecipitationIntensity)
 		addIfChanged(previous.glassDropletsEnabled, updated.glassDropletsEnabled, SettingsMutation::GlassDropletsEnabled)
+		addIfChanged(previous.frostOnGlassEnabled, updated.frostOnGlassEnabled, SettingsMutation::FrostOnGlassEnabled)
 		addIfChanged(previous.treesEnabled, updated.treesEnabled, SettingsMutation::TreesEnabled)
 		addIfChanged(previous.treeStyle, updated.treeStyle, SettingsMutation::TreeStyle)
 		addIfChanged(previous.treeSeason, updated.treeSeason, SettingsMutation::TreeSeason)
@@ -231,6 +233,7 @@ private fun SettingsMutation.appliedTo(settings: AppSettings) = when (this) {
 	is SettingsMutation.WallpaperScrolling -> settings.copy(wallpaperScrollingEnabled = enabled)
 	is SettingsMutation.PrecipitationIntensity -> settings.copy(precipitationIntensityScale = value)
 	is SettingsMutation.GlassDropletsEnabled -> settings.copy(glassDropletsEnabled = enabled)
+	is SettingsMutation.FrostOnGlassEnabled -> settings.copy(frostOnGlassEnabled = enabled)
 	is SettingsMutation.TreesEnabled -> settings.copy(treesEnabled = enabled)
 	is SettingsMutation.TreeStyle -> settings.copy(treeStyle = value)
 	is SettingsMutation.TreeSeason -> settings.copy(treeSeason = value)
@@ -313,6 +316,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		val WALLPAPER_SCROLLING_ENABLED = booleanPreferencesKey("wallpaper_scrolling_enabled")
 		val PRECIPITATION_INTENSITY_SCALE = floatPreferencesKey("precipitation_intensity_scale")
 		val GLASS_DROPLETS_ENABLED = booleanPreferencesKey("glass_droplets_enabled")
+		val FROST_ON_GLASS_ENABLED = booleanPreferencesKey("frost_on_glass_enabled")
 		val TREES_ENABLED = booleanPreferencesKey("trees_enabled")
 		val TREE_STYLE = stringPreferencesKey("tree_style")
 		val TREE_SEASON = TREE_SEASON_PREFERENCE_KEY
@@ -377,6 +381,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			wallpaperScrollingEnabled = preferences[Keys.WALLPAPER_SCROLLING_ENABLED] ?: defaults.wallpaperScrollingEnabled,
 			precipitationIntensityScale = preferences[Keys.PRECIPITATION_INTENSITY_SCALE] ?: defaults.precipitationIntensityScale,
 			glassDropletsEnabled = preferences[Keys.GLASS_DROPLETS_ENABLED] ?: defaults.glassDropletsEnabled,
+			frostOnGlassEnabled = preferences[Keys.FROST_ON_GLASS_ENABLED] ?: defaults.frostOnGlassEnabled,
 			treesEnabled = preferences[Keys.TREES_ENABLED] ?: defaults.treesEnabled,
 			treeStyle = enumOrDefault(preferences[Keys.TREE_STYLE], TreeStyle.entries, defaults.treeStyle),
 			treeSeason = storedTreeSeason(preferences),
@@ -466,6 +471,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			preferences[Keys.WALLPAPER_SCROLLING_ENABLED] = settings.wallpaperScrollingEnabled
 			preferences[Keys.PRECIPITATION_INTENSITY_SCALE] = settings.precipitationIntensityScale
 			preferences[Keys.GLASS_DROPLETS_ENABLED] = settings.glassDropletsEnabled
+			preferences[Keys.FROST_ON_GLASS_ENABLED] = settings.frostOnGlassEnabled
 			preferences[Keys.TREES_ENABLED] = settings.treesEnabled
 			preferences[Keys.TREE_STYLE] = settings.treeStyle.name
 			preferences[Keys.TREE_SEASON] = settings.treeSeason.name
@@ -539,6 +545,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 			is SettingsMutation.WallpaperScrolling -> this[Keys.WALLPAPER_SCROLLING_ENABLED] = mutation.enabled
 			is SettingsMutation.PrecipitationIntensity -> this[Keys.PRECIPITATION_INTENSITY_SCALE] = mutation.value
 			is SettingsMutation.GlassDropletsEnabled -> this[Keys.GLASS_DROPLETS_ENABLED] = mutation.enabled
+			is SettingsMutation.FrostOnGlassEnabled -> this[Keys.FROST_ON_GLASS_ENABLED] = mutation.enabled
 			is SettingsMutation.TreesEnabled -> this[Keys.TREES_ENABLED] = mutation.enabled
 			is SettingsMutation.TreeStyle -> this[Keys.TREE_STYLE] = mutation.value.name
 			is SettingsMutation.TreeSeason -> this[Keys.TREE_SEASON] = mutation.value.name
@@ -595,6 +602,7 @@ class SettingsRepository @Inject constructor(private val dataStore: DataStore<Pr
 		this[Keys.SHOW_LOCATION_LABEL] = snapshot.showLocationLabel
 		this[Keys.PRECIPITATION_INTENSITY_SCALE] = snapshot.precipitationIntensityScale
 		this[Keys.GLASS_DROPLETS_ENABLED] = snapshot.glassDropletsEnabled
+		this[Keys.FROST_ON_GLASS_ENABLED] = snapshot.frostOnGlassEnabled
 		this[Keys.TREES_ENABLED] = snapshot.treesEnabled
 		this[Keys.TREE_STYLE] = snapshot.treeStyle.name
 		this[Keys.TREE_SEASON] = snapshot.treeSeason.name

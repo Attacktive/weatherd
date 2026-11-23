@@ -52,6 +52,7 @@ data class AppSettings(
 	val sceneSimulatorDayPhase: DayPhase = DayPhase.DAY,
 	val sceneSimulatorCelestialProgress: Float = 0.5f,
 	val glassDropletsEnabled: Boolean = false,
+	val frostOnGlassEnabled: Boolean = false,
 	val treesEnabled: Boolean = false,
 	val treeStyle: TreeStyle = TreeStyle.EVERGREEN,
 	val treeSeason: TreeSeason = TreeSeason.AUTO,

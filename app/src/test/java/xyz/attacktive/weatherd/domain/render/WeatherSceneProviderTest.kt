@@ -1760,6 +1760,21 @@ class WeatherSceneProviderTest {
 		assertEquals(SkyColorPreset.CUSTOM, params.skyColorPreset)
 	}
 
+	@Test
+	fun `frost opt-in survives fallback live and simulator transitions`() = runTest {
+		val settings = AppSettings(useDeviceLocation = true, frostOnGlassEnabled = true)
+		persistedSettings.value = settings
+		assertTrue(provider.paramsFor(1_000_000L).frostOnGlassEnabled)
+
+		coEvery { locationRepository.currentLocation() } returns GeoLocation(52.52, 13.40)
+		coEvery { weatherRepository.current(52.52, 13.40) } returns Result.success(snapshotWith(weatherCode = 73))
+		provider.refresh(1_000_000L)
+		assertTrue(provider.paramsFor(1_000_000L).frostOnGlassEnabled)
+
+		persistedSettings.value = settings.copy(sceneSimulatorEnabled = true, sceneSimulatorActive = true)
+		assertTrue(provider.paramsFor(1_000_000L).frostOnGlassEnabled)
+	}
+
 	private suspend fun assertSettingsLocationStatus(settings: AppSettings) {
 		persistedSettings.value = settings
 		coEvery { locationRepository.currentLocation() } returns GeoLocation(37.57, 126.98)

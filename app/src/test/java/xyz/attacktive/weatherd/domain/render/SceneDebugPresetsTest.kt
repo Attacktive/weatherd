@@ -146,6 +146,17 @@ class SceneDebugPresetsTest {
 	}
 
 	@Test
+	fun `frost opt-in reaches simulated snowfall without invalidating the backdrop`() {
+		val preset = SCENE_PRESETS.find { it.name == "SNOW" }!!
+		val ordinary = debugSceneParams(preset, DayPhase.DAY)
+		val frosted = debugSceneParams(preset, DayPhase.DAY, frostOnGlassEnabled = true)
+
+		assertFalse(ordinary.frostOnGlassEnabled)
+		assertTrue(frosted.frostOnGlassEnabled)
+		assertEquals(backdropSignature(ordinary), backdropSignature(frosted))
+	}
+
+	@Test
 	fun `tree morphology and visibility leave simulated weather and backdrop caching unchanged`() {
 		for (preset in SCENE_PRESETS) {
 			val evergreen = debugSceneParams(preset, DayPhase.DAY, treesEnabled = true)
