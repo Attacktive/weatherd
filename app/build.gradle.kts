@@ -35,7 +35,11 @@ val stormCloudReleaseEnabled = providers.gradleProperty("stormCloudRelease")
 
 android {
 	namespace = "xyz.attacktive.weatherd"
-	compileSdk = 37
+	compileSdk {
+		version = release(37) {
+			minorApiLevel = 2
+		}
+	}
 
 	defaultConfig {
 		applicationId = "xyz.attacktive.weatherd"
