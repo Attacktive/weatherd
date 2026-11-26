@@ -390,7 +390,6 @@ class SettingsNavigationTest {
 	fun everyAppearanceCategoryIsReachableFromTheHub() {
 		assertVisible(R.string.appearance_category_scenery)
 		assertVisible(R.string.appearance_category_clouds)
-		assertAbsent(R.string.section_location)
 		assertTopLevelTabsPresent()
 		assertAbsent(R.string.section_location)
 
