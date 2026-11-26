@@ -390,6 +390,7 @@ class SettingsNavigationTest {
 	fun everyAppearanceCategoryIsReachableFromTheHub() {
 		assertVisible(R.string.appearance_category_scenery)
 		assertVisible(R.string.appearance_category_clouds)
+		assertAbsent(R.string.section_location)
 		assertTopLevelTabsPresent()
 		assertAbsent(R.string.section_location)
 
@@ -626,7 +627,7 @@ class SettingsNavigationTest {
 			if (isVisible(R.string.settings_tab_advanced)) {
 				true
 			} else {
-				swipeTabStrip(forward = true)
+				scrollTabStrip(forward = true)
 				false
 			}
 		}
@@ -645,7 +646,7 @@ class SettingsNavigationTest {
 				if (isVisible(label)) {
 					true
 				} else {
-					swipeTabStrip(forward = true)
+					scrollTabStrip(forward = true)
 					false
 				}
 			}
@@ -655,7 +656,7 @@ class SettingsNavigationTest {
 			if (isVisible(R.string.settings_tab_appearance) && isVisible(R.string.settings_tab_weather)) {
 				true
 			} else {
-				swipeTabStrip(forward = false)
+				scrollTabStrip(forward = false)
 				false
 			}
 		}
@@ -700,19 +701,14 @@ class SettingsNavigationTest {
 		it.isScrollable && it.className == "android.widget.ScrollView"
 	}
 
-	private fun swipeTabStrip(forward: Boolean) {
-		val scroller = waitForNode("horizontal tab strip") {
-			it.isScrollable && it.className != "android.widget.ScrollView"
+	private fun scrollTabStrip(forward: Boolean) {
+		val action = if (forward) AccessibilityNodeInfo.ACTION_SCROLL_FORWARD else AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
+		val scroller = findNode(automation.rootInActiveWindow) { node ->
+			node.isVisibleToUser && node.className != "android.widget.ScrollView" && node.actionList.any { it.id == action }
 		}
 
-		val bounds = Rect().also { scroller.getBoundsInScreen(it) }
-		val left = bounds.left + bounds.width() / 4
-		val right = bounds.right - bounds.width() / 4
-		val start = if (forward) right else left
-		val end = if (forward) left else right
-		ParcelFileDescriptor.AutoCloseInputStream(
-			automation.executeShellCommand("input swipe $start ${bounds.centerY()} $end ${bounds.centerY()} 250")
-		).use { it.readBytes() }
+		// Shell swipes can be interpreted as tab clicks when emulator input dispatch falls behind.
+		scroller?.performAction(action)
 	}
 
 	private fun scrollAwayFromTop(@StringRes first: Int, @StringRes anchor: Int) {
@@ -764,7 +760,8 @@ class SettingsNavigationTest {
 
 	private fun waitForNode(description: String, predicate: (AccessibilityNodeInfo) -> Boolean): AccessibilityNodeInfo {
 		var result: AccessibilityNodeInfo? = null
-		waitUntil(description) {
+		// The destination can draw before its accessibility tree is ready on a software emulator.
+		waitUntil(description, timeoutMillis = 45_000L) {
 			result = findNode(automation.rootInActiveWindow) {
 				it.packageName == instrumentation.targetContext.packageName && it.isVisibleToUser && predicate(it)
 			}
@@ -775,8 +772,8 @@ class SettingsNavigationTest {
 		return checkNotNull(result)
 	}
 
-	private fun waitUntil(description: String, condition: () -> Boolean) {
-		val deadline = SystemClock.uptimeMillis() + 10_000L
+	private fun waitUntil(description: String, timeoutMillis: Long = 10_000L, condition: () -> Boolean) {
+		val deadline = SystemClock.uptimeMillis() + timeoutMillis
 		while (true) {
 			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
 				automation.clearCache()

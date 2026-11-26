@@ -80,7 +80,7 @@ class CustomSkyGradientEditorTest {
 
 		scenario = ActivityScenario.launch(MainActivity::class.java)
 		clickDescription(R.string.content_description_settings)
-		assertVisible(R.string.settings_title)
+		waitForNode(text(R.string.settings_title)) { matchesText(it, text(R.string.settings_title)) }
 	}
 
 	@After
@@ -575,7 +575,9 @@ class CustomSkyGradientEditorTest {
 
 	private fun openSky() {
 		clickText(R.string.appearance_category_sky)
-		waitUntil("Sky category open") { !isVisible(R.string.settings_tab_weather) }
+		waitForNode("Sky category open") {
+			it.text?.toString() == text(R.string.appearance_category_sky) && !isVisible(R.string.settings_tab_weather)
+		}
 	}
 
 	private fun selectSkyColor(preset: SkyColorPreset) {
@@ -589,7 +591,7 @@ class CustomSkyGradientEditorTest {
 		}
 
 		waitForNode("Sky palette section", scroll = true) { matchesText(it, text(R.string.section_sky_palette)) }
-		val currentDropdown = waitForNode("Sky color dropdown") {
+		val currentDropdown = waitForNode("Sky color dropdown", scroll = true) {
 			it.className == "android.widget.EditText" && (
 				matchesText(it, text(R.string.sky_color_natural)) ||
 				matchesText(it, text(R.string.sky_color_warm)) ||
@@ -605,6 +607,9 @@ class CustomSkyGradientEditorTest {
 			node.className == "android.widget.TextView" && matchesText(node, text(label))
 		}
 		click(targetItem)
+		waitForNode("Sky palette set to ${text(label)}") {
+			it.className == "android.widget.EditText" && matchesText(it, text(label))
+		}
 	}
 
 	private fun clickText(@StringRes label: Int) = click(waitForNode(text(label), scroll = true) { matchesText(it, text(label)) })
@@ -698,9 +703,16 @@ class CustomSkyGradientEditorTest {
 		var result: AccessibilityNodeInfo? = null
 		var searchForward = false
 		waitUntil(description) {
-			result = findMatchingNode(predicate)
+			val root = automation.rootInActiveWindow
+			result = findNode(root) {
+				it.packageName == instrumentation.targetContext.packageName && it.isVisibleToUser && predicate(it)
+			}
+
 			if (result == null && scroll) {
-				val scroller = findScrollView()
+				val scroller = findNode(root) { node ->
+					node.isVisibleToUser && node.className == "android.widget.ScrollView" &&
+						node.actionList.any { it.id == AccessibilityNodeInfo.ACTION_SCROLL_FORWARD || it.id == AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD }
+				}
 				if (scroller != null) {
 					searchForward = performScroll(scroller, searchForward)
 				}
@@ -710,14 +722,6 @@ class CustomSkyGradientEditorTest {
 		}
 
 		return checkNotNull(result)
-	}
-
-	private fun findMatchingNode(predicate: (AccessibilityNodeInfo) -> Boolean) = findNode(automation.rootInActiveWindow) {
-		it.packageName == instrumentation.targetContext.packageName && it.isVisibleToUser && predicate(it)
-	}
-
-	private fun findScrollView() = findNode(automation.rootInActiveWindow) {
-		it.isScrollable && it.className == "android.widget.ScrollView"
 	}
 
 	private fun performScroll(scroller: AccessibilityNodeInfo, searchForward: Boolean): Boolean {
@@ -741,9 +745,10 @@ class CustomSkyGradientEditorTest {
 	}
 
 	private fun waitUntil(description: String, condition: () -> Boolean) {
-		val deadline = SystemClock.uptimeMillis() + 10_000L
+		val deadline = SystemClock.uptimeMillis() + 45_000L
 		while (true) {
-			compose.mainClock.advanceTimeByFrame()
+			// Advance the navigation and dropdown transitions even when emulator frames are expensive.
+			compose.mainClock.advanceTimeBy(64L)
 			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
 				automation.clearCache()
 			}
@@ -767,7 +772,9 @@ class CustomSkyGradientEditorTest {
 	private fun windowDiagnostics() = buildString {
 		appendLine("Activity state: ${scenario.state}")
 		val repository = EntryPointAccessors.fromApplication(instrumentation.targetContext.applicationContext, ProviderEvaluationEntryPoint::class.java).settingsRepository()
-		appendLine("Saved custom sky: ${runBlocking { repository.settings.first().customSkyGradient }}")
+		val settings = runBlocking { repository.settings.first() }
+		appendLine("Saved sky palette: ${settings.skyColorPreset}")
+		appendLine("Saved custom sky: ${settings.customSkyGradient}")
 		appendLine("Active accessibility tree:")
 		appendTree(automation.rootInActiveWindow, 0)
 	}
