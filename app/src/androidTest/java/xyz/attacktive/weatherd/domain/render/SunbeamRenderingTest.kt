@@ -31,6 +31,24 @@ class SunbeamRenderingTest {
 	}
 
 	@Test
+	fun onlyClassicClearSkyBeamsDriftBelowTheGlare() {
+		for (style in SunStyle.entries) {
+			val params = clearParams().copy(sunStyle = style, sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO)
+			val shared = renderer()
+			val first = render(params, renderer = shared, time = 0f)
+			val later = render(params, renderer = shared, time = 5f)
+			try {
+				// Below the radial glare and the core, only the prototype shafts should move.
+				val changed = beamEnergy(first, later, 365, 440) > 0L
+				assertTrue("Unexpected lower beam motion for $style", changed == (style == SunStyle.CLASSIC))
+			} finally {
+				first.recycle()
+				later.recycle()
+			}
+		}
+	}
+
+	@Test
 	fun clearSkyRequiresExplicitOptInAndRetainsTheSunInBothStyles() {
 		for (style in SunStyle.entries) {
 			val params = clearParams().copy(sunStyle = style)

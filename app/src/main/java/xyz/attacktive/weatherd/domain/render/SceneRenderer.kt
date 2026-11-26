@@ -3122,9 +3122,29 @@ class SceneRenderer private constructor(
 		if (clearStrength > 0.02f) {
 			val alpha = sunAlpha(CLEAR_SUN_GLARE_ALPHA * clearStrength, sun.visibility)
 			sunGlare.draw(canvas, sun.centerX, sun.centerY, radius * CLEAR_SUN_GLARE_REACH, tint, alpha)
+			if (sun.params.sunStyle == SunStyle.CLASSIC) {
+				drawClassicClearBeams(canvas, sun, radius, tint, alpha)
+			}
 		}
 
 		resetGlowPaint()
+	}
+
+	private fun drawClassicClearBeams(canvas: Canvas, sun: SunRenderContext, radius: Float, tint: Int, alpha: Int) {
+		// The two downward beams drift around fixed bearings without rotating the solar core.
+		val drift = sin(sun.timeSeconds * 0.32f)
+		sunShaftGeometry.originX = sun.centerX
+		sunShaftGeometry.originY = sun.centerY
+		sunShaftGeometry.innerReach = radius * 0.25f
+		sunShaftGeometry.tint = tint
+		sunShaftGeometry.rotationDegrees = 20f + drift * 1.8f
+		sunShaftGeometry.outerReach = radius * 10f
+		sunShaftGeometry.outerHalfWidth = radius * 1.3f
+		drawSunShaftWedge(canvas, sunShaftGeometry, (alpha * 0.65f).roundToInt())
+		sunShaftGeometry.rotationDegrees = -12f - drift
+		sunShaftGeometry.outerReach = radius * 8.5f
+		sunShaftGeometry.outerHalfWidth = radius
+		drawSunShaftWedge(canvas, sunShaftGeometry, (alpha * 0.5f).roundToInt())
 	}
 
 	private fun resetGlowPaint() {
