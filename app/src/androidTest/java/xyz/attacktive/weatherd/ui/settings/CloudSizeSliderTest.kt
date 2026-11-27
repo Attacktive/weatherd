@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -37,6 +36,7 @@ class CloudSizeSliderTest {
 	private val instrumentation = InstrumentationRegistry.getInstrumentation()
 	private val automation = instrumentation.uiAutomation
 	private val committed = AtomicReference(1f)
+	private var value by mutableFloatStateOf(1f)
 	private lateinit var scenario: ActivityScenario<MainActivity>
 
 	@Before
@@ -97,6 +97,17 @@ class CloudSizeSliderTest {
 	}
 
 	@Test
+	fun externalValueMovesIdleThumbWithoutCommitting() {
+		showSlider(1f)
+		waitForLabel(100)
+		scenario.onActivity { value = 1.4f }
+		waitForLabel(140)
+		waitForWarning()
+		assertEquals(1.4f, checkNotNull(slider().rangeInfo).current, 0f)
+		assertEquals(1f, committed.get(), 0f)
+	}
+
+	@Test
 	fun warningAppearsDuringDragBeforeTheValueIsCommitted() {
 		showSlider(1f)
 		waitForLabel(100)
@@ -122,8 +133,8 @@ class CloudSizeSliderTest {
 	private fun showSlider(initial: Float) {
 		committed.set(initial)
 		scenario.onActivity { activity ->
+			value = initial
 			activity.setContent {
-				var value by remember { mutableFloatStateOf(initial) }
 				MaterialTheme {
 					Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 64.dp)) {
 						CloudSizeSlider(

@@ -39,6 +39,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
+import xyz.attacktive.weatherd.ui.rememberControlledSliderState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -655,9 +656,8 @@ private fun ColorRow(
 		}
 
 		Slider(
-			value = position,
+			state = rememberControlledSliderState(position),
 			onValueChange = { onPositionChange(it.coerceIn(positionRange)) },
-			valueRange = 0f..1f,
 			modifier = Modifier
 				.fillMaxWidth()
 				.semantics { contentDescription = positionLabel }
@@ -800,13 +800,12 @@ private fun ColorPickerDialog(
 					style = MaterialTheme.typography.bodyMedium
 				)
 				Slider(
-					value = red.toFloat(),
+					state = rememberControlledSliderState(red.toFloat(), 0f..255f),
 					onValueChange = {
 						red = it.roundToInt().coerceIn(0, 255)
 						hexText = String.format("%02X%02X%02X", red, green, blue)
 						hexError = false
 					},
-					valueRange = 0f..255f,
 					modifier = Modifier.fillMaxWidth()
 				)
 
@@ -815,13 +814,12 @@ private fun ColorPickerDialog(
 					style = MaterialTheme.typography.bodyMedium
 				)
 				Slider(
-					value = green.toFloat(),
+					state = rememberControlledSliderState(green.toFloat(), 0f..255f),
 					onValueChange = {
 						green = it.roundToInt().coerceIn(0, 255)
 						hexText = String.format("%02X%02X%02X", red, green, blue)
 						hexError = false
 					},
-					valueRange = 0f..255f,
 					modifier = Modifier.fillMaxWidth()
 				)
 
@@ -830,13 +828,12 @@ private fun ColorPickerDialog(
 					style = MaterialTheme.typography.bodyMedium
 				)
 				Slider(
-					value = blue.toFloat(),
+					state = rememberControlledSliderState(blue.toFloat(), 0f..255f),
 					onValueChange = {
 						blue = it.roundToInt().coerceIn(0, 255)
 						hexText = String.format("%02X%02X%02X", red, green, blue)
 						hexError = false
 					},
-					valueRange = 0f..255f,
 					modifier = Modifier.fillMaxWidth()
 				)
 			}

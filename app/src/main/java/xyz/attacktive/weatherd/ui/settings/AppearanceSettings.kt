@@ -73,7 +73,6 @@ internal fun AppearanceSettingsTab(viewModel: SettingsViewModel, category: Appea
 @Composable
 private fun AppearanceHub(settings: AppSettings, presetState: AppearancePresetStorageState, onSelectCategory: (AppearanceCategory) -> Unit) = AppearanceCategory.entries.forEach { category ->
 	ListItem(
-		headlineContent = { Text(stringResource(category.label)) },
 		supportingContent = {
 			Text(
 				text = appearanceSummary(category, settings, presetState),
@@ -83,7 +82,9 @@ private fun AppearanceHub(settings: AppSettings, presetState: AppearancePresetSt
 		},
 		trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
 		modifier = Modifier.clickable(role = Role.Button, onClick = { onSelectCategory(category) })
-	)
+	) {
+		Text(stringResource(category.label))
+	}
 }
 
 @Composable

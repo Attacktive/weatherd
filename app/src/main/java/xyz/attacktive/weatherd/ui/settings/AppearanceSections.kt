@@ -39,6 +39,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
+import xyz.attacktive.weatherd.ui.rememberControlledSliderState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -316,10 +317,9 @@ private fun PercentageSlider(label: Int, value: Float, defaultValue: Float, valu
 	)
 
 	Slider(
-		value = position,
+		state = rememberControlledSliderState(position, valueRange),
 		onValueChange = { position = it },
-		onValueChangeFinished = { onCommit(position) },
-		valueRange = valueRange
+		onValueChangeFinished = { onCommit(position) }
 	)
 
 	Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -347,10 +347,9 @@ private fun IntensitySlider(label: String, value: Float, defaultValue: Float, on
 	)
 
 	Slider(
-		value = position,
+		state = rememberControlledSliderState(position, INTENSITY_SCALE_RANGE),
 		onValueChange = { position = it },
-		onValueChangeFinished = { onCommit(position) },
-		valueRange = INTENSITY_SCALE_RANGE
+		onValueChangeFinished = { onCommit(position) }
 	)
 
 	Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {

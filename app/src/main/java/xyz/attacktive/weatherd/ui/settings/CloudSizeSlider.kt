@@ -24,6 +24,7 @@ import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.CLOUD_SIZE_SCALE_RANGE
 import xyz.attacktive.weatherd.domain.model.normalizeCloudSizeScale
 import xyz.attacktive.weatherd.domain.model.shouldWarnAboutCloudSize
+import xyz.attacktive.weatherd.ui.rememberControlledSliderState
 
 @Composable
 internal fun CloudSizeSlider(value: Float, defaultValue: Float, onCommit: (Float) -> Unit) {
@@ -41,10 +42,9 @@ internal fun CloudSizeSlider(value: Float, defaultValue: Float, onCommit: (Float
 	)
 
 	Slider(
-		value = position,
+		state = rememberControlledSliderState(position, CLOUD_SIZE_SCALE_RANGE),
 		onValueChange = { position = normalizeCloudSizeScale(it) },
-		onValueChangeFinished = { onCommit(position) },
-		valueRange = CLOUD_SIZE_SCALE_RANGE
+		onValueChangeFinished = { onCommit(position) }
 	)
 
 	Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
