@@ -34,7 +34,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
-import xyz.attacktive.weatherd.ui.rememberControlledSliderState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -78,6 +77,7 @@ import xyz.attacktive.weatherd.domain.render.renderImmutableBitmap
 import xyz.attacktive.weatherd.domain.render.sceneAnimationTimeSeconds
 import xyz.attacktive.weatherd.service.WeatherLiveWallpaperService
 import xyz.attacktive.weatherd.service.wallpaperAnimationActive
+import xyz.attacktive.weatherd.ui.rememberControlledSliderState
 
 /**
  * A live preview of the current scene — the same renderer and weather source the wallpaper uses, including the persisted scene-simulator override.

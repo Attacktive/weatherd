@@ -39,7 +39,6 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
-import xyz.attacktive.weatherd.ui.rememberControlledSliderState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -72,6 +71,7 @@ import androidx.compose.ui.window.DialogProperties
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.CustomSkyGradient
 import xyz.attacktive.weatherd.domain.model.SkyGradientDirection
+import xyz.attacktive.weatherd.ui.rememberControlledSliderState
 
 internal enum class ColorStopIndex {
 	START,
