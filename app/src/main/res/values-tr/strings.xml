@@ -190,6 +190,7 @@
 	<string name="backdrop_photo">Fotoğraflarınız</string>
 	<string name="backdrop_cloud_mountains">Bulutlu dağlar</string>
 	<string name="backdrop_treescape">Ağaçlı manzara</string>
+	<string name="backdrop_lake">Göl</string>
 	<string name="hint_treescape_season">Mevsim, ağaçlı manzaradaki ağaçları ve çayırı değiştirir.</string>
 
 	<!-- Photo backgrounds -->

@@ -396,6 +396,10 @@ Regenerate first-party sources with `uv run scripts/generate-tree-textures.py` a
 Prepare seasonal Treescape artwork with `uv run scripts/prepare-treescape.py` from the pristine contributor sources in `scripts/assets/treescape`; retain the [artwork credit and permission](../README.md#artwork-credits).
 Decode only the selected optional tree style or Treescape season on first use off the frame loop; never copy reference-app artwork.
 
+Lake keeps its wooded banks fixed and its optional foreground trees independent. Only the water distorts the reflected sky, clouds, and shore; the reflection sample omits the sun disc in favor of a narrow shimmer. Wind controls displacement; heavier rain increases contact density, not ring size. Rings follow the shared animation clock and freeze with the wallpaper.
+
+For a matched device comparison, assemble the debug app with `-PlakePacingTest=true` (isolated `.lakepacing` package) and repeat with `-PlakeContactRings=false`. Seed its simulator with `LakeWallpaperCaptureSetup`, open the system wallpaper preview without applying it, and compare the wallpaper surface itself. Ordinary and release builds always draw the rings.
+
 ### Sun, Moon, and Optical Effects
 
 - Classic is procedural; Radiant uses the [unchanged submitted PNG](https://github.com/user-attachments/assets/68a92bcf-016d-4276-bc35-4c1e38ae6b78) credited in the [README](../README.md#artwork-credits); Starburst is first-party artwork inspired by [#291](https://github.com/Attacktive/weatherd/issues/291), not sampled from its iOS reference.

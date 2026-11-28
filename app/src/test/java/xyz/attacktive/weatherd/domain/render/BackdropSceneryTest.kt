@@ -20,6 +20,11 @@ class BackdropSceneryTest {
 	}
 
 	@Test
+	fun `lake does not use legacy silhouettes`() {
+		assertNull(sceneryOutlinesFor(BackdropScene.LAKE, PORTRAIT))
+	}
+
+	@Test
 	fun `every scenery scene stays in the loop-driven coverage`() {
 		assertEquals(4, SCENERY_SCENES.size)
 	}

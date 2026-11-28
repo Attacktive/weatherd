@@ -67,6 +67,39 @@ class AppearancePresetRepositoryTest {
 	}
 
 	@Test
+	fun `lake preset survives reopening and application`() = runTest {
+		val dataStore = dataStore()
+		val presets = AppearancePresetRepository(dataStore)
+		assertTrue(presets.create("Lake", AppSettings(backdropScene = BackdropScene.LAKE).toAppearancePresetSnapshot()).isSuccess)
+
+		val key = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)
+		val raw = dataStore.data.first()[key]!!
+		assertEquals(21, Json.parseToJsonElement(raw).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+		val snapshot = (AppearancePresetRepository(dataStore).state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot
+		assertEquals(BackdropScene.LAKE, snapshot.backdropScene)
+
+		val settings = SettingsRepository(dataStore)
+		settings.applyAppearancePreset(snapshot)
+		assertEquals(BackdropScene.LAKE, SettingsRepository(dataStore).settings.first().backdropScene)
+	}
+
+	@Test
+	fun `version twenty beach preset remains readable and is upgraded on write`() = runTest {
+		val dataStore = dataStore()
+		val repository = AppearancePresetRepository(dataStore)
+		assertTrue(repository.create("Beach", AppSettings(backdropScene = BackdropScene.BEACH).toAppearancePresetSnapshot()).isSuccess)
+		val key = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)
+		dataStore.edit { preferences ->
+			preferences[key] = preferences[key]!!.replace("\"schemaVersion\":21", "\"schemaVersion\":20")
+		}
+
+		val beach = (AppearancePresetRepository(dataStore).state.first() as AppearancePresetStorageState.Ready).presets.single()
+		assertEquals(BackdropScene.BEACH, beach.snapshot.backdropScene)
+		assertTrue(repository.rename(beach.id, "Coast").isSuccess)
+		assertEquals(21, Json.parseToJsonElement(dataStore.data.first()[key]!!).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+	}
+
+	@Test
 	fun `versions one and two presets migrate aircraft to enabled`() = runTest {
 		val key = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)
 		val versionOneDataStore = dataStore("preset-settings-v1.preferences_pb")

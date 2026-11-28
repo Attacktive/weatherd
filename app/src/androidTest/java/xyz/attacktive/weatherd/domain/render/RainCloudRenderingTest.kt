@@ -16,6 +16,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import xyz.attacktive.weatherd.BuildConfig
 import xyz.attacktive.weatherd.R
+import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.Precipitation
 import xyz.attacktive.weatherd.domain.model.PrecipitationKind
@@ -200,6 +201,9 @@ class RainCloudRenderingTest {
 	fun rainChangesPixelsOnlyBelowTheCloudBoundaryAcrossPhasesAndOrientations() = assertParticlesStayBelowClouds(rainy)
 
 	@Test
+	fun lakeContactDropsStayBelowTheCloudBoundary() = assertParticlesStayBelowClouds(rainy.copy(backdropScene = BackdropScene.LAKE, cloudSizeScale = 1.5f))
+
+	@Test
 	fun sleetChangesPixelsOnlyBelowTheCloudBoundaryAcrossPhasesAndOrientations() = assertParticlesStayBelowClouds(rainy.copy(precipitation = Precipitation(PrecipitationKind.SLEET, 0.5f, 1f)))
 
 	@Test
@@ -215,6 +219,7 @@ class RainCloudRenderingTest {
 		val renderer = SceneRenderer(resources, epochDay = 0L)
 		val prototype = StormCloudPrototype(resources)
 		renderer.prewarmCloudTextures()
+		renderer.prewarmSceneryTexture(scene.backdropScene)
 		prototype.prewarm()
 		val boundary = CloudRainBoundary()
 

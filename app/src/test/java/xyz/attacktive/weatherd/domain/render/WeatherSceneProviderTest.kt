@@ -74,6 +74,19 @@ class WeatherSceneProviderTest {
 	}
 
 	@Test
+	fun `lake reaches live simulated and offline scenes`() {
+		val now = Instant.parse("2026-11-12T12:00:00Z").epochSecond
+		val settings = AppSettings(useDeviceLocation = false, backdropScene = BackdropScene.LAKE)
+		val fallback = WeatherSceneState(settings)
+		val live = fallback.copy(snapshot = snapshotWith(weatherCode = 0))
+		val simulated = fallback.copy(settings = settings.copy(sceneSimulatorEnabled = true, sceneSimulatorActive = true))
+
+		for (scene in listOf(fallback, live, simulated)) {
+			assertEquals(BackdropScene.LAKE, provider.paramsFor(now, scene).backdropScene)
+		}
+	}
+
+	@Test
 	fun `auto foliage follows selected latitude in live simulated and offline scenes`() {
 		val now = Instant.parse("2026-10-31T12:00:00Z").epochSecond
 		val settings = AppSettings(

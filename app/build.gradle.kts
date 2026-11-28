@@ -63,10 +63,16 @@ android {
 	buildTypes {
 		debug {
 			buildConfigField("boolean", "STORM_CLOUD_PROTOTYPE", stormCloudDebugEnabled.get().toString())
+			if (providers.gradleProperty("lakePacingTest").orNull == "true") {
+				applicationIdSuffix = ".lakepacing"
+			}
+
+			buildConfigField("boolean", "LAKE_CONTACT_RINGS", (applicationIdSuffix == null || providers.gradleProperty("lakeContactRings").orNull != "false").toString())
 		}
 
 		release {
 			buildConfigField("boolean", "STORM_CLOUD_PROTOTYPE", stormCloudReleaseEnabled.get().toString())
+			buildConfigField("boolean", "LAKE_CONTACT_RINGS", "true")
 			signingConfig = signingConfigs.getByName("release")
 			isMinifyEnabled = true
 			isShrinkResources = true

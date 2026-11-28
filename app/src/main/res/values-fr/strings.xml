@@ -190,6 +190,7 @@
 	<string name="backdrop_photo">Vos photos</string>
 	<string name="backdrop_cloud_mountains">Montagnes nuageuses</string>
 	<string name="backdrop_treescape">Paysage arboré</string>
+	<string name="backdrop_lake">Lac</string>
 	<string name="hint_treescape_season">La saison modifie les arbres et la prairie du paysage arboré.</string>
 
 	<!-- Photo backgrounds -->

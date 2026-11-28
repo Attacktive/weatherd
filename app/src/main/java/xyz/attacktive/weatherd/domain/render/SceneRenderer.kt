@@ -30,6 +30,7 @@ import android.graphics.RectF
 import android.graphics.Shader
 import androidx.core.graphics.withClip
 import androidx.core.graphics.withSave
+import xyz.attacktive.weatherd.BuildConfig
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DEFAULT_LABEL_VERTICAL_POSITION
@@ -79,6 +80,9 @@ class SceneRenderer private constructor(
 	private val lightningBolt by lazy(LazyThreadSafetyMode.NONE) { LightningBoltLayer() }
 	private val cloudMountains = CloudMountainLayer(resources)
 	private val treescape = TreescapeLayer(resources)
+	private val lake = LakeLayer(resources)
+	private val lakeSky by lazy(LazyThreadSafetyMode.NONE) { LakeSkyReflection() }
+	private val lakeContacts by lazy(LazyThreadSafetyMode.NONE) { LakeRainContacts() }
 	private val foregroundTrees = ForegroundTreeLayer(resources)
 	private val distantAircraft = DistantAircraftLayer()
 	private val seasonalCelebration by lazy(LazyThreadSafetyMode.NONE) { SeasonalCelebrationLayer() }
@@ -263,6 +267,7 @@ class SceneRenderer private constructor(
 	fun isSceneryTextureReady(scene: BackdropScene, season: TreeSeason = TreeSeason.SPRING) = when (scene) {
 		BackdropScene.CLOUD_MOUNTAINS -> cloudMountains.textureReady
 		BackdropScene.TREESCAPE -> treescape.isTextureReady(season)
+		BackdropScene.LAKE -> lake.isTextureReady()
 		else -> true
 	}
 
@@ -271,6 +276,7 @@ class SceneRenderer private constructor(
 		when (scene) {
 			BackdropScene.CLOUD_MOUNTAINS -> cloudMountains.prewarm()
 			BackdropScene.TREESCAPE -> treescape.prewarm(season)
+			BackdropScene.LAKE -> lake.prewarm()
 			else -> Unit
 		}
 	}
@@ -399,14 +405,7 @@ class SceneRenderer private constructor(
 			drawBirds(canvas, w, h, timeSeconds, params)
 		}
 
-		// Higher Cloud Count cannot turn partly cloudy weather into overcast, but a lower count can reveal scattered cumulus within observed overcast.
-		if (params.precipitation == null && renderedCover > SCATTERED_CLOUD_FLOOR && minOf(observedCover, renderedCover) <= CLOUD_DECK_THRESHOLD) {
-			drawScatteredClouds(canvas, w, h, params, timeSeconds)
-		}
-
-		if (shouldDrawOvercastBanks(minOf(observedCover, renderedCover), params.fogDensity, params.precipitation != null)) {
-			drawCloudDrift(canvas, w, h, params, timeSeconds)
-		}
+		drawLowCloudDecks(canvas, w, h, params, timeSeconds, observedCover, renderedCover)
 
 		if (showsOvercastSunTransmission(params)) {
 			drawOvercastSunTransmission(canvas, w, h, sunCenterX, celestialCenterY, params, timeSeconds)
@@ -419,6 +418,21 @@ class SceneRenderer private constructor(
 
 		cloudMountains.draw(canvas, w, h, params, timeSeconds)
 		treescape.draw(canvas, w, h, params)
+		if (params.backdropScene == BackdropScene.LAKE && lake.isTextureReady()) {
+			val sky = lakeSky.sample(width, height, params, timeSeconds, heroOvercastBankDelegate.isInitialized()) { sample ->
+				renderBackdrop(sample, width, height, params)
+				drawCirrus(sample, w, h, params, timeSeconds)
+				drawLowCloudDecks(sample, w, h, params, timeSeconds, observedCover, renderedCover, collectRainBoundary = false)
+			}
+
+			lake.draw(canvas, w, h, params, timeSeconds, sky)
+			if (params.precipitation?.kind == PrecipitationKind.RAIN) {
+				rainCloudClip.drawBelowClouds(canvas) {
+					lakeContacts.draw(canvas, w, h, params, timeSeconds, BuildConfig.LAKE_CONTACT_RINGS)
+				}
+			}
+		}
+
 		foregroundTrees.draw(canvas, w, h, params)
 
 		if (fogDensity > 0f) {
@@ -1866,11 +1880,22 @@ class SceneRenderer private constructor(
 		paint.shader = null
 	}
 
+	private fun drawLowCloudDecks(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float, observedCover: Float, renderedCover: Float, collectRainBoundary: Boolean = true) {
+		val cover = minOf(observedCover, renderedCover)
+		if (params.precipitation == null && renderedCover > SCATTERED_CLOUD_FLOOR && cover <= CLOUD_DECK_THRESHOLD) {
+			drawScatteredClouds(canvas, width, height, params, timeSeconds)
+		}
+
+		if (shouldDrawOvercastBanks(cover, params.fogDensity, params.precipitation != null)) {
+			drawCloudDrift(canvas, width, height, params, timeSeconds, collectRainBoundary)
+		}
+	}
+
 	/**
 	 * Dedicated stratocumulus banks overlap into an overcast ceiling: a soft far veil, a middle support mass, one screen-dominant hero mass, and a low bridge veil.
 	 * The sources already carry overcast morphology and internal shading, so runtime work is limited to scale, tint, opacity, and drift.
 	 */
-	private fun drawCloudDrift(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float) {
+	private fun drawCloudDrift(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float, collectRainBoundary: Boolean) {
 		if (!farOvercastBankDelegate.isInitialized() || !supportOvercastBankDelegate.isInitialized() || !heroOvercastBankDelegate.isInitialized()) {
 			return
 		}
@@ -1882,7 +1907,7 @@ class SceneRenderer private constructor(
 			else -> base
 		}
 
-		val precipitationBoundary = if (params.precipitation != null) rainCloudClip.boundary else null
+		val precipitationBoundary = if (collectRainBoundary && params.precipitation != null) rainCloudClip.boundary else null
 
 		if (stormCloudPrototype.draw(canvas, width, height, params, timeSeconds, color, cloudGradeFor(params), precipitationBoundary)) {
 			return

@@ -19,14 +19,14 @@ class CloudMountainTest {
 	@Test
 	fun newPickerOffersOnlyCurrentChoices() {
 		assertEquals(
-			listOf(BackdropScene.NONE, BackdropScene.PHOTO, BackdropScene.CLOUD_MOUNTAINS, BackdropScene.TREESCAPE),
+			listOf(BackdropScene.NONE, BackdropScene.PHOTO, BackdropScene.CLOUD_MOUNTAINS, BackdropScene.TREESCAPE, BackdropScene.LAKE),
 			availableBackdropScenes(BackdropScene.NONE)
 		)
 	}
 
 	@Test
 	fun legacySceneryRemainsAvailableWhileSelected() {
-		val supported = listOf(BackdropScene.NONE, BackdropScene.PHOTO, BackdropScene.CLOUD_MOUNTAINS, BackdropScene.TREESCAPE)
+		val supported = listOf(BackdropScene.NONE, BackdropScene.PHOTO, BackdropScene.CLOUD_MOUNTAINS, BackdropScene.TREESCAPE, BackdropScene.LAKE)
 		for (scene in BackdropScene.entries) {
 			val expected = if (scene.drawsScenery) {
 				supported + scene
@@ -47,6 +47,7 @@ class CloudMountainTest {
 
 		assertEquals(BackdropScene.NONE, BackdropScene.fromName("unknown"))
 		assertFalse(BackdropScene.CLOUD_MOUNTAINS.drawsScenery)
+		assertFalse(BackdropScene.LAKE.drawsScenery)
 	}
 
 	@Test

@@ -1022,6 +1022,7 @@ internal fun formatBackdrop(scene: BackdropScene, includeRecommendation: Boolean
 		BackdropScene.PHOTO -> stringResource(R.string.backdrop_photo)
 		BackdropScene.CLOUD_MOUNTAINS -> stringResource(R.string.backdrop_cloud_mountains)
 		BackdropScene.TREESCAPE -> stringResource(R.string.backdrop_treescape)
+		BackdropScene.LAKE -> stringResource(R.string.backdrop_lake)
 	}
 
 	return if (scene.drawsScenery && includeRecommendation) {

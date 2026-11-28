@@ -214,6 +214,7 @@
 	<string name="backdrop_photo">Your photos</string>
 	<string name="backdrop_cloud_mountains">Cloud mountains</string>
 	<string name="backdrop_treescape">Treescape</string>
+	<string name="backdrop_lake">Lake</string>
 	<string name="hint_treescape_season">The season changes the trees and meadow in Treescape.</string>
 
 	<!-- Photo backgrounds -->

@@ -190,6 +190,7 @@
 	<string name="backdrop_photo">我的照片</string>
 	<string name="backdrop_cloud_mountains">云雾山峦</string>
 	<string name="backdrop_treescape">树木风景</string>
+	<string name="backdrop_lake">湖泊</string>
 	<string name="hint_treescape_season">季节会改变树木风景中的树木和草地。</string>
 
 	<!-- Photo backgrounds -->

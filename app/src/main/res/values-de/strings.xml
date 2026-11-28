@@ -190,6 +190,7 @@
 	<string name="backdrop_photo">Eigene Fotos</string>
 	<string name="backdrop_cloud_mountains">Wolkenberge</string>
 	<string name="backdrop_treescape">Baumlandschaft</string>
+	<string name="backdrop_lake">See</string>
 	<string name="hint_treescape_season">Die Jahreszeit ändert die Bäume und die Wiese in der Baumlandschaft.</string>
 
 	<!-- Photo backgrounds -->

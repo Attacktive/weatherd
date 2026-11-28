@@ -109,7 +109,7 @@ Display settings apply through the shared scene path and are saved in appearance
 Preserve independent resets and missing-field defaults: Classic sun, Through clouds sunbeams, Sun horizontal position 72%, Natural palette, Moon size 100%, Rainbow size 100%, Trees off with Evergreen shape, Auto season on a clean install or Spring for saved settings from older releases, and readability strengths off.
 Tree shape, tree season, bird interval, and Sun horizontal position remain selected when their parent toggles hide those controls. Tree season choices are Auto, Spring, Summer, Autumn, and Winter: Spring preserves the existing tree textures; Auto resolves to the UTC meteorological season in the selected location's hemisphere, falling back to Spring if location is unknown, invalid, or within 15 degrees of the equator. DataStore migration must pin the clean-install Auto or legacy Spring default before any other store writer, including saving a first preset. Only concrete seasons reach the renderer; date/location changes must prewarm the resolved texture without network requests or frame-loop decoding.
 Treescape owns its meadow and built-in tree pair: suppress the separate foreground Trees overlay and disable its Trees/Shape controls without rewriting saved preferences. Keep Season editable; leaving Treescape restores the saved foreground-tree behavior across preview, wallpaper, simulation, and fallback.
-Preset schema v20 reads v1–v19 with missing celebrations on, tree season Spring, custom gradient inactive, and frost on glass off. Save Auto, not its resolved season; older builds reject newer banks.
+Preset schema v21 adds Lake and reads v1–v20 with missing celebrations on, tree season Spring, custom gradient inactive, and frost on glass off. Save Auto, not its resolved season; older builds reject newer banks.
 
 Read the [custom sky gradient contract](docs/development.md#custom-sky-gradients) before changing its editor, persistence, or shared rendering.
 
@@ -166,7 +166,7 @@ It pins meteorological conditions (cloud cover, precipitation kind/severity, fog
 
 - Intensity sliders (precipitation, wind, cloud intensity)
 - Sky palette/brightness/saturation and cloud contrast
-- Scenery / backdrop selections (none, metropolis, beach, mountains, countryside, photos, Treescape)
+- Scenery / backdrop selections, including Lake, Cloud mountains, Treescape, photos, and legacy scenery
 - Frame rate caps
 - Photo background assignments and revisions
 

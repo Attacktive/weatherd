@@ -190,6 +190,7 @@
 	<string name="backdrop_photo">내 사진</string>
 	<string name="backdrop_cloud_mountains">구름 산맥</string>
 	<string name="backdrop_treescape">나무 풍경</string>
+	<string name="backdrop_lake">호수</string>
 	<string name="hint_treescape_season">계절에 따라 나무 풍경의 나무와 초원이 바뀝니다.</string>
 
 	<!-- Photo backgrounds -->
