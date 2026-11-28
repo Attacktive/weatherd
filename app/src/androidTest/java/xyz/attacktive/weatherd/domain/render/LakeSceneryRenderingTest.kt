@@ -10,13 +10,11 @@ import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import xyz.attacktive.weatherd.domain.model.BackdropScene
 import xyz.attacktive.weatherd.domain.model.DayPhase
-import xyz.attacktive.weatherd.domain.model.Precipitation
-import xyz.attacktive.weatherd.domain.model.PrecipitationKind
-import xyz.attacktive.weatherd.domain.weather.SEVERITY_STORM
 
 class LakeSceneryRenderingTest {
 	@Test
@@ -103,7 +101,7 @@ class LakeSceneryRenderingTest {
 			dayPhase = DayPhase.DAY,
 			cloudiness = 1f,
 			fogDensity = 0f,
-			precipitation = Precipitation(PrecipitationKind.RAIN, SEVERITY_STORM, observed = 1f),
+			precipitation = null,
 			thunder = false,
 			windFactor = 0f,
 			sunVisible = false,
@@ -203,6 +201,80 @@ class LakeSceneryRenderingTest {
 		val band48Mid = (waterTop + waterHeight * (48.5f / 64f)).toInt()
 
 		assertNotEquals("Adjacent bands 47 and 48 should not duplicate the same sky row", output.getPixel(width / 2, band47Mid), output.getPixel(width / 2, band48Mid))
+	}
+
+	@Test
+	fun skyReflectionReusesBackdropSignatureWithoutCopyingOnUnchangedInput() {
+		val reflection = LakeSkyReflection()
+		val clear = SceneParams(
+			dayPhase = DayPhase.DAY,
+			cloudiness = 0f,
+			fogDensity = 0f,
+			precipitation = null,
+			thunder = false,
+			windFactor = 0.2f,
+			backdropScene = BackdropScene.LAKE
+		)
+
+		var backdropDraws = 0
+		reflection.sample(240, 400, clear, 1.0f, 31, false, { backdropDraws++ }, {})
+
+		val cached = reflection.resolvedBackdropSignature(clear)
+		val repeated = reflection.resolvedBackdropSignature(clear)
+		assertSame(cached, repeated)
+
+		val windier = clear.copy(windFactor = 0.9f)
+		reflection.sample(240, 400, windier, 1.1f, 31, false, { backdropDraws++ }, {})
+
+		assertEquals(1, backdropDraws)
+		assertSame(cached, reflection.resolvedBackdropSignature(windier))
+	}
+
+	@Test
+	fun windDisplacesReflectedSkyHorizontallyAcrossWaterBands() {
+		val resources = InstrumentationRegistry.getInstrumentation().targetContext.resources
+		val layer = LakeLayer(resources)
+		layer.prewarm()
+
+		val sky = createBitmap(256, 128)
+		val skyPaint = Paint().apply {
+			shader = LinearGradient(0f, 0f, sky.width.toFloat(), 0f, Color.rgb(20, 40, 240), Color.rgb(240, 220, 40), Shader.TileMode.CLAMP)
+		}
+
+		Canvas(sky).drawRect(0f, 0f, sky.width.toFloat(), sky.height.toFloat(), skyPaint)
+
+		val width = 240
+		val height = 400
+		val params = SceneParams(
+			dayPhase = DayPhase.DAY,
+			cloudiness = 0f,
+			fogDensity = 0f,
+			precipitation = null,
+			thunder = false,
+			windFactor = 1f,
+			sunVisible = false,
+			backdropScene = BackdropScene.LAKE
+		)
+
+		val first = createBitmap(width, height).also {
+			layer.draw(Canvas(it), width.toFloat(), height.toFloat(), params, 1f, sky)
+		}
+
+		val later = createBitmap(width, height).also {
+			layer.draw(Canvas(it), width.toFloat(), height.toFloat(), params, 3f, sky)
+		}
+
+		var shiftedPixels = 0
+
+		for (y in (height * 0.78f).toInt() until height) {
+			for (x in 0 until width) {
+				if (first.getPixel(x, y) != later.getPixel(x, y)) {
+					shiftedPixels++
+				}
+			}
+		}
+
+		assertTrue("Expected wind to displace reflected sky bands horizontally: $shiftedPixels changed pixels", shiftedPixels > 500)
 	}
 
 	private fun frame(renderer: SceneRenderer, params: SceneParams, seconds: Float) = createBitmap(240, 400)

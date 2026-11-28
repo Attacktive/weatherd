@@ -22,6 +22,7 @@ internal class LakeSkyReflection {
 		xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC)
 	}
 
+	private var lastBackdropInput: SceneParams? = null
 	private var lastBackdropSignature: SceneParams? = null
 	private var lastBackdropWidth = 0
 	private var lastBackdropHeight = 0
@@ -36,11 +37,11 @@ internal class LakeSkyReflection {
 			return backdropPixels
 		}
 
-		val signature = backdropSignature(params)
+		val signature = resolvedBackdropSignature(params)
 		val backdropChanged = needsBackdropRedraw(width, height, signature)
 		if (backdropChanged) {
 			renderReflectionSlice(backdropCanvas, width, height, drawBackdrop)
-			recordBackdrop(width, height, signature)
+			recordBackdrop(width, height, params, signature)
 		}
 
 		if (!hasAnimatedClouds) {
@@ -57,6 +58,21 @@ internal class LakeSkyReflection {
 	}
 
 	@PublishedApi
+	internal fun resolvedBackdropSignature(params: SceneParams): SceneParams {
+		val cached = lastBackdropSignature
+		if (cached != null && lastBackdropInput == params) {
+			return cached
+		}
+
+		val signature = backdropSignature(params)
+		if (cached == signature) {
+			lastBackdropInput = params
+		}
+
+		return signature
+	}
+
+	@PublishedApi
 	internal fun isValidInput(width: Int, height: Int, timeSeconds: Float) = width > 0 && height > 0 && timeSeconds.isFinite()
 
 	@PublishedApi
@@ -66,9 +82,10 @@ internal class LakeSkyReflection {
 	internal fun needsCloudRedraw(width: Int, height: Int, params: SceneParams, timeSeconds: Float, cloudReadiness: Int) = lastTimeSeconds != timeSeconds || lastWidth != width || lastHeight != height || lastCloudReadiness != cloudReadiness || lastParams != params
 
 	@PublishedApi
-	internal fun recordBackdrop(width: Int, height: Int, signature: SceneParams) {
+	internal fun recordBackdrop(width: Int, height: Int, params: SceneParams, signature: SceneParams) {
 		lastBackdropWidth = width
 		lastBackdropHeight = height
+		lastBackdropInput = params
 		lastBackdropSignature = signature
 	}
 

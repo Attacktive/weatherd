@@ -15,6 +15,7 @@ import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
 import androidx.core.graphics.withClip
+import androidx.core.graphics.withSave
 import xyz.attacktive.weatherd.R
 import xyz.attacktive.weatherd.domain.model.DayPhase
 import xyz.attacktive.weatherd.domain.model.SunColorPreset
@@ -25,6 +26,10 @@ internal class LakeLayer(private val resources: Resources) {
 	private var skyShaderBitmap: Bitmap? = null
 	private var skyShaderGeneration = 0
 	private var skyShader: BitmapShader? = null
+	private var lastSkyScaleX = Float.NaN
+	private var lastSkyScaleY = Float.NaN
+	private var lastSkyOverscan = Float.NaN
+	private var lastSkyHeight = Float.NaN
 	private val bankPaint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
 	private val waterPaint = Paint()
 	private val glintPaint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -91,32 +96,36 @@ internal class LakeLayer(private val resources: Resources) {
 		val skyScaleX = (width + overscan * 2f) / reflectedSky.width
 		val skyScaleY = -waterHeight / reflectedSky.height
 		val skyShader = skyShaderFor(reflectedSky)
+		updateSkyShaderMatrix(skyShader, skyScaleX, skyScaleY, overscan, height)
 		lighting.applyTo(bankPaint, params)
 
 		canvas.withClip(0f, waterTop, width, height) {
-			for (band in 0 until BAND_COUNT) {
-				val start = band.toFloat() / BAND_COUNT
-				val end = (band + 1f) / BAND_COUNT
-				val top = waterTop + waterHeight * start
-				val bottom = waterTop + waterHeight * end + 1f
-				val movement = sin(start * 67f - timeSeconds * (.35f + wind * .7f)) + .45f * cos(start * 111f - timeSeconds * .5f)
-				val shift = width * .012f * wind * movement * (.35f + .65f * start)
-				skyShaderMatrix.setScale(skyScaleX, skyScaleY)
-				skyShaderMatrix.postTranslate(-overscan + shift, height)
-				skyShader.setLocalMatrix(skyShaderMatrix)
-				drawRect(0f, top, width, bottom, skyReflectionPaint)
+			withSave {
+				var appliedShift = 0f
 
-				destination.set(-overscan + shift, top, width + overscan + shift, bottom)
-				val bankTop = ((LAKE_WATER_START + (1f - LAKE_WATER_START) * start) * reflection.height)
-					.toInt()
-					.coerceIn(0, reflection.height - 1)
+				for (band in 0 until BAND_COUNT) {
+					val start = band.toFloat() / BAND_COUNT
+					val end = (band + 1f) / BAND_COUNT
+					val top = waterTop + waterHeight * start
+					val bottom = waterTop + waterHeight * end + 1f
+					val movement = sin(start * 67f - timeSeconds * (.35f + wind * .7f)) + .45f * cos(start * 111f - timeSeconds * .5f)
+					val shift = width * .012f * wind * movement * (.35f + .65f * start)
+					translate(shift - appliedShift, 0f)
+					appliedShift = shift
+					drawRect(-shift, top, width - shift, bottom, skyReflectionPaint)
 
-				val bankBottom = ((LAKE_WATER_START + (1f - LAKE_WATER_START) * end) * reflection.height)
-					.toInt()
-					.coerceIn(bankTop + 1, reflection.height)
+					destination.set(-overscan, top, width + overscan, bottom)
+					val bankTop = ((LAKE_WATER_START + (1f - LAKE_WATER_START) * start) * reflection.height)
+						.toInt()
+						.coerceIn(0, reflection.height - 1)
 
-				sourceRect.set(0, bankTop, reflection.width, bankBottom)
-				drawBitmap(reflection, sourceRect, destination, bankPaint)
+					val bankBottom = ((LAKE_WATER_START + (1f - LAKE_WATER_START) * end) * reflection.height)
+						.toInt()
+						.coerceIn(bankTop + 1, reflection.height)
+
+					sourceRect.set(0, bankTop, reflection.width, bankBottom)
+					drawBitmap(reflection, sourceRect, destination, bankPaint)
+				}
 			}
 
 			waterPaint.color = waterColor
@@ -136,12 +145,28 @@ internal class LakeLayer(private val resources: Resources) {
 			return existing
 		}
 
+		lastSkyScaleX = Float.NaN
+
 		return BitmapShader(reflectedSky, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP).also {
 			skyShaderBitmap = reflectedSky
 			skyShaderGeneration = generation
 			skyShader = it
 			skyReflectionPaint.shader = it
 		}
+	}
+
+	private fun updateSkyShaderMatrix(shader: BitmapShader, scaleX: Float, scaleY: Float, overscan: Float, height: Float) {
+		if (lastSkyScaleX == scaleX && lastSkyScaleY == scaleY && lastSkyOverscan == overscan && lastSkyHeight == height) {
+			return
+		}
+
+		skyShaderMatrix.setScale(scaleX, scaleY)
+		skyShaderMatrix.postTranslate(-overscan, height)
+		shader.setLocalMatrix(skyShaderMatrix)
+		lastSkyScaleX = scaleX
+		lastSkyScaleY = scaleY
+		lastSkyOverscan = overscan
+		lastSkyHeight = height
 	}
 
 	private fun drawGlints(canvas: Canvas, width: Float, waterTop: Float, waterHeight: Float, params: SceneParams, timeSeconds: Float, wind: Float) {
