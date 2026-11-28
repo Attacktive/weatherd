@@ -33,6 +33,7 @@ class LakeRainContactsTest {
 			rain.copy(precipitation = Precipitation(PrecipitationKind.SNOW, SEVERITY_STORM, observed = 1f)),
 			rain.copy(precipitationScale = 0f)
 		)
+
 		for (params in variants) {
 			for (step in 0 until 12) {
 				assertEquals(0, changedPixels(render(params, step * 0.5f, true)))
@@ -44,10 +45,12 @@ class LakeRainContactsTest {
 	fun ringsAreLocalizedToForegroundWaterAndLeaveApproachDropsUnchanged() {
 		var ringPixels = 0
 		var dropPixels = 0
+
 		for (step in 0 until 12) {
 			val time = step * 0.5f
 			val withoutRings = render(rain, time, false)
 			val withRings = render(rain, time, true)
+
 			for (y in 0 until HEIGHT) {
 				for (x in 0 until WIDTH) {
 					val without = withoutRings.getPixel(x, y)
@@ -78,6 +81,7 @@ class LakeRainContactsTest {
 		val sameTime = render(rain.copy(windFactor = 1f, windScale = 2f), 0.3f, true)
 		val later = render(rain, 0.6f, true)
 		var animatedPixels = 0
+
 		for (y in 0 until HEIGHT) {
 			for (x in 0 until WIDTH) {
 				assertEquals(first.getPixel(x, y), sameTime.getPixel(x, y))
@@ -94,6 +98,7 @@ class LakeRainContactsTest {
 	fun greaterRainIntensityProducesMoreContacts() {
 		var lightPixels = 0
 		var heavyPixels = 0
+
 		for (step in 0 until 12) {
 			val time = step * 0.5f
 			lightPixels += changedPixels(render(rain.copy(precipitationScale = 0.25f), time, true))
@@ -112,6 +117,7 @@ class LakeRainContactsTest {
 			val beforeDrops = render(rain, time - 0.02f, false)
 			val ring = render(rain, time, true)
 			val drops = render(rain, time, false)
+
 			for (y in (HEIGHT * 0.73f).toInt() until HEIGHT - 1) {
 				for (x in 1 until WIDTH - 1) {
 					if (ring.getPixel(x, y) == drops.getPixel(x, y) || beforeRing.getPixel(x, y) != beforeDrops.getPixel(x, y)) {
@@ -149,6 +155,7 @@ class LakeRainContactsTest {
 
 	private fun changedPixels(bitmap: Bitmap): Int {
 		var count = 0
+
 		for (y in 0 until HEIGHT) {
 			for (x in 0 until WIDTH) {
 				if (bitmap.getPixel(x, y) != Color.TRANSPARENT) {

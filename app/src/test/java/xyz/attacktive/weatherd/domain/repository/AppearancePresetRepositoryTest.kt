@@ -1,13 +1,12 @@
 package xyz.attacktive.weatherd.domain.repository
 
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.float
-import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import androidx.datastore.core.DataStore
@@ -23,15 +22,14 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import xyz.attacktive.weatherd.domain.model.AppSettings
 import xyz.attacktive.weatherd.domain.model.BackdropScene
-import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.BirdAppearanceInterval
 import xyz.attacktive.weatherd.domain.model.BirdFlockSize
+import xyz.attacktive.weatherd.domain.model.SkyColorPreset
 import xyz.attacktive.weatherd.domain.model.SunStyle
 import xyz.attacktive.weatherd.domain.model.SunbeamMode
 import xyz.attacktive.weatherd.domain.model.TreeStyle
 import xyz.attacktive.weatherd.domain.model.toAppearancePresetSnapshot
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class AppearancePresetRepositoryTest {
 	@get:Rule
 	val temporaryFolder = TemporaryFolder()
@@ -48,6 +46,7 @@ class AppearancePresetRepositoryTest {
 		val secondSnapshot = AppSettings(backdropScene = BackdropScene.MOUNTAINS, skyColorPreset = SkyColorPreset.PASTEL, glassDropletsEnabled = true, distantAircraftEnabled = false, sunStyle = SunStyle.RADIANT, sunbeamMode = SunbeamMode.CLEAR_SKIES_TOO, rainbowSizeScale = 1.35f).toAppearancePresetSnapshot()
 
 		assertTrue(repository.create("Coast", firstSnapshot).isSuccess)
+
 		val created = (repository.state.first() as AppearancePresetStorageState.Ready).presets.single()
 		assertEquals(firstSnapshot, created.snapshot)
 		assertTrue(repository.rename(created.id, "Evening coast").isSuccess)
@@ -75,6 +74,7 @@ class AppearancePresetRepositoryTest {
 		val key = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)
 		val raw = dataStore.data.first()[key]!!
 		assertEquals(21, Json.parseToJsonElement(raw).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+
 		val snapshot = (AppearancePresetRepository(dataStore).state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot
 		assertEquals(BackdropScene.LAKE, snapshot.backdropScene)
 
@@ -88,6 +88,7 @@ class AppearancePresetRepositoryTest {
 		val dataStore = dataStore()
 		val repository = AppearancePresetRepository(dataStore)
 		assertTrue(repository.create("Beach", AppSettings(backdropScene = BackdropScene.BEACH).toAppearancePresetSnapshot()).isSuccess)
+
 		val key = stringPreferencesKey(APPEARANCE_PRESETS_KEY_NAME)
 		dataStore.edit { preferences ->
 			preferences[key] = preferences[key]!!.replace("\"schemaVersion\":21", "\"schemaVersion\":20")
@@ -154,8 +155,10 @@ class AppearancePresetRepositoryTest {
 
 		val repository = AppearancePresetRepository(legacyV3DataStore)
 		assertTrue(repository.rename("legacy-3", "Legacy forest").isSuccess)
+
 		val rewritten = legacyV3DataStore.data.first()[key]!!
 		assertEquals(APPEARANCE_PRESET_SCHEMA_VERSION, Json.parseToJsonElement(rewritten).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+
 		val migrated = (AppearancePresetRepository(legacyV3DataStore).state.first() as AppearancePresetStorageState.Ready).presets.single()
 		assertFalse(migrated.snapshot.treesEnabled)
 		assertTrue(migrated.snapshot.glassDropletsEnabled)
@@ -186,7 +189,6 @@ class AppearancePresetRepositoryTest {
 		val dataStore = dataStore()
 		val repository = AppearancePresetRepository(dataStore)
 		val snapshot = AppSettings(treesEnabled = true, distantAircraftEnabled = false, sunStyle = SunStyle.STARBURST).toAppearancePresetSnapshot()
-
 		assertTrue(repository.create("No aircraft", snapshot).isSuccess)
 
 		val reopened = AppearancePresetRepository(dataStore)
@@ -217,8 +219,10 @@ class AppearancePresetRepositoryTest {
 		assertEquals(raw, store.data.first()[key])
 
 		assertTrue(repository.rename("legacy-8", "Migrated 8").isSuccess)
+
 		val rewritten = store.data.first()[key]!!
 		assertEquals(APPEARANCE_PRESET_SCHEMA_VERSION, Json.parseToJsonElement(rewritten).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+
 		val migrated = (AppearancePresetRepository(store).state.first() as AppearancePresetStorageState.Ready).presets.single()
 		assertEquals(0f, migrated.snapshot.wallpaperDimmingStrength, 0.0001f)
 		assertEquals(0f, migrated.snapshot.statusBarShadeStrength, 0.0001f)
@@ -241,8 +245,10 @@ class AppearancePresetRepositoryTest {
 		assertEquals(raw, store.data.first()[key])
 
 		assertTrue(repository.rename("legacy-9", "Migrated 9").isSuccess)
+
 		val rewritten = store.data.first()[key]!!
 		assertEquals(APPEARANCE_PRESET_SCHEMA_VERSION, Json.parseToJsonElement(rewritten).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+
 		val migrated = (AppearancePresetRepository(store).state.first() as AppearancePresetStorageState.Ready).presets.single()
 		assertEquals(BirdFlockSize.SMALL, migrated.snapshot.birdFlockSize)
 		assertEquals(BirdAppearanceInterval.NATURAL, migrated.snapshot.birdAppearanceInterval)
@@ -261,10 +267,11 @@ class AppearancePresetRepositoryTest {
 		val snapshot = (repository.state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot
 		assertEquals(SunbeamMode.THROUGH_CLOUDS, snapshot.sunbeamMode)
 		assertEquals(raw, store.data.first()[key])
-
 		assertTrue(repository.rename("legacy-10", "Migrated 10").isSuccess)
+
 		val rewritten = store.data.first()[key]!!
 		assertEquals(APPEARANCE_PRESET_SCHEMA_VERSION, Json.parseToJsonElement(rewritten).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+
 		val migrated = (AppearancePresetRepository(store).state.first() as AppearancePresetStorageState.Ready).presets.single()
 		assertEquals(SunbeamMode.THROUGH_CLOUDS, migrated.snapshot.sunbeamMode)
 	}
@@ -276,6 +283,7 @@ class AppearancePresetRepositoryTest {
 		dataStore.edit { preferences ->
 			preferences[key] = """{"schemaVersion":10,"presets":[{"id":"bad-enum","name":"Bad Enum","snapshot":{"backdropScene":"NONE","showWeatherLabel":true,"showLocationLabel":true,"precipitationIntensityScale":1.0,"windIntensityScale":1.0,"cloudIntensityScale":1.0,"cloudSizeScale":1.0,"cloudCountScale":1.0,"cloudContrastScale":1.0,"skyBrightnessScale":1.0,"nightBrightnessScale":1.0,"skySaturationScale":1.0,"skyColorPreset":"NATURAL","sunVisible":true,"moonVisible":true,"sunSizeScale":1.0,"sunColorPreset":"NATURAL","sunStyle":"CLASSIC","lensFlareEnabled":true,"lensFlareMotionEnabled":false,"distantAircraftEnabled":true,"treesEnabled":false,"birdFlockSize":"MASSIVE","birdAppearanceInterval":"NATURAL","labelVerticalPosition":0.09,"wallpaperDimmingStrength":0.0,"statusBarShadeStrength":0.0}}]}"""
 		}
+
 		val repository = AppearancePresetRepository(dataStore)
 
 		assertEquals(
@@ -313,6 +321,7 @@ class AppearancePresetRepositoryTest {
 		dataStore.edit { preferences ->
 			preferences[key] = "{ definitely-not-json"
 		}
+
 		val repository = AppearancePresetRepository(dataStore)
 		val before = dataStore.data.first()[key]
 
@@ -329,6 +338,7 @@ class AppearancePresetRepositoryTest {
 		dataStore.edit { preferences ->
 			preferences[key] = raw
 		}
+
 		val repository = AppearancePresetRepository(dataStore)
 		val state = repository.state.first()
 
@@ -336,6 +346,7 @@ class AppearancePresetRepositoryTest {
 			AppearancePresetStorageState.Unreadable(AppearancePresetUnreadableReason.UnsupportedVersion(999)),
 			state
 		)
+
 		assertTrue(repository.delete("anything").isFailure)
 		assertEquals(raw, dataStore.data.first()[key])
 	}
@@ -347,6 +358,7 @@ class AppearancePresetRepositoryTest {
 		dataStore.edit { preferences ->
 			preferences[key] = """{"schemaVersion":$APPEARANCE_PRESET_SCHEMA_VERSION,"presets":[{"id":"id","name":"Broken","snapshot":{}}]}"""
 		}
+
 		val repository = AppearancePresetRepository(dataStore)
 
 		assertEquals(
@@ -373,8 +385,10 @@ class AppearancePresetRepositoryTest {
 		assertEquals(raw, rewritten)
 
 		assertTrue(repository.rename("legacy-12", "Migrated 12").isSuccess)
+
 		val updatedRaw = store.data.first()[key]!!
 		assertEquals(APPEARANCE_PRESET_SCHEMA_VERSION, Json.parseToJsonElement(updatedRaw).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+
 		val migrated = (AppearancePresetRepository(store).state.first() as AppearancePresetStorageState.Ready).presets.single()
 		assertEquals(TreeStyle.EVERGREEN, migrated.snapshot.treeStyle)
 		assertTrue(migrated.snapshot.treesEnabled)
@@ -404,12 +418,14 @@ class AppearancePresetRepositoryTest {
 		dataStore.edit { preferences ->
 			preferences[key] = raw
 		}
+
 		val repository = AppearancePresetRepository(dataStore)
 
 		assertEquals(
 			AppearancePresetStorageState.Unreadable(AppearancePresetUnreadableReason.Malformed),
 			repository.state.first()
 		)
+
 		assertTrue(repository.create("Ignored", AppSettings().toAppearancePresetSnapshot()).isFailure)
 		assertEquals(raw, dataStore.data.first()[key])
 	}
@@ -430,10 +446,11 @@ class AppearancePresetRepositoryTest {
 
 		val rewritten = store.data.first()[key]!!
 		assertEquals(raw, rewritten)
-
 		assertTrue(repository.rename("legacy-16", "Migrated 16").isSuccess)
+
 		val updatedRaw = store.data.first()[key]!!
 		assertEquals(APPEARANCE_PRESET_SCHEMA_VERSION, Json.parseToJsonElement(updatedRaw).jsonObject.getValue("schemaVersion").jsonPrimitive.int)
+
 		val migrated = (AppearancePresetRepository(store).state.first() as AppearancePresetStorageState.Ready).presets.single()
 		assertTrue(migrated.snapshot.seasonalCelebrationsEnabled)
 	}
@@ -464,14 +481,15 @@ class AppearancePresetRepositoryTest {
 		val original = store.data.first()[key]!!
 		val legacy = original.replace("\"cloudSizeScale\":1.0", "\"cloudSizeScale\":2.0")
 		assertTrue(legacy != original)
+
 		store.edit { it[key] = legacy }
 
 		val restored = (repository.state.first() as AppearancePresetStorageState.Ready).presets.single()
 		assertEquals(1.5f, restored.snapshot.cloudSizeScale, 0f)
 		assertEquals(1.7f, restored.snapshot.cloudCountScale, 0f)
 		assertEquals(legacy, store.data.first()[key])
-
 		assertTrue(repository.rename(restored.id, "Updated cloud").isSuccess)
+
 		val rewritten = store.data.first()[key]!!
 		assertEquals(1.5f, storedCloudSize(rewritten), 0f)
 		assertEquals(1.5f, (repository.state.first() as AppearancePresetStorageState.Ready).presets.single().snapshot.cloudSizeScale, 0f)

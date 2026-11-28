@@ -419,11 +419,21 @@ class SceneRenderer private constructor(
 		cloudMountains.draw(canvas, w, h, params, timeSeconds)
 		treescape.draw(canvas, w, h, params)
 		if (params.backdropScene == BackdropScene.LAKE && lake.isTextureReady()) {
-			val sky = lakeSky.sample(width, height, params, timeSeconds, heroOvercastBankDelegate.isInitialized()) { sample ->
-				renderBackdrop(sample, width, height, params)
-				drawCirrus(sample, w, h, params, timeSeconds)
-				drawLowCloudDecks(sample, w, h, params, timeSeconds, observedCover, renderedCover, collectRainBoundary = false)
-			}
+			val sky = lakeSky.sample(
+				width = width,
+				height = height,
+				params = params,
+				timeSeconds = timeSeconds,
+				cloudReadiness = lakeCloudReadinessMask(),
+				hasAnimatedClouds = hasReflectedClouds(params, observedCover, renderedCover),
+				drawBackdrop = { sample ->
+					renderBackdrop(sample, width, height, params)
+				},
+				drawClouds = { sample ->
+					drawCirrus(sample, w, h, params, timeSeconds)
+					drawLowCloudDecks(sample, w, h, params, timeSeconds, observedCover, renderedCover, collectRainBoundary = false)
+				}
+			)
 
 			lake.draw(canvas, w, h, params, timeSeconds, sky)
 			if (params.precipitation?.kind == PrecipitationKind.RAIN) {
@@ -1878,6 +1888,44 @@ class SceneRenderer private constructor(
 		canvas.drawRect(0f, 0f, width, height * 0.6f, paint)
 
 		paint.shader = null
+	}
+
+	private fun lakeCloudReadinessMask(): Int {
+		var mask = 0
+		if (farOvercastBankDelegate.isInitialized()) {
+			mask = mask or 1
+		}
+
+		if (supportOvercastBankDelegate.isInitialized()) {
+			mask = mask or 2
+		}
+
+		if (heroOvercastBankDelegate.isInitialized()) {
+			mask = mask or 4
+		}
+
+		if (cirrusLayerDelegates.all { it.isInitialized() }) {
+			mask = mask or 8
+		}
+
+		if (stormCloudPrototype.isReady()) {
+			mask = mask or 16
+		}
+
+		return mask
+	}
+
+	private fun hasReflectedClouds(params: SceneParams, observedCover: Float, renderedCover: Float): Boolean {
+		if (effectiveHighCloudiness(params) > CIRRUS_CLOUD_FLOOR && params.cloudScale > 0f) {
+			return true
+		}
+
+		val cover = minOf(observedCover, renderedCover)
+		if (params.precipitation == null && renderedCover > SCATTERED_CLOUD_FLOOR && cover <= CLOUD_DECK_THRESHOLD) {
+			return true
+		}
+
+		return shouldDrawOvercastBanks(cover, params.fogDensity, params.precipitation != null)
 	}
 
 	private fun drawLowCloudDecks(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float, observedCover: Float, renderedCover: Float, collectRainBoundary: Boolean = true) {

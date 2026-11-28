@@ -27,6 +27,7 @@ class CloudMountainTest {
 	@Test
 	fun legacySceneryRemainsAvailableWhileSelected() {
 		val supported = listOf(BackdropScene.NONE, BackdropScene.PHOTO, BackdropScene.CLOUD_MOUNTAINS, BackdropScene.TREESCAPE, BackdropScene.LAKE)
+
 		for (scene in BackdropScene.entries) {
 			val expected = if (scene.drawsScenery) {
 				supported + scene

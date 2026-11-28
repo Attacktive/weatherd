@@ -29,7 +29,7 @@ For an existing emulator installation, update both APKs in place and invoke inst
 ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest
 adb -s emulator-5554 install -r -t app/build/outputs/apk/debug/app-debug.apk
 adb -s emulator-5554 install -r -t app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
-adb -s emulator-5554 shell am instrument -w -e notClass xyz.attacktive.weatherd.data.provider.ProviderEvaluationCaptureTest xyz.attacktive.weatherd.test/androidx.test.runner.AndroidJUnitRunner
+adb -s emulator-5554 shell am instrument -w -e notClass xyz.attacktive.weatherd.data.provider.ProviderEvaluationCaptureTest,xyz.attacktive.weatherd.domain.render.LakeWallpaperCaptureSetup xyz.attacktive.weatherd.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
 Replace `emulator-5554` with the intended device serial; the data-backup and wallpaper-binding warnings in [AGENTS.md](../AGENTS.md#tools-and-environment) still apply.
@@ -396,9 +396,9 @@ Regenerate first-party sources with `uv run scripts/generate-tree-textures.py` a
 Prepare seasonal Treescape artwork with `uv run scripts/prepare-treescape.py` from the pristine contributor sources in `scripts/assets/treescape`; retain the [artwork credit and permission](../README.md#artwork-credits).
 Decode only the selected optional tree style or Treescape season on first use off the frame loop; never copy reference-app artwork.
 
-Lake keeps its wooded banks fixed and its optional foreground trees independent. Only the water distorts the reflected sky, clouds, and shore; the reflection sample omits the sun disc in favor of a narrow shimmer. Wind controls displacement; heavier rain increases contact density, not ring size. Rings follow the shared animation clock and freeze with the wallpaper.
+Lake keeps its wooded banks fixed and its optional foreground trees independent. Only the water distorts the reflected sky, clouds, and shore; the reflection sample omits the sun disc in favor of a narrow shimmer. Wind controls displacement; heavier rain increases contact density, not ring size. Rings follow the shared animation clock and freeze with the wallpaper. Regenerate the bank artwork with `uv run scripts/generate-lake-scenery.py`.
 
-For a matched device comparison, assemble the debug app with `-PlakePacingTest=true` (isolated `.lakepacing` package) and repeat with `-PlakeContactRings=false`. Seed its simulator with `LakeWallpaperCaptureSetup`, open the system wallpaper preview without applying it, and compare the wallpaper surface itself. Ordinary and release builds always draw the rings.
+For a matched device comparison, assemble the debug app with `-PlakePacingTest=true` (isolated `.lakepacing` package) and repeat with `-PlakeContactRings=false`. Seed its simulator with `LakeWallpaperCaptureSetup` using `-e lakeCaptureSetup true`, open the system wallpaper preview without applying it, and compare the wallpaper surface itself. Ordinary and release builds always draw the rings.
 
 ### Sun, Moon, and Optical Effects
 

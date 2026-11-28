@@ -21,6 +21,8 @@ internal class StormCloudPrototype(
 ) {
 	@Volatile private var sprites: List<StormCloudSprite>? = null
 
+	fun isReady() = !enabled || sprites != null
+
 	/** Invoked by the existing off-thread cloud prewarm, never from a draw callback. */
 	@Synchronized
 	fun prewarm() {

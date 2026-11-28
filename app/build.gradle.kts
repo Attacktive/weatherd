@@ -48,7 +48,7 @@ android {
 		versionCode = 161
 		versionName = "3.10.19"
 		testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-		testInstrumentationRunnerArguments["notClass"] = "xyz.attacktive.weatherd.data.provider.ProviderEvaluationCaptureTest"
+		testInstrumentationRunnerArguments["notClass"] = "xyz.attacktive.weatherd.data.provider.ProviderEvaluationCaptureTest,xyz.attacktive.weatherd.domain.render.LakeWallpaperCaptureSetup"
 	}
 
 	signingConfigs {
