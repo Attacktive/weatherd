@@ -9,8 +9,8 @@ from PIL import Image, ImageDraw, ImageFilter
 
 WIDTH, HEIGHT = 500, 900
 OUTPUT = Path(__file__).resolve().parents[1] / 'app/src/main/res/drawable-nodpi'
-random = Random(470)
-field = [random.random() for _ in range(256 * 256)]
+random = Random(470)  # nosec B311 - deterministic artwork generation, not security-sensitive randomness.
+field = [random.random() for _ in range(256 * 256)]  # nosec B311
 
 
 def smooth(value):
@@ -33,27 +33,45 @@ def mix(a, b, amount):
 	return tuple(round(x + (y - x) * amount) for x, y in zip(a, b))
 
 
+def bank_column(kind, x):
+	u = x / WIDTH
+	if kind == 0:
+		end = 604 + 2 * noise(x / 90, 1)
+		height = 53 + 11 * cos(u * 6.8 - .55) + 7 * sin(u * 13.6 + 1.2) + 4 * cos(u * 20.1) + 3 * noise(x / 35, 4) + 1.4 * noise(x / 12, 31)
+		return end, height, (113, 151, 170), (154, 179, 186)
+
+	if kind == 1:
+		t = smooth((u - .22) / .78)
+		end = 602 + 15 * t
+		height = t ** .6 * (31 + 15 * noise(x / 53, 8) + 6 * noise(x / 8, 15))
+		return end, height, (75, 113, 122), (118, 150, 143)
+
+	t = smooth((.63 - u) / .63)
+	end = 606 + 27 * t
+	height = t ** .6 * (46 + 14 * noise(x / 23, 6))
+	return end, height, (42, 82, 82), (92, 128, 103)
+
+
+def tree_crowns(kind, x, top, height, shade, light):
+	rng = Random(2000 * kind + x)  # nosec B311 - deterministic artwork generation, not security-sensitive randomness.
+	cluster = smooth((noise(x / (24 if kind == 2 else 52), 31 + kind) - .28) / .48)
+	if rng.random() > cluster * (.64 if kind == 2 else .27):  # nosec B311
+		return
+
+	size = min(height * .73, (3 + cluster * (6 + 12 * rng.random())) * (1 if kind == 2 else .37))  # nosec B311
+	for k in range(3):
+		y = top - size + k * size * .22
+		w = size * (.12 + .035 * k)
+		yield ([(x, y), (x - w, y + size * .57), (x + w * .9, y + size * .56)], mix(shade, light, .15 + .45 * rng.random()))  # nosec B311
+
+
 def bank(kind):
 	image = Image.new('RGBA', (WIDTH, HEIGHT))
 	draw = ImageDraw.Draw(image)
 	crowns = []
 	ends = []
 	for x in range(WIDTH):
-		u = x / WIDTH
-		if kind == 0:
-			end = 604 + 2 * noise(x / 90, 1)
-			height = 53 + 11 * cos(u * 6.8 - .55) + 7 * sin(u * 13.6 + 1.2) + 4 * cos(u * 20.1) + 3 * noise(x / 35, 4) + 1.4 * noise(x / 12, 31)
-			shade, light = (113, 151, 170), (154, 179, 186)
-		elif kind == 1:
-			t = smooth((u - .22) / .78)
-			end = 602 + 15 * t
-			height = t ** .6 * (31 + 15 * noise(x / 53, 8) + 6 * noise(x / 8, 15))
-			shade, light = (75, 113, 122), (118, 150, 143)
-		else:
-			t = smooth((.63 - u) / .63)
-			end = 606 + 27 * t
-			height = t ** .6 * (46 + 14 * noise(x / 23, 6))
-			shade, light = (42, 82, 82), (92, 128, 103)
+		end, height, shade, light = bank_column(kind, x)
 
 		ends.append(round(end))
 		if height < .6:
@@ -66,16 +84,7 @@ def bank(kind):
 			image.putpixel((x, y), (*color, 255))
 
 		if kind:
-			rng = Random(2000 * kind + x)
-			cluster = smooth((noise(x / (24 if kind == 2 else 52), 31 + kind) - .28) / .48)
-			if rng.random() > cluster * (.64 if kind == 2 else .27):
-				continue
-
-			size = min(height * .73, (3 + cluster * (6 + 12 * rng.random())) * (1 if kind == 2 else .37))
-			for k in range(3):
-				y = top - size + k * size * .22
-				w = size * (.12 + .035 * k)
-				crowns.append(([(x, y), (x - w, y + size * .57), (x + w * .9, y + size * .56)], mix(shade, light, .15 + .45 * rng.random())))
+			crowns.extend(tree_crowns(kind, x, top, height, shade, light))
 
 	for points, color in crowns:
 		draw.polygon(points, fill=(*color, 255))

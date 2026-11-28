@@ -28,13 +28,24 @@ internal class LakeRainContacts {
 
 	fun draw(canvas: Canvas, width: Float, height: Float, params: SceneParams, timeSeconds: Float, ringsEnabled: Boolean) {
 		val precipitation = params.precipitation
-		if (precipitation?.kind != PrecipitationKind.RAIN || !width.isFinite() || !height.isFinite() || width <= 0f || height <= 0f || !timeSeconds.isFinite() || !params.precipitationScale.isFinite() || params.precipitationScale <= 0f) {
+		if (precipitation?.kind != PrecipitationKind.RAIN || !validViewport(width, height) || !timeSeconds.isFinite() || !validRainScale(params.precipitationScale)) {
 			return
 		}
 
 		val count = precipitationDropCount(precipitation, params.precipitationScale, 360f, 780f).coerceIn(0, CONTACT_COUNT)
 		val time = ((timeSeconds % CYCLE_SECONDS) + CYCLE_SECONDS) % CYCLE_SECONDS
 		paint.strokeWidth = (width / 1200f).coerceAtLeast(1f)
+		drawApproachDrops(canvas, width, height, time, count)
+		if (ringsEnabled) {
+			drawRings(canvas, width, height, time, count)
+		}
+	}
+
+	private fun validViewport(width: Float, height: Float) = width.isFinite() && height.isFinite() && width > 0f && height > 0f
+
+	private fun validRainScale(scale: Float) = scale.isFinite() && scale > 0f
+
+	private fun drawApproachDrops(canvas: Canvas, width: Float, height: Float, time: Float, count: Int) {
 		for (index in 0 until count) {
 			val until = (phases[index] - time + CYCLE_SECONDS) % CYCLE_SECONDS
 			if (until > 0f && until < APPROACH_SECONDS) {
@@ -45,11 +56,9 @@ internal class LakeRainContacts {
 				canvas.drawLine(x - width / 1200f, y - height / 90f, x, y, paint)
 			}
 		}
+	}
 
-		if (!ringsEnabled) {
-			return
-		}
-
+	private fun drawRings(canvas: Canvas, width: Float, height: Float, time: Float, count: Int) {
 		for (index in 0 until count) {
 			val age = (time - phases[index] + CYCLE_SECONDS) % CYCLE_SECONDS
 			if (age >= RING_SECONDS) {

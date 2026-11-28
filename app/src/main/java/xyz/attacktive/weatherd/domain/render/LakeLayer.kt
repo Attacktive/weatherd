@@ -108,31 +108,13 @@ internal class LakeLayer(private val resources: Resources) {
 	}
 
 	private fun drawGlints(canvas: Canvas, width: Float, waterTop: Float, waterHeight: Float, params: SceneParams, timeSeconds: Float, wind: Float) {
-		if (!params.sunVisible || params.dayPhase == DayPhase.NIGHT || params.precipitation != null || params.thunder || params.fogDensity > 0f) {
-			return
-		}
-
-		val sunX = params.sunHorizontalPosition
-		val sunY = celestialHeightFraction(params.dayPhase, params.celestialProgress)
-		if (sunX !in 0f..1f || sunY !in 0f..WATER_START) {
-			return
-		}
-
-		val visibility = sunVisibility(params.dayPhase, params.celestialProgress) * (1f - effectiveOpaqueCloudiness(params) / .7f).coerceIn(0f, 1f)
+		val visibility = glintVisibility(params)
 		if (visibility <= 0f) {
 			return
 		}
 
-		glintPaint.color = when (params.sunColorPreset) {
-			SunColorPreset.WHITE -> Color.rgb(255, 255, 248)
-			SunColorPreset.NATURAL -> if (params.dayPhase == DayPhase.DAY) {
-				Color.rgb(255, 248, 218)
-			} else {
-				Color.rgb(255, 218, 188)
-			}
-			SunColorPreset.GOLDEN -> Color.rgb(255, 228, 150)
-			SunColorPreset.ORANGE -> Color.rgb(255, 231, 202)
-		}
+		val sunX = params.sunHorizontalPosition
+		glintPaint.color = glintColor(params)
 
 		for (i in 0 until GLINT_COUNT) {
 			val depth = ((i * 37) % GLINT_COUNT + .5f) / GLINT_COUNT
@@ -148,6 +130,30 @@ internal class LakeLayer(private val resources: Resources) {
 			val y = waterTop + waterHeight * (.05f + .9f * depth)
 			canvas.drawLine(x - halfWidth, y, x + halfWidth, y, glintPaint)
 		}
+	}
+
+	private fun glintVisibility(params: SceneParams): Float {
+		if (!params.sunVisible || params.dayPhase == DayPhase.NIGHT || params.precipitation != null || params.thunder || params.fogDensity > 0f) {
+			return 0f
+		}
+
+		val sunY = celestialHeightFraction(params.dayPhase, params.celestialProgress)
+		if (params.sunHorizontalPosition !in 0f..1f || sunY !in 0f..WATER_START) {
+			return 0f
+		}
+
+		return sunVisibility(params.dayPhase, params.celestialProgress) * (1f - effectiveOpaqueCloudiness(params) / .7f).coerceIn(0f, 1f)
+	}
+
+	private fun glintColor(params: SceneParams) = when (params.sunColorPreset) {
+		SunColorPreset.WHITE -> Color.rgb(255, 255, 248)
+		SunColorPreset.NATURAL -> if (params.dayPhase == DayPhase.DAY) {
+			Color.rgb(255, 248, 218)
+		} else {
+			Color.rgb(255, 218, 188)
+		}
+		SunColorPreset.GOLDEN -> Color.rgb(255, 228, 150)
+		SunColorPreset.ORANGE -> Color.rgb(255, 231, 202)
 	}
 
 	private fun heightScale(waterHeight: Float) = (waterHeight / 500f).coerceIn(0f, 1f)

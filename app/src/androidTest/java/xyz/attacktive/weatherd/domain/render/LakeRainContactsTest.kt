@@ -118,18 +118,26 @@ class LakeRainContactsTest {
 						continue
 					}
 
-					for (dy in 1..30) {
-						for (dx in -4..4) {
-							if (x + dx in 0 until WIDTH && before.getPixel(x + dx, y - dy) != Color.TRANSPARENT) {
-								return
-							}
-						}
+					if (dropApproaches(before, x, y)) {
+						return
 					}
 				}
 			}
 		}
 
 		throw AssertionError("no new ring followed an approaching drop at the same position")
+	}
+
+	private fun dropApproaches(bitmap: Bitmap, x: Int, y: Int): Boolean {
+		for (dy in 1..30) {
+			for (dx in -4..4) {
+				if (x + dx in 0 until WIDTH && bitmap.getPixel(x + dx, y - dy) != Color.TRANSPARENT) {
+					return true
+				}
+			}
+		}
+
+		return false
 	}
 
 	private fun render(params: SceneParams, time: Float, ringsEnabled: Boolean): Bitmap {
