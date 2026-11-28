@@ -45,8 +45,8 @@ android {
 		applicationId = "xyz.attacktive.weatherd"
 		minSdk = 26
 		targetSdk = 37
-		versionCode = 161
-		versionName = "3.10.19"
+		versionCode = 162
+		versionName = "3.11.0"
 		testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 		testInstrumentationRunnerArguments["notClass"] = "xyz.attacktive.weatherd.data.provider.ProviderEvaluationCaptureTest,xyz.attacktive.weatherd.domain.render.LakeWallpaperCaptureSetup"
 	}
